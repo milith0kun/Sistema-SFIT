@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: var(--font-syne);
+  --font-sans: var(--font-plus-jakarta);
+
+  --color-primary: #1a56db;
+  --color-primary-light: #3f83f8;
+  --color-primary-dark: #1e40af;
+  --color-navy: #0b1d3a;
+  --color-navy-mid: #132340;
+  --color-navy-light: #1e3a5f;
+
+  --color-apto: #059669;
+  --color-riesgo: #d97706;
+  --color-no-apto: #dc2626;
+
+  --color-surface: #ffffff;
+  --color-surface-alt: #f8fafc;
+  --color-border: #e2e8f0;
+
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #64748b;
+  --color-text-muted: #94a3b8;
+
+  --color-dark-bg: #0f172a;
+  --color-dark-surface: #1e293b;
+  --color-dark-border: #334155;
+  --color-dark-text: #f8fafc;
+  --color-dark-text-secondary: #94a3b8;
+}
+
+:root { --bg: #ffffff; --fg: #0f172a; }
+.dark  { --bg: #0f172a; --fg: #f8fafc; }
+
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-plus-jakarta), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.animate-fade-up        { animation: fadeUp 0.5s ease forwards; }
+.animate-fade-in        { animation: fadeIn 0.4s ease forwards; }
+.animate-slide-in-right { animation: slideInRight 0.45s ease forwards; }
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+
+.animate-fade-up,
+.animate-slide-in-right { opacity: 0; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }

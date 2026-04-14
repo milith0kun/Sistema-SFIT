@@ -1,0 +1,69 @@
+# =============================================
+# SFIT — .gitignore principal
+# =============================================
+
+# ----- Dependencias -----
+node_modules/
+.pnp
+.pnp.js
+
+# ----- Build -----
+.next/
+out/
+build/
+dist/
+
+# ----- Flutter -----
+sfit-app/.dart_tool/
+sfit-app/.packages
+sfit-app/build/
+sfit-app/.flutter-plugins
+sfit-app/.flutter-plugins-dependencies
+sfit-app/android/.gradle/
+sfit-app/android/app/debug/
+sfit-app/android/app/profile/
+sfit-app/android/app/release/
+sfit-app/ios/Pods/
+sfit-app/ios/.symlinks/
+sfit-app/ios/Flutter/Flutter.framework/
+sfit-app/ios/Flutter/Flutter.podspec
+*.apk
+*.aab
+*.ipa
+
+# ----- Entorno -----
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ----- IDE -----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ----- OS -----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ----- Debug -----
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ----- Testing -----
+coverage/
+*.lcov
+
+# ----- TypeScript -----
+*.tsbuildinfo
+next-env.d.ts
+
+# ----- Misc -----
+*.pem
+.vercel
