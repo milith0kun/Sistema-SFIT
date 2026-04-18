@@ -116,7 +116,7 @@ export default function RegisterPage() {
         >
           Crear cuenta
         </h2>
-        <p className="mt-1.5 text-sm text-[#71717A] animate-fade-up delay-100">
+        <p className="mt-2.5 text-[15px] text-[#52525b] leading-relaxed animate-fade-up delay-100">
           {step === "datos" ? "Paso 1 de 2 — Datos personales" : "Paso 2 de 2 — Rol solicitado"}
         </p>
         {/* Progress bar */}
@@ -144,7 +144,7 @@ export default function RegisterPage() {
       {step === "datos" && (
         <div className="space-y-4">
           <div className="animate-fade-up delay-100">
-            <label htmlFor="name" className="block text-[14px] font-semibold text-[#18181b] mb-1.5">
+            <label htmlFor="name" className="block text-[15px] font-semibold text-[#09090b] mb-1.5">
               Nombre completo
             </label>
             <input
@@ -153,11 +153,11 @@ export default function RegisterPage() {
               placeholder="Juan Pérez García"
               className={fc("name")}
             />
-            {fieldErrors.name && <p className="mt-1 text-[12px] text-[#DC2626]">{fieldErrors.name}</p>}
+            {fieldErrors.name && <p className="mt-1.5 text-[13px] text-[#DC2626]">{fieldErrors.name}</p>}
           </div>
 
           <div className="animate-fade-up delay-200">
-            <label htmlFor="email" className="block text-[14px] font-semibold text-[#18181b] mb-1.5">
+            <label htmlFor="email" className="block text-[15px] font-semibold text-[#09090b] mb-1.5">
               Correo electrónico
             </label>
             <input
@@ -166,11 +166,11 @@ export default function RegisterPage() {
               placeholder="nombre@correo.com"
               className={fc("email")}
             />
-            {fieldErrors.email && <p className="mt-1 text-[12px] text-[#DC2626]">{fieldErrors.email}</p>}
+            {fieldErrors.email && <p className="mt-1.5 text-[13px] text-[#DC2626]">{fieldErrors.email}</p>}
           </div>
 
           <div className="animate-fade-up delay-300">
-            <label htmlFor="password" className="block text-[14px] font-semibold text-[#18181b] mb-1.5">
+            <label htmlFor="password" className="block text-[15px] font-semibold text-[#09090b] mb-1.5">
               Contraseña
             </label>
             <div className="relative">
@@ -191,7 +191,7 @@ export default function RegisterPage() {
                 {showPassword ? <EyeOff /> : <Eye />}
               </button>
             </div>
-            {fieldErrors.password && <p className="mt-1 text-[12px] text-[#DC2626]">{fieldErrors.password}</p>}
+            {fieldErrors.password && <p className="mt-1.5 text-[13px] text-[#DC2626]">{fieldErrors.password}</p>}
           </div>
 
           <div className="animate-fade-up delay-400 pt-1">

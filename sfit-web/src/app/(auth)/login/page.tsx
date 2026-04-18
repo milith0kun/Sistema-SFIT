@@ -60,18 +60,20 @@ export default function LoginPage() {
       {/* Header */}
       <div className="mb-8">
         <p
-          className="text-[11px] font-semibold tracking-[0.22em] uppercase mb-3 animate-fade-up"
+          className="text-[11px] font-semibold tracking-[0.22em] uppercase mb-4 animate-fade-up"
           style={{ color: "#B8860B" }}
         >
           Acceso al sistema
         </p>
         <h2
-          className="font-black text-[#09090b] leading-tight animate-fade-up delay-50"
-          style={{ fontFamily: "var(--font-syne)", fontSize: "2rem" }}
+          className="font-extrabold text-[#09090b] leading-[1.1] animate-fade-up delay-50"
+          style={{ fontFamily: "var(--font-syne)", fontSize: "2.1rem" }}
         >
           Ingresar
         </h2>
-        <p className="mt-2 text-sm text-[#52525b] animate-fade-up delay-100">
+        <p
+          className="mt-2.5 text-[15px] text-[#52525b] leading-relaxed animate-fade-up delay-100"
+        >
           Credenciales institucionales requeridas
         </p>
       </div>
@@ -90,7 +92,7 @@ export default function LoginPage() {
       <form onSubmit={handleSubmit} noValidate>
         {/* Email */}
         <div className="mb-4 animate-fade-up delay-150">
-          <label htmlFor="email" className="block text-[14px] font-semibold text-[#18181b] mb-1.5">
+          <label htmlFor="email" className="block text-[15px] font-semibold text-[#09090b] mb-2">
             Correo electrónico
           </label>
           <input
@@ -103,19 +105,19 @@ export default function LoginPage() {
             className={`field${fieldErrors.email ? " field-error" : ""}`}
           />
           {fieldErrors.email && (
-            <p className="mt-1 text-[12px] text-[#DC2626]">{fieldErrors.email}</p>
+            <p className="mt-1.5 text-[13px] text-[#DC2626]">{fieldErrors.email}</p>
           )}
         </div>
 
         {/* Password */}
         <div className="mb-5 animate-fade-up delay-200">
           <div className="flex items-center justify-between mb-1.5">
-            <label htmlFor="password" className="text-[14px] font-semibold text-[#18181b]">
+            <label htmlFor="password" className="text-[15px] font-semibold text-[#09090b]">
               Contraseña
             </label>
             <Link
               href="/reset-password"
-              className="text-[12px] transition-colors"
+              className="text-[13px] transition-colors"
               style={{ color: "#B8860B" }}
               onMouseEnter={(e) => (e.currentTarget.style.color = "#926A09")}
               onMouseLeave={(e) => (e.currentTarget.style.color = "#B8860B")}
@@ -144,7 +146,7 @@ export default function LoginPage() {
             </button>
           </div>
           {fieldErrors.password && (
-            <p className="mt-1 text-[12px] text-[#DC2626]">{fieldErrors.password}</p>
+            <p className="mt-1.5 text-[13px] text-[#DC2626]">{fieldErrors.password}</p>
           )}
         </div>
 
@@ -174,7 +176,7 @@ export default function LoginPage() {
           <div className="w-full" style={{ height: "1px", background: "#E4E4E7" }} />
         </div>
         <div className="relative flex justify-center">
-          <span className="px-3 bg-[#fafafa] text-[12px] text-[#A1A1AA]">
+          <span className="px-3 bg-[#fafafa] text-[13px] text-[#A1A1AA]">
             o continúa con
           </span>
         </div>
@@ -195,7 +197,7 @@ export default function LoginPage() {
       </div>
 
       {/* Register link */}
-      <p className="mt-7 text-center text-[13px] text-[#71717A] animate-fade-up delay-500">
+      <p className="mt-7 text-center text-[14px] text-[#52525B] animate-fade-up delay-500">
         ¿No tienes cuenta?{" "}
         <Link
           href="/register"

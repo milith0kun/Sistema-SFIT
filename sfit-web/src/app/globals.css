@@ -60,9 +60,19 @@
 body {
   background-color: var(--bg);
   color: var(--fg);
-  font-family: var(--font-plus-jakarta), system-ui, sans-serif;
+  font-family: var(--font-plus-jakarta), "Plus Jakarta Sans", system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Headings — Syne para todos los h* */
+h1, h2, h3, h4 {
+  font-family: var(--font-syne), "Syne", system-ui, sans-serif;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
 }
 
 /* ── Keyframes ── */
@@ -111,25 +121,30 @@ body {
 /* ── Field ── */
 .field {
   width: 100%;
-  height: 44px;
-  padding: 0 14px;
+  height: 48px;
+  padding: 0 16px;
   border-radius: 8px;
   border: 1.5px solid var(--color-ink-2);
   background: #ffffff;
   color: var(--color-ink-9);
-  font-size: 14px;
-  font-family: var(--font-plus-jakarta), sans-serif;
+  font-size: 15px;
+  font-family: var(--font-plus-jakarta), "Plus Jakarta Sans", sans-serif;
+  font-weight: 400;
+  line-height: 1.5;
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.field::placeholder { color: var(--color-ink-4); }
+.field::placeholder {
+  color: var(--color-ink-4);
+  font-weight: 400;
+}
 .field:hover:not(:disabled) { border-color: var(--color-ink-3); }
 .field:focus {
   border-color: var(--color-ink-9);
-  box-shadow: 0 0 0 3px rgba(9, 9, 11, 0.06);
+  box-shadow: 0 0 0 3px rgba(9, 9, 11, 0.07);
 }
 .field-error              { border-color: #f87171 !important; }
-.field-error:focus        { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.06) !important; border-color: #ef4444 !important; }
+.field-error:focus        { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.07) !important; border-color: #ef4444 !important; }
 
 /* ── Primary CTA button ── */
 .btn-primary {
@@ -139,14 +154,14 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  height: 46px;
+  height: 50px;
   border-radius: 8px;
   background: var(--color-ink-9);
   color: #ffffff;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
-  font-family: var(--font-plus-jakarta), sans-serif;
-  letter-spacing: 0.01em;
+  font-family: var(--font-plus-jakarta), "Plus Jakarta Sans", sans-serif;
+  letter-spacing: 0.015em;
   cursor: pointer;
   border: none;
   transition: background 0.2s ease, box-shadow 0.2s ease;
@@ -177,14 +192,14 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 46px;
+  height: 50px;
   border-radius: 8px;
   border: 1.5px solid var(--color-ink-2);
   background: #ffffff;
   color: var(--color-ink-7);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
-  font-family: var(--font-plus-jakarta), sans-serif;
+  font-family: var(--font-plus-jakarta), "Plus Jakarta Sans", sans-serif;
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
   padding: 0 20px;
@@ -221,14 +236,14 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 46px;
+  height: 50px;
   border-radius: 8px;
   border: 1.5px solid rgba(255, 255, 255, 0.15);
   background: transparent;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 14px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 15px;
   font-weight: 500;
-  font-family: var(--font-plus-jakarta), sans-serif;
+  font-family: var(--font-plus-jakarta), "Plus Jakarta Sans", sans-serif;
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
   padding: 0 24px;

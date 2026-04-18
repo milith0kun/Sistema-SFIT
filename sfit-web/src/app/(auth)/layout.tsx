@@ -160,7 +160,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             SFIT
           </span>
         </div>
-        <div className="w-full max-w-[400px]">{children}</div>
+        <div className="w-full max-w-[440px]">{children}</div>
       </main>
     </div>
   );
