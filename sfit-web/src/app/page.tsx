@@ -173,23 +173,78 @@ export default function HomePage() {
           </p>
 
           {/* CTAs */}
-          <div className="flex items-center justify-center gap-3 mb-10 animate-fade-up delay-300">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10 animate-fade-up delay-300">
             <a
               href="/login"
-              className="btn-primary"
-              style={{ width: "auto", padding: "0 34px", height: "54px", fontSize: "1rem" }}
+              className="group relative inline-flex items-center justify-center gap-2 overflow-hidden"
+              style={{
+                width: "auto",
+                minWidth: "200px",
+                padding: "0 32px",
+                height: "58px",
+                fontSize: "1rem",
+                fontWeight: 600,
+                letterSpacing: "-0.005em",
+                borderRadius: "12px",
+                background: "linear-gradient(180deg, #D4A827 0%, #B8860B 100%)",
+                color: "#09090b",
+                border: "1px solid #E8D090",
+                boxShadow: "0 0 0 1px rgba(212,168,39,0.3), 0 10px 30px rgba(184,134,11,0.35)",
+                transition: "transform 0.15s ease, box-shadow 0.2s ease",
+                textDecoration: "none",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.boxShadow = "0 0 0 1px rgba(212,168,39,0.5), 0 14px 40px rgba(184,134,11,0.5)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 0 0 1px rgba(212,168,39,0.3), 0 10px 30px rgba(184,134,11,0.35)";
+              }}
             >
-              <span className="shine" aria-hidden />
               Iniciar sesión
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-hover:translate-x-0.5">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
             </a>
             <a
               href="/register"
-              className="btn-ghost"
-              style={{ height: "54px", fontSize: "1rem", padding: "0 34px" }}
+              className="inline-flex items-center justify-center gap-2"
+              style={{
+                height: "58px",
+                minWidth: "200px",
+                padding: "0 32px",
+                fontSize: "1rem",
+                fontWeight: 500,
+                letterSpacing: "-0.005em",
+                borderRadius: "12px",
+                background: "rgba(255,255,255,0.05)",
+                color: "#F4F4F5",
+                border: "1.5px solid rgba(255,255,255,0.22)",
+                textDecoration: "none",
+                transition: "background 0.15s, border-color 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.1)";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.4)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)";
+              }}
             >
               Solicitar acceso
             </a>
           </div>
+
+          {/* Hint de siguiente paso */}
+          <p className="mb-8 animate-fade-up delay-400" style={{
+            color: "rgba(255,255,255,0.5)",
+            fontSize: "0.8125rem",
+            fontWeight: 500,
+          }}>
+            ¿Primera vez? Solicita acceso y el administrador municipal te aprobará.
+          </p>
 
           {/* Chips */}
           <div className="flex items-center justify-center gap-2.5 flex-wrap animate-fade-up delay-400">
