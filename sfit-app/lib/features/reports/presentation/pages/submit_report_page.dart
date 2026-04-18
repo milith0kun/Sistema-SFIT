@@ -163,7 +163,7 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
               const SizedBox(height: 28),
 
               // ── Step 1: Buscar vehículo ─────────────────────────
-              _SectionLabel('Paso 1 — Buscar vehículo'),
+              const _SectionLabel('Paso 1 — Buscar vehículo'),
               const SizedBox(height: 10),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -235,14 +235,14 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
               // ── Step 2: Formulario (solo si hay vehículo) ───────
               if (_foundVehicle != null) ...[
                 const SizedBox(height: 28),
-                _SectionLabel('Paso 2 — Detalle del reporte'),
+                const _SectionLabel('Paso 2 — Detalle del reporte'),
                 const SizedBox(height: 10),
 
                 // Dropdown categoría
-                _FieldLabel('Categoría'),
+                const _FieldLabel('Categoría'),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
-                  value: _selectedCategory,
+                  initialValue: _selectedCategory,
                   items: kReportCategories
                       .map(
                         (cat) => DropdownMenuItem(
@@ -281,7 +281,7 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
                 const SizedBox(height: 18),
 
                 // Descripción
-                _FieldLabel('Descripción'),
+                const _FieldLabel('Descripción'),
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _descCtrl,

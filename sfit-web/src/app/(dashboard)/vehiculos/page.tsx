@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Car, Check, Route, Wrench, Search, Download, Plus, QrCode } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -120,7 +121,7 @@ export default function VehiculosPage() {
   return (
     <div>
       <PageHeader kicker="Operación · RF-06" title="Vehículos y QR" subtitle="Registro de unidades, generación de QR firmado con HMAC-SHA256 y verificación offline."
-        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><QrCode size={16} />Escanear QR</button><button style={btnInk}><Plus size={16} />Nuevo vehículo</button></div>} />
+        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><QrCode size={16} />Escanear QR</button><Link href="/vehiculos/nuevo"><button style={btnInk}><Plus size={16} />Nuevo vehículo</button></Link></div>} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, margin: "24px 0 18px" }}>
         {[

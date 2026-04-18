@@ -23,6 +23,7 @@ import {
   LogOut,
   ChevronDown,
   CalendarDays,
+  MessageSquareWarning,
 } from "lucide-react";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
 
@@ -68,7 +69,8 @@ const NAV: NavItem[] = [
   { href: "/flota",           label: "Flota del día",       icon: ClipboardList,  section: "OPERACIÓN",  roles: ["operador"] },
   { href: "/rutas",           label: "Rutas y zonas",       icon: Route,          section: "OPERACIÓN",  roles: ["admin_municipal","operador","fiscal"] },
   { href: "/viajes",          label: "Viajes",              icon: CalendarDays,   section: "OPERACIÓN",  roles: ["admin_municipal","operador","fiscal"] },
-  { href: "/inspecciones",    label: "Inspecciones",        icon: Shield,         section: "OPERACIÓN",  roles: ["admin_municipal","fiscal"] },
+  { href: "/inspecciones",    label: "Inspecciones",        icon: Shield,              section: "OPERACIÓN",  roles: ["admin_municipal","fiscal"] },
+  { href: "/apelaciones",     label: "Apelaciones",         icon: MessageSquareWarning, section: "OPERACIÓN",  roles: ["fiscal","admin_municipal","admin_provincial","super_admin"] },
 
   { href: "/reportes",        label: "Reportes ciudadanos", icon: Flag,           section: "CIUDADANÍA", roles: ["admin_municipal","fiscal"] },
   { href: "/sanciones",       label: "Sanciones",           icon: TriangleAlert,  section: "CIUDADANÍA", roles: ["admin_municipal","fiscal"] },
@@ -114,6 +116,7 @@ function titleFromPath(path: string | null): string {
     rutas: "Rutas y zonas",
     viajes: "Viajes",
     inspecciones: "Inspecciones",
+    apelaciones: "Apelaciones",
     reportes: "Reportes ciudadanos",
     sanciones: "Sanciones",
     estadisticas: "Estadísticas",

@@ -78,12 +78,14 @@ class _CitizenReportFormPageState
 
   @override
   Widget build(BuildContext context) {
-    if (_submitted) return _SuccessView(onNew: () => setState(() {
-      _submitted = false;
-      _selectedCategory = null;
-      _plateCtrl.clear();
-      _descCtrl.clear();
-    }));
+    if (_submitted) {
+      return _SuccessView(onNew: () => setState(() {
+        _submitted = false;
+        _selectedCategory = null;
+        _plateCtrl.clear();
+        _descCtrl.clear();
+      }));
+    }
 
     return SafeArea(
       child: SingleChildScrollView(

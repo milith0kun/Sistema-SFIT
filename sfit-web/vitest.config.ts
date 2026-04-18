@@ -11,6 +11,7 @@ export default defineConfig({
       JWT_REFRESH_SECRET: "test-refresh-secret-sfit-min32chars!",
       MONGODB_URI: "mongodb://localhost:27017/sfit_test",
       NODE_ENV: "test",
+      QR_HMAC_SECRET: "test-qr-secret-sfit-32chars!!!!!!",
     },
     coverage: {
       provider: "v8",

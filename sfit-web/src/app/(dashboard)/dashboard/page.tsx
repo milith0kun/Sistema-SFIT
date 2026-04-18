@@ -41,6 +41,29 @@ type GlobalStats = {
   reportsPending: number;
 };
 
+type OperadorStats = {
+  totalVehicles: number;
+  activeVehicles: number;
+  vehiclesEnRuta: number;
+  activeDrivers: number;
+};
+
+type FiscalStats = {
+  inspectionsThisMonth: number;
+  inspectionsPending: number;
+  reportsPending: number;
+  reportsNewThisMonth: number;
+};
+
+type ConductorStats = {
+  status: "apto" | "riesgo" | "no_apto";
+  continuousHours: number;
+  restHours: number;
+  reputationScore: number;
+  tripsToday: number;
+  currentVehicleId?: string;
+};
+
 /* ── Store sincronizado con localStorage para leer sfit_user sin setState en efecto ── */
 function subscribeUser(onChange: () => void): () => void {
   if (typeof window === "undefined") return () => {};
@@ -84,6 +107,9 @@ const ROLE_LABELS: Record<string, string> = {
 export default function DashboardPage() {
   const user = useSyncExternalStore(subscribeUser, getClientUser, getServerUser);
   const [stats, setStats] = useState<GlobalStats | null>(null);
+  const [operadorStats, setOperadorStats] = useState<OperadorStats | null>(null);
+  const [fiscalStats, setFiscalStats] = useState<FiscalStats | null>(null);
+  const [conductorStats, setConductorStats] = useState<ConductorStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -109,12 +135,81 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const loadOperador = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const headers = { Authorization: `Bearer ${token ?? ""}` };
+      const res = await fetch("/api/admin/stats/operador", { headers });
+      if (res.ok) {
+        const data: ApiResponse<OperadorStats> = await res.json();
+        if (data.success && data.data) setOperadorStats(data.data);
+        else if (data.error) setError(data.error);
+      } else if (res.status !== 404) {
+        setError("No se pudieron cargar las estadísticas de flota.");
+      }
+    } catch {
+      setError("Error de conexión.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadFiscal = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const headers = { Authorization: `Bearer ${token ?? ""}` };
+      const res = await fetch("/api/admin/stats/fiscal", { headers });
+      if (res.ok) {
+        const data: ApiResponse<FiscalStats> = await res.json();
+        if (data.success && data.data) setFiscalStats(data.data);
+        else if (data.error) setError(data.error);
+      } else if (res.status !== 404) {
+        setError("No se pudieron cargar las estadísticas de inspecciones.");
+      }
+    } catch {
+      setError("Error de conexión.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadConductor = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const headers = { Authorization: `Bearer ${token ?? ""}` };
+      const res = await fetch("/api/admin/stats/conductor", { headers });
+      if (res.ok) {
+        const data: ApiResponse<ConductorStats> = await res.json();
+        if (data.success && data.data) setConductorStats(data.data);
+        // 404 = conductor sin registro en la BD, no es un error crítico
+      } else if (res.status !== 404 && res.status !== 403) {
+        setError("No se pudieron cargar los datos del conductor.");
+      }
+    } catch {
+      setError("Error de conexión.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!user) return;
     if (user.role === "super_admin" || user.role === "admin_provincial" || user.role === "admin_municipal") {
       void loadSuperAdmin();
+    } else if (user.role === "operador") {
+      void loadOperador();
+    } else if (user.role === "fiscal") {
+      void loadFiscal();
+    } else if (user.role === "conductor") {
+      void loadConductor();
     }
-  }, [user, loadSuperAdmin]);
+  }, [user, loadSuperAdmin, loadOperador, loadFiscal, loadConductor]);
 
   if (!user) return null;
 
@@ -129,7 +224,7 @@ export default function DashboardPage() {
     return "Buenas noches";
   })();
 
-  const heroPills = buildHeroPills(role, stats);
+  const heroPills = buildHeroPills(role, stats, operadorStats, fiscalStats, conductorStats);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -161,7 +256,14 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-up delay-100">
         {/* Columna principal */}
         <div className="lg:col-span-8 space-y-6 min-w-0">
-          <PrimarySection role={role} stats={stats} loading={loading} />
+          <PrimarySection
+            role={role}
+            stats={stats}
+            operadorStats={operadorStats}
+            fiscalStats={fiscalStats}
+            conductorStats={conductorStats}
+            loading={loading}
+          />
         </div>
 
         {/* Columna lateral */}
@@ -180,13 +282,19 @@ export default function DashboardPage() {
 function PrimarySection({
   role,
   stats,
+  operadorStats,
+  fiscalStats,
+  conductorStats,
   loading,
 }: {
   role: string;
   stats: GlobalStats | null;
+  operadorStats: OperadorStats | null;
+  fiscalStats: FiscalStats | null;
+  conductorStats: ConductorStats | null;
   loading: boolean;
 }) {
-  const items = buildKpiItemsFor(role, stats, loading);
+  const items = buildKpiItemsFor(role, stats, operadorStats, fiscalStats, conductorStats, loading);
   const hero = buildHeroActionFor(role);
   return (
     <>
@@ -265,8 +373,22 @@ function buildHeroActionFor(role: string): HeroActionDef | null {
   }
 }
 
-function buildKpiItemsFor(role: string, stats: GlobalStats | null, loading: boolean): KPIItem[] {
+const FATIGUE_LABELS: Record<string, string> = {
+  apto: "Apto",
+  riesgo: "Riesgo",
+  no_apto: "No apto",
+};
+
+function buildKpiItemsFor(
+  role: string,
+  stats: GlobalStats | null,
+  operadorStats: OperadorStats | null,
+  fiscalStats: FiscalStats | null,
+  conductorStats: ConductorStats | null,
+  loading: boolean,
+): KPIItem[] {
   const val = (n: number | undefined) => (typeof n === "number" ? n : loading ? "…" : 0);
+
   if (role === "super_admin") {
     return [
       { label: "PROVINCIAS", value: val(stats?.provincesCount), subtitle: "registradas", accent: "#B8860B", icon: MapPin },
@@ -292,19 +414,102 @@ function buildKpiItemsFor(role: string, stats: GlobalStats | null, loading: bool
     ];
   }
   if (role === "operador") {
+    const ov = (n: number | undefined) => (typeof n === "number" ? n : loading ? "…" : "—");
     return [
-      { label: "VEHÍCULOS", value: "—", subtitle: "activos hoy", accent: "#B8860B", icon: Car },
-      { label: "CONDUCTORES", value: "—", subtitle: "aptos", accent: "#15803d", icon: Users },
-      { label: "RUTAS", value: "—", subtitle: "asignadas", accent: "#0A1628", icon: Route },
-      { label: "VIAJES", value: "—", subtitle: "del día", accent: "#B45309", icon: CalendarDays },
+      {
+        label: "VEHÍCULOS",
+        value: ov(operadorStats?.totalVehicles),
+        subtitle: operadorStats ? `${operadorStats.activeVehicles} activos` : "de la municipalidad",
+        accent: "#B8860B",
+        icon: Car,
+      },
+      {
+        label: "EN RUTA",
+        value: ov(operadorStats?.vehiclesEnRuta),
+        subtitle: "vehículos en ruta",
+        accent: "#0A1628",
+        icon: Route,
+      },
+      {
+        label: "CONDUCTORES",
+        value: ov(operadorStats?.activeDrivers),
+        subtitle: "aptos hoy",
+        accent: "#15803d",
+        icon: Users,
+      },
+      {
+        label: "FLOTA ACTIVA",
+        value: ov(operadorStats?.activeVehicles),
+        subtitle: "disponibles + en ruta",
+        accent: "#B45309",
+        icon: CalendarDays,
+      },
     ];
   }
   if (role === "fiscal") {
+    const fv = (n: number | undefined) => (typeof n === "number" ? n : loading ? "…" : "—");
     return [
-      { label: "INSPECCIONES", value: "—", subtitle: "del día", accent: "#15803d", icon: Shield },
-      { label: "VEHÍCULOS", value: "—", subtitle: "escaneados", accent: "#B8860B", icon: Car },
-      { label: "REPORTES", value: "—", subtitle: "ciudadanos", accent: "#B45309", icon: Flag },
-      { label: "SANCIONES", value: "—", subtitle: "registradas", accent: "#b91c1c", icon: TriangleAlert },
+      {
+        label: "INSPECCIONES",
+        value: fv(fiscalStats?.inspectionsThisMonth),
+        subtitle: "este mes",
+        accent: "#15803d",
+        icon: Shield,
+      },
+      {
+        label: "PENDIENTES",
+        value: fv(fiscalStats?.inspectionsPending),
+        subtitle: "con observaciones",
+        accent: "#B8860B",
+        icon: Car,
+      },
+      {
+        label: "REPORTES",
+        value: fv(fiscalStats?.reportsPending),
+        subtitle: "ciudadanos activos",
+        accent: "#B45309",
+        icon: Flag,
+      },
+      {
+        label: "NUEVOS",
+        value: fv(fiscalStats?.reportsNewThisMonth),
+        subtitle: "reportes este mes",
+        accent: "#b91c1c",
+        icon: TriangleAlert,
+      },
+    ];
+  }
+  if (role === "conductor") {
+    const cv = (n: number | undefined) => (typeof n === "number" ? n : loading ? "…" : "—");
+    return [
+      {
+        label: "ESTADO",
+        value: conductorStats ? (FATIGUE_LABELS[conductorStats.status] ?? conductorStats.status) : loading ? "…" : "—",
+        subtitle: conductorStats ? `${conductorStats.continuousHours}h continuas` : "fatiga",
+        accent: conductorStats?.status === "apto" ? "#15803d" : conductorStats?.status === "riesgo" ? "#B45309" : "#b91c1c",
+        icon: Shield,
+      },
+      {
+        label: "DESCANSO",
+        value: conductorStats ? `${conductorStats.restHours}h` : loading ? "…" : "—",
+        subtitle: "horas de descanso",
+        accent: "#0A1628",
+        icon: CalendarDays,
+      },
+      {
+        label: "VIAJES HOY",
+        value: cv(conductorStats?.tripsToday),
+        subtitle: "realizados hoy",
+        accent: "#B8860B",
+        icon: Route,
+      },
+      {
+        label: "REPUTACIÓN",
+        value: cv(conductorStats?.reputationScore),
+        subtitle: "puntos",
+        accent: "#B8860B",
+        icon: ChartColumn,
+      },
     ];
   }
   // fallback
@@ -314,26 +519,52 @@ function buildKpiItemsFor(role: string, stats: GlobalStats | null, loading: bool
   ];
 }
 
-function buildHeroPills(role: string, stats: GlobalStats | null) {
-  if (!stats) return undefined;
-  if (role === "super_admin") {
+function buildHeroPills(
+  role: string,
+  stats: GlobalStats | null,
+  operadorStats: OperadorStats | null,
+  fiscalStats: FiscalStats | null,
+  conductorStats: ConductorStats | null,
+) {
+  if (role === "super_admin" && stats) {
     return [
       { label: "Provincias", value: stats.provincesCount },
       { label: "Municipios", value: stats.activeMunicipalities },
       { label: "Pendientes", value: stats.usersPendingApproval, warn: stats.usersPendingApproval > 0 },
     ];
   }
-  if (role === "admin_provincial") {
+  if (role === "admin_provincial" && stats) {
     return [
       { label: "Municipios", value: stats.activeMunicipalities },
       { label: "Aprobaciones", value: stats.usersPendingApproval, warn: stats.usersPendingApproval > 0 },
       { label: "Sanciones", value: stats.sanctionsThisMonth },
     ];
   }
-  if (role === "admin_municipal") {
+  if (role === "admin_municipal" && stats) {
     return [
       { label: "Empresas", value: stats.companiesCount },
       { label: "Reportes", value: stats.reportsPending, warn: stats.reportsPending > 0 },
+    ];
+  }
+  if (role === "operador" && operadorStats) {
+    return [
+      { label: "Vehículos", value: operadorStats.totalVehicles },
+      { label: "En ruta", value: operadorStats.vehiclesEnRuta, warn: operadorStats.vehiclesEnRuta === 0 },
+      { label: "Conductores aptos", value: operadorStats.activeDrivers },
+    ];
+  }
+  if (role === "fiscal" && fiscalStats) {
+    return [
+      { label: "Inspecciones", value: fiscalStats.inspectionsThisMonth },
+      { label: "Observadas", value: fiscalStats.inspectionsPending, warn: fiscalStats.inspectionsPending > 0 },
+      { label: "Reportes", value: fiscalStats.reportsPending, warn: fiscalStats.reportsPending > 0 },
+    ];
+  }
+  if (role === "conductor" && conductorStats) {
+    return [
+      { label: "Estado", value: FATIGUE_LABELS[conductorStats.status] ?? conductorStats.status, warn: conductorStats.status !== "apto" },
+      { label: "Horas continuas", value: conductorStats.continuousHours },
+      { label: "Viajes hoy", value: conductorStats.tripsToday },
     ];
   }
   return undefined;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Users, Check, Gauge, AlertTriangle, Search, Filter, Download, Plus, Phone, Car, Eye, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -89,7 +90,7 @@ export default function ConductoresPage() {
   return (
     <div>
       <PageHeader kicker="Operación · RF-05" title="Conductores" subtitle="Estado de fatiga en tiempo real, historial y habilitación calculada por FatigueEngine."
-        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Exportar CSV</button><button style={btnInk}><Plus size={16} />Nuevo conductor</button></div>} />
+        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Exportar CSV</button><Link href="/conductores/nuevo"><button style={btnInk}><Plus size={16} />Nuevo conductor</button></Link></div>} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, margin: "24px 0 18px" }}>
         {[
@@ -202,8 +203,8 @@ export default function ConductoresPage() {
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button style={{ ...btnOut, flex: 1, height: 32, fontSize: "0.8125rem" }}><Eye size={14} />Ver perfil</button>
-                <button style={{ ...btnInk, flex: 1, height: 32, fontSize: "0.8125rem" }}><Pencil size={14} />Editar</button>
+                <Link href={`/conductores/${sel.id}`} style={{ flex: 1 }}><button style={{ ...btnOut, width: "100%", height: 32, fontSize: "0.8125rem" }}><Eye size={14} />Ver perfil</button></Link>
+                <Link href={`/conductores/${sel.id}`} style={{ flex: 1 }}><button style={{ ...btnInk, width: "100%", height: 32, fontSize: "0.8125rem" }}><Pencil size={14} />Editar</button></Link>
               </div>
             </div>
           </div>

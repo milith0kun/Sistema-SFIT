@@ -186,13 +186,13 @@ class _HomePageState extends ConsumerState<HomePage> {
             iconFilled: Icons.local_shipping,
             page: FleetPage(),
           ),
-          const _Tab(
+          _Tab(
             label: 'Conductores',
             icon: Icons.groups_2_outlined,
             iconFilled: Icons.groups_2,
             page: ConductoresTabPage(),
           ),
-          const _Tab(
+          _Tab(
             label: 'Vehículos',
             icon: Icons.directions_car_outlined,
             iconFilled: Icons.directions_car,
@@ -206,19 +206,19 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ],
       'conductor' => const [
-          const _Tab(
+          _Tab(
             label: 'Mis rutas',
             icon: Icons.route_outlined,
             iconFilled: Icons.route,
             page: MyRoutesPage(),
           ),
-          const _Tab(
+          _Tab(
             label: 'Fatiga',
             icon: Icons.monitor_heart_outlined,
             iconFilled: Icons.monitor_heart,
             page: FatiguePage(),
           ),
-          const _Tab(
+          _Tab(
             label: 'Viajes',
             icon: Icons.timeline_outlined,
             iconFilled: Icons.timeline,

@@ -48,4 +48,38 @@ class TripsApiService {
         'observations': observations,
     });
   }
+
+  /// GET /conductor/fatiga — estado de fatiga del conductor autenticado (RF-14).
+  Future<FatigaStatus> getFatigaStatus() async {
+    final resp = await _dio.get('/conductor/fatiga');
+    final body = resp.data as Map<String, dynamic>;
+    if (body['success'] != true) {
+      throw Exception(body['error'] ?? 'Error al obtener estado de fatiga');
+    }
+    final data = body['data'] as Map<String, dynamic>;
+    return FatigaStatus.fromJson(data);
+  }
+}
+
+// ── Modelo de respuesta de fatiga ─────────────────────────────────────────────
+
+class FatigaStatus {
+  final double horasConduccion;
+  final double horasDescanso;
+  final String estado; // apto | precaucion | riesgo | no_apto
+  final String ultimaActualizacion;
+
+  const FatigaStatus({
+    required this.horasConduccion,
+    required this.horasDescanso,
+    required this.estado,
+    required this.ultimaActualizacion,
+  });
+
+  factory FatigaStatus.fromJson(Map<String, dynamic> json) => FatigaStatus(
+        horasConduccion: (json['horasConduccion'] as num).toDouble(),
+        horasDescanso: (json['horasDescanso'] as num).toDouble(),
+        estado: json['estado'] as String,
+        ultimaActualizacion: json['ultimaActualizacion'] as String,
+      );
 }

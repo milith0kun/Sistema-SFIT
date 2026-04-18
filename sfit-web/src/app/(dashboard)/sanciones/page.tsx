@@ -20,6 +20,8 @@ type Sanction = {
   appealNotes?: string;
   createdAt: string;
 };
+type VehicleOpt = { id: string; plate: string };
+type DriverOpt = { id: string; name: string };
 
 const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
 const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB"; const RIESGOBD = "#FCD34D";
@@ -72,6 +74,31 @@ const btnInk: React.CSSProperties = { display: "inline-flex", alignItems: "cente
 const btnOut: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontFamily: "inherit" };
 const btnSm: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px", borderRadius: 7, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: `1.5px solid ${INK2}`, background: "#fff", color: INK6 };
 
+const inputStyle: React.CSSProperties = {
+  width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
+  border: `1.5px solid ${INK2}`, fontSize: "0.875rem", outline: "none",
+  fontFamily: "inherit", boxSizing: "border-box", color: INK9, background: "#fff",
+};
+const labelStyle: React.CSSProperties = { fontSize: "0.75rem", fontWeight: 700, color: INK6, letterSpacing: "0.04em", display: "block", marginBottom: 6 };
+
+const FAULT_TYPES = [
+  "Exceso de velocidad",
+  "Falta de documentos (SOAT vencido)",
+  "Falta de revisión técnica",
+  "Vehículo en mal estado",
+  "Conductor sin licencia vigente",
+  "Incumplimiento de ruta autorizada",
+  "Sobrecarga de pasajeros",
+  "Conducción bajo influencia de alcohol",
+  "Incumplimiento de horario",
+  "Infracción al reglamento de tránsito",
+  "Otra infracción",
+];
+
+const UIT_OPTIONS = [
+  "0.1 UIT", "0.25 UIT", "0.5 UIT", "1 UIT", "1.5 UIT", "2 UIT", "3 UIT", "5 UIT",
+];
+
 export default function SancionesPage() {
   const router = useRouter();
   const [user, setUser] = useState<{ role: string } | null>(null);
@@ -80,6 +107,17 @@ export default function SancionesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sel, setSel] = useState<Sanction | null>(null);
+
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [vehicles, setVehicles] = useState<VehicleOpt[]>([]);
+  const [drivers, setDrivers] = useState<DriverOpt[]>([]);
+  const [form, setForm] = useState({
+    vehicleId: "", driverId: "", faultType: "", faultTypeCustom: "",
+    amountSoles: "", amountUIT: "",
+  });
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
@@ -108,6 +146,57 @@ export default function SancionesPage() {
 
   useEffect(() => { void load(); }, [load]);
 
+  const loadModalData = useCallback(async () => {
+    const token = localStorage.getItem("sfit_access_token");
+    const headers = { Authorization: `Bearer ${token ?? ""}` };
+    const [vRes, dRes] = await Promise.all([
+      fetch("/api/vehiculos?limit=100", { headers }),
+      fetch("/api/conductores?limit=100", { headers }),
+    ]);
+    const [vData, dData] = await Promise.all([vRes.json(), dRes.json()]);
+    if (vData.success) setVehicles((vData.data.items ?? []).map((v: { id: string; plate: string }) => ({ id: v.id, plate: v.plate })));
+    if (dData.success) setDrivers((dData.data.items ?? []).map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })));
+  }, []);
+
+  const openModal = () => {
+    setForm({ vehicleId: "", driverId: "", faultType: "", faultTypeCustom: "", amountSoles: "", amountUIT: "" });
+    setFormError(null);
+    setShowModal(true);
+    void loadModalData();
+  };
+
+  const handleSubmit = async () => {
+    const faultTypeValue = form.faultType === "Otra infracción" ? form.faultTypeCustom.trim() : form.faultType;
+    if (!form.vehicleId) { setFormError("Selecciona un vehículo"); return; }
+    if (!faultTypeValue) { setFormError("Ingresa el tipo de infracción"); return; }
+    const amountSoles = parseFloat(form.amountSoles);
+    if (isNaN(amountSoles) || amountSoles < 0) { setFormError("Monto inválido"); return; }
+    if (!form.amountUIT) { setFormError("Selecciona el monto en UIT"); return; }
+
+    setSubmitting(true); setFormError(null);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const body: Record<string, unknown> = {
+        vehicleId: form.vehicleId,
+        faultType: faultTypeValue,
+        amountSoles,
+        amountUIT: form.amountUIT,
+      };
+      if (form.driverId) body.driverId = form.driverId;
+
+      const res = await fetch("/api/sanciones", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) { setFormError(data.error ?? "Error al crear sanción"); return; }
+      setShowModal(false);
+      void load();
+    } catch { setFormError("Error de conexión"); }
+    finally { setSubmitting(false); }
+  };
+
   const updateStatus = async (id: string, status: SanctionStatus) => {
     const token = localStorage.getItem("sfit_access_token");
     await fetch(`/api/sanciones/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` }, body: JSON.stringify({ status }) });
@@ -125,10 +214,15 @@ export default function SancionesPage() {
   const notifIcon = (ch: string) => ch === "email" ? <Mail size={14} /> : ch === "whatsapp" ? <Phone size={14} /> : <Bell size={14} />;
   const notifLabel = (ch: string) => ch === "email" ? "Correo a empresa" : ch === "whatsapp" ? "WhatsApp al operador" : "Push al conductor";
 
+  const canCreate = ["admin_municipal", "fiscal", "super_admin"].includes(user.role);
+
   return (
     <div>
       <PageHeader kicker="Ciudadanía · RF-13" title="Sanciones" subtitle="Emisión, notificación y flujo de apelación. El cobro es externo al sistema."
-        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Exportar CSV</button><button style={btnInk}><Plus size={16} />Emitir sanción</button></div>} />
+        action={<div style={{ display: "flex", gap: 8 }}>
+          <button style={btnOut}><Download size={16} />Exportar CSV</button>
+          {canCreate && <button style={btnInk} onClick={openModal}><Plus size={16} />Emitir sanción</button>}
+        </div>} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, margin: "24px 0 18px" }}>
         {[
@@ -247,6 +341,99 @@ export default function SancionesPage() {
           <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", color: INK5, padding: 40 }}>Selecciona una sanción</div>
         )}
       </div>
+
+      {/* Modal: Emitir sanción */}
+      {showModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(9,9,11,.55)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => !submitting && setShowModal(false)}>
+          <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, width: 540, maxWidth: "100%", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 24px", borderBottom: `1px solid ${INK2}` }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "1rem", color: INK9 }}>Emitir nueva sanción</div>
+                <div style={{ fontSize: "0.8125rem", color: INK5, marginTop: 2 }}>Los campos marcados con * son obligatorios</div>
+              </div>
+              <button onClick={() => !submitting && setShowModal(false)} style={{ width: 32, height: 32, borderRadius: 7, border: `1px solid ${INK2}`, background: "#fff", color: INK6, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><X size={14} /></button>
+            </div>
+
+            <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 18 }}>
+              {/* Vehículo */}
+              <div>
+                <label style={labelStyle}>VEHÍCULO *</label>
+                <select value={form.vehicleId} onChange={e => setForm(f => ({ ...f, vehicleId: e.target.value }))}
+                  style={{ ...inputStyle, appearance: "auto" }}>
+                  <option value="">Selecciona un vehículo…</option>
+                  {vehicles.map(v => <option key={v.id} value={v.id}>{v.plate}</option>)}
+                </select>
+                {vehicles.length === 0 && <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 4 }}>Cargando vehículos…</div>}
+              </div>
+
+              {/* Conductor */}
+              <div>
+                <label style={labelStyle}>CONDUCTOR (opcional)</label>
+                <select value={form.driverId} onChange={e => setForm(f => ({ ...f, driverId: e.target.value }))}
+                  style={{ ...inputStyle, appearance: "auto" }}>
+                  <option value="">Sin conductor asignado</option>
+                  {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+
+              {/* Tipo de infracción */}
+              <div>
+                <label style={labelStyle}>TIPO DE INFRACCIÓN *</label>
+                <select value={form.faultType} onChange={e => setForm(f => ({ ...f, faultType: e.target.value, faultTypeCustom: "" }))}
+                  style={{ ...inputStyle, appearance: "auto" }}>
+                  <option value="">Selecciona un tipo…</option>
+                  {FAULT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                {form.faultType === "Otra infracción" && (
+                  <input
+                    value={form.faultTypeCustom}
+                    onChange={e => setForm(f => ({ ...f, faultTypeCustom: e.target.value }))}
+                    placeholder="Describe la infracción…"
+                    style={{ ...inputStyle, marginTop: 8 }}
+                  />
+                )}
+              </div>
+
+              {/* Montos */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>MONTO EN SOLES (S/) *</label>
+                  <input
+                    type="number" min="0" step="0.01"
+                    value={form.amountSoles}
+                    onChange={e => setForm(f => ({ ...f, amountSoles: e.target.value }))}
+                    placeholder="0.00"
+                    style={inputStyle}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>EQUIVALENCIA UIT *</label>
+                  <select value={form.amountUIT} onChange={e => setForm(f => ({ ...f, amountUIT: e.target.value }))}
+                    style={{ ...inputStyle, appearance: "auto" }}>
+                    <option value="">Selecciona…</option>
+                    {UIT_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Error */}
+              {formError && (
+                <div style={{ padding: "10px 14px", background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 8, color: NO, fontSize: "0.875rem", display: "flex", gap: 8, alignItems: "center" }}>
+                  <AlertTriangle size={15} />{formError}
+                </div>
+              )}
+
+              {/* Acciones */}
+              <div style={{ display: "flex", gap: 8, paddingTop: 4 }}>
+                <button style={{ ...btnOut, flex: 1 }} onClick={() => !submitting && setShowModal(false)} disabled={submitting}>Cancelar</button>
+                <button style={{ ...btnInk, flex: 1, opacity: submitting ? 0.6 : 1, cursor: submitting ? "not-allowed" : "pointer" }} onClick={handleSubmit} disabled={submitting}>
+                  {submitting ? "Emitiendo…" : <><AlertTriangle size={15} />Emitir sanción</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

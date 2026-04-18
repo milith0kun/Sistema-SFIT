@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Download, Plus, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -80,7 +81,7 @@ export default function RutasPage() {
   return (
     <div>
       <PageHeader kicker="Operación · RF-09" title="Rutas y zonas" subtitle="Rutas fijas para transporte público y polígonos de operación para vehículos municipales."
-        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Exportar</button><button style={btnInk}><Plus size={16} />Nueva ruta</button></div>} />
+        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Exportar</button><Link href="/rutas/nueva"><button style={btnInk}><Plus size={16} />Nueva ruta</button></Link></div>} />
 
       <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${INK2}`, marginBottom: 18, marginTop: 24 }}>
         {[["ruta", "Rutas fijas", rutas.length], ["zona", "Zonas de operación", zonas.length]].map(([k, l, c]) => (
