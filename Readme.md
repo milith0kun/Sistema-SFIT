@@ -1,5 +1,5 @@
 # SFIT — Sistema de Fiscalización Inteligente de Transporte
-## Captura de Requerimientos del Sistema — v1.2
+## Captura de Requerimientos del Sistema — v1.3
 
 **Stack:** Next.js 15 + Flutter + MongoDB Atlas  
 **Fecha:** Abril 2026  
@@ -10,14 +10,15 @@
 ## Contenido
 
 1. [Descripción general](#1-descripción-general)
-2. [Stack tecnológico](#2-stack-tecnológico)
-3. [Jerarquía geográfica](#3-jerarquía-geográfica)
-4. [Tipos de vehículos y reportes](#4-tipos-de-vehículos-y-reportes)
-5. [Roles y actores](#5-roles-y-actores)
-6. [Módulos del sistema](#6-módulos-del-sistema)
-7. [Requerimientos funcionales](#7-requerimientos-funcionales)
-8. [Requerimientos no funcionales](#8-requerimientos-no-funcionales)
-9. [Restricciones](#9-restricciones)
+2. [Estructura de repositorios](#2-estructura-de-repositorios)
+3. [Stack tecnológico](#3-stack-tecnológico)
+4. [Jerarquía geográfica](#4-jerarquía-geográfica)
+5. [Tipos de vehículos y reportes](#5-tipos-de-vehículos-y-reportes)
+6. [Roles y actores](#6-roles-y-actores)
+7. [Módulos del sistema](#7-módulos-del-sistema)
+8. [Requerimientos funcionales](#8-requerimientos-funcionales)
+9. [Requerimientos no funcionales](#9-requerimientos-no-funcionales)
+10. [Restricciones](#10-restricciones)
 
 ---
 
@@ -53,7 +54,102 @@ El Operador de Empresa tiene un módulo de gestión de flota propio donde regist
 
 ---
 
-## 2. Stack tecnológico
+## 2. Estructura de repositorios
+
+El proyecto se divide en dos repositorios independientes. Cada uno tiene su propio ciclo de desarrollo, dependencias y despliegue. Comparten la misma base de datos en MongoDB Atlas y se comunican a través de la misma API, pero no existe código compartido directo entre ellos: los tipos comunes se definen por separado en cada proyecto.
+
+```
+sfit-web/                         Panel administrativo web
+├── app/                          App Router de Next.js 15
+│   ├── (auth)/                   Rutas de autenticación (login, registro)
+│   ├── (dashboard)/              Rutas protegidas del panel
+│   │   ├── super-admin/          Vistas exclusivas del Super Admin
+│   │   ├── provincia/            Vistas del Admin Provincial
+│   │   ├── municipalidad/        Vistas del Admin Municipal
+│   │   ├── operador/             Vistas del Operador de Empresa
+│   │   └── fiscal/               Vistas del Fiscal / Inspector
+│   └── public/                   Vista pública de vehículos (sin auth)
+├── api/                          API Routes de Next.js 15
+│   ├── auth/                     Endpoints de autenticación (NextAuth)
+│   ├── municipalidades/
+│   ├── empresas/
+│   ├── conductores/
+│   ├── vehiculos/
+│   ├── rutas/
+│   ├── viajes/
+│   ├── inspecciones/
+│   ├── reportes/
+│   ├── sanciones/
+│   ├── fatiga/
+│   ├── reputacion/
+│   ├── recompensas/
+│   ├── notificaciones/
+│   └── ia/                       Endpoints de extracción y análisis con IA
+├── components/                   Componentes React reutilizables
+├── lib/                          Utilidades, helpers y configuración
+├── hooks/                        Custom hooks (React Query, Zustand)
+├── types/                        Tipos TypeScript del proyecto web
+├── middleware.ts                  Protección de rutas y validación de tenant
+├── .env.example
+└── package.json
+
+sfit-app/                         Aplicación móvil Flutter
+├── lib/
+│   ├── main.dart
+│   ├── core/
+│   │   ├── config/               Configuración de entornos y constantes
+│   │   ├── network/              Cliente HTTP, interceptores JWT
+│   │   ├── storage/              Almacenamiento local (Hive / SharedPreferences)
+│   │   └── utils/                Utilidades generales
+│   ├── features/
+│   │   ├── auth/                 Login, registro, solicitud de rol
+│   │   ├── perfil/               Perfil del usuario (conductor, ciudadano)
+│   │   ├── qr/                   Escaneo y validación de QR (con soporte offline)
+│   │   ├── vista_publica/        Vista pública de vehículo y conductor
+│   │   ├── reportes/             Envío de reportes ciudadanos
+│   │   ├── inspecciones/         Formularios de inspección por tipo de vehículo
+│   │   ├── viajes/               Registro de viajes y operaciones (Operador)
+│   │   ├── flota/                Panel de flota del Operador
+│   │   ├── conductor/            Rutas asignadas, viajes y estado de fatiga
+│   │   ├── recompensas/          Panel de puntos, niveles, logros y canjes
+│   │   └── notificaciones/       Push notifications y bandeja
+│   └── shared/
+│       ├── widgets/              Widgets reutilizables
+│       ├── models/               Modelos de datos compartidos entre features
+│       └── services/             Servicios de API y lógica transversal
+├── assets/                       Imágenes, íconos y fuentes
+├── android/
+├── ios/
+├── pubspec.yaml
+└── .env.example
+```
+
+### Separación de responsabilidades entre proyectos
+
+| Aspecto | sfit-web | sfit-app |
+|---|---|---|
+| Framework | Next.js 15 + TypeScript | Flutter 3 + Dart |
+| Usuarios principales | Super Admin, Admin Provincial, Admin Municipal, Fiscal (web), Operador (web) | Fiscal (campo), Operador (campo), Conductor, Ciudadano |
+| Autenticación | NextAuth.js con Google OAuth y credenciales | JWT personalizado con refresh token |
+| Estado global | Zustand + React Query | Riverpod |
+| Comunicación en tiempo real | Socket.io client | Socket.io client (dart) |
+| Almacenamiento offline | No aplica | Hive para inspecciones y QR sin conexión |
+| Despliegue | Vercel | Google Play Store + App Store |
+| API que consume | Propia (Next.js API Routes) | sfit-web API Routes |
+| Variables de entorno | `.env.local` con Next.js | `.env` con flutter_dotenv |
+
+### Comunicación entre proyectos
+
+La app móvil (`sfit-app`) consume los mismos endpoints de la API que expone `sfit-web`. No existe un backend separado. Los endpoints de `sfit-web/api/` actúan como la capa de servidor única para ambos clientes.
+
+```
+sfit-app (Flutter)  ──HTTP/JWT──►  sfit-web/api/ (Next.js API Routes)  ──►  MongoDB Atlas
+sfit-web (Browser)  ──Session──►  sfit-web/api/ (Next.js API Routes)  ──►  MongoDB Atlas
+```
+
+---
+
+## 3. Stack tecnológico
 
 | Capa | Tecnología | Justificación |
 |---|---|---|

@@ -29,10 +29,10 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       const errors: Record<string, string[]> = {};
-      parsed.error.errors.forEach((e) => {
-        const key = e.path[0]?.toString() ?? "general";
-        errors[key] = [...(errors[key] ?? []), e.message];
-      });
+      for (const issue of parsed.error.issues) {
+        const key = issue.path[0]?.toString() ?? "general";
+        errors[key] = [...(errors[key] ?? []), issue.message];
+      }
       return apiValidationError(errors);
     }
 
