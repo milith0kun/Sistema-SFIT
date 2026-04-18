@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     await connectDB();
 
-    let user = await User.findOne({ email: payload.email });
+    let user = await User.findOne({ email: payload.email }).select("+password");
 
     const initialAdminEmail = process.env.INITIAL_ADMIN_EMAIL?.toLowerCase();
     const isInitialAdmin =
@@ -81,10 +81,10 @@ export async function POST(request: NextRequest) {
         user.providerId = payload.sub;
         mutated = true;
       }
-      // Si la cuenta se creó con correo pero nunca con Google, marcamos
-      // provider "google" para reflejar que ahora soporta ambos métodos.
-      // Mantenemos la contraseña intacta — el usuario puede seguir usando email/pwd.
-      if (user.provider !== "google") {
+      // Solo marcamos provider "google" si la cuenta NO tiene contraseña
+      // (fue creada exclusivamente con Google). Si tiene contraseña, mantenemos
+      // "credentials" para reflejar que soporta ambos métodos.
+      if (!user.password && user.provider !== "google") {
         user.provider = "google";
         mutated = true;
       }

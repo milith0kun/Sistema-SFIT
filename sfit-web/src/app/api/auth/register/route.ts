@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
+import { signAccessToken, signRefreshToken } from "@/lib/auth/jwt";
 import {
   apiResponse,
   apiError,
@@ -28,7 +29,8 @@ const RegisterSchema = z.object({
 
 /**
  * RF-01-02: Registro con correo y contraseña.
- * RF-01-03: Solicitud de rol al registrarse — queda en estado PENDIENTE.
+ * RF-01-03: Ciudadano → activo inmediatamente (igual que Google).
+ *           Roles operativos → pendiente hasta aprobación del admin municipal.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -54,13 +56,18 @@ export async function POST(request: NextRequest) {
       return apiError("El correo ya está registrado", 409);
     }
 
-    // bcrypt 12 rounds (RNF-04)
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Bootstrap: email listado en INITIAL_ADMIN_EMAIL → super_admin activo
+    // Bootstrap: email en INITIAL_ADMIN_EMAIL → super_admin activo
     const initialAdminEmail = process.env.INITIAL_ADMIN_EMAIL?.toLowerCase();
     const isInitialAdmin =
       !!initialAdminEmail && email.toLowerCase() === initialAdminEmail;
+
+    // Ciudadano no requiere aprobación (consistente con flujo Google)
+    const isCiudadano = requestedRole === ROLES.CIUDADANO;
+    const status = isInitialAdmin || isCiudadano
+      ? USER_STATUS.ACTIVO
+      : USER_STATUS.PENDIENTE;
 
     const user = await User.create({
       name,
@@ -70,12 +77,11 @@ export async function POST(request: NextRequest) {
       municipalityId: municipalityId ?? undefined,
       role: isInitialAdmin ? ROLES.SUPER_ADMIN : ROLES.CIUDADANO,
       requestedRole: isInitialAdmin ? undefined : requestedRole,
-      status: isInitialAdmin ? USER_STATUS.ACTIVO : USER_STATUS.PENDIENTE,
+      status,
     });
 
-    // RF-01-04 / RF-18: avisar a los admin_municipal de la muni objetivo
-    // que hay una nueva solicitud pendiente.
-    if (!isInitialAdmin && municipalityId) {
+    // Notificar al admin municipal solo si es rol operativo con municipalidad
+    if (!isInitialAdmin && !isCiudadano && municipalityId) {
       await createNotificationForRole(ROLES.ADMIN_MUNICIPAL, {
         municipalityId,
         title: "Nueva solicitud de registro",
@@ -87,7 +93,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // RNF-16: log del registro.
     await logAuditRaw(
       request,
       {
@@ -103,16 +108,43 @@ export async function POST(request: NextRequest) {
           email,
           requestedRole: isInitialAdmin ? null : requestedRole,
           isInitialAdmin,
+          autoApproved: isInitialAdmin || isCiudadano,
         },
       },
     );
 
+    // Generar tokens para auto-login inmediato (el cliente enruta según status)
+    const tokenPayload = {
+      userId: user._id.toString(),
+      role: user.role,
+      municipalityId: user.municipalityId?.toString(),
+      provinceId: user.provinceId?.toString(),
+    };
+    const accessToken = signAccessToken(tokenPayload);
+    const refreshToken = signRefreshToken(tokenPayload);
+    const refreshExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await User.findByIdAndUpdate(user._id, {
+      refreshToken,
+      refreshTokenExpiry: refreshExpiry,
+      lastLoginAt: new Date(),
+    });
+
     return apiResponse(
       {
-        message: isInitialAdmin
-          ? "Cuenta de super administrador creada. Ya puedes iniciar sesión."
-          : "Registro exitoso. Tu solicitud está pendiente de aprobación por el administrador.",
-        userId: user._id.toString(),
+        accessToken,
+        refreshToken,
+        expiresIn: 15 * 60,
+        user: {
+          id: user._id.toString(),
+          name: user.name,
+          email: user.email,
+          image: user.image,
+          role: user.role,
+          status: user.status,
+          municipalityId: user.municipalityId?.toString(),
+          provinceId: user.provinceId?.toString(),
+        },
       },
       201,
     );

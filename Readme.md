@@ -681,9 +681,9 @@ Los IDs de la provincia y municipalidad semilla se imprimen al final del script.
 | RF-03 | Tipos de vehículo + checklist + form inspección | `VehicleType` | ✅ | ✅ | ✅ |
 | RF-04 | Empresas de transporte | `Company` | ✅ | ✅ | ✅ |
 | RF-05 | Conductores | `Driver` | ✅ (CRUD + filtros aptitud) | ✅ | 🟨 (falta OCR auto-llenado) |
-| RF-06 | Vehículos + QR HMAC | `Vehicle` | ✅ (CRUD) | ✅ | 🟨 (falta generación/validación QR firmado) |
+| RF-06 | Vehículos + QR HMAC | `Vehicle` | ✅ (CRUD + `/[id]/qr` genera PNG + payload HMAC) | ✅ | ✅ |
 | RF-07 | Flota del día (entradas/salidas operador) | `FleetEntry` | ✅ (CRUD) | ✅ | 🟨 (validación pre-salida cableada; checklist sólo en UI) |
-| RF-08 | Vista pública vehículo/conductor (sin auth) | — | ❌ | — | ❌ |
+| RF-08 | Vista pública vehículo/conductor (sin auth) | — | ✅ (`/api/public/vehiculo`) | — | ✅ |
 | RF-09 | Rutas y zonas | `Route` | ✅ | ✅ | 🟨 (filtro por tipo pendiente en route handler) |
 | RF-10 | Viajes y operaciones | `Trip` | ✅ | ✅ | 🟨 (auto-cierre + filtros query) |
 | RF-11 | Inspecciones | `Inspection` | ✅ | ✅ | 🟨 (sugerencias IA + PDF acta) |
@@ -728,10 +728,10 @@ Los IDs de la provincia y municipalidad semilla se imprimen al final del script.
 | Auto-login con refresh token | ✅ | `AuthInterceptor` Dio |
 | Home con tabs por rol (fiscal / operador / conductor / ciudadano) | ✅ | Placeholders `SfitHeroCard` + KPI mock |
 | Roles web-only (super/provincial/municipal) → mensaje "usa la web" | ✅ | |
-| Escaneo QR + validación offline HMAC | ❌ | RF-06 / RF-08 |
+| Escaneo QR + validación offline HMAC | ✅ | RF-06 / RF-08 |
 | Inspecciones en campo (Fiscal) | ❌ | RF-11 |
 | Registro de viajes (Operador/Conductor) | ❌ | RF-10 |
-| Vista pública vehículo / conductor | ❌ | RF-08 |
+| Vista pública vehículo / conductor | ✅ | RF-08 |
 | Reportes ciudadanos | ❌ | RF-12 |
 | Panel de flota móvil (Operador) | ❌ | RF-07 |
 | Push notifications (Firebase) | 🟨 | Paquete integrado, falta wiring con backend + sistema de envío |

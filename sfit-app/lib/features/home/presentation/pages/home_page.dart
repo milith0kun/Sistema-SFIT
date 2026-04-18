@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/sfit_mark.dart';
@@ -142,44 +143,38 @@ class _HomePageState extends ConsumerState<HomePage> {
   //    SfitHeroCard + KPIStrip mock para mantener el canon visual.
   List<_Tab> _tabsForRole(String role) {
     return switch (role) {
-      'fiscal' => const [
-          _Tab(
+      'fiscal' => [
+          const _Tab(
             label: 'Inspecciones',
             icon: Icons.assignment_outlined,
             iconFilled: Icons.assignment,
             page: _RolePlaceholder(
-              kicker: 'Operación · RF-08',
+              kicker: 'Operación · RF-11',
               title: 'Inspecciones de campo',
               subtitle:
                   'Registra, valida y revisa actas de inspección generadas en ruta.',
-              rfCode: 'RF-08',
+              rfCode: 'RF-11',
             ),
           ),
           _Tab(
             label: 'QR',
             icon: Icons.qr_code_scanner_outlined,
             iconFilled: Icons.qr_code_scanner,
-            page: _RolePlaceholder(
-              kicker: 'Campo · RF-09',
-              title: 'Escáner QR',
-              subtitle:
-                  'Valida vehículos y conductores incluso sin conexión — HMAC local.',
-              rfCode: 'RF-09',
-            ),
+            page: _QrLaunchTab(),
           ),
-          _Tab(
+          const _Tab(
             label: 'Reportes',
             icon: Icons.flag_outlined,
             iconFilled: Icons.flag,
             page: _RolePlaceholder(
-              kicker: 'Ciudadanía · RF-13',
+              kicker: 'Ciudadanía · RF-12',
               title: 'Reportes ciudadanos',
               subtitle:
                   'Revisa y valida reportes enviados por usuarios del sistema público.',
-              rfCode: 'RF-13',
+              rfCode: 'RF-12',
             ),
           ),
-          _Tab(
+          const _Tab(
             label: 'Perfil',
             icon: Icons.person_outline,
             iconFilled: Icons.person,
@@ -283,20 +278,14 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
           ),
         ],
-      'ciudadano' => const [
+      'ciudadano' => [
           _Tab(
-            label: 'Inicio',
+            label: 'Consulta',
             icon: Icons.qr_code_2_outlined,
             iconFilled: Icons.qr_code_2,
-            page: _RolePlaceholder(
-              kicker: 'Público · RF-14',
-              title: 'Consulta vehicular',
-              subtitle:
-                  'Escanea el QR o busca por placa para ver el estado del vehículo.',
-              rfCode: 'RF-14',
-            ),
+            page: _QrLaunchTab(),
           ),
-          _Tab(
+          const _Tab(
             label: 'Reportar',
             icon: Icons.campaign_outlined,
             iconFilled: Icons.campaign,
@@ -307,7 +296,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               rfCode: 'RF-15',
             ),
           ),
-          _Tab(
+          const _Tab(
             label: 'Recompensas',
             icon: Icons.emoji_events_outlined,
             iconFilled: Icons.emoji_events,
@@ -318,7 +307,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               rfCode: 'RF-16',
             ),
           ),
-          _Tab(
+          const _Tab(
             label: 'Perfil',
             icon: Icons.person_outline,
             iconFilled: Icons.person,
@@ -540,4 +529,143 @@ class _BlankLoading extends StatelessWidget {
           child: CircularProgressIndicator(color: AppColors.gold),
         ),
       );
+}
+
+/// Tab de escáner QR — botón grande que lanza la página de escaneo
+/// y campo de búsqueda por placa como alternativa (RF-06, RF-08).
+class _QrLaunchTab extends StatefulWidget {
+  @override
+  State<_QrLaunchTab> createState() => _QrLaunchTabState();
+}
+
+class _QrLaunchTabState extends State<_QrLaunchTab> {
+  final _plateCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _plateCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── Hero QR ──────────────────────────────────────────
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.panel,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
+              child: Column(
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: AppColors.goldBg,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.goldBorder, width: 1.5),
+                    ),
+                    child: const Icon(Icons.qr_code_scanner,
+                        size: 36, color: AppColors.goldDark),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Escanear QR del vehículo',
+                    style: AppTheme.inter(
+                      fontSize: 17, fontWeight: FontWeight.w700,
+                      color: Colors.white, letterSpacing: -0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Verifica la firma HMAC sin conexión',
+                    style: AppTheme.inter(fontSize: 13, color: Colors.white54),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: () => context.push('/qr'),
+                    icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                    label: const Text('Abrir cámara'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.gold,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 46),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // ── Separador ─────────────────────────────────────────
+            Row(children: [
+              const Expanded(child: Divider(color: AppColors.ink2)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text('o busca por placa',
+                    style: AppTheme.inter(fontSize: 12, color: AppColors.ink4)),
+              ),
+              const Expanded(child: Divider(color: AppColors.ink2)),
+            ]),
+            const SizedBox(height: 16),
+
+            // ── Búsqueda por placa ───────────────────────────────
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _plateCtrl,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: InputDecoration(
+                      hintText: 'Placa (ej. ABC-123)',
+                      hintStyle: AppTheme.inter(fontSize: 13, color: AppColors.ink4),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppColors.ink2),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppColors.ink2),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                    ),
+                    style: AppTheme.inter(fontSize: 14, color: AppColors.ink9,
+                        fontWeight: FontWeight.w600),
+                    onSubmitted: (_) => _searchPlate(context),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                FilledButton(
+                  onPressed: () => _searchPlate(context),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.panel,
+                    minimumSize: const Size(52, 52),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Icon(Icons.search, color: Colors.white),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _searchPlate(BuildContext context) {
+    final plate = _plateCtrl.text.trim();
+    if (plate.isEmpty) return;
+    context.push('/vehiculo-publico/$plate');
+  }
 }

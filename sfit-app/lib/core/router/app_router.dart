@@ -8,7 +8,9 @@ import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/rejected_page.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/qr_scanner/presentation/pages/qr_scanner_page.dart';
 import '../../features/splash/presentation/pages/splash_page.dart';
+import '../../features/vista_publica/presentation/pages/vehicle_public_page.dart';
 
 part 'app_router.g.dart';
 
@@ -34,6 +36,8 @@ GoRouter router(Ref ref) {
       final path       = state.uri.path;
       final isAuth     = path == '/login' || path == '/register';
       final isSplash   = path == '/';
+      // Rutas accesibles sin autenticación
+      final isPublic   = path == '/qr' || path.startsWith('/vehiculo-publico/');
 
       switch (authStatus) {
         case AuthStatus.loading:
@@ -44,13 +48,15 @@ GoRouter router(Ref ref) {
           return null;
 
         case AuthStatus.pendingApproval:
+          if (isPublic) return null;
           return path == '/pending' ? null : '/pending';
 
         case AuthStatus.rejected:
+          if (isPublic) return null;
           return path == '/rejected' ? null : '/rejected';
 
         case AuthStatus.unauthenticated:
-          if (isAuth) return null;
+          if (isAuth || isPublic) return null;
           return '/login';
       }
     },
@@ -61,6 +67,21 @@ GoRouter router(Ref ref) {
       GoRoute(path: '/pending',  builder: (_, __) => const PendingPage()),
       GoRoute(path: '/rejected', builder: (_, __) => const RejectedPage()),
       GoRoute(path: '/home',     builder: (_, __) => const HomePage()),
+
+      // ── Rutas públicas (accesibles sin auth) ───────────────────
+      GoRoute(path: '/qr', builder: (_, __) => const QrScannerPage()),
+      GoRoute(
+        path: '/vehiculo-publico/:plate',
+        builder: (context, state) {
+          final plate = state.pathParameters['plate']!;
+          final extra = state.extra as Map<String, dynamic>?;
+          return VehiclePublicPage(
+            plate: plate,
+            qrJson: extra?['qrJson'] as String?,
+            offlineVerified: extra?['offlineVerified'] as bool?,
+          );
+        },
+      ),
     ],
   );
 }

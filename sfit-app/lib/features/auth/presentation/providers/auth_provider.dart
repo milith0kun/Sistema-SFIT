@@ -115,13 +115,10 @@ class Auth extends _$Auth {
       );
       return false;
     } catch (e, st) {
-      // Log completo en debug para diagnosticar conexión / parseo.
       // ignore: avoid_print
       print('[Auth.login] unexpected error: $e\n$st');
-      state = AuthState(
-        status: AuthStatus.unauthenticated,
-        errorMessage: 'Error de conexión: $e',
-      );
+      final msg = _networkErrorMsg(e);
+      state = AuthState(status: AuthStatus.unauthenticated, errorMessage: msg);
       return false;
     }
   }
@@ -153,11 +150,11 @@ class Auth extends _$Auth {
         errorMessage: e.message,
       );
       return false;
-    } catch (_) {
-      state = const AuthState(
-        status: AuthStatus.unauthenticated,
-        errorMessage: 'Error con Google. Intenta nuevamente.',
-      );
+    } catch (e) {
+      // ignore: avoid_print
+      print('[Auth.loginWithGoogle] error: $e');
+      final msg = _networkErrorMsg(e);
+      state = AuthState(status: AuthStatus.unauthenticated, errorMessage: msg);
       return false;
     }
   }
@@ -178,6 +175,21 @@ class Auth extends _$Auth {
           municipalityId: municipalityId,
         );
     state = const AuthState(status: AuthStatus.pendingApproval);
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────
+  String _networkErrorMsg(Object e) {
+    final s = e.toString();
+    if (s.contains('Connection refused') || s.contains('SocketException')) {
+      return 'Sin conexión al servidor.\n'
+          'Asegúrate de que el backend esté corriendo y ejecuta:\n'
+          'adb reverse tcp:3000 tcp:3000';
+    }
+    if (s.contains('sign_in_failed') || s.contains('ApiException')) {
+      return 'Google Sign In falló ($s).\n'
+          'Verifica que el SHA-1 del keystore debug esté registrado en GCP.';
+    }
+    return 'Error: $s';
   }
 
   // ── RF-01-10: Logout ──────────────────────────────────────────

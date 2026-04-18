@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Web Client ID para google_sign_in — mismo que serverClientId en auth_provider.dart -->
+    <string name="default_web_client_id">378647499793-tbks1mfqq15thpmii1dbirm3o21fkhd3.apps.googleusercontent.com</string>
+</resources>
