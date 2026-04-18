@@ -1,15 +1,87 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import Script from "next/script";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: { credential: string }) => void;
+          }) => void;
+          prompt: () => void;
+          renderButton: (el: HTMLElement, options: Record<string, unknown>) => void;
+        };
+      };
+    };
+  }
+}
 
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading]       = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError]           = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
+  const googleBtnRef = useRef<HTMLDivElement>(null);
+  const [gisReady, setGisReady] = useState(false);
+
+  // Inicializa Google Identity Services cuando el script carga
+  useEffect(() => {
+    if (!gisReady || !GOOGLE_CLIENT_ID || !window.google) return;
+
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleCredential,
+    });
+
+    if (googleBtnRef.current) {
+      window.google.accounts.id.renderButton(googleBtnRef.current, {
+        type: "standard",
+        theme: "outline",
+        size: "large",
+        text: "continue_with",
+        shape: "rectangular",
+        logo_alignment: "left",
+        width: 376,
+      });
+    }
+
+  }, [gisReady]);
+
+  async function handleGoogleCredential(response: { credential: string }) {
+    setGoogleLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken: response.credential }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Error al iniciar sesión con Google");
+        return;
+      }
+      localStorage.setItem("sfit_access_token", data.data.accessToken);
+      localStorage.setItem("sfit_refresh_token", data.data.refreshToken);
+      localStorage.setItem("sfit_user", JSON.stringify(data.data.user));
+      document.cookie = `sfit_access_token=${data.data.accessToken}; path=/; max-age=900; SameSite=Lax`;
+      router.push("/dashboard");
+    } catch {
+      setError("Error de conexión con Google. Intenta nuevamente.");
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -206,30 +278,31 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Google */}
+      {/* Google Sign-In (Google Identity Services) */}
+      <Script
+        src="https://accounts.google.com/gsi/client"
+        strategy="afterInteractive"
+        onReady={() => setGisReady(true)}
+      />
       <div className="animate-fade-up delay-500">
-        <button
-          type="button"
-          className="w-full h-[50px] flex items-center justify-center gap-3 rounded-[10px] bg-white transition-all duration-150 cursor-pointer"
-          style={{
-            border: "1.5px solid #E4E4E7",
-            fontSize: "0.9375rem",
-            fontWeight: 500,
-            color: "#27272A",
-            letterSpacing: "-0.005em",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = "#D4D4D8";
-            e.currentTarget.style.background = "#F4F4F5";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = "#E4E4E7";
-            e.currentTarget.style.background = "#ffffff";
-          }}
-        >
-          <GoogleMark />
-          Continuar con Google
-        </button>
+        {!GOOGLE_CLIENT_ID && (
+          <div
+            className="rounded-[10px] px-4 py-3 text-center"
+            style={{ background: "#FFFBEB", border: "1.5px solid #FCD34D", fontSize: "0.875rem", color: "#92400E" }}
+          >
+            Google OAuth no está configurado. Define <code>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code>.
+          </div>
+        )}
+        {GOOGLE_CLIENT_ID && (
+          <div className="w-full flex justify-center">
+            <div ref={googleBtnRef} />
+          </div>
+        )}
+        {googleLoading && (
+          <p className="mt-2 text-center" style={{ fontSize: "0.8125rem", color: "#52525B" }}>
+            Verificando con Google…
+          </p>
+        )}
       </div>
 
       {/* Register link */}
