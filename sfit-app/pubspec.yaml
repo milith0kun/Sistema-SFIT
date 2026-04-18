@@ -28,7 +28,7 @@ dependencies:
 
   # Networking & API
   dio: ^5.8.0+1
-  retrofit: ^4.4.2
+  retrofit: ">=4.4.2 <4.9.0"
 
   # Auth
   flutter_secure_storage: ^9.2.4
@@ -36,7 +36,7 @@ dependencies:
 
   # Local Storage
   shared_preferences: ^2.5.3
-  hive: ^4.0.0
+  hive: ^2.2.3
   hive_flutter: ^1.1.0
 
   # QR Code

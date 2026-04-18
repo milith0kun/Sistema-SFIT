@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/sfit_mark.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 /// Pantalla principal — adapta el contenido según el rol del usuario (RF-05 a RF-16)
@@ -21,20 +23,11 @@ class HomePage extends ConsumerWidget {
       length: tabs.length,
       child: Scaffold(
         appBar: AppBar(
-          title: Row(
+          title: const Row(
             children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: cs.primary,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.directions_bus_rounded,
-                    color: Colors.white, size: 16),
-              ),
-              const SizedBox(width: 8),
-              const Text('SFIT', style: TextStyle(fontWeight: FontWeight.w800)),
+              SfitMark(size: 26, color: AppColors.gold),
+              SizedBox(width: 10),
+              Text('SFIT', style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 2)),
             ],
           ),
           actions: [

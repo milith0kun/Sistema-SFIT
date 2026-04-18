@@ -3,9 +3,8 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'auth_models.freezed.dart';
 part 'auth_models.g.dart';
 
-/// Modelo de usuario devuelto por la API (RF-01)
 @freezed
-class UserModel with _$UserModel {
+abstract class UserModel with _$UserModel {
   const factory UserModel({
     @JsonKey(name: '_id') required String id,
     required String name,
@@ -22,9 +21,8 @@ class UserModel with _$UserModel {
       _$UserModelFromJson(json);
 }
 
-/// Respuesta del endpoint /auth/login y /auth/refresh
 @freezed
-class AuthTokenModel with _$AuthTokenModel {
+abstract class AuthTokenModel with _$AuthTokenModel {
   const factory AuthTokenModel({
     required String accessToken,
     required String refreshToken,
@@ -36,9 +34,8 @@ class AuthTokenModel with _$AuthTokenModel {
       _$AuthTokenModelFromJson(json);
 }
 
-/// Request de login
 @freezed
-class LoginRequest with _$LoginRequest {
+abstract class LoginRequest with _$LoginRequest {
   const factory LoginRequest({
     required String email,
     required String password,
@@ -48,9 +45,8 @@ class LoginRequest with _$LoginRequest {
       _$LoginRequestFromJson(json);
 }
 
-/// Request de registro
 @freezed
-class RegisterRequest with _$RegisterRequest {
+abstract class RegisterRequest with _$RegisterRequest {
   const factory RegisterRequest({
     required String name,
     required String email,

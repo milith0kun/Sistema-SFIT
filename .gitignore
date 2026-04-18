@@ -67,3 +67,7 @@ next-env.d.ts
 # ----- Misc -----
 *.pem
 .vercel
+
+# ----- OAuth / Secretos -----
+client_secret*.json
+google-services.json

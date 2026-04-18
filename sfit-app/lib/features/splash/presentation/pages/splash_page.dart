@@ -1,70 +1,65 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/sfit_mark.dart';
 
-/// Pantalla de carga inicial.
-/// El router maneja la redirección según el estado de auth —
-/// esta pantalla solo muestra el logo mientras auth.status == loading.
 class SplashPage extends StatelessWidget {
   const SplashPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Scaffold(
-      backgroundColor: const Color(0xFF0B1D3A),
+    return const Scaffold(
+      backgroundColor: AppColors.panel,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: cs.primary,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: cs.primary.withAlpha(100),
-                    blurRadius: 32,
-                    spreadRadius: 4,
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.directions_bus_rounded,
-                color: Colors.white,
-                size: 44,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'SFIT',
-              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: 2,
-                  ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Fiscalización Inteligente',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.white38,
-                    letterSpacing: 1,
-                  ),
-            ),
-            const SizedBox(height: 56),
+            SfitMark(size: 72, color: AppColors.gold),
+            SizedBox(height: 28),
+            _WordMark(),
+            SizedBox(height: 80),
             SizedBox(
-              width: 28,
-              height: 28,
+              width: 24,
+              height: 24,
               child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                color: cs.primary,
+                strokeWidth: 2,
+                color: AppColors.gold,
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _WordMark extends StatelessWidget {
+  const _WordMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          'SFIT',
+          style: GoogleFonts.syne(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+            letterSpacing: 6,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Fiscalización Inteligente de Transporte',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 12,
+            fontWeight: FontWeight.w400,
+            color: Colors.white38,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
     );
   }
 }
