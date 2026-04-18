@@ -114,8 +114,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <p
               className="animate-fade-up delay-400"
               style={{
-                color: "rgba(255,255,255,0.68)",
-                maxWidth: "320px",
+                color: "#D4D4D8",
+                maxWidth: "340px",
                 fontSize: "0.9375rem",
                 lineHeight: 1.6,
                 fontWeight: 400,
@@ -146,7 +146,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
                   >
                     {s.value}
                   </div>
-                  <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.75rem", fontWeight: 500 }}>
+                  <div style={{ color: "#A1A1AA", fontSize: "0.75rem", fontWeight: 500 }}>
                     {s.label}
                   </div>
                 </div>

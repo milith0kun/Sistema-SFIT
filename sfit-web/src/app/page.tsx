@@ -82,8 +82,8 @@ export default function HomePage() {
 
       {/* ── Hero ─────────────────────────────── */}
       <section
-        className="relative flex flex-col items-center justify-center text-center px-6 pt-28 pb-20"
-        style={{ background: "#0A1628", minHeight: "min(calc(100vh - 0px), 760px)" }}
+        className="relative flex flex-col items-center justify-center text-center px-6"
+        style={{ background: "#0A1628", paddingTop: "7rem", paddingBottom: "5rem" }}
       >
         {/* Dot grid */}
         <div
@@ -115,15 +115,20 @@ export default function HomePage() {
 
         <div className="relative z-10 max-w-3xl mx-auto animate-fade-in">
           {/* Live badge */}
-          <div className="flex items-center justify-center gap-2 mb-7">
+          <div className="flex items-center justify-center gap-2 mb-6">
             <span
               className="w-1.5 h-1.5 rounded-full animate-soft-pulse"
-              style={{ background: "#B8860B" }}
+              style={{ background: "#D4A827" }}
               aria-hidden
             />
             <span
-              className="text-[11px] font-semibold tracking-[0.22em] uppercase"
-              style={{ color: "#B8860B" }}
+              style={{
+                color: "#D4A827",
+                fontSize: "0.6875rem",
+                fontWeight: 700,
+                letterSpacing: "0.22em",
+                textTransform: "uppercase",
+              }}
             >
               Plataforma Municipal · Perú 2026
             </span>
@@ -131,16 +136,16 @@ export default function HomePage() {
 
           {/* Headline */}
           <h1
-            className="font-black text-white mb-7 animate-fade-up delay-100"
+            className="font-black text-white mb-6 animate-fade-up delay-100"
             style={{
               fontFamily: "var(--font-syne)",
-              fontSize: "clamp(2.75rem, 6.2vw, 5rem)",
-              lineHeight: 0.95,
+              fontSize: "clamp(2.5rem, 5.5vw, 4.25rem)",
+              lineHeight: 0.98,
               letterSpacing: "-0.035em",
             }}
           >
             La plataforma que{" "}
-            <span style={{ color: "#B8860B" }}>unifica</span>
+            <span style={{ color: "#D4A827" }}>unifica</span>
             <br />
             la fiscalización del
             <br />
@@ -149,18 +154,18 @@ export default function HomePage() {
 
           {/* Gold rule */}
           <div
-            className="mx-auto mb-7"
-            style={{ width: "44px", height: "2.5px", background: "#B8860B", borderRadius: "1px" }}
+            className="mx-auto mb-6"
+            style={{ width: "44px", height: "2.5px", background: "#D4A827", borderRadius: "1px" }}
           />
 
           {/* Subtext */}
           <p
-            className="mx-auto mb-10 animate-fade-up delay-200"
+            className="mx-auto mb-9 animate-fade-up delay-200"
             style={{
-              color: "rgba(255,255,255,0.85)",
-              fontSize: "1.125rem",
+              color: "#E4E4E7",
+              fontSize: "1.0625rem",
               lineHeight: 1.55,
-              maxWidth: "620px",
+              maxWidth: "600px",
               fontWeight: 400,
             }}
           >
@@ -193,9 +198,9 @@ export default function HomePage() {
                 key={chip}
                 className="px-3.5 py-1.5 rounded-full"
                 style={{
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.14)",
-                  color: "rgba(255,255,255,0.78)",
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  color: "#F4F4F5",
                   fontSize: "0.8125rem",
                   fontWeight: 500,
                 }}
@@ -341,7 +346,7 @@ export default function HomePage() {
                 </div>
                 <div
                   style={{
-                    color: "rgba(255,255,255,0.55)",
+                    color: "#D4D4D8",
                     fontSize: "0.875rem",
                     lineHeight: 1.5,
                     fontWeight: 400,
@@ -425,7 +430,7 @@ export default function HomePage() {
           <p
             className="mb-10 mx-auto"
             style={{
-              color: "rgba(255,255,255,0.7)",
+              color: "#E4E4E7",
               fontSize: "1.0625rem",
               lineHeight: 1.55,
               maxWidth: "440px",
