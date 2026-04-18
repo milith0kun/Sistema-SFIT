@@ -1,28 +1,28 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'app_router.dart';
+part of 'trips_api_service.dart';
 
 // **************************************************************************
 // RiverpodGenerator
 // **************************************************************************
 
-String _$routerHash() => r'f04449e1b2301f4b394068e223c4a8f3124270b7';
+String _$tripsApiServiceHash() => r'413720e3f625b3910ceab85c884d41b4049b1503';
 
-/// RF-01: Router con guard de autenticación que redirige según `authProvider.status`.
-///
-/// Copied from [router].
-@ProviderFor(router)
-final routerProvider = Provider<GoRouter>.internal(
-  router,
-  name: r'routerProvider',
+/// See also [tripsApiService].
+@ProviderFor(tripsApiService)
+final tripsApiServiceProvider = AutoDisposeProvider<TripsApiService>.internal(
+  tripsApiService,
+  name: r'tripsApiServiceProvider',
   debugGetCreateSourceHash:
-      const bool.fromEnvironment('dart.vm.product') ? null : _$routerHash,
+      const bool.fromEnvironment('dart.vm.product')
+          ? null
+          : _$tripsApiServiceHash,
   dependencies: null,
   allTransitiveDependencies: null,
 );
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-typedef RouterRef = ProviderRef<GoRouter>;
+typedef TripsApiServiceRef = AutoDisposeProviderRef<TripsApiService>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

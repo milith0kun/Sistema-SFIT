@@ -7,6 +7,16 @@ import '../../../../core/widgets/sfit_mark.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../auth/presentation/pages/widgets/status_screen.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../fleet/presentation/pages/fleet_page.dart';
+import '../../../inspection/presentation/pages/inspections_list_page.dart';
+import '../../../operator/presentation/pages/conductores_tab_page.dart';
+import '../../../operator/presentation/pages/vehiculos_tab_page.dart';
+import '../../../profile/presentation/pages/profile_page.dart';
+import '../../../reports/presentation/pages/reports_review_page.dart';
+import '../../../reports/presentation/pages/submit_report_page.dart';
+import '../../../trips/presentation/pages/fatigue_page.dart';
+import '../../../trips/presentation/pages/my_routes_page.dart';
+import '../../../trips/presentation/pages/my_trips_page.dart';
 
 /// Pantalla principal — adapta el contenido al rol del usuario (RF-05 a RF-16).
 ///
@@ -148,41 +158,25 @@ class _HomePageState extends ConsumerState<HomePage> {
             label: 'Inspecciones',
             icon: Icons.assignment_outlined,
             iconFilled: Icons.assignment,
-            page: _RolePlaceholder(
-              kicker: 'Operación · RF-11',
-              title: 'Inspecciones de campo',
-              subtitle:
-                  'Registra, valida y revisa actas de inspección generadas en ruta.',
-              rfCode: 'RF-11',
-            ),
+            page: InspectionsListPage(),
           ),
-          _Tab(
+          const _Tab(
             label: 'QR',
             icon: Icons.qr_code_scanner_outlined,
             iconFilled: Icons.qr_code_scanner,
-            page: _QrLaunchTab(),
+            page: _QrLaunchTab(forInspection: true),
           ),
           const _Tab(
             label: 'Reportes',
             icon: Icons.flag_outlined,
             iconFilled: Icons.flag,
-            page: _RolePlaceholder(
-              kicker: 'Ciudadanía · RF-12',
-              title: 'Reportes ciudadanos',
-              subtitle:
-                  'Revisa y valida reportes enviados por usuarios del sistema público.',
-              rfCode: 'RF-12',
-            ),
+            page: ReportsReviewPage(),
           ),
           const _Tab(
             label: 'Perfil',
             icon: Icons.person_outline,
             iconFilled: Icons.person,
-            page: _RolePlaceholder(
-              kicker: 'Cuenta',
-              title: 'Tu perfil',
-              subtitle: 'Datos institucionales, sesión y preferencias.',
-            ),
+            page: ProfilePage(),
           ),
         ],
       'operador' => const [
@@ -190,113 +184,67 @@ class _HomePageState extends ConsumerState<HomePage> {
             label: 'Flota',
             icon: Icons.local_shipping_outlined,
             iconFilled: Icons.local_shipping,
-            page: _RolePlaceholder(
-              kicker: 'Operación · RF-07',
-              title: 'Panel de flota',
-              subtitle: 'Salidas, retornos y estado de conductores del día.',
-              rfCode: 'RF-07',
-            ),
+            page: FleetPage(),
           ),
-          _Tab(
+          const _Tab(
             label: 'Conductores',
             icon: Icons.groups_2_outlined,
             iconFilled: Icons.groups_2,
-            page: _RolePlaceholder(
-              kicker: 'Recursos humanos',
-              title: 'Conductores',
-              subtitle:
-                  'Aptitud, asignación, horas de conducción y descanso reglamentario.',
-              rfCode: 'RF-06',
-            ),
+            page: ConductoresTabPage(),
           ),
-          _Tab(
+          const _Tab(
             label: 'Vehículos',
             icon: Icons.directions_car_outlined,
             iconFilled: Icons.directions_car,
-            page: _RolePlaceholder(
-              kicker: 'Flota',
-              title: 'Vehículos',
-              subtitle:
-                  'Lista completa, mantenimiento programado y documentación.',
-              rfCode: 'RF-05',
-            ),
+            page: VehiculosTabPage(),
           ),
           _Tab(
             label: 'Perfil',
             icon: Icons.person_outline,
             iconFilled: Icons.person,
-            page: _RolePlaceholder(
-              kicker: 'Cuenta',
-              title: 'Tu perfil',
-              subtitle: 'Datos del operador, empresa y sesión.',
-            ),
+            page: ProfilePage(),
           ),
         ],
       'conductor' => const [
-          _Tab(
+          const _Tab(
             label: 'Mis rutas',
             icon: Icons.route_outlined,
             iconFilled: Icons.route,
-            page: _RolePlaceholder(
-              kicker: 'Hoy · RF-10',
-              title: 'Rutas del día',
-              subtitle: 'Rutas y zonas asignadas con detalle operativo.',
-              rfCode: 'RF-10',
-            ),
+            page: MyRoutesPage(),
           ),
-          _Tab(
+          const _Tab(
             label: 'Fatiga',
             icon: Icons.monitor_heart_outlined,
             iconFilled: Icons.monitor_heart,
-            page: _RolePlaceholder(
-              kicker: 'Seguridad · RF-11',
-              title: 'Estado de fatiga',
-              subtitle:
-                  'Horas acumuladas de conducción y descanso — FatigueEngine.',
-              rfCode: 'RF-11',
-            ),
+            page: FatiguePage(),
           ),
-          _Tab(
+          const _Tab(
             label: 'Viajes',
             icon: Icons.timeline_outlined,
             iconFilled: Icons.timeline,
-            page: _RolePlaceholder(
-              kicker: 'Historial',
-              title: 'Mis viajes',
-              subtitle: 'Registro de viajes completados y observaciones.',
-              rfCode: 'RF-12',
-            ),
+            page: MyTripsPage(),
           ),
           _Tab(
             label: 'Perfil',
             icon: Icons.person_outline,
             iconFilled: Icons.person,
-            page: _RolePlaceholder(
-              kicker: 'Cuenta',
-              title: 'Tu perfil',
-              subtitle: 'Licencia, descanso y sesión.',
-            ),
+            page: ProfilePage(),
           ),
         ],
-      'ciudadano' => [
+      'ciudadano' => const [
           _Tab(
             label: 'Consulta',
             icon: Icons.qr_code_2_outlined,
             iconFilled: Icons.qr_code_2,
             page: _QrLaunchTab(),
           ),
-          const _Tab(
+          _Tab(
             label: 'Reportar',
             icon: Icons.campaign_outlined,
             iconFilled: Icons.campaign,
-            page: _RolePlaceholder(
-              kicker: 'Ciudadanía · RF-15',
-              title: 'Reportar anomalías',
-              subtitle: 'Envía un reporte con ubicación, fotos y detalles.',
-              rfCode: 'RF-15',
-            ),
+            page: SubmitReportPage(),
           ),
-          const _Tab(
+          _Tab(
             label: 'Recompensas',
             icon: Icons.emoji_events_outlined,
             iconFilled: Icons.emoji_events,
@@ -307,15 +255,11 @@ class _HomePageState extends ConsumerState<HomePage> {
               rfCode: 'RF-16',
             ),
           ),
-          const _Tab(
+          _Tab(
             label: 'Perfil',
             icon: Icons.person_outline,
             iconFilled: Icons.person,
-            page: _RolePlaceholder(
-              kicker: 'Cuenta',
-              title: 'Tu perfil',
-              subtitle: 'Datos personales, sesión y preferencias.',
-            ),
+            page: ProfilePage(),
           ),
         ],
       _ => const [
@@ -534,6 +478,9 @@ class _BlankLoading extends StatelessWidget {
 /// Tab de escáner QR — botón grande que lanza la página de escaneo
 /// y campo de búsqueda por placa como alternativa (RF-06, RF-08).
 class _QrLaunchTab extends StatefulWidget {
+  final bool forInspection;
+  const _QrLaunchTab({this.forInspection = false});
+
   @override
   State<_QrLaunchTab> createState() => _QrLaunchTabState();
 }
@@ -590,7 +537,10 @@ class _QrLaunchTabState extends State<_QrLaunchTab> {
                   ),
                   const SizedBox(height: 20),
                   FilledButton.icon(
-                    onPressed: () => context.push('/qr'),
+                    onPressed: () => context.push(
+                      '/qr',
+                      extra: {'forInspection': widget.forInspection},
+                    ),
                     icon: const Icon(Icons.camera_alt_outlined, size: 18),
                     label: const Text('Abrir cámara'),
                     style: FilledButton.styleFrom(

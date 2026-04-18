@@ -7,9 +7,12 @@ import '../../../../core/theme/app_theme.dart';
 import '../../data/services/qr_hmac_service.dart';
 
 /// Escáner QR de SFIT — verifica la firma HMAC localmente (offline-first).
-/// Una vez verificado, navega a la vista pública del vehículo.
+///
+/// [forInspection] = true → navega a nueva inspección (rol fiscal).
+/// [forInspection] = false (default) → navega a vista pública del vehículo.
 class QrScannerPage extends StatefulWidget {
-  const QrScannerPage({super.key});
+  final bool forInspection;
+  const QrScannerPage({super.key, this.forInspection = false});
 
   @override
   State<QrScannerPage> createState() => _QrScannerPageState();
@@ -47,11 +50,20 @@ class _QrScannerPageState extends State<QrScannerPage> {
 
     final valid = QrHmacService.verify(payload);
 
-    // Navegar con el resultado — la vista pública confirma también en el servidor.
-    context.push(
-      '/vehiculo-publico/${payload.pl}',
-      extra: {'qrJson': raw, 'offlineVerified': valid},
-    );
+    if (widget.forInspection) {
+      // Fiscal → formulario de inspección
+      context.push('/nueva-inspeccion', extra: {
+        'vehicleId': payload.id,
+        'plate': payload.pl,
+        'vehicleTypeKey': payload.ty,
+      });
+    } else {
+      // Ciudadano / público → vista pública
+      context.push(
+        '/vehiculo-publico/${payload.pl}',
+        extra: {'qrJson': raw, 'offlineVerified': valid},
+      );
+    }
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) setState(() => _processing = false);
     });

@@ -8,6 +8,7 @@ import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/rejected_page.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/inspection/presentation/pages/new_inspection_page.dart';
 import '../../features/qr_scanner/presentation/pages/qr_scanner_page.dart';
 import '../../features/splash/presentation/pages/splash_page.dart';
 import '../../features/vista_publica/presentation/pages/vehicle_public_page.dart';
@@ -68,8 +69,29 @@ GoRouter router(Ref ref) {
       GoRoute(path: '/rejected', builder: (_, __) => const RejectedPage()),
       GoRoute(path: '/home',     builder: (_, __) => const HomePage()),
 
+      // ── Rutas protegidas adicionales ───────────────────────────
+      GoRoute(
+        path: '/nueva-inspeccion',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return NewInspectionPage(
+            vehicleId: extra['vehicleId'] as String,
+            plate: extra['plate'] as String,
+            vehicleTypeKey: extra['vehicleTypeKey'] as String,
+            driverId: extra['driverId'] as String?,
+          );
+        },
+      ),
+
       // ── Rutas públicas (accesibles sin auth) ───────────────────
-      GoRoute(path: '/qr', builder: (_, __) => const QrScannerPage()),
+      GoRoute(
+        path: '/qr',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final forInspection = extra?['forInspection'] as bool? ?? false;
+          return QrScannerPage(forInspection: forInspection);
+        },
+      ),
       GoRoute(
         path: '/vehiculo-publico/:plate',
         builder: (context, state) {

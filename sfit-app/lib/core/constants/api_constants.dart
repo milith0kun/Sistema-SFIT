@@ -15,7 +15,7 @@ class ApiConstants {
 
   /// URL base activa:
   /// - Sin SFIT_DEV_HOST → producción (Dokploy), funciona en emulador y físico.
-  /// - Con SFIT_DEV_HOST → backend local en http://<host>:3000/api.
+  /// - Con SFIT_DEV_HOST → backend local en http://HOST:3000/api.
   static String get baseUrl {
     if (kReleaseMode || _devHost.isEmpty) return _prodBaseUrl;
     return 'http://$_devHost:3000/api';
