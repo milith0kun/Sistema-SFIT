@@ -40,8 +40,12 @@ export async function POST(request: NextRequest) {
         audience: GOOGLE_CLIENT_ID,
       });
       payload = ticket.getPayload();
-    } catch {
-      return apiError("Token de Google inválido", 401);
+    } catch (verifyError) {
+      console.error("[auth/google] verifyIdToken failed:", verifyError);
+      return apiError(
+        `Token inválido: ${verifyError instanceof Error ? verifyError.message : "desconocido"}`,
+        401,
+      );
     }
 
     if (!payload?.email || !payload.email_verified) {
@@ -110,7 +114,8 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[auth/google]", error);
-    return apiError("Error interno del servidor", 500);
+    console.error("[auth/google] fatal:", error);
+    const msg = error instanceof Error ? error.message : "desconocido";
+    return apiError(`Error interno: ${msg}`, 500);
   }
 }

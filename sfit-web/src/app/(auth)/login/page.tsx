@@ -25,6 +25,9 @@ declare global {
           initialize: (config: {
             client_id: string;
             callback: (response: { credential: string }) => void;
+            use_fedcm_for_prompt?: boolean;
+            auto_select?: boolean;
+            ux_mode?: "popup" | "redirect";
           }) => void;
           prompt: () => void;
           renderButton: (el: HTMLElement, options: Record<string, unknown>) => void;
@@ -51,6 +54,9 @@ export default function LoginPage() {
     window.google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
       callback: handleGoogleCredential,
+      use_fedcm_for_prompt: false,
+      auto_select: false,
+      ux_mode: "popup",
     });
 
     if (googleBtnRef.current) {
