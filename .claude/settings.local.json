@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/PC/**)",
+      "Bash(echo 'export PATH=\"$HOME/flutter/bin:$PATH\"')",
+      "Bash(echo 'export PATH=\"/c/Users/PC/flutter/bin:$PATH\"')"
+    ]
+  }
+}

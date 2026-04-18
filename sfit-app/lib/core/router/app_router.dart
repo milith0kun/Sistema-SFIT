@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -8,22 +9,33 @@ import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/splash/presentation/pages/splash_page.dart';
 import '../theme/app_colors.dart';
+import '../widgets/sfit_mark.dart';
 
 part 'app_router.g.dart';
 
+/// Notifier que reemite cambios del auth state para GoRouter.
+/// Permite que el router re-evalúe `redirect` sin ser recreado.
+class _AuthRefreshNotifier extends ChangeNotifier {
+  _AuthRefreshNotifier(Ref ref) {
+    ref.listen<AuthState>(authProvider, (_, __) => notifyListeners());
+  }
+}
+
 @Riverpod(keepAlive: true)
 GoRouter router(Ref ref) {
-  final authState = ref.watch(authProvider);
+  final refresh = _AuthRefreshNotifier(ref);
 
   return GoRouter(
     initialLocation: '/',
-    debugLogDiagnostics: false,
+    debugLogDiagnostics: kDebugMode,
+    refreshListenable: refresh,
     redirect: (context, state) {
-      final path    = state.uri.path;
-      final isAuth  = path == '/login' || path == '/register';
-      final isSplash = path == '/';
+      final authStatus = ref.read(authProvider).status;
+      final path       = state.uri.path;
+      final isAuth     = path == '/login' || path == '/register';
+      final isSplash   = path == '/';
 
-      switch (authState.status) {
+      switch (authStatus) {
         case AuthStatus.loading:
           return isSplash ? null : '/';
 
@@ -41,8 +53,7 @@ GoRouter router(Ref ref) {
 
         case AuthStatus.unauthenticated:
           if (isAuth) return null;
-          if (!isSplash) return '/login';
-          return null;
+          return '/login';
       }
     },
     routes: [
@@ -124,11 +135,8 @@ class _StatusScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // SFIT mark
-              const _SfitMark(size: 36),
+              const SfitMark(size: 36),
               const SizedBox(height: 40),
-
-              // Status icon
               Container(
                 width: 72,
                 height: 72,
@@ -136,92 +144,26 @@ class _StatusScreen extends StatelessWidget {
                   color: iconBg,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: iconColor.withOpacity(0.3),
+                    color: iconColor.withValues(alpha: 0.3),
                     width: 1.5,
                   ),
                 ),
                 child: Icon(icon, size: 34, color: iconColor),
               ),
               const SizedBox(height: 24),
-
-              Text(
-                title,
-                style: tt.headlineSmall,
-                textAlign: TextAlign.center,
-              ),
+              Text(title, style: tt.headlineSmall, textAlign: TextAlign.center),
               const SizedBox(height: 12),
-
               Text(
                 message,
                 style: tt.bodyMedium?.copyWith(color: AppColors.ink5),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 40),
-
-              OutlinedButton(
-                onPressed: onLogout,
-                child: Text(logoutLabel),
-              ),
+              OutlinedButton(onPressed: onLogout, child: Text(logoutLabel)),
             ],
           ),
         ),
       ),
     );
   }
-}
-
-// ── SFIT diamond mark ──────────────────────────────────────────────
-class _SfitMark extends StatelessWidget {
-  final double size;
-  const _SfitMark({this.size = 32});
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size(size, size),
-      painter: _SfitMarkPainter(),
-    );
-  }
-}
-
-class _SfitMarkPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size s) {
-    const gold = AppColors.gold;
-
-    final stroke = Paint()
-      ..color = gold
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = s.width * 0.055
-      ..strokeJoin = StrokeJoin.miter;
-
-    final fill = Paint()
-      ..color = gold
-      ..style = PaintingStyle.fill;
-
-    // Outer diamond
-    canvas.drawPath(
-      Path()
-        ..moveTo(s.width * 0.5, s.height * 0.094)
-        ..lineTo(s.width * 0.906, s.height * 0.5)
-        ..lineTo(s.width * 0.5, s.height * 0.906)
-        ..lineTo(s.width * 0.094, s.height * 0.5)
-        ..close(),
-      stroke,
-    );
-
-    // Inner diamond (filled)
-    canvas.drawPath(
-      Path()
-        ..moveTo(s.width * 0.5, s.height * 0.297)
-        ..lineTo(s.width * 0.703, s.height * 0.5)
-        ..lineTo(s.width * 0.5, s.height * 0.703)
-        ..lineTo(s.width * 0.297, s.height * 0.5)
-        ..close(),
-      fill,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
 }
