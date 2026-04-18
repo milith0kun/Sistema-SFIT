@@ -522,9 +522,12 @@ export default function HomePage() {
 
 function SfitMark({ size = 32 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden>
-      <path d="M16 3L29 16L16 29L3 16Z" stroke="#B8860B" strokeWidth="1.5" />
-      <path d="M16 9.5L22.5 16L16 22.5L9.5 16Z" fill="#B8860B" />
-    </svg>
+    <img
+      src="/logo.svg"
+      alt="SFIT Logo"
+      width={size}
+      height={size}
+      className="object-contain"
+    />
   );
 }

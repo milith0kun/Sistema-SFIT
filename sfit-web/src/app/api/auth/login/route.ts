@@ -6,6 +6,7 @@ import { User } from "@/models/User";
 import { signAccessToken, signRefreshToken } from "@/lib/auth/jwt";
 import { apiResponse, apiError, apiValidationError } from "@/lib/api/response";
 import { USER_STATUS } from "@/lib/constants";
+import { logAuditRaw } from "@/lib/audit/log";
 
 const LoginSchema = z.object({
   email: z.string().email(),
@@ -45,14 +46,17 @@ export async function POST(request: NextRequest) {
       return apiError("Credenciales incorrectas", 401);
     }
 
-    if (user.provider === "google") {
+    // Cuenta sin contraseña (creada sólo con Google): no se puede loguear
+    // con correo/password hasta que el usuario configure una contraseña
+    // (flujo de recuperación). Mensaje claro para que pruebe con Google.
+    if (!user.password) {
       return apiError(
-        "Esta cuenta usa Google. Ingresa con Google.",
-        400
+        "Esta cuenta se creó con Google. Ingresa con Google o restablece tu contraseña.",
+        400,
       );
     }
 
-    const validPassword = await bcrypt.compare(password, user.password ?? "");
+    const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       return apiError("Credenciales incorrectas", 401);
     }
@@ -81,6 +85,23 @@ export async function POST(request: NextRequest) {
       refreshTokenExpiry: refreshExpiry,
       lastLoginAt: new Date(),
     });
+
+    // RNF-16: auditoría de inicio de sesión.
+    await logAuditRaw(
+      request,
+      {
+        actorId: user._id.toString(),
+        actorRole: user.role,
+        municipalityId: user.municipalityId?.toString(),
+        provinceId: user.provinceId?.toString(),
+      },
+      {
+        action: "user.login",
+        resourceType: "user",
+        resourceId: user._id.toString(),
+        metadata: { provider: "credentials", status: user.status },
+      },
+    );
 
     // RF-01-03/04: pendiente/rechazado → devolver tokens pero el cliente
     // enrutará a la pantalla correspondiente según user.status

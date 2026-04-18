@@ -4,6 +4,8 @@ import { User } from "@/models/User";
 import { apiResponse, apiUnauthorized, apiForbidden, apiError, apiNotFound } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES, USER_STATUS } from "@/lib/constants";
+import { createNotification } from "@/lib/notifications/create";
+import { logAudit } from "@/lib/audit/log";
 
 /**
  * RF-01-04: Admin Municipal rechaza una solicitud de usuario.
@@ -44,6 +46,21 @@ export async function POST(
     target.status = USER_STATUS.RECHAZADO;
     target.rejectionReason = reason?.trim() || "No cumple con los requisitos";
     await target.save();
+
+    await createNotification({
+      userId: target._id.toString(),
+      title: "Tu solicitud fue rechazada",
+      body: target.rejectionReason,
+      type: "error",
+      category: "aprobacion",
+    });
+
+    await logAudit(request, auth.session, {
+      action: "user.rejected",
+      resourceType: "user",
+      resourceId: target._id.toString(),
+      metadata: { rejectionReason: target.rejectionReason },
+    });
 
     return apiResponse({
       id: target._id.toString(),

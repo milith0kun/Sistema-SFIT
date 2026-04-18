@@ -45,10 +45,12 @@ export default function LoginPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
+  const initializedRef = useRef(false);
   const [gisReady, setGisReady] = useState(false);
 
   // Inicializa Google Identity Services cuando el script carga
   useEffect(() => {
+    if (initializedRef.current) return;
     if (!gisReady || !GOOGLE_CLIENT_ID || !window.google) return;
 
     window.google.accounts.id.initialize({
@@ -60,6 +62,7 @@ export default function LoginPage() {
     });
 
     if (googleBtnRef.current) {
+      googleBtnRef.current.innerHTML = "";
       window.google.accounts.id.renderButton(googleBtnRef.current, {
         type: "standard",
         theme: "outline",
@@ -71,6 +74,7 @@ export default function LoginPage() {
       });
     }
 
+    initializedRef.current = true;
   }, [gisReady]);
 
   async function handleGoogleCredential(response: { credential: string }) {
@@ -144,12 +148,15 @@ export default function LoginPage() {
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div className="mb-10">
-        <p className="kicker animate-fade-up">
+      <div className="mb-8">
+        <div className="mb-6 animate-fade-in flex justify-center w-full">
+          <img src="/logo-vertical.svg" alt="SFIT Logo" className="w-[140px] sm:w-[170px] h-auto object-contain" />
+        </div>
+        <p className="kicker animate-fade-up text-center w-full">
           Acceso al sistema
         </p>
         <h1
-          className="mt-5 font-black text-[#09090b] animate-fade-up delay-50"
+          className="mt-5 font-black text-[#09090b] animate-fade-up delay-50 text-center w-full"
           style={{
             fontFamily: "var(--font-syne)",
             fontSize: "2.75rem",
@@ -160,7 +167,7 @@ export default function LoginPage() {
           Ingresar
         </h1>
         <p
-          className="mt-4 animate-fade-up delay-100"
+          className="mt-4 animate-fade-up delay-100 text-center w-full"
           style={{
             color: "#52525b",
             fontSize: "1.0625rem",

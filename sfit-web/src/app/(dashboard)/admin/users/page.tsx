@@ -101,7 +101,7 @@ export default function AdminUsersPage() {
         <p className="kicker mb-3">RF-01-04 · Aprobación de usuarios</p>
         <h1
           className="font-black text-[#09090b]"
-          style={{ fontFamily: "var(--font-syne)", fontSize: "2.25rem", lineHeight: 0.98, letterSpacing: "-0.035em" }}
+          style={{ fontFamily: "var(--font-inter)", fontSize: "2.25rem", lineHeight: 0.98, letterSpacing: "-0.035em" }}
         >
           Solicitudes pendientes
         </h1>
@@ -129,7 +129,7 @@ export default function AdminUsersPage() {
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
-            <h3 style={{ fontFamily: "var(--font-syne)", fontSize: "1.125rem", fontWeight: 700, color: "#09090b" }}>
+            <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1.125rem", fontWeight: 700, color: "#09090b" }}>
               Sin solicitudes pendientes
             </h3>
             <p className="mt-2" style={{ color: "#71717A", fontSize: "0.9375rem" }}>
@@ -147,7 +147,7 @@ export default function AdminUsersPage() {
                 <div className="flex items-center gap-4 min-w-0">
                   <div
                     className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                    style={{ background: "#FDF8EC", border: "1.5px solid #E8D090", color: "#926A09", fontWeight: 700, fontSize: "0.9375rem", fontFamily: "var(--font-syne)" }}
+                    style={{ background: "#FDF8EC", border: "1.5px solid #E8D090", color: "#926A09", fontWeight: 700, fontSize: "0.9375rem", fontFamily: "var(--font-inter)" }}
                   >
                     {u.name.charAt(0).toUpperCase()}
                   </div>
@@ -192,7 +192,7 @@ export default function AdminUsersPage() {
             style={{ background: "#ffffff", border: "1.5px solid #e4e4e7" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ fontFamily: "var(--font-syne)", fontSize: "1.25rem", fontWeight: 700, color: "#09090b", letterSpacing: "-0.02em" }}>
+            <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1.25rem", fontWeight: 700, color: "#09090b", letterSpacing: "-0.02em" }}>
               {action === "approve" ? "Aprobar solicitud" : "Rechazar solicitud"}
             </h3>
             <p className="mt-2 mb-5" style={{ color: "#52525b", fontSize: "0.9375rem", lineHeight: 1.5 }}>

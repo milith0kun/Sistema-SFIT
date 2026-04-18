@@ -1,4 +1,8 @@
-/// Entidad de usuario para la capa de dominio
+/// Entidad de usuario para la capa de dominio (RF-01).
+///
+/// `status` usa los valores del backend: `activo`, `pendiente`, `rechazado`, `suspendido`.
+/// `role` usa los snake_case del backend: `super_admin`, `admin_provincial`, `admin_municipal`,
+/// `fiscal`, `operador`, `conductor`, `ciudadano`.
 class UserEntity {
   final String id;
   final String name;
@@ -8,6 +12,7 @@ class UserEntity {
   final String? image;
   final String? municipalityId;
   final String? provinceId;
+  final String? phone;
 
   const UserEntity({
     required this.id,
@@ -18,15 +23,25 @@ class UserEntity {
     this.image,
     this.municipalityId,
     this.provinceId,
+    this.phone,
   });
 
+  // ── Status helpers ────────────────────────────────────────────
   bool get isActive => status == 'activo';
+  bool get isPending => status == 'pendiente';
+  bool get isRejected => status == 'rechazado';
+  bool get isSuspended => status == 'suspendido';
 
-  bool get isCiudadano => role == 'ciudadano';
-  bool get isConductor => role == 'conductor';
-  bool get isFiscal => role == 'fiscal';
-  bool get isOperador => role == 'operador';
-  bool get isAdminMunicipal => role == 'admin_municipal';
-  bool get isAdminProvincial => role == 'admin_provincial';
-  bool get isSuperAdmin => role == 'super_admin';
+  // ── Role helpers ──────────────────────────────────────────────
+  bool get isCiudadano        => role == 'ciudadano';
+  bool get isConductor        => role == 'conductor';
+  bool get isFiscal           => role == 'fiscal';
+  bool get isOperador         => role == 'operador';
+  bool get isAdminMunicipal   => role == 'admin_municipal';
+  bool get isAdminProvincial  => role == 'admin_provincial';
+  bool get isSuperAdmin       => role == 'super_admin';
+
+  /// Roles que SOLO operan desde el panel web.
+  bool get isWebOnlyRole =>
+      isAdminMunicipal || isAdminProvincial || isSuperAdmin;
 }

@@ -179,7 +179,11 @@ class Auth extends _$Auth {
 
   // ── RF-01-10: Logout ──────────────────────────────────────────
   Future<void> logout() async {
-    await _googleSignIn.signOut().catchError((_) {});
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {
+      // Silencioso: si no hay sesión Google activa, no pasa nada.
+    }
     await ref.read(authRepositoryProvider).logout();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }

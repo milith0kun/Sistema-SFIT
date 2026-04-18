@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +6,14 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/sfit_mark.dart';
 import '../providers/auth_provider.dart';
+
+/// Usuarios de prueba precargados (solo visibles en modo debug).
+const _debugTestUsers = <({String label, String email, String password})>[
+  (label: 'Fiscal',     email: 'fiscal@sfit.test',     password: 'Sfit2026!'),
+  (label: 'Operador',   email: 'operador@sfit.test',   password: 'Sfit2026!'),
+  (label: 'Conductor',  email: 'conductor@sfit.test',  password: 'Sfit2026!'),
+  (label: 'Ciudadano',  email: 'ciudadano@sfit.test',  password: 'Sfit2026!'),
+];
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -220,6 +229,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               ],
                             ),
                     ),
+
+                    // ── Autofill de prueba (solo en debug) ──────
+                    if (kDebugMode) ...[
+                      const SizedBox(height: 24),
+                      _DebugAutofill(
+                        onPick: (email, password) {
+                          _emailCtrl.text = email;
+                          _passwordCtrl.text = password;
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -275,6 +295,60 @@ class _GoogleMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       CustomPaint(size: const Size(18, 18), painter: _GooglePainter());
+}
+
+// ── Debug autofill ───────────────────────────────────────────────
+class _DebugAutofill extends StatelessWidget {
+  final void Function(String email, String password) onPick;
+  const _DebugAutofill({required this.onPick});
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.ink1,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.ink2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.bug_report_outlined, size: 14, color: AppColors.ink5),
+              const SizedBox(width: 6),
+              Text(
+                'AUTOFILL DE PRUEBA (debug)',
+                style: tt.labelSmall?.copyWith(
+                  fontSize: 10,
+                  color: AppColors.ink5,
+                  letterSpacing: 1.4,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _debugTestUsers
+                .map(
+                  (u) => ActionChip(
+                    label: Text(u.label),
+                    onPressed: () => onPick(u.email, u.password),
+                    visualDensity: VisualDensity.compact,
+                    backgroundColor: Colors.white,
+                    side: const BorderSide(color: AppColors.ink2),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _GooglePainter extends CustomPainter {

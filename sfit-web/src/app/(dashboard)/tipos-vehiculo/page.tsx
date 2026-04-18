@@ -1,0 +1,366 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/ui/PageHeader";
+
+type VehicleType = {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  icon?: string;
+  checklistItems: string[];
+  inspectionFields: { key: string; label: string; type: "boolean" | "scale" | "text" }[];
+  reportCategories: string[];
+  isCustom: boolean;
+  active: boolean;
+};
+
+type StoredUser = { role: string; municipalityId?: string };
+
+const PREDEFINED = [
+  {
+    key: "transporte_publico",
+    name: "Transporte público",
+    description: "Buses, combis y colectivos de rutas concesionadas.",
+  },
+  {
+    key: "limpieza_residuos",
+    name: "Limpieza y residuos",
+    description: "Camiones de basura, barredoras, volquetes de residuos.",
+  },
+  {
+    key: "emergencia",
+    name: "Emergencia",
+    description: "Ambulancias y vehículos de bomberos.",
+  },
+  {
+    key: "maquinaria",
+    name: "Maquinaria municipal",
+    description: "Retroexcavadoras, motoniveladoras, compactadoras.",
+  },
+  {
+    key: "municipal_general",
+    name: "Vehículo municipal general",
+    description: "Camionetas y sedanes de uso administrativo.",
+  },
+];
+
+export default function TiposVehiculoPage() {
+  const router = useRouter();
+  const [items, setItems] = useState<VehicleType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [forbidden, setForbidden] = useState(false);
+  const [activating, setActivating] = useState<string | null>(null);
+
+  useEffect(() => {
+    const raw = localStorage.getItem("sfit_user");
+    if (!raw) return router.replace("/login");
+    const u = JSON.parse(raw) as StoredUser;
+    if (u.role !== "admin_municipal") {
+      router.replace("/dashboard");
+      return;
+    }
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch("/api/tipos-vehiculo", {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (res.status === 401) return router.replace("/login");
+      if (res.status === 403) {
+        setForbidden(true);
+        return;
+      }
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error ?? "No se pudieron cargar los tipos de vehículo.");
+        return;
+      }
+      setItems(data.data.items ?? []);
+    } catch {
+      setError("Error de conexión. Intenta nuevamente.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function togglePredefined(key: string, name: string) {
+    setActivating(key);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const existing = items.find((t) => t.key === key);
+      if (existing) {
+        const res = await fetch(`/api/tipos-vehiculo/${existing.id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token ?? ""}`,
+          },
+          body: JSON.stringify({ active: !existing.active }),
+        });
+        if (res.status === 401) return router.replace("/login");
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          window.alert(data.error ?? "No se pudo actualizar.");
+          return;
+        }
+        setItems((prev) => prev.map((t) => (t.id === existing.id ? data.data : t)));
+      } else {
+        const res = await fetch("/api/tipos-vehiculo", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token ?? ""}`,
+          },
+          body: JSON.stringify({
+            key,
+            name,
+            description: PREDEFINED.find((p) => p.key === key)?.description ?? "",
+            isCustom: false,
+            checklistItems: [],
+            inspectionFields: [],
+            reportCategories: [],
+          }),
+        });
+        if (res.status === 401) return router.replace("/login");
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          window.alert(data.error ?? "No se pudo activar.");
+          return;
+        }
+        setItems((prev) => [...prev, data.data]);
+      }
+    } catch {
+      window.alert("Error de conexión.");
+    } finally {
+      setActivating(null);
+    }
+  }
+
+  if (forbidden) {
+    return (
+      <Card>
+        <h3 style={{ fontFamily: "var(--font-inter)", marginBottom: 8 }}>Acceso denegado</h3>
+        <p style={{ color: "#52525b" }}>No tienes permisos para ver esta sección.</p>
+      </Card>
+    );
+  }
+
+  const customs = items.filter((t) => t.isCustom);
+
+  return (
+    <div className="space-y-10 animate-fade-in">
+      <PageHeader
+        kicker="Panel municipal"
+        title="Tipos de vehículo"
+        subtitle="Configura los tipos de vehículos que opera tu municipalidad y sus formularios."
+        action={
+          <Link href="/tipos-vehiculo/nuevo">
+            <Button variant="primary">+ Nuevo tipo</Button>
+          </Link>
+        }
+      />
+
+      {error && (
+        <div
+          className="animate-fade-up"
+          style={{
+            background: "#FFF5F5",
+            border: "1.5px solid #FCA5A5",
+            borderRadius: 12,
+            padding: 16,
+            color: "#DC2626",
+            fontSize: "0.9375rem",
+            fontWeight: 500,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {/* Predefinidos */}
+      <section className="animate-fade-up delay-100 space-y-4">
+        <h2
+          style={{
+            fontFamily: "var(--font-inter)",
+            fontSize: "1.25rem",
+            fontWeight: 700,
+            color: "#09090b",
+            letterSpacing: "-0.02em",
+          }}
+        >
+          Tipos predefinidos del sistema
+        </h2>
+        <p style={{ color: "#52525b", fontSize: "0.9375rem" }}>
+          Activa los tipos que tu municipalidad maneja. Luego podrás configurar sus checklists, inspecciones y categorías de reporte.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {PREDEFINED.map((p) => {
+            const existing = items.find((t) => t.key === p.key);
+            const isActive = existing?.active ?? false;
+            return (
+              <Card key={p.key} accent={isActive ? "gold" : "default"}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <h3
+                      style={{
+                        fontFamily: "var(--font-inter)",
+                        fontSize: "1rem",
+                        fontWeight: 700,
+                        color: "#09090b",
+                        margin: 0,
+                      }}
+                    >
+                      {p.name}
+                    </h3>
+                    <p style={{ color: "#52525b", fontSize: "0.8125rem", marginTop: 8, lineHeight: 1.5 }}>
+                      {p.description}
+                    </p>
+                  </div>
+                  {isActive && <Badge variant="activo">Activo</Badge>}
+                </div>
+                <div style={{ marginTop: 16, display: "flex", gap: 8, alignItems: "center" }}>
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={isActive}
+                      disabled={activating === p.key}
+                      onChange={() => togglePredefined(p.key, p.name)}
+                    />
+                    <span style={{ fontSize: "0.875rem", color: "#18181b" }}>
+                      {isActive ? "Activado" : "Activar"}
+                    </span>
+                  </label>
+                  {existing && (
+                    <Link href={`/tipos-vehiculo/${existing.id}`} style={{ marginLeft: "auto" }}>
+                      <Button variant="ghost" size="sm">
+                        Configurar
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Personalizados */}
+      <section className="animate-fade-up delay-200 space-y-4">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <h2
+            style={{
+              fontFamily: "var(--font-inter)",
+              fontSize: "1.25rem",
+              fontWeight: 700,
+              color: "#09090b",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            Tipos personalizados
+          </h2>
+          <Link href="/tipos-vehiculo/nuevo">
+            <Button variant="outline" size="sm">
+              + Nuevo personalizado
+            </Button>
+          </Link>
+        </div>
+
+        {loading ? (
+          <Card>
+            <div style={{ color: "#71717a" }}>Cargando tipos…</div>
+          </Card>
+        ) : customs.length === 0 ? (
+          <EmptyState
+            title="Sin tipos personalizados"
+            subtitle="Crea un tipo con formularios propios si tu municipalidad opera un vehículo distinto a los predefinidos."
+            cta={
+              <Link href="/tipos-vehiculo/nuevo">
+                <Button variant="primary">Nuevo tipo personalizado</Button>
+              </Link>
+            }
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {customs.map((t) => (
+              <Link
+                key={t.id}
+                href={`/tipos-vehiculo/${t.id}`}
+                style={{ textDecoration: "none" }}
+              >
+                <Card accent={t.active ? "gold" : "default"} className="feature-card">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                    <h3
+                      style={{
+                        fontFamily: "var(--font-inter)",
+                        fontSize: "1.0625rem",
+                        fontWeight: 700,
+                        color: "#09090b",
+                        margin: 0,
+                      }}
+                    >
+                      {t.name}
+                    </h3>
+                    <Badge variant="gold">Personalizado</Badge>
+                  </div>
+                  <p style={{ color: "#52525b", fontSize: "0.8125rem", marginTop: 10, lineHeight: 1.5 }}>
+                    {t.description || "Sin descripción."}
+                  </p>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(3, 1fr)",
+                      gap: 10,
+                      marginTop: 16,
+                      paddingTop: 12,
+                      borderTop: "1px solid #e4e4e7",
+                    }}
+                  >
+                    <Stat label="Checklist" value={t.checklistItems.length} />
+                    <Stat label="Inspección" value={t.inspectionFields.length} />
+                    <Stat label="Categorías" value={t.reportCategories.length} />
+                  </div>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <div
+        style={{
+          fontFamily: "var(--font-inter)",
+          fontSize: "1.25rem",
+          fontWeight: 800,
+          color: "#09090b",
+          lineHeight: 1,
+        }}
+      >
+        {value}
+      </div>
+      <div style={{ color: "#71717a", fontSize: "0.6875rem", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 4 }}>
+        {label}
+      </div>
+    </div>
+  );
+}

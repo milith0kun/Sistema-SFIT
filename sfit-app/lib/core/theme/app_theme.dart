@@ -36,7 +36,6 @@ class AppTheme {
 
   static ThemeData get lightTheme {
     final body = GoogleFonts.plusJakartaSans();
-    final display = GoogleFonts.syneTextTheme();
 
     return ThemeData(
       useMaterial3: true,

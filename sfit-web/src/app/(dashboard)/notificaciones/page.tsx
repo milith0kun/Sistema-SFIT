@@ -1,0 +1,437 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/ui/PageHeader";
+
+type ApiResponse<T> = { success: boolean; data?: T; error?: string };
+
+type Notification = {
+  id: string;
+  type?: string;
+  category?: string;
+  title: string;
+  body?: string;
+  link?: string;
+  read?: boolean;
+  createdAt: string;
+};
+
+type Tab = "all" | "unread" | "category";
+
+function getToken(): string {
+  return typeof window === "undefined" ? "" : localStorage.getItem("sfit_access_token") ?? "";
+}
+
+function timeAgo(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const diff = Math.max(0, Date.now() - then);
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return `hace ${sec}s`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `hace ${min} min`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `hace ${hr} h`;
+  const d = Math.floor(hr / 24);
+  if (d < 7) return `hace ${d} d`;
+  return new Date(iso).toLocaleDateString("es-PE");
+}
+
+function iconForType(type?: string): React.ReactNode {
+  const common = {
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+  if (!type || type.includes("info"))
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="16" x2="12" y2="12" />
+        <line x1="12" y1="8" x2="12.01" y2="8" />
+      </svg>
+    );
+  if (type.includes("warn") || type.includes("alert"))
+    return (
+      <svg {...common}>
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+    );
+  if (type.includes("success") || type.includes("approved"))
+    return (
+      <svg {...common}>
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+    );
+  if (type.includes("error") || type.includes("rejected"))
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="10" />
+        <line x1="15" y1="9" x2="9" y2="15" />
+        <line x1="9" y1="9" x2="15" y2="15" />
+      </svg>
+    );
+  return (
+    <svg {...common}>
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
+
+function iconBg(type?: string): { bg: string; color: string; border: string } {
+  if (!type || type.includes("info"))
+    return { bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE" };
+  if (type.includes("warn") || type.includes("alert"))
+    return { bg: "#FFFBEB", color: "#b45309", border: "#FCD34D" };
+  if (type.includes("success") || type.includes("approved"))
+    return { bg: "#F0FDF4", color: "#15803d", border: "#86EFAC" };
+  if (type.includes("error") || type.includes("rejected"))
+    return { bg: "#FFF5F5", color: "#b91c1c", border: "#FCA5A5" };
+  return { bg: "#FDF8EC", color: "#926A09", border: "#E8D090" };
+}
+
+export default function NotificacionesPage() {
+  const [items, setItems] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("all");
+  const [category, setCategory] = useState<string>("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const qs = new URLSearchParams();
+      qs.set("limit", "100");
+      if (tab === "unread") qs.set("unread", "true");
+      if (tab === "category" && category) qs.set("category", category);
+
+      const res = await fetch(`/api/notifications?${qs.toString()}`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const data: ApiResponse<{ items: Notification[] }> = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error ?? "No se pudieron cargar las notificaciones.");
+        setItems([]);
+        return;
+      }
+      setItems(data.data?.items ?? []);
+    } catch {
+      setError("Error de conexión.");
+    } finally {
+      setLoading(false);
+    }
+  }, [tab, category]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const categories = useMemo(() => {
+    const s = new Set<string>();
+    items.forEach((n) => n.category && s.add(n.category));
+    return Array.from(s).sort();
+  }, [items]);
+
+  async function markAllRead() {
+    try {
+      const res = await fetch("/api/notifications/read-all", {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (res.ok) setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+    } catch {
+      // silent
+    }
+  }
+
+  async function markRead(id: string) {
+    try {
+      const res = await fetch(`/api/notifications/${id}/read`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (res.ok) setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    } catch {
+      // silent
+    }
+  }
+
+  async function remove(id: string) {
+    if (!window.confirm("¿Eliminar esta notificación?")) return;
+    try {
+      const res = await fetch(`/api/notifications/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (res.ok) setItems((prev) => prev.filter((n) => n.id !== id));
+    } catch {
+      // silent
+    }
+  }
+
+  const unreadCount = items.filter((n) => !n.read).length;
+
+  return (
+    <div className="space-y-8 animate-fade-in">
+      <PageHeader
+        kicker="RF-18"
+        title="Notificaciones"
+        subtitle="Tu centro de actividad: aprobaciones, alertas y avisos del sistema."
+        action={
+          <Button
+            variant="outline"
+            size="md"
+            onClick={markAllRead}
+            disabled={unreadCount === 0}
+          >
+            Marcar todas como leídas
+          </Button>
+        }
+      />
+
+      {/* Tabs */}
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          flexWrap: "wrap",
+          borderBottom: "1.5px solid #e4e4e7",
+          paddingBottom: 0,
+        }}
+      >
+        {(
+          [
+            { id: "all", label: "Todas" },
+            { id: "unread", label: `No leídas${unreadCount > 0 ? ` (${unreadCount})` : ""}` },
+            { id: "category", label: "Por categoría" },
+          ] as { id: Tab; label: string }[]
+        ).map((t) => {
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              style={{
+                padding: "10px 14px",
+                background: "transparent",
+                border: "none",
+                borderBottom: active ? "2px solid #B8860B" : "2px solid transparent",
+                color: active ? "#09090b" : "#52525b",
+                fontWeight: active ? 700 : 500,
+                fontSize: "0.875rem",
+                cursor: "pointer",
+                transition: "color 0.12s ease",
+              }}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {tab === "category" && (
+        <Card>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <label style={{ fontSize: "0.875rem" }}>Categoría:</label>
+            <select
+              className="field"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              style={{ maxWidth: 280 }}
+            >
+              <option value="">Todas</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+        </Card>
+      )}
+
+      {error && (
+        <div
+          style={{
+            background: "#FFF5F5",
+            border: "1.5px solid #FCA5A5",
+            borderRadius: 12,
+            padding: 16,
+            color: "#DC2626",
+            fontSize: "0.9375rem",
+            fontWeight: 500,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <Card>
+          <div style={{ color: "#71717a" }}>Cargando…</div>
+        </Card>
+      ) : items.length === 0 ? (
+        <EmptyState title="Sin notificaciones" subtitle="No tienes notificaciones en esta vista." />
+      ) : (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 10 }}>
+          {items.map((n) => {
+            const ibg = iconBg(n.type);
+            const content = (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 14,
+                  padding: "16px 18px",
+                  background: n.read ? "#ffffff" : "#FDF8EC",
+                  border: `1.5px solid ${n.read ? "#e4e4e7" : "#E8D090"}`,
+                  borderRadius: 14,
+                  cursor: n.link ? "pointer" : "default",
+                  transition: "border-color 0.12s ease",
+                }}
+              >
+                <div
+                  aria-hidden
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 10,
+                    background: ibg.bg,
+                    border: `1px solid ${ibg.border}`,
+                    color: ibg.color,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  {iconForType(n.type)}
+                </div>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      gap: 10,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "0.9375rem",
+                        fontWeight: 700,
+                        color: "#09090b",
+                      }}
+                    >
+                      {n.title}
+                    </div>
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {n.category && <Badge variant="info">{n.category}</Badge>}
+                      <div style={{ fontSize: "0.6875rem", color: "#71717a" }}>
+                        {timeAgo(n.createdAt)}
+                      </div>
+                    </div>
+                  </div>
+                  {n.body && (
+                    <div
+                      style={{
+                        color: "#52525b",
+                        fontSize: "0.875rem",
+                        marginTop: 4,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {n.body}
+                    </div>
+                  )}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 14,
+                      marginTop: 10,
+                    }}
+                  >
+                    {!n.read && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          void markRead(n.id);
+                        }}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: "#0A1628",
+                          fontSize: "0.75rem",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          padding: 0,
+                        }}
+                      >
+                        Marcar leída
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        void remove(n.id);
+                      }}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "#b91c1c",
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        padding: 0,
+                      }}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+            return (
+              <li key={n.id} onClick={() => !n.read && void markRead(n.id)}>
+                {n.link ? (
+                  <Link href={n.link} style={{ textDecoration: "none", color: "inherit" }}>
+                    {content}
+                  </Link>
+                ) : (
+                  content
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}

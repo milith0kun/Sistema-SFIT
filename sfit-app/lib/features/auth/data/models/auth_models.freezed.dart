@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$UserModel {
 
-@JsonKey(name: '_id') String get id; String get name; String get email; String get role; String get status; String? get image; String? get municipalityId; String? get provinceId; String? get phone;
+ String get id; String get name; String get email; String get role; String get status; String? get image; String? get municipalityId; String? get provinceId; String? get phone;
 /// Create a copy of UserModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -48,7 +48,7 @@ abstract mixin class $UserModelCopyWith<$Res>  {
   factory $UserModelCopyWith(UserModel value, $Res Function(UserModel) _then) = _$UserModelCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: '_id') String id, String name, String email, String role, String status, String? image, String? municipalityId, String? provinceId, String? phone
+ String id, String name, String email, String role, String status, String? image, String? municipalityId, String? provinceId, String? phone
 });
 
 
@@ -161,7 +161,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: '_id')  String id,  String name,  String email,  String role,  String status,  String? image,  String? municipalityId,  String? provinceId,  String? phone)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String email,  String role,  String status,  String? image,  String? municipalityId,  String? provinceId,  String? phone)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _UserModel() when $default != null:
 return $default(_that.id,_that.name,_that.email,_that.role,_that.status,_that.image,_that.municipalityId,_that.provinceId,_that.phone);case _:
@@ -182,7 +182,7 @@ return $default(_that.id,_that.name,_that.email,_that.role,_that.status,_that.im
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: '_id')  String id,  String name,  String email,  String role,  String status,  String? image,  String? municipalityId,  String? provinceId,  String? phone)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String email,  String role,  String status,  String? image,  String? municipalityId,  String? provinceId,  String? phone)  $default,) {final _that = this;
 switch (_that) {
 case _UserModel():
 return $default(_that.id,_that.name,_that.email,_that.role,_that.status,_that.image,_that.municipalityId,_that.provinceId,_that.phone);case _:
@@ -202,7 +202,7 @@ return $default(_that.id,_that.name,_that.email,_that.role,_that.status,_that.im
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: '_id')  String id,  String name,  String email,  String role,  String status,  String? image,  String? municipalityId,  String? provinceId,  String? phone)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String email,  String role,  String status,  String? image,  String? municipalityId,  String? provinceId,  String? phone)?  $default,) {final _that = this;
 switch (_that) {
 case _UserModel() when $default != null:
 return $default(_that.id,_that.name,_that.email,_that.role,_that.status,_that.image,_that.municipalityId,_that.provinceId,_that.phone);case _:
@@ -217,10 +217,10 @@ return $default(_that.id,_that.name,_that.email,_that.role,_that.status,_that.im
 @JsonSerializable()
 
 class _UserModel implements UserModel {
-  const _UserModel({@JsonKey(name: '_id') required this.id, required this.name, required this.email, required this.role, required this.status, this.image, this.municipalityId, this.provinceId, this.phone});
+  const _UserModel({required this.id, required this.name, required this.email, required this.role, required this.status, this.image, this.municipalityId, this.provinceId, this.phone});
   factory _UserModel.fromJson(Map<String, dynamic> json) => _$UserModelFromJson(json);
 
-@override@JsonKey(name: '_id') final  String id;
+@override final  String id;
 @override final  String name;
 @override final  String email;
 @override final  String role;
@@ -263,7 +263,7 @@ abstract mixin class _$UserModelCopyWith<$Res> implements $UserModelCopyWith<$Re
   factory _$UserModelCopyWith(_UserModel value, $Res Function(_UserModel) _then) = __$UserModelCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: '_id') String id, String name, String email, String role, String status, String? image, String? municipalityId, String? provinceId, String? phone
+ String id, String name, String email, String role, String status, String? image, String? municipalityId, String? provinceId, String? phone
 });
 
 

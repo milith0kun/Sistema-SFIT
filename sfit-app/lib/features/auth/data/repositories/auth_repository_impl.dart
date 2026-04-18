@@ -53,7 +53,7 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<AuthResult?> tryAutoLogin() async {
     final storedRefreshToken =
         await _storage.read(key: ApiConstants.refreshTokenKey);
-    final userJsonStr = await _storage.read(key: 'sfit_user');
+    final userJsonStr = await _storage.read(key: ApiConstants.userJsonKey);
 
     if (storedRefreshToken == null || userJsonStr == null) return null;
 
@@ -72,16 +72,15 @@ class AuthRepositoryImpl implements AuthRepository {
       await _storage.write(
           key: ApiConstants.refreshTokenKey, value: newRefreshToken);
 
-      final userModel = UserModel.fromJson(
-        jsonDecode(userJsonStr) as Map<String, dynamic>,
-      );
+      final userJson = jsonDecode(userJsonStr) as Map<String, dynamic>;
+      final userModel = UserModel.fromJson(userJson);
 
       return AuthResult(
         token: AuthTokenModel.fromJson({
           'accessToken':  newAccessToken,
           'refreshToken': newRefreshToken,
-          'expiresIn':    900,
-          'user':         jsonDecode(userJsonStr),
+          'expiresIn':    (data['expiresIn'] as num?)?.toInt() ?? 900,
+          'user':         userJson,
         }),
         user: _mapUser(userModel),
       );
@@ -122,7 +121,8 @@ class AuthRepositoryImpl implements AuthRepository {
         key: ApiConstants.refreshTokenKey, value: tokenData.refreshToken);
     if (tokenData.user != null) {
       await _storage.write(
-          key: 'sfit_user', value: jsonEncode(tokenData.user!.toJson()));
+          key: ApiConstants.userJsonKey,
+          value: jsonEncode(tokenData.user!.toJson()));
     }
   }
 
@@ -135,7 +135,26 @@ class AuthRepositoryImpl implements AuthRepository {
         image: model.image,
         municipalityId: model.municipalityId,
         provinceId: model.provinceId,
+        phone: model.phone,
       );
+
+  @override
+  Future<void> refreshTokens() async {
+    final refreshToken = await _storage.read(key: ApiConstants.refreshTokenKey);
+    if (refreshToken == null) {
+      throw AuthException('No hay refresh token almacenado');
+    }
+    final res = await _api.refreshToken({'refreshToken': refreshToken});
+    final body = res.data as Map<String, dynamic>;
+    if (body['success'] != true) {
+      throw AuthException(body['error'] ?? 'Error al refrescar token');
+    }
+    final data = body['data'] as Map<String, dynamic>;
+    await _storage.write(
+        key: ApiConstants.accessTokenKey, value: data['accessToken'] as String);
+    await _storage.write(
+        key: ApiConstants.refreshTokenKey, value: data['refreshToken'] as String);
+  }
 }
 
 class AuthException implements Exception {

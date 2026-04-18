@@ -4,6 +4,8 @@ import { User } from "@/models/User";
 import { apiResponse, apiUnauthorized, apiForbidden, apiError, apiNotFound } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES, USER_STATUS, type Role } from "@/lib/constants";
+import { createNotification } from "@/lib/notifications/create";
+import { logAudit } from "@/lib/audit/log";
 
 /**
  * RF-01-04: Admin Municipal aprueba una solicitud de usuario y asigna rol definitivo.
@@ -58,6 +60,21 @@ export async function POST(
     target.role = assignedRole;
     target.requestedRole = undefined;
     await target.save();
+
+    await createNotification({
+      userId: target._id.toString(),
+      title: "Tu solicitud fue aprobada",
+      body: `Bienvenido a SFIT. Tu cuenta está activa con el rol de ${assignedRole}.`,
+      type: "success",
+      category: "aprobacion",
+    });
+
+    await logAudit(request, auth.session, {
+      action: "user.approved",
+      resourceType: "user",
+      resourceId: target._id.toString(),
+      metadata: { assignedRole },
+    });
 
     return apiResponse({
       id: target._id.toString(),

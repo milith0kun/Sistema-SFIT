@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     const initialAdminEmail = process.env.INITIAL_ADMIN_EMAIL?.toLowerCase();
     const isInitialAdmin =
-      initialAdminEmail && payload.email.toLowerCase() === initialAdminEmail;
+      !!initialAdminEmail && payload.email.toLowerCase() === initialAdminEmail;
 
     // Registro automático si no existe (RF-01-01)
     if (!user) {
@@ -71,16 +71,35 @@ export async function POST(request: NextRequest) {
         role: isInitialAdmin ? ROLES.SUPER_ADMIN : ROLES.CIUDADANO,
         status: USER_STATUS.ACTIVO,
       });
-    } else if (user.provider !== "google") {
-      return apiError(
-        "Esta cuenta ya existe con correo/contraseña. Usa ese método.",
-        400,
-      );
-    } else if (isInitialAdmin && user.role !== ROLES.SUPER_ADMIN) {
-      // Auto-promoción: existia pero aún no era super_admin
-      user.role = ROLES.SUPER_ADMIN;
-      user.status = USER_STATUS.ACTIVO;
-      await user.save();
+    } else {
+      // Vinculación automática: si la cuenta ya existe (con cualquier provider)
+      // y el email está verificado por Google, enlazamos Google con la cuenta.
+      // RF-01: el correo es la identidad única; los proveedores son métodos de acceso.
+      let mutated = false;
+
+      if (!user.providerId) {
+        user.providerId = payload.sub;
+        mutated = true;
+      }
+      // Si la cuenta se creó con correo pero nunca con Google, marcamos
+      // provider "google" para reflejar que ahora soporta ambos métodos.
+      // Mantenemos la contraseña intacta — el usuario puede seguir usando email/pwd.
+      if (user.provider !== "google") {
+        user.provider = "google";
+        mutated = true;
+      }
+      if (!user.image && payload.picture) {
+        user.image = payload.picture;
+        mutated = true;
+      }
+      if (isInitialAdmin && user.role !== ROLES.SUPER_ADMIN) {
+        user.role = ROLES.SUPER_ADMIN;
+        user.status = USER_STATUS.ACTIVO;
+        mutated = true;
+      }
+      if (mutated) {
+        await user.save();
+      }
     }
 
     if (user.status === USER_STATUS.SUSPENDIDO) {

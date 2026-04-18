@@ -7,7 +7,7 @@ part of 'auth_models.dart';
 // **************************************************************************
 
 _UserModel _$UserModelFromJson(Map<String, dynamic> json) => _UserModel(
-  id: json['_id'] as String,
+  id: json['id'] as String,
   name: json['name'] as String,
   email: json['email'] as String,
   role: json['role'] as String,
@@ -20,7 +20,7 @@ _UserModel _$UserModelFromJson(Map<String, dynamic> json) => _UserModel(
 
 Map<String, dynamic> _$UserModelToJson(_UserModel instance) =>
     <String, dynamic>{
-      '_id': instance.id,
+      'id': instance.id,
       'name': instance.name,
       'email': instance.email,
       'role': instance.role,

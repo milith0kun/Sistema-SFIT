@@ -1,182 +1,570 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  Users,
+  MapPin,
+  Building2,
+  ClipboardList,
+  Truck,
+  UserPlus,
+  UserCheck,
+  Shield,
+  Flag,
+  TriangleAlert,
+  ChartColumn,
+  FileText,
+  Car,
+  Route,
+  CalendarDays,
+  Bell,
+} from "lucide-react";
+import { GreetingHeader } from "@/components/dashboard/GreetingHeader";
+import { HeroActionCard } from "@/components/dashboard/HeroActionCard";
+import { StatCard } from "@/components/dashboard/StatCard";
+import { FeatureCard } from "@/components/dashboard/FeatureCard";
+import { SectionTabs } from "@/components/dashboard/SectionTabs";
 
 type User = { name: string; email: string; role: string };
 
-const ROLE_CONTEXT: Record<string, { kicker: string; title: string; subtitle: string; modules: ModuleCard[] }> = {
-  super_admin: {
-    kicker:   "Panel global",
-    title:    "Plataforma SFIT",
-    subtitle: "Visibilidad completa sobre todas las provincias y municipalidades.",
-    modules: [
-      { label: "Provincias",        href: "/municipalidades", icon: "globe" },
-      { label: "Municipalidades",   href: "/municipalidades", icon: "building" },
-      { label: "Estadísticas globales", href: "/estadisticas",  icon: "chart" },
-      { label: "Aprobaciones",      href: "/admin/users",     icon: "check" },
-    ],
-  },
-  admin_provincial: {
-    kicker:   "Panel provincial",
-    title:    "Tu provincia",
-    subtitle: "Estadísticas agregadas de todas tus municipalidades.",
-    modules: [
-      { label: "Municipalidades",    href: "/municipalidades", icon: "building" },
-      { label: "Estadísticas",       href: "/estadisticas",    icon: "chart" },
-      { label: "Aprobaciones",       href: "/admin/users",     icon: "check" },
-      { label: "Sanciones del mes",  href: "/sanciones",       icon: "alert" },
-    ],
-  },
-  admin_municipal: {
-    kicker:   "Panel municipal",
-    title:    "Tu municipalidad",
-    subtitle: "Gestiona usuarios, flota, inspecciones y reportes ciudadanos.",
-    modules: [
-      { label: "Aprobaciones pendientes", href: "/admin/users",     icon: "check", accent: "gold" },
-      { label: "Empresas de transporte",  href: "/empresas",        icon: "building" },
-      { label: "Tipos de vehículo",       href: "/tipos-vehiculo",  icon: "truck" },
-      { label: "Conductores",             href: "/conductores",     icon: "user" },
-      { label: "Inspecciones",            href: "/inspecciones",    icon: "shield" },
-      { label: "Reportes ciudadanos",     href: "/reportes",        icon: "flag" },
-      { label: "Sanciones",               href: "/sanciones",       icon: "alert" },
-      { label: "Estadísticas",            href: "/estadisticas",    icon: "chart" },
-    ],
-  },
-  operador: {
-    kicker:   "Panel de operador",
-    title:    "Tu flota",
-    subtitle: "Gestión de vehículos, conductores y operaciones diarias.",
-    modules: [
-      { label: "Flota del día",   href: "/flota",       icon: "truck", accent: "gold" },
-      { label: "Conductores",     href: "/conductores", icon: "user" },
-      { label: "Vehículos",       href: "/vehiculos",   icon: "truck" },
-      { label: "Viajes",          href: "/viajes",      icon: "route" },
-      { label: "Estadísticas",    href: "/estadisticas", icon: "chart" },
-    ],
-  },
-  fiscal: {
-    kicker:   "Panel de fiscal",
-    title:    "Fiscalización en campo",
-    subtitle: "Inspecciones, actas digitales y reportes de campo.",
-    modules: [
-      { label: "Inspecciones",        href: "/inspecciones", icon: "shield" },
-      { label: "Vehículos / QR",      href: "/vehiculos",    icon: "truck" },
-      { label: "Conductores",         href: "/conductores",  icon: "user" },
-      { label: "Reportes ciudadanos", href: "/reportes",     icon: "flag" },
-      { label: "Sanciones",           href: "/sanciones",    icon: "alert" },
-    ],
-  },
+type ApiResponse<T> = { success: boolean; data?: T; error?: string };
+
+type GlobalStats = {
+  provincesCount: number;
+  municipalitiesCount: number;
+  activeMunicipalities: number;
+  usersByRole: Record<string, number>;
+  usersPendingApproval: number;
+  companiesCount: number;
+  vehicleTypesCount: number;
+  sanctionsThisMonth: number;
+  reportsPending: number;
 };
 
-type ModuleCard = {
-  label: string;
-  href: string;
-  icon: keyof typeof ICONS;
-  accent?: "gold";
+/* ── Store sincronizado con localStorage para leer sfit_user sin setState en efecto ── */
+function subscribeUser(onChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const handler = (e: StorageEvent) => {
+    if (e.key === "sfit_user" || e.key === null) onChange();
+  };
+  window.addEventListener("storage", handler);
+  return () => window.removeEventListener("storage", handler);
+}
+
+let __lastRawUser: string | null = null;
+let __lastParsedUser: User | null = null;
+
+function getClientUser(): User | null {
+  if (typeof window === "undefined") return null;
+  const raw = localStorage.getItem("sfit_user");
+  if (raw === __lastRawUser) return __lastParsedUser;
+  __lastRawUser = raw;
+  try {
+    __lastParsedUser = raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    __lastParsedUser = null;
+  }
+  return __lastParsedUser;
+}
+
+function getServerUser(): User | null {
+  return null;
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: "Super Admin",
+  admin_provincial: "Admin Provincial",
+  admin_municipal: "Admin Municipal",
+  fiscal: "Fiscal / Inspector",
+  operador: "Operador",
+  conductor: "Conductor",
+  ciudadano: "Ciudadano",
 };
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<User | null>(null);
+  const user = useSyncExternalStore(subscribeUser, getClientUser, getServerUser);
+  const [stats, setStats] = useState<GlobalStats | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadSuperAdmin = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const headers = { Authorization: `Bearer ${token ?? ""}` };
+
+      const sres = await fetch("/api/admin/stats/global", { headers });
+      if (sres.ok) {
+        const sdata: ApiResponse<GlobalStats> = await sres.json();
+        if (sdata.success && sdata.data) setStats(sdata.data);
+        else if (sdata.error) setError(sdata.error);
+      } else if (sres.status !== 404) {
+        setError("No se pudieron cargar las estadísticas.");
+      }
+    } catch {
+      setError("Error de conexión.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const raw = localStorage.getItem("sfit_user");
-    if (raw) setUser(JSON.parse(raw));
-  }, []);
+    if (!user) return;
+    if (user.role === "super_admin" || user.role === "admin_provincial" || user.role === "admin_municipal") {
+      void loadSuperAdmin();
+    }
+  }, [user, loadSuperAdmin]);
 
   if (!user) return null;
 
-  const ctx = ROLE_CONTEXT[user.role] ?? ROLE_CONTEXT.admin_municipal;
+  const role = user.role;
+  const roleLabel = ROLE_LABELS[role] ?? role;
 
   return (
-    <div className="space-y-10 animate-fade-in">
-      {/* Header */}
-      <div className="animate-fade-up">
-        <p className="kicker mb-3">{ctx.kicker}</p>
-        <h1
-          className="font-black text-[#09090b]"
-          style={{ fontFamily: "var(--font-syne)", fontSize: "2.5rem", lineHeight: 0.95, letterSpacing: "-0.035em" }}
-        >
-          Hola, {user.name.split(" ")[0]}
-        </h1>
-        <p className="mt-3" style={{ color: "#52525b", fontSize: "1.0625rem", lineHeight: 1.55 }}>
-          {ctx.subtitle}
-        </p>
-      </div>
+    <div className="space-y-8 animate-fade-in">
+      <GreetingHeader name={user.name} role={roleLabel} />
 
-      {/* Quick stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-up delay-100">
-        {[
-          { label: "Vehículos activos",   value: "—", accent: "#B8860B", bg: "#FDF8EC", border: "#E8D090" },
-          { label: "Conductores APTOS",   value: "—", accent: "#15803d", bg: "#F0FDF4", border: "#86EFAC" },
-          { label: "Reportes pendientes", value: "—", accent: "#b45309", bg: "#FFFBEB", border: "#FCD34D" },
-          { label: "Sanciones del mes",   value: "—", accent: "#b91c1c", bg: "#FFF5F5", border: "#FCA5A5" },
-        ].map((m) => (
-          <div
-            key={m.label}
-            className="rounded-2xl p-6"
-            style={{ background: "#ffffff", border: "1.5px solid #e4e4e7" }}
-          >
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4" style={{ background: m.bg, border: `1px solid ${m.border}` }}>
-              <div className="w-2 h-2 rounded-full" style={{ background: m.accent }} />
-            </div>
-            <div className="font-black text-[#09090b] leading-none mb-2" style={{ fontFamily: "var(--font-syne)", fontSize: "2rem", letterSpacing: "-0.03em" }}>
-              {m.value}
-            </div>
-            <div style={{ color: "#52525b", fontSize: "0.8125rem", fontWeight: 500 }}>{m.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Módulos por rol */}
-      <section className="animate-fade-up delay-200">
-        <h2
-          className="mb-5"
-          style={{ fontFamily: "var(--font-syne)", fontSize: "1.25rem", fontWeight: 700, color: "#09090b", letterSpacing: "-0.02em" }}
+      {error && (
+        <div
+          className="animate-fade-up"
+          role="alert"
+          style={{
+            background: "#FFF5F5",
+            border: "1.5px solid #FCA5A5",
+            borderRadius: 12,
+            padding: 16,
+            color: "#b91c1c",
+            fontSize: "0.9375rem",
+            fontWeight: 500,
+          }}
         >
-          Tus módulos
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {ctx.modules.map((m) => (
-            <Link
-              key={m.href + m.label}
-              href={m.href}
-              className="feature-card rounded-xl p-5 transition-all"
-              style={{
-                background: m.accent === "gold" ? "#FDF8EC" : "#ffffff",
-                border: m.accent === "gold" ? "1.5px solid #E8D090" : "1.5px solid #e4e4e7",
-                textDecoration: "none",
-              }}
-            >
-              <div
-                className="w-9 h-9 rounded-lg flex items-center justify-center mb-3"
-                style={{
-                  background: m.accent === "gold" ? "#F6E5B1" : "#f4f4f5",
-                  color: m.accent === "gold" ? "#926A09" : "#3F3F46",
-                }}
-              >
-                {ICONS[m.icon]}
-              </div>
-              <div style={{ fontFamily: "var(--font-syne)", fontSize: "0.9375rem", fontWeight: 700, color: m.accent === "gold" ? "#926A09" : "#09090b", letterSpacing: "-0.01em" }}>
-                {m.label}
-              </div>
-            </Link>
-          ))}
+          {error}
         </div>
-      </section>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-up delay-100">
+        {/* Columna principal */}
+        <div className="lg:col-span-8 space-y-6 min-w-0">
+          <PrimarySection role={role} stats={stats} loading={loading} />
+        </div>
+
+        {/* Columna lateral */}
+        <div className="lg:col-span-4 min-w-0">
+          <SideSection role={role} stats={stats} />
+        </div>
+      </div>
     </div>
   );
 }
 
-const ICONS: Record<string, React.ReactNode> = {
-  globe:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>,
-  building: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>,
-  chart:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18M7 13l3-3 4 4 5-5"/></svg>,
-  check:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
-  truck:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
-  user:     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
-  shield:   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
-  flag:     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>,
-  alert:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
-  route:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 1 0 0-7h-11a3.5 3.5 0 1 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>,
+/* ──────────────────────────────────────────
+   Sección principal: Hero + 2x2 StatCards
+   ────────────────────────────────────────── */
+
+function PrimarySection({
+  role,
+  stats,
+  loading,
+}: {
+  role: string;
+  stats: GlobalStats | null;
+  loading: boolean;
+}) {
+  if (role === "super_admin") {
+    return (
+      <>
+        <HeroActionCard
+          icon={Users}
+          title="Gestión de Usuarios y Roles"
+          subtitle="Designar accesos y permisos en toda la plataforma."
+          href="/usuarios"
+          accent="gold"
+        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <StatCard
+            icon={MapPin}
+            label="PROVINCIAS"
+            value={stats?.provincesCount ?? (loading ? "…" : 0)}
+            subtitle="registradas en el sistema"
+            accent="gold"
+            watermarkIcon={MapPin}
+          />
+          <StatCard
+            icon={Building2}
+            label="MUNICIPALIDADES"
+            value={stats ? stats.activeMunicipalities : loading ? "…" : 0}
+            subtitle={stats ? `activas de ${stats.municipalitiesCount}` : "sin datos"}
+            accent="apto"
+            watermarkIcon={Building2}
+          />
+          <StatCard
+            icon={ClipboardList}
+            label="PENDIENTES"
+            value={stats?.usersPendingApproval ?? (loading ? "…" : 0)}
+            subtitle="usuarios por aprobar"
+            accent="riesgo"
+            watermarkIcon={UserPlus}
+          />
+          <StatCard
+            icon={Truck}
+            label="EMPRESAS"
+            value={stats?.companiesCount ?? (loading ? "…" : 0)}
+            subtitle="registradas"
+            accent="ink"
+            watermarkIcon={Truck}
+          />
+        </div>
+      </>
+    );
+  }
+
+  if (role === "admin_provincial") {
+    return (
+      <>
+        <HeroActionCard
+          icon={Building2}
+          title="Municipalidades de tu provincia"
+          subtitle="Supervisa la gestión de cada municipalidad."
+          href="/municipalidades"
+          accent="navy"
+        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <StatCard
+            icon={Building2}
+            label="MUNICIPALIDADES"
+            value={stats ? stats.activeMunicipalities : loading ? "…" : 0}
+            subtitle={stats ? `activas de ${stats.municipalitiesCount}` : "sin datos"}
+            accent="apto"
+            watermarkIcon={Building2}
+          />
+          <StatCard
+            icon={UserCheck}
+            label="APROBACIONES"
+            value={stats?.usersPendingApproval ?? (loading ? "…" : 0)}
+            subtitle="pendientes de revisión"
+            accent="riesgo"
+            watermarkIcon={UserCheck}
+          />
+          <StatCard
+            icon={TriangleAlert}
+            label="SANCIONES"
+            value={stats?.sanctionsThisMonth ?? 0}
+            subtitle="este mes"
+            accent="no_apto"
+            watermarkIcon={TriangleAlert}
+          />
+          <StatCard
+            icon={Flag}
+            label="REPORTES"
+            value={stats?.reportsPending ?? 0}
+            subtitle="ciudadanos pendientes"
+            accent="gold"
+            watermarkIcon={Flag}
+          />
+        </div>
+      </>
+    );
+  }
+
+  if (role === "admin_municipal") {
+    return (
+      <>
+        <HeroActionCard
+          icon={UserCheck}
+          title="Aprobaciones pendientes"
+          subtitle="Revisa nuevos usuarios y sus permisos."
+          href="/admin/users"
+          accent="gold"
+        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <StatCard
+            icon={Truck}
+            label="EMPRESAS"
+            value={stats?.companiesCount ?? (loading ? "…" : 0)}
+            subtitle="registradas"
+            accent="gold"
+            watermarkIcon={Truck}
+          />
+          <StatCard
+            icon={Shield}
+            label="INSPECCIONES"
+            value={"—"}
+            subtitle="próximamente"
+            accent="apto"
+            watermarkIcon={Shield}
+          />
+          <StatCard
+            icon={Flag}
+            label="REPORTES"
+            value={stats?.reportsPending ?? 0}
+            subtitle="pendientes"
+            accent="riesgo"
+            watermarkIcon={Flag}
+          />
+          <StatCard
+            icon={TriangleAlert}
+            label="SANCIONES"
+            value={stats?.sanctionsThisMonth ?? 0}
+            subtitle="este mes"
+            accent="no_apto"
+            watermarkIcon={TriangleAlert}
+          />
+        </div>
+      </>
+    );
+  }
+
+  if (role === "operador") {
+    return (
+      <>
+        <HeroActionCard
+          icon={ClipboardList}
+          title="Flota del día"
+          subtitle="Asignaciones, conductores y despacho de la jornada."
+          href="/flota"
+          accent="gold"
+        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <StatCard icon={Car}    label="VEHÍCULOS"    value="—" subtitle="activos hoy"    accent="gold"  watermarkIcon={Car} />
+          <StatCard icon={Users}  label="CONDUCTORES"  value="—" subtitle="APTOS"           accent="apto"  watermarkIcon={Users} />
+          <StatCard icon={Route}  label="RUTAS"        value="—" subtitle="asignadas"       accent="ink"   watermarkIcon={Route} />
+          <StatCard icon={CalendarDays} label="VIAJES" value="—" subtitle="del día"         accent="riesgo" watermarkIcon={CalendarDays} />
+        </div>
+      </>
+    );
+  }
+
+  if (role === "fiscal") {
+    return (
+      <>
+        <HeroActionCard
+          icon={Shield}
+          title="Inspecciones en campo"
+          subtitle="Levanta actas digitales y escanea QR de vehículos."
+          href="/inspecciones"
+          accent="navy"
+        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <StatCard icon={Shield} label="INSPECCIONES" value="—" subtitle="del día"     accent="apto"   watermarkIcon={Shield} />
+          <StatCard icon={Car}    label="VEHÍCULOS"    value="—" subtitle="escaneados"  accent="gold"   watermarkIcon={Car} />
+          <StatCard icon={Flag}   label="REPORTES"     value="—" subtitle="ciudadanos"  accent="riesgo" watermarkIcon={Flag} />
+          <StatCard icon={TriangleAlert} label="SANCIONES" value="—" subtitle="registradas" accent="no_apto" watermarkIcon={TriangleAlert} />
+        </div>
+      </>
+    );
+  }
+
+  // fallback (conductor, ciudadano)
+  return (
+    <>
+      <HeroActionCard
+        icon={Bell}
+        title="Tus notificaciones"
+        subtitle="Mantente al día con novedades de la plataforma."
+        href="/notificaciones"
+        accent="navy"
+      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <StatCard icon={Bell} label="NOTIFICACIONES" value="—" subtitle="sin leer" accent="gold" watermarkIcon={Bell} />
+        <StatCard icon={FileText} label="HISTORIAL" value="—" subtitle="registros" accent="ink" watermarkIcon={FileText} />
+      </div>
+    </>
+  );
+}
+
+/* ──────────────────────────────────────────
+   Sección lateral: Tabs + FeatureCards
+   ────────────────────────────────────────── */
+
+type TabConfig = { key: string; label: string; items: FeatureItem[] };
+type FeatureItem = {
+  title: string;
+  subtitle: string;
+  href: string;
+  icon: typeof Users;
+  badge?: string;
 };
+
+function SideSection({ role, stats }: { role: string; stats: GlobalStats | null }) {
+  const tabs = useMemo(() => buildTabsFor(role, stats), [role, stats]);
+  const [active, setActive] = useState<string>(tabs[0]?.key ?? "default");
+
+  // Si cambia el rol (tabs.length/claves) y el activo ya no existe, usamos el primero
+  // directamente en render — evitamos setState en effect. El estado se corregirá
+  // la próxima vez que el usuario interactúe con las tabs.
+  const current = tabs.find((t) => t.key === active) ?? tabs[0];
+
+  if (!current) return null;
+
+  return (
+    <div className="space-y-5">
+      <SectionTabs
+        tabs={tabs.map((t) => ({ key: t.key, label: t.label }))}
+        value={active}
+        onChange={setActive}
+      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {current.items.map((it) => (
+          <FeatureCard
+            key={it.href + it.title}
+            icon={it.icon}
+            title={it.title}
+            subtitle={it.subtitle}
+            href={it.href}
+            badge={it.badge}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function buildTabsFor(role: string, stats: GlobalStats | null): TabConfig[] {
+  const pending = stats?.usersPendingApproval ?? 0;
+
+  if (role === "super_admin") {
+    return [
+      {
+        key: "accesos",
+        label: "Accesos",
+        items: [
+          { title: "Usuarios",      subtitle: "Listado y roles", href: "/usuarios",    icon: Users },
+          { title: "Aprobaciones",  subtitle: "Revisar pendientes", href: "/admin/users", icon: UserCheck, badge: pending > 0 ? `${pending}` : undefined },
+        ],
+      },
+      {
+        key: "territorio",
+        label: "Territorio",
+        items: [
+          { title: "Provincias",       subtitle: "Red nacional",   href: "/provincias",       icon: MapPin },
+          { title: "Municipalidades",  subtitle: "Estado y actividad", href: "/municipalidades", icon: Building2 },
+        ],
+      },
+      {
+        key: "analisis",
+        label: "Análisis",
+        items: [
+          { title: "Estadísticas", subtitle: "Métricas globales",   href: "/estadisticas", icon: ChartColumn },
+          { title: "Auditoría",    subtitle: "Trazabilidad",        href: "/auditoria",    icon: FileText },
+        ],
+      },
+    ];
+  }
+
+  if (role === "admin_provincial") {
+    return [
+      {
+        key: "gestion",
+        label: "Gestión",
+        items: [
+          { title: "Municipalidades", subtitle: "De tu provincia", href: "/municipalidades", icon: Building2 },
+          { title: "Usuarios",        subtitle: "Provincial",      href: "/usuarios",        icon: Users },
+          { title: "Aprobaciones",    subtitle: "Pendientes",      href: "/admin/users",     icon: UserCheck, badge: pending > 0 ? `${pending}` : undefined },
+        ],
+      },
+      {
+        key: "analisis",
+        label: "Análisis",
+        items: [
+          { title: "Estadísticas", subtitle: "Provincia", href: "/estadisticas", icon: ChartColumn },
+          { title: "Auditoría",    subtitle: "Actividad", href: "/auditoria",    icon: FileText },
+        ],
+      },
+      {
+        key: "campo",
+        label: "Campo",
+        items: [
+          { title: "Sanciones", subtitle: "Mensuales",  href: "/sanciones", icon: TriangleAlert },
+          { title: "Reportes",  subtitle: "Ciudadanos", href: "/reportes",  icon: Flag },
+        ],
+      },
+    ];
+  }
+
+  if (role === "admin_municipal") {
+    return [
+      {
+        key: "operacion",
+        label: "Operación",
+        items: [
+          { title: "Empresas",          subtitle: "De transporte",  href: "/empresas",         icon: Truck },
+          { title: "Tipos de vehículo", subtitle: "Catálogo local", href: "/tipos-vehiculo",   icon: Car },
+          { title: "Conductores",       subtitle: "Registro",       href: "/conductores",      icon: Users },
+          { title: "Vehículos / QR",    subtitle: "Emisión",        href: "/vehiculos",        icon: Car },
+        ],
+      },
+      {
+        key: "ciudadania",
+        label: "Ciudadanía",
+        items: [
+          { title: "Reportes",  subtitle: "Ciudadanos",  href: "/reportes",  icon: Flag },
+          { title: "Sanciones", subtitle: "Aplicadas",   href: "/sanciones", icon: TriangleAlert },
+          { title: "Inspecciones", subtitle: "Actas",    href: "/inspecciones", icon: Shield },
+        ],
+      },
+      {
+        key: "analisis",
+        label: "Análisis",
+        items: [
+          { title: "Estadísticas", subtitle: "Municipales", href: "/estadisticas", icon: ChartColumn },
+          { title: "Auditoría",    subtitle: "Trazabilidad", href: "/auditoria",   icon: FileText },
+        ],
+      },
+    ];
+  }
+
+  if (role === "operador") {
+    return [
+      {
+        key: "flota",
+        label: "Flota",
+        items: [
+          { title: "Flota del día", subtitle: "Asignaciones",  href: "/flota",       icon: ClipboardList },
+          { title: "Vehículos",     subtitle: "Registro",      href: "/vehiculos",   icon: Car },
+          { title: "Conductores",   subtitle: "Disponibles",   href: "/conductores", icon: Users },
+        ],
+      },
+      {
+        key: "operacion",
+        label: "Operación",
+        items: [
+          { title: "Rutas",  subtitle: "Y zonas", href: "/rutas",  icon: Route },
+          { title: "Viajes", subtitle: "Del día", href: "/viajes", icon: CalendarDays },
+        ],
+      },
+    ];
+  }
+
+  if (role === "fiscal") {
+    return [
+      {
+        key: "campo",
+        label: "Campo",
+        items: [
+          { title: "Inspecciones", subtitle: "Actas",        href: "/inspecciones", icon: Shield },
+          { title: "Vehículos",    subtitle: "Escanear QR",  href: "/vehiculos",    icon: Car },
+          { title: "Conductores",  subtitle: "Consulta",     href: "/conductores",  icon: Users },
+        ],
+      },
+      {
+        key: "ciudadania",
+        label: "Ciudadanía",
+        items: [
+          { title: "Reportes",  subtitle: "Ciudadanos",  href: "/reportes",  icon: Flag },
+          { title: "Sanciones", subtitle: "Registradas", href: "/sanciones", icon: TriangleAlert },
+        ],
+      },
+    ];
+  }
+
+  return [
+    {
+      key: "inicio",
+      label: "Inicio",
+      items: [
+        { title: "Notificaciones", subtitle: "Centro de avisos", href: "/notificaciones", icon: Bell },
+      ],
+    },
+  ];
+}

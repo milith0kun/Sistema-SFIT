@@ -10,6 +10,8 @@ import {
 } from "@/lib/api/response";
 import { ROLES, USER_STATUS } from "@/lib/constants";
 import type { Role } from "@/lib/constants";
+import { createNotificationForRole } from "@/lib/notifications/create";
+import { logAuditRaw } from "@/lib/audit/log";
 
 const RegisterSchema = z.object({
   name: z.string().min(2).max(100),
@@ -70,6 +72,40 @@ export async function POST(request: NextRequest) {
       requestedRole: isInitialAdmin ? undefined : requestedRole,
       status: isInitialAdmin ? USER_STATUS.ACTIVO : USER_STATUS.PENDIENTE,
     });
+
+    // RF-01-04 / RF-18: avisar a los admin_municipal de la muni objetivo
+    // que hay una nueva solicitud pendiente.
+    if (!isInitialAdmin && municipalityId) {
+      await createNotificationForRole(ROLES.ADMIN_MUNICIPAL, {
+        municipalityId,
+        title: "Nueva solicitud de registro",
+        body: `${name} solicita acceso como ${requestedRole}. Revisa y aprueba o rechaza.`,
+        type: "action_required",
+        category: "aprobacion",
+        link: "/dashboard/municipalidad/solicitudes",
+        metadata: { userId: user._id.toString(), requestedRole },
+      });
+    }
+
+    // RNF-16: log del registro.
+    await logAuditRaw(
+      request,
+      {
+        actorId: user._id.toString(),
+        actorRole: user.role,
+        municipalityId: municipalityId,
+      },
+      {
+        action: "user.registered",
+        resourceType: "user",
+        resourceId: user._id.toString(),
+        metadata: {
+          email,
+          requestedRole: isInitialAdmin ? null : requestedRole,
+          isInitialAdmin,
+        },
+      },
+    );
 
     return apiResponse(
       {
