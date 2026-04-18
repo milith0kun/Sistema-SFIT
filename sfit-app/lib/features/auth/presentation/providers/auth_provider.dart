@@ -68,7 +68,7 @@ class AuthState {
 class Auth extends _$Auth {
   static final _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
-    serverClientId: '378647499793-tbks1mfqq15thpmii1dbirm3o21fkhd3.apps.googleusercontent.com', // Web Client ID
+    serverClientId: '378647499793-b7rgmnj93drlu538daeblde7216o1vp9.apps.googleusercontent.com', // Web Client ID
   );
 
   @override
