@@ -1,9 +1,9 @@
 # SFIT — Sistema de Fiscalización Inteligente de Transporte
-## Captura de Requerimientos del Sistema — v1.3
+## Captura de Requerimientos del Sistema — v1.5
 
 **Stack:** Next.js 15 + Flutter + MongoDB Atlas  
 **Fecha:** Abril 2026  
-**Estado:** Levantamiento inicial completo
+**Estado:** Implementación en progreso — auth + QR + vista pública operativos en producción
 
 ---
 
@@ -671,40 +671,48 @@ Los IDs de la provincia y municipalidad semilla se imprimen al final del script.
 | Sistema de diseño Flutter (AppTheme + SfitHeroCard/SfitKpiStrip/etc.) | ✅ | `core/theme/*` + `shared/widgets/*` |
 | Logo institucional (square 500×500 + horizontal 500×250) | ✅ | `public/logo-*.svg` · `assets/logos/*.png` · mipmap Android regenerados |
 | Generador de íconos (Android + favicons + Apple) | ✅ | `scripts/generate-icons.mjs` |
+| **Despliegue backend en Dokploy** | ✅ | `https://sfit.ecosdelseo.com` — auto-deploy desde `main` en GitHub |
+| HMAC-SHA256 para QR | ✅ | `lib/qr/hmac.ts` — firma y verificación del payload de vehículo |
 
 ### 11.3 Backend web (models + API routes)
 
+> Desplegado en producción en `https://sfit.ecosdelseo.com` via Dokploy. Auto-deploy desde `main`.
+
 | RF | Módulo | Modelo | API CRUD | RBAC + multi-tenant | Estado |
 |---|---|---|---|---|---|
-| RF-01 | Auth (login, register, Google, refresh, logout, account linking) | `User` | ✅ | ✅ | ✅ |
+| RF-01 | Auth — login, register, Google, refresh, logout, account linking | `User` | ✅ | ✅ | ✅ |
+| RF-01 | Register ciudadano auto-aprobado + tokens inmediatos | `User` | ✅ | ✅ | ✅ nuevo |
+| RF-01 | APIs públicas de catálogo `/api/public/provincias` y `/api/public/municipalidades` | — | ✅ | — | ✅ nuevo |
 | RF-02 | Provincias / Municipalidades | `Province`, `Municipality` | ✅ | ✅ | ✅ |
 | RF-03 | Tipos de vehículo + checklist + form inspección | `VehicleType` | ✅ | ✅ | ✅ |
 | RF-04 | Empresas de transporte | `Company` | ✅ | ✅ | ✅ |
-| RF-05 | Conductores | `Driver` | ✅ (CRUD + filtros aptitud) | ✅ | 🟨 (falta OCR auto-llenado) |
-| RF-06 | Vehículos + QR HMAC | `Vehicle` | ✅ (CRUD + `/[id]/qr` genera PNG + payload HMAC) | ✅ | ✅ |
-| RF-07 | Flota del día (entradas/salidas operador) | `FleetEntry` | ✅ (CRUD) | ✅ | 🟨 (validación pre-salida cableada; checklist sólo en UI) |
-| RF-08 | Vista pública vehículo/conductor (sin auth) | — | ✅ (`/api/public/vehiculo`) | — | ✅ |
-| RF-09 | Rutas y zonas | `Route` | ✅ | ✅ | 🟨 (filtro por tipo pendiente en route handler) |
-| RF-10 | Viajes y operaciones | `Trip` | ✅ | ✅ | 🟨 (auto-cierre + filtros query) |
-| RF-11 | Inspecciones | `Inspection` | ✅ | ✅ | 🟨 (sugerencias IA + PDF acta) |
-| RF-12 | Reportes ciudadanos + anti-fraude | `CitizenReport` | ✅ | ✅ | 🟨 (5 capas anti-fraude parciales) |
-| RF-13 | Sanciones | `Sanction` | ✅ | ✅ | 🟨 (flujo apelación) |
-| RF-14 | FatigueEngine (cálculo horas/descanso) | lógica dentro de `Driver`/`Trip` | ❌ | — | ❌ |
-| RF-15 | Reputación | `reputationScore` ya existe | ❌ | — | ❌ (cálculo automático pendiente) |
+| RF-05 | Conductores | `Driver` | ✅ CRUD + filtros aptitud | ✅ | 🟨 falta OCR auto-llenado |
+| RF-06 | Vehículos + QR HMAC | `Vehicle` | ✅ CRUD + `/[id]/qr` genera PNG + payload HMAC | ✅ | ✅ |
+| RF-07 | Flota del día (entradas/salidas operador) | `FleetEntry` | ✅ CRUD | ✅ | 🟨 checklist sólo en UI; validación pre-salida parcial |
+| RF-08 | Vista pública vehículo/conductor sin auth | — | ✅ `/api/public/vehiculo` | — | ✅ |
+| RF-09 | Rutas y zonas | `Route` | ✅ | ✅ | 🟨 filtro por tipo pendiente |
+| RF-10 | Viajes y operaciones | `Trip` | ✅ | ✅ | 🟨 auto-cierre + filtros query |
+| RF-11 | Inspecciones | `Inspection` | ✅ | ✅ | 🟨 sugerencias IA + PDF acta pendientes |
+| RF-12 | Reportes ciudadanos + anti-fraude | `CitizenReport` | ✅ | ✅ | 🟨 5 capas anti-fraude parciales |
+| RF-13 | Sanciones | `Sanction` | ✅ | ✅ | 🟨 flujo apelación pendiente |
+| RF-14 | FatigueEngine | lógica en `Driver`/`Trip` | ❌ | — | ❌ |
+| RF-15 | Reputación | `reputationScore` en modelo | ❌ | — | ❌ cálculo automático pendiente |
 | RF-16 | Recompensas y gamificación (SFITCoins) | — | ❌ | — | ❌ |
 | RF-17 | IA / OCR (DNI, licencia, SOAT, tarjeta) | — | ❌ | — | ❌ |
-| RF-18 | Notificaciones (in-app) | `Notification` | ✅ | ✅ | 🟨 (push FCM, WhatsApp, correo SMTP pendientes) |
-| RF-18 | Auditoría global | `AuditLog` | ✅ (+ hooks en mutaciones clave) | ✅ | ✅ |
-| RF-19 | Estadísticas agregadas (global + provincia) | — | ✅ (`/api/admin/stats/global`) | ✅ | 🟨 (métricas por rol completas pendientes) |
+| RF-18 | Notificaciones in-app | `Notification` | ✅ | ✅ | 🟨 push FCM, WhatsApp, SMTP pendientes |
+| RF-18 | Auditoría global | `AuditLog` | ✅ + hooks en mutaciones clave | ✅ | ✅ |
+| RF-19 | Estadísticas agregadas | — | ✅ `/api/admin/stats/global` | ✅ | 🟨 métricas por rol completas pendientes |
 
 ### 11.4 Frontend web (`sfit-web`)
 
 | Ruta | Rol(es) | Estado | Notas |
 |---|---|---|---|
-| `/login` · `/register` · `/pending` · `/rejected` · `/reset-password` | todos | ✅ | Google OAuth + correo con vinculación automática |
+| `/login` | todos | ✅ | Google OAuth + correo con vinculación automática |
+| `/register` | todos | ✅ | Google Sign In + selector provincia/municipalidad; ciudadano → activo inmediato |
+| `/pending` · `/rejected` · `/reset-password` | todos | ✅ | |
 | `/dashboard` | todos los admin | ✅ | KPIs reales (super_admin) · módulos por rol |
-| `/usuarios` · `/usuarios/[id]` | super_admin, admin_provincial, admin_municipal | ✅ | Aprobación, suspensión, cambio de rol, asignar admin_provincial |
-| `/admin/users` (aprobaciones pendientes) | super/provincial/municipal | ✅ | |
+| `/usuarios` · `/usuarios/[id]` | super/provincial/municipal | ✅ | Aprobación, suspensión, cambio de rol, asignar admin_provincial |
+| `/admin/users` aprobaciones pendientes | super/provincial/municipal | ✅ | |
 | `/notificaciones` | todos | ✅ | Tabs + marcar leídas + borrar |
 | `/auditoria` | super/provincial/municipal | ✅ | Filtros + paginación |
 | `/provincias` · `/provincias/[id]` · `/provincias/nueva` | super_admin | ✅ | |
@@ -712,29 +720,35 @@ Los IDs de la provincia y municipalidad semilla se imprimen al final del script.
 | `/tipos-vehiculo` · `/tipos-vehiculo/[id]` · `/tipos-vehiculo/nuevo` | admin_municipal | ✅ | Predefinidos + personalizados |
 | `/empresas` · `/empresas/[id]` · `/empresas/nueva` | admin_municipal | ✅ | Filtros + suspensión |
 | `/estadisticas` | super, provincial | ✅ | recharts + export CSV |
-| `/flota` | operador | ✅ | Panel completo con drawer de salida, FatigueEngine, reportes (actualmente con mock data; enlace a API real pendiente) |
+| `/flota` | operador | ✅ | Panel + drawer salida + FatigueEngine + reportes (mock data; enlace API real pendiente) |
 | `/conductores` · `/vehiculos` | admin_municipal, operador, fiscal | 🟨 | UI completa; falta cableado fino a API + OCR |
 | `/inspecciones` · `/reportes` · `/rutas` · `/sanciones` · `/viajes` | según RBAC | 🟨 | UI completa con mock data; API existe, falta consumo real |
+| `/recompensas` · `/sanciones/[id]/apelacion` | ciudadano / operador | ❌ | Pendiente |
 
 ### 11.5 App Flutter (`sfit-app`)
+
+> La app apunta a `https://sfit.ecosdelseo.com/api` por defecto (sin necesidad de backend local).  
+> Para dev local: `flutter run --dart-define=SFIT_DEV_HOST=10.0.2.2` (emulador) o `SFIT_DEV_HOST=localhost` + `adb reverse`.
 
 | Feature | Estado | Notas |
 |---|---|---|
 | Splash (logo + tagline + spinner gold) | ✅ | |
-| Login correo + contraseña | ✅ | Conectado a `/api/auth/login` (real) |
-| Login con Google (`google_sign_in`) | 🟨 | Requiere Android OAuth client con SHA-1 del keystore |
-| Registro con rol solicitado | ✅ | |
+| Login correo + contraseña | ✅ | Contra Dokploy (`sfit.ecosdelseo.com`) — probado todos los roles |
+| Login con Google (`google_sign_in`) | 🟨 | `strings.xml` con `default_web_client_id` listo; falta SHA-1 del keystore en GCP Console |
+| Registro con rol solicitado | ✅ | Ciudadano → activo inmediato + auto-login; otros roles → pendiente |
 | Pantallas pendiente / rechazado | ✅ | |
 | Auto-login con refresh token | ✅ | `AuthInterceptor` Dio |
-| Home con tabs por rol (fiscal / operador / conductor / ciudadano) | ✅ | Placeholders `SfitHeroCard` + KPI mock |
+| Home con tabs por rol (fiscal / operador / conductor / ciudadano) | ✅ | Fiscal incluye tab QR real |
 | Roles web-only (super/provincial/municipal) → mensaje "usa la web" | ✅ | |
-| Escaneo QR + validación offline HMAC | ✅ | RF-06 / RF-08 |
-| Inspecciones en campo (Fiscal) | ❌ | RF-11 |
-| Registro de viajes (Operador/Conductor) | ❌ | RF-10 |
-| Vista pública vehículo / conductor | ✅ | RF-08 |
-| Reportes ciudadanos | ❌ | RF-12 |
-| Panel de flota móvil (Operador) | ❌ | RF-07 |
-| Push notifications (Firebase) | 🟨 | Paquete integrado, falta wiring con backend + sistema de envío |
+| Escaneo QR + validación offline HMAC | ✅ | RF-06-06 — `QrScannerPage` + `QrHmacService` |
+| Vista pública vehículo / conductor (accesible sin auth) | ✅ | RF-08 — `VehiclePublicPage` + `/api/public/vehiculo` |
+| Inspecciones en campo (Fiscal) — lista + formulario dinámico | ✅ | RF-11 |
+| Panel de flota móvil (Operador) — salidas, retornos, KPIs | ✅ | RF-07 |
+| Perfil de usuario (todos los roles) | ✅ | |
+| Registro de viajes (Operador/Conductor) | ❌ | RF-10 pendiente |
+| Reportes ciudadanos | ❌ | RF-12 pendiente |
+| Push notifications (Firebase) | 🟨 | Paquete integrado; falta inicializar `Firebase.initializeApp` en `main.dart` + wiring backend |
+| Mensajes de error de red descriptivos | ✅ | Connection refused → instrucción `adb reverse`; Google error → instrucción SHA-1 |
 
 ### 11.6 Pruebas automatizadas
 
@@ -760,37 +774,59 @@ Los IDs de la provincia y municipalidad semilla se imprimen al final del script.
 ### 11.8 Cómo levantar el entorno local
 
 ```bash
-# 1. Backend + seed
+# ── Opción A: usar el backend de producción (recomendado para pruebas) ──────
+# El app ya apunta a https://sfit.ecosdelseo.com por defecto.
+cd sfit-app
+flutter pub get
+flutter run                          # emulador o dispositivo → Dokploy
+
+# ── Opción B: backend local ──────────────────────────────────────────────────
+# 1. Levantar backend
 cd sfit-web
-cp .env.example .env.local          # ya existe en este repo
+cp .env.example .env.local
 npm install
 npx tsx scripts/seed-test-users.ts  # siembra 7 usuarios de prueba
 npm run dev                          # http://localhost:3000
 
-# 2. App Flutter (dispositivo físico via USB)
+# 2a. App en emulador Android
 cd sfit-app
-adb reverse tcp:3000 tcp:3000        # permite al celular llegar a localhost:3000
-flutter pub get
-flutter run                          # build + install debug
+flutter run --dart-define=SFIT_DEV_HOST=10.0.2.2
 
-# 2b. App Flutter (WiFi LAN; sustituye la IP del host)
+# 2b. App en dispositivo físico via USB
+adb reverse tcp:3000 tcp:3000        # tunneliza el puerto al host
+flutter run --dart-define=SFIT_DEV_HOST=localhost
+
+# 2c. App en dispositivo físico via WiFi LAN
 flutter run --dart-define=SFIT_DEV_HOST=192.168.1.x
 
-# 3. App Flutter release
+# ── Release ──────────────────────────────────────────────────────────────────
 flutter build apk --release
 # → sfit-app/build/app/outputs/flutter-apk/app-release.apk
 ```
 
 ### 11.9 Próximos bloques sugeridos (orden recomendado)
 
-1. **RF-06 generación QR HMAC + vista pública (RF-08)** — desbloquea fiscalización en campo.
-2. **RF-11 inspecciones móvil** (Fiscal) — QR → form dinámico → acta PDF.
-3. **RF-07 flota móvil** (Operador) — replicar el panel web en Flutter.
-4. **RF-12 reportes ciudadanos** con las 5 capas anti-fraude.
-5. **RF-14 FatigueEngine** (cálculo real + disparo automático de notificaciones).
-6. **RF-17 IA / OCR** — Google Vision API para extracción de DNI/licencia/SOAT.
-7. **RF-18 canales externos** — Firebase push, WhatsApp, correo SMTP.
-8. **RF-15/16 reputación + recompensas** — el cálculo automático y el catálogo de canjes.
+#### Ya completados (✅) — no requieren trabajo adicional
+- RF-01 auth completo (login / register / Google / refresh / logout)
+- RF-06 QR HMAC generación + descarga PDF (backend) + escaneo offline (app)
+- RF-08 vista pública vehículo/conductor (backend + app)
+- RF-07 panel de flota operador (web + app — datos mock en web, pendiente enlace API real)
+- RF-11 inspecciones en campo (app — formulario dinámico por tipo)
+
+#### Pendientes prioritarios
+
+| # | Bloque | RF | Impacto |
+|---|---|---|---|
+| 1 | **Enlazar UI web con API real** — conductores, vehículos, inspecciones, reportes, rutas, sanciones, viajes | RF-05/06/09/10/11/12/13 | Alto — desbloquea operación real |
+| 2 | **RF-12 reportes ciudadanos** (app) — formulario + 5 capas anti-fraude | RF-12 | Alto — caso de uso central del ciudadano |
+| 3 | **RF-10 viajes móvil** — Operador inicia/cierra operación desde app | RF-10 | Alto — Operador y Conductor en campo |
+| 4 | **RF-14 FatigueEngine** — cálculo real horas/descanso + disparo automático de alertas | RF-14 | Alto — RF-07 checklist depende de estado APTO |
+| 5 | **RF-18 Firebase push** — inicializar `Firebase.initializeApp` en `main.dart` + envío desde backend | RF-18 | Medio — notificaciones críticas |
+| 6 | **Google Sign In SHA-1** — registrar SHA-1 debug en GCP Console para habilitar login Google en app | RF-01-01 | Medio |
+| 7 | **RF-13 flujo apelación** — formulario Operador + resolución Admin Municipal | RF-13 | Medio |
+| 8 | **RF-17 IA / OCR** — Google Vision API para extracción DNI/licencia/SOAT | RF-17 | Medio |
+| 9 | **RF-15/16 reputación + recompensas** — cálculo automático + catálogo de canjes | RF-15/16 | Bajo — fase final |
+| 10 | **RF-18 canales externos** — WhatsApp API + correo SMTP (Resend) | RF-18 | Bajo |
 
 ---
 
