@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (user.status !== USER_STATUS.ACTIVO) {
+    if (user.status === USER_STATUS.SUSPENDIDO) {
       return apiError(
         STATUS_MESSAGES[user.status] ?? "Acceso denegado",
         403
@@ -104,6 +104,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         image: user.image,
         role: user.role,
+        status: user.status,
         municipalityId: user.municipalityId?.toString(),
         provinceId: user.provinceId?.toString(),
       },

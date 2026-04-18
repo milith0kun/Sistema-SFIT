@@ -7,6 +7,16 @@ import { useRouter } from "next/navigation";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
+/** RF-01-03/04: enruta según estado del usuario */
+function destForStatus(status: string): string {
+  switch (status) {
+    case "pendiente": return "/pending";
+    case "rechazado": return "/rejected";
+    case "activo":
+    default:           return "/dashboard";
+  }
+}
+
 declare global {
   interface Window {
     google?: {
@@ -75,7 +85,7 @@ export default function LoginPage() {
       localStorage.setItem("sfit_refresh_token", data.data.refreshToken);
       localStorage.setItem("sfit_user", JSON.stringify(data.data.user));
       document.cookie = `sfit_access_token=${data.data.accessToken}; path=/; max-age=900; SameSite=Lax`;
-      router.push("/dashboard");
+      router.push(destForStatus(data.data.user.status));
     } catch {
       setError("Error de conexión con Google. Intenta nuevamente.");
     } finally {
@@ -119,7 +129,7 @@ export default function LoginPage() {
         localStorage.setItem("sfit_user",          JSON.stringify(data.data.user));
       }
       document.cookie = `sfit_access_token=${data.data.accessToken}; path=/; max-age=900; SameSite=Lax`;
-      router.push("/dashboard");
+      router.push(destForStatus(data.data.user.status));
     } catch {
       setError("Error de conexión. Intenta nuevamente.");
     } finally {

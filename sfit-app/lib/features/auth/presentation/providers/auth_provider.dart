@@ -81,12 +81,22 @@ class Auth extends _$Auth {
     try {
       final result = await ref.read(authRepositoryProvider).tryAutoLogin();
       if (result != null) {
-        state = AuthState(status: AuthStatus.authenticated, user: result.user);
+        state = AuthState(status: _statusFor(result.user), user: result.user);
       } else {
         state = const AuthState(status: AuthStatus.unauthenticated);
       }
     } catch (_) {
       state = const AuthState(status: AuthStatus.unauthenticated);
+    }
+  }
+
+  /// Mapea user.status → AuthStatus (RF-01-03, RF-01-04)
+  AuthStatus _statusFor(UserEntity user) {
+    switch (user.status) {
+      case 'activo':     return AuthStatus.authenticated;
+      case 'pendiente':  return AuthStatus.pendingApproval;
+      case 'rechazado':  return AuthStatus.rejected;
+      default:           return AuthStatus.unauthenticated;
     }
   }
 
@@ -96,7 +106,7 @@ class Auth extends _$Auth {
     try {
       final result =
           await ref.read(authRepositoryProvider).login(email, password);
-      state = AuthState(status: AuthStatus.authenticated, user: result.user);
+      state = AuthState(status: _statusFor(result.user), user: result.user);
       return true;
     } on AuthException catch (e) {
       state = AuthState(
@@ -132,7 +142,7 @@ class Auth extends _$Auth {
 
       final result =
           await ref.read(authRepositoryProvider).loginWithGoogle(idToken);
-      state = AuthState(status: AuthStatus.authenticated, user: result.user);
+      state = AuthState(status: _statusFor(result.user), user: result.user);
       return true;
     } on AuthException catch (e) {
       state = AuthState(

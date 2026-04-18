@@ -57,7 +57,8 @@ export async function POST(request: NextRequest) {
       return apiError("Credenciales incorrectas", 401);
     }
 
-    if (user.status !== USER_STATUS.ACTIVO) {
+    // Suspendido: bloquear totalmente (no tokens)
+    if (user.status === USER_STATUS.SUSPENDIDO) {
       return apiError(
         STATUS_MESSAGES[user.status] ?? "Acceso denegado",
         403
@@ -75,23 +76,25 @@ export async function POST(request: NextRequest) {
     const refreshToken = signRefreshToken(payload);
     const refreshExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    // Guardar refresh token (RF-01-10: invalidar en logout)
     await User.findByIdAndUpdate(user._id, {
       refreshToken,
       refreshTokenExpiry: refreshExpiry,
       lastLoginAt: new Date(),
     });
 
+    // RF-01-03/04: pendiente/rechazado → devolver tokens pero el cliente
+    // enrutará a la pantalla correspondiente según user.status
     return apiResponse({
       accessToken,
       refreshToken,
-      expiresIn: 15 * 60, // segundos
+      expiresIn: 15 * 60,
       user: {
         id: user._id.toString(),
         name: user.name,
         email: user.email,
         image: user.image,
         role: user.role,
+        status: user.status,
         municipalityId: user.municipalityId?.toString(),
         provinceId: user.provinceId?.toString(),
       },
