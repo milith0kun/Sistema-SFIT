@@ -129,11 +129,9 @@ export default function LoginPage() {
         return;
       }
 
-      if (typeof window !== "undefined") {
-        localStorage.setItem("sfit_access_token",  data.data.accessToken);
-        localStorage.setItem("sfit_refresh_token", data.data.refreshToken);
-        localStorage.setItem("sfit_user",          JSON.stringify(data.data.user));
-      }
+      localStorage.setItem("sfit_access_token",  data.data.accessToken);
+      localStorage.setItem("sfit_refresh_token", data.data.refreshToken);
+      localStorage.setItem("sfit_user",          JSON.stringify(data.data.user));
       document.cookie = `sfit_access_token=${data.data.accessToken}; path=/; max-age=900; SameSite=Lax`;
       router.push(destForStatus(data.data.user.status));
     } catch {
