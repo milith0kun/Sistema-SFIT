@@ -3,10 +3,9 @@ import dns from "node:dns";
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
-// Fuerza Node a usar DNS de Google/Cloudflare (ignora el DNS del ISP).
-// Esto resuelve el problema de ISPs que bloquean SRV lookups de MongoDB+srv
-// sin necesidad de que el usuario cambie el DNS de su sistema.
-dns.setServers(["8.8.8.8", "1.1.1.1", "8.8.4.4"]);
+/** Resolver independiente con DNS públicos — bypass del DNS del ISP. */
+const publicResolver = new dns.promises.Resolver();
+publicResolver.setServers(["8.8.8.8", "1.1.1.1", "8.8.4.4"]);
 
 interface MongooseCache {
   conn: typeof mongoose | null;
@@ -28,29 +27,66 @@ if (!global.mongooseCache) {
 }
 
 /**
+ * Si el URI es mongodb+srv://, pre-resolvemos los SRV y TXT records con un
+ * resolver que usa 8.8.8.8/1.1.1.1 directamente, y construimos una URI
+ * estándar `mongodb://host1,host2,host3/`. Esto bypasea el DNS del ISP
+ * del usuario sin que éste tenga que configurar nada.
+ */
+async function resolveUri(uri: string): Promise<string> {
+  if (!uri.startsWith("mongodb+srv://")) return uri;
+
+  // Parsear: mongodb+srv://user:pass@host/db?params
+  const match = uri.match(/^mongodb\+srv:\/\/([^@]+)@([^/?]+)(\/[^?]*)?(\?.*)?$/);
+  if (!match) return uri;
+
+  const [, credentials, host, dbPart = "", queryPart = ""] = match;
+
+  // Resolver SRV: _mongodb._tcp.<host>
+  const srvRecords = await publicResolver.resolveSrv(`_mongodb._tcp.${host}`);
+  if (!srvRecords.length) throw new Error(`Sin SRV records para ${host}`);
+
+  // Resolver TXT: <host> → params adicionales (authSource, replicaSet, etc.)
+  let txtParams = "";
+  try {
+    const txt = await publicResolver.resolveTxt(host);
+    if (txt.length) txtParams = txt[0].join("");
+  } catch {
+    // sin TXT no pasa nada
+  }
+
+  const hosts = srvRecords
+    .map((r) => `${r.name}:${r.port}`)
+    .join(",");
+
+  // Combinar query params: ssl=true + auto-discovered TXT + user params
+  const userParams = queryPart.replace(/^\?/, "");
+  const allParams = ["ssl=true", txtParams, userParams]
+    .filter(Boolean)
+    .join("&");
+
+  return `mongodb://${credentials}@${hosts}${dbPart}?${allParams}`;
+}
+
+/**
  * Conexión singleton a MongoDB Atlas.
- * Reutiliza la conexión en desarrollo (HMR) y en producción.
  */
 export async function connectDB(): Promise<typeof mongoose> {
   if (!MONGODB_URI) {
-    throw new Error(
-      "Por favor define la variable de entorno MONGODB_URI"
-    );
+    throw new Error("Por favor define la variable de entorno MONGODB_URI");
   }
 
-  if (cached.conn) {
-    return cached.conn;
-  }
+  if (cached.conn) return cached.conn;
 
   if (!cached.promise) {
-    const options = {
-      bufferCommands: false,
-      serverSelectionTimeoutMS: 15000,
-      socketTimeoutMS: 45000,
-      family: 4, // Preferir IPv4 (más confiable detrás de NATs ISP)
-    };
-
-    cached.promise = mongoose.connect(MONGODB_URI, options).then((m) => m);
+    cached.promise = (async () => {
+      const resolved = await resolveUri(MONGODB_URI);
+      return mongoose.connect(resolved, {
+        bufferCommands: false,
+        serverSelectionTimeoutMS: 15000,
+        socketTimeoutMS: 45000,
+        family: 4,
+      });
+    })();
   }
 
   try {
