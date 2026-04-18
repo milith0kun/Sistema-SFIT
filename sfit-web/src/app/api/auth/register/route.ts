@@ -55,24 +55,30 @@ export async function POST(request: NextRequest) {
     // bcrypt 12 rounds (RNF-04)
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    // Bootstrap: primer usuario con email INITIAL_ADMIN_EMAIL → super_admin activo
+    const initialAdminEmail = process.env.INITIAL_ADMIN_EMAIL?.toLowerCase();
+    const isInitialAdmin =
+      initialAdminEmail && email.toLowerCase() === initialAdminEmail;
+
     const user = await User.create({
       name,
       email,
       password: hashedPassword,
       provider: "credentials",
       municipalityId: municipalityId ?? undefined,
-      role: ROLES.CIUDADANO, // rol por defecto hasta aprobación
-      requestedRole,
-      status: USER_STATUS.PENDIENTE,
+      role: isInitialAdmin ? ROLES.SUPER_ADMIN : ROLES.CIUDADANO,
+      requestedRole: isInitialAdmin ? undefined : requestedRole,
+      status: isInitialAdmin ? USER_STATUS.ACTIVO : USER_STATUS.PENDIENTE,
     });
 
     return apiResponse(
       {
-        message:
-          "Registro exitoso. Tu solicitud está pendiente de aprobación por el administrador.",
+        message: isInitialAdmin
+          ? "Cuenta de administrador creada. Ya puedes iniciar sesión."
+          : "Registro exitoso. Tu solicitud está pendiente de aprobación por el administrador.",
         userId: user._id.toString(),
       },
-      201
+      201,
     );
   } catch (error) {
     console.error("[register]", error);

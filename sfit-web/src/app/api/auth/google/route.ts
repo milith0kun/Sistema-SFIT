@@ -56,6 +56,10 @@ export async function POST(request: NextRequest) {
 
     let user = await User.findOne({ email: payload.email });
 
+    const initialAdminEmail = process.env.INITIAL_ADMIN_EMAIL?.toLowerCase();
+    const isInitialAdmin =
+      initialAdminEmail && payload.email.toLowerCase() === initialAdminEmail;
+
     // Registro automático si no existe (RF-01-01)
     if (!user) {
       user = await User.create({
@@ -64,14 +68,19 @@ export async function POST(request: NextRequest) {
         image: payload.picture,
         provider: "google",
         providerId: payload.sub,
-        role: ROLES.CIUDADANO,
+        role: isInitialAdmin ? ROLES.SUPER_ADMIN : ROLES.CIUDADANO,
         status: USER_STATUS.ACTIVO,
       });
     } else if (user.provider !== "google") {
       return apiError(
         "Esta cuenta ya existe con correo/contraseña. Usa ese método.",
-        400
+        400,
       );
+    } else if (isInitialAdmin && user.role !== ROLES.SUPER_ADMIN) {
+      // Auto-promoción: existia pero aún no era super_admin
+      user.role = ROLES.SUPER_ADMIN;
+      user.status = USER_STATUS.ACTIVO;
+      await user.save();
     }
 
     if (user.status === USER_STATUS.SUSPENDIDO) {
