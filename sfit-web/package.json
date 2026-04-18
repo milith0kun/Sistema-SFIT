@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "eslint"
   },
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.11.1",
     "@upstash/ratelimit": "^2.0.8",
