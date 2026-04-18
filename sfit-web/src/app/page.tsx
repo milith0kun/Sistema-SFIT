@@ -131,10 +131,12 @@ export default function HomePage() {
 
           {/* Headline */}
           <h1
-            className="font-black text-white leading-[1.05] tracking-tight mb-6 animate-fade-up delay-100"
+            className="font-black text-white mb-7 animate-fade-up delay-100"
             style={{
               fontFamily: "var(--font-syne)",
-              fontSize: "clamp(2.5rem, 5.5vw, 4.2rem)",
+              fontSize: "clamp(2.75rem, 6.2vw, 5rem)",
+              lineHeight: 0.95,
+              letterSpacing: "-0.035em",
             }}
           >
             La plataforma que{" "}
@@ -147,14 +149,20 @@ export default function HomePage() {
 
           {/* Gold rule */}
           <div
-            className="mx-auto mb-6"
-            style={{ width: "36px", height: "2px", background: "#B8860B", borderRadius: "1px" }}
+            className="mx-auto mb-7"
+            style={{ width: "44px", height: "2.5px", background: "#B8860B", borderRadius: "1px" }}
           />
 
           {/* Subtext */}
           <p
-            className="text-base leading-relaxed mb-10 max-w-xl mx-auto animate-fade-up delay-200"
-            style={{ color: "rgba(255,255,255,0.45)" }}
+            className="mx-auto mb-11 animate-fade-up delay-200"
+            style={{
+              color: "rgba(255,255,255,0.72)",
+              fontSize: "1.1875rem",
+              lineHeight: 1.55,
+              maxWidth: "640px",
+              fontWeight: 400,
+            }}
           >
             Inspecciones digitales, gestión de flota, conductores y reportes ciudadanos — todo en una sola plataforma multi-tenant para municipalidades del Perú.
           </p>
@@ -164,7 +172,7 @@ export default function HomePage() {
             <a
               href="/login"
               className="btn-primary"
-              style={{ width: "auto", padding: "0 32px", height: "48px", fontSize: "15px" }}
+              style={{ width: "auto", padding: "0 34px", height: "54px", fontSize: "1rem" }}
             >
               <span className="shine" aria-hidden />
               Iniciar sesión
@@ -172,7 +180,7 @@ export default function HomePage() {
             <a
               href="/register"
               className="btn-ghost"
-              style={{ height: "48px", fontSize: "15px", padding: "0 32px" }}
+              style={{ height: "54px", fontSize: "1rem", padding: "0 34px" }}
             >
               Solicitar acceso
             </a>
@@ -200,23 +208,31 @@ export default function HomePage() {
       {/* ── Features ─────────────────────────── */}
       <section className="py-24 px-6 md:px-12" style={{ background: "#fafafa" }}>
         <div className="max-w-5xl mx-auto">
-          <div className="mb-14">
-            <p
-              className="text-[11px] font-semibold tracking-[0.22em] uppercase mb-3"
-              style={{ color: "#B8860B" }}
-            >
+          <div className="mb-16">
+            <p className="kicker">
               Capacidades del sistema
             </p>
             <h2
-              className="font-black text-[#18181b] leading-tight"
+              className="mt-5 font-black text-[#09090b]"
               style={{
                 fontFamily: "var(--font-syne)",
-                fontSize: "clamp(1.8rem, 3.5vw, 2.6rem)",
+                fontSize: "clamp(2rem, 4vw, 3rem)",
+                lineHeight: 0.98,
+                letterSpacing: "-0.035em",
               }}
             >
               Todo en una plataforma
             </h2>
-            <p className="mt-3 text-[#71717a] text-sm max-w-lg">
+            <p
+              className="mt-5"
+              style={{
+                color: "#52525b",
+                fontSize: "1.0625rem",
+                lineHeight: 1.55,
+                maxWidth: "560px",
+                fontWeight: 400,
+              }}
+            >
               Módulos integrados que cubren el ciclo completo de fiscalización, desde la salida de flota hasta la resolución de sanciones.
             </p>
           </div>
@@ -225,23 +241,37 @@ export default function HomePage() {
             {FEATURES.map((f) => (
               <div
                 key={f.n}
-                className="feature-card p-6 rounded-xl"
+                className="feature-card p-7 rounded-2xl"
                 style={{ background: "#ffffff", border: "1.5px solid #e4e4e7" }}
               >
                 <div
-                  className="font-black text-[#f4f4f5] mb-4 leading-none select-none"
-                  style={{ fontFamily: "var(--font-syne)", fontSize: "2.8rem" }}
+                  className="font-black text-[#f4f4f5] mb-5 leading-none select-none"
+                  style={{ fontFamily: "var(--font-syne)", fontSize: "3.25rem", letterSpacing: "-0.04em" }}
                   aria-hidden
                 >
                   {f.n}
                 </div>
                 <h3
-                  className="font-bold text-[#18181b] text-[15px] mb-2 leading-snug"
-                  style={{ fontFamily: "var(--font-syne)" }}
+                  className="font-bold text-[#09090b] mb-3"
+                  style={{
+                    fontFamily: "var(--font-syne)",
+                    fontSize: "1.125rem",
+                    lineHeight: 1.25,
+                    letterSpacing: "-0.015em",
+                  }}
                 >
                   {f.title}
                 </h3>
-                <p className="text-[13px] text-[#71717a] leading-relaxed">{f.desc}</p>
+                <p
+                  style={{
+                    color: "#52525b",
+                    fontSize: "0.9375rem",
+                    lineHeight: 1.55,
+                    fontWeight: 400,
+                  }}
+                >
+                  {f.desc}
+                </p>
               </div>
             ))}
           </div>
@@ -263,18 +293,17 @@ export default function HomePage() {
           }}
         />
         <div className="relative z-10 max-w-5xl mx-auto">
-          <div className="mb-14">
-            <p
-              className="text-[11px] font-semibold tracking-[0.22em] uppercase mb-3"
-              style={{ color: "#B8860B" }}
-            >
+          <div className="mb-16">
+            <p className="kicker">
               Acceso por rol
             </p>
             <h2
-              className="font-black text-white leading-tight"
+              className="mt-5 font-black text-white"
               style={{
                 fontFamily: "var(--font-syne)",
-                fontSize: "clamp(1.8rem, 3.5vw, 2.6rem)",
+                fontSize: "clamp(2rem, 4vw, 3rem)",
+                lineHeight: 0.98,
+                letterSpacing: "-0.035em",
               }}
             >
               Para cada actor,{" "}
@@ -282,28 +311,40 @@ export default function HomePage() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {ROLES.map((r) => (
               <div
                 key={r.role}
-                className="p-4 rounded-lg"
+                className="p-5 rounded-xl"
                 style={{
                   background: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.07)",
+                  border: "1px solid rgba(255,255,255,0.08)",
                 }}
               >
                 <div
-                  className="w-1.5 h-1.5 rounded-full mb-3"
+                  className="w-2 h-2 rounded-full mb-4"
                   style={{ background: "#B8860B" }}
                   aria-hidden
                 />
                 <div
-                  className="font-semibold text-white text-[13px] mb-1 leading-snug"
-                  style={{ fontFamily: "var(--font-syne)" }}
+                  className="font-bold text-white mb-2"
+                  style={{
+                    fontFamily: "var(--font-syne)",
+                    fontSize: "0.9375rem",
+                    lineHeight: 1.3,
+                    letterSpacing: "-0.01em",
+                  }}
                 >
                   {r.role}
                 </div>
-                <div className="text-[12px]" style={{ color: "rgba(255,255,255,0.36)" }}>
+                <div
+                  style={{
+                    color: "rgba(255,255,255,0.55)",
+                    fontSize: "0.875rem",
+                    lineHeight: 1.5,
+                    fontWeight: 400,
+                  }}
+                >
                   {r.desc}
                 </div>
               </div>
@@ -313,33 +354,34 @@ export default function HomePage() {
       </section>
 
       {/* ── Stats ────────────────────────────── */}
-      <section className="py-20 px-6 md:px-12 text-center" style={{ background: "#f4f4f5" }}>
+      <section className="py-24 px-6 md:px-12 text-center" style={{ background: "#f4f4f5" }}>
         <div className="max-w-4xl mx-auto">
-          <p
-            className="text-[11px] font-semibold tracking-[0.22em] uppercase mb-3"
-            style={{ color: "#B8860B" }}
-          >
+          <p className="kicker">
             En cifras
           </p>
           <h2
-            className="font-black text-[#18181b] mb-14 leading-tight"
+            className="mt-5 mb-16 font-black text-[#09090b]"
             style={{
               fontFamily: "var(--font-syne)",
-              fontSize: "clamp(1.8rem, 3.5vw, 2.4rem)",
+              fontSize: "clamp(2rem, 4vw, 2.75rem)",
+              lineHeight: 0.98,
+              letterSpacing: "-0.035em",
             }}
           >
             Diseñado para escalar
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
             {STATS.map((s) => (
               <div key={s.label} className="text-center">
                 <div
-                  className="font-black text-[#18181b] mb-1.5 leading-none"
-                  style={{ fontFamily: "var(--font-syne)", fontSize: "2.5rem" }}
+                  className="font-black text-[#09090b] mb-2 leading-none"
+                  style={{ fontFamily: "var(--font-syne)", fontSize: "3rem", letterSpacing: "-0.04em" }}
                 >
                   {s.n}
                 </div>
-                <div className="text-[12px] text-[#71717a]">{s.label}</div>
+                <div style={{ color: "#52525b", fontSize: "0.875rem", fontWeight: 500, letterSpacing: "0.01em" }}>
+                  {s.label}
+                </div>
               </div>
             ))}
           </div>
@@ -368,22 +410,33 @@ export default function HomePage() {
             <SfitMark size={22} />
           </div>
           <h2
-            className="font-black text-white mb-4 leading-tight"
+            className="font-black text-white mb-5"
             style={{
               fontFamily: "var(--font-syne)",
-              fontSize: "clamp(1.8rem, 3.5vw, 2.6rem)",
+              fontSize: "clamp(2rem, 4vw, 3rem)",
+              lineHeight: 0.98,
+              letterSpacing: "-0.035em",
             }}
           >
             ¿Tu municipalidad usa SFIT?
           </h2>
-          <p className="text-sm mb-8 max-w-sm mx-auto" style={{ color: "rgba(255,255,255,0.4)" }}>
+          <p
+            className="mb-10 mx-auto"
+            style={{
+              color: "rgba(255,255,255,0.7)",
+              fontSize: "1.0625rem",
+              lineHeight: 1.55,
+              maxWidth: "440px",
+              fontWeight: 400,
+            }}
+          >
             Ingresa con tu cuenta institucional o solicita acceso a tu administrador municipal.
           </p>
           <div className="flex items-center justify-center gap-3">
             <a
               href="/login"
               className="btn-primary"
-              style={{ width: "auto", padding: "0 32px", height: "48px", fontSize: "15px" }}
+              style={{ width: "auto", padding: "0 34px", height: "54px", fontSize: "1rem" }}
             >
               <span className="shine" aria-hidden />
               Iniciar sesión
@@ -391,7 +444,7 @@ export default function HomePage() {
             <a
               href="/register"
               className="btn-ghost"
-              style={{ height: "48px", fontSize: "15px", padding: "0 32px" }}
+              style={{ height: "54px", fontSize: "1rem", padding: "0 34px" }}
             >
               Solicitar acceso
             </a>

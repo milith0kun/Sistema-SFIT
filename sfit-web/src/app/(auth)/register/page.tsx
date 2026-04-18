@@ -103,28 +103,38 @@ export default function RegisterPage() {
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div className="mb-6">
-        <p
-          className="text-[11px] font-semibold tracking-[0.22em] uppercase mb-3 animate-fade-up"
-          style={{ color: "#B8860B" }}
-        >
+      <div className="mb-8">
+        <p className="kicker animate-fade-up">
           Nuevo acceso
         </p>
-        <h2
-          className="font-black text-[#18181b] leading-tight animate-fade-up delay-50"
-          style={{ fontFamily: "var(--font-syne)", fontSize: "1.75rem" }}
+        <h1
+          className="mt-5 font-black text-[#09090b] animate-fade-up delay-50"
+          style={{
+            fontFamily: "var(--font-syne)",
+            fontSize: "2.5rem",
+            lineHeight: 0.95,
+            letterSpacing: "-0.035em",
+          }}
         >
           Crear cuenta
-        </h2>
-        <p className="mt-2.5 text-[15px] text-[#52525b] leading-relaxed animate-fade-up delay-100">
+        </h1>
+        <p
+          className="mt-4 animate-fade-up delay-100"
+          style={{
+            color: "#52525b",
+            fontSize: "1.0625rem",
+            lineHeight: 1.5,
+            fontWeight: 400,
+          }}
+        >
           {step === "datos" ? "Paso 1 de 2 — Datos personales" : "Paso 2 de 2 — Rol solicitado"}
         </p>
         {/* Progress bar */}
-        <div className="flex gap-1.5 mt-4 animate-fade-up delay-150">
-          <div className="h-0.5 flex-1 rounded-full" style={{ background: "#18181b" }} />
+        <div className="flex gap-2 mt-6 animate-fade-up delay-150">
+          <div className="h-[3px] flex-1 rounded-full" style={{ background: "#09090b" }} />
           <div
-            className="h-0.5 flex-1 rounded-full transition-all duration-300"
-            style={{ background: step === "rol" ? "#18181b" : "#E4E4E7" }}
+            className="h-[3px] flex-1 rounded-full transition-all duration-300"
+            style={{ background: step === "rol" ? "#09090b" : "#E4E4E7" }}
           />
         </div>
       </div>
@@ -144,7 +154,7 @@ export default function RegisterPage() {
       {step === "datos" && (
         <div className="space-y-4">
           <div className="animate-fade-up delay-100">
-            <label htmlFor="name" className="block text-[15px] font-semibold text-[#09090b] mb-1.5">
+            <label htmlFor="name" className="block mb-2.5" style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#09090b", letterSpacing: "-0.005em" }}>
               Nombre completo
             </label>
             <input
@@ -153,11 +163,11 @@ export default function RegisterPage() {
               placeholder="Juan Pérez García"
               className={fc("name")}
             />
-            {fieldErrors.name && <p className="mt-1.5 text-[13px] text-[#DC2626]">{fieldErrors.name}</p>}
+            {fieldErrors.name && <p className="mt-2" style={{ fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>{fieldErrors.name}</p>}
           </div>
 
           <div className="animate-fade-up delay-200">
-            <label htmlFor="email" className="block text-[15px] font-semibold text-[#09090b] mb-1.5">
+            <label htmlFor="email" className="block mb-2.5" style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#09090b", letterSpacing: "-0.005em" }}>
               Correo electrónico
             </label>
             <input
@@ -166,11 +176,11 @@ export default function RegisterPage() {
               placeholder="nombre@correo.com"
               className={fc("email")}
             />
-            {fieldErrors.email && <p className="mt-1.5 text-[13px] text-[#DC2626]">{fieldErrors.email}</p>}
+            {fieldErrors.email && <p className="mt-2" style={{ fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>{fieldErrors.email}</p>}
           </div>
 
           <div className="animate-fade-up delay-300">
-            <label htmlFor="password" className="block text-[15px] font-semibold text-[#09090b] mb-1.5">
+            <label htmlFor="password" className="block mb-2.5" style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#09090b", letterSpacing: "-0.005em" }}>
               Contraseña
             </label>
             <div className="relative">
@@ -191,7 +201,7 @@ export default function RegisterPage() {
                 {showPassword ? <EyeOff /> : <Eye />}
               </button>
             </div>
-            {fieldErrors.password && <p className="mt-1.5 text-[13px] text-[#DC2626]">{fieldErrors.password}</p>}
+            {fieldErrors.password && <p className="mt-2" style={{ fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>{fieldErrors.password}</p>}
           </div>
 
           <div className="animate-fade-up delay-400 pt-1">

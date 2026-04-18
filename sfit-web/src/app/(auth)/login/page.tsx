@@ -58,41 +58,55 @@ export default function LoginPage() {
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div className="mb-8">
-        <p
-          className="text-[11px] font-semibold tracking-[0.22em] uppercase mb-4 animate-fade-up"
-          style={{ color: "#B8860B" }}
-        >
+      <div className="mb-10">
+        <p className="kicker animate-fade-up">
           Acceso al sistema
         </p>
-        <h2
-          className="font-extrabold text-[#09090b] leading-[1.1] animate-fade-up delay-50"
-          style={{ fontFamily: "var(--font-syne)", fontSize: "2.1rem" }}
+        <h1
+          className="mt-5 font-black text-[#09090b] animate-fade-up delay-50"
+          style={{
+            fontFamily: "var(--font-syne)",
+            fontSize: "2.75rem",
+            lineHeight: 0.95,
+            letterSpacing: "-0.035em",
+          }}
         >
           Ingresar
-        </h2>
+        </h1>
         <p
-          className="mt-2.5 text-[15px] text-[#52525b] leading-relaxed animate-fade-up delay-100"
+          className="mt-4 animate-fade-up delay-100"
+          style={{
+            color: "#52525b",
+            fontSize: "1.0625rem",
+            lineHeight: 1.55,
+            fontWeight: 400,
+          }}
         >
-          Credenciales institucionales requeridas
+          Credenciales institucionales requeridas para<br />acceder al sistema de fiscalización.
         </p>
       </div>
 
       {/* Global error */}
       {error && (
         <div
-          className="mb-5 flex items-start gap-2.5 rounded-lg p-3.5 animate-fade-up"
+          className="mb-6 flex items-start gap-3 rounded-xl p-4 animate-fade-up"
           style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5" }}
         >
           <AlertCircle className="mt-0.5 shrink-0 text-[#EF4444]" />
-          <p className="text-sm text-[#DC2626] leading-snug">{error}</p>
+          <p style={{ fontSize: "0.9375rem", color: "#DC2626", lineHeight: 1.45, fontWeight: 500 }}>
+            {error}
+          </p>
         </div>
       )}
 
       <form onSubmit={handleSubmit} noValidate>
         {/* Email */}
-        <div className="mb-4 animate-fade-up delay-150">
-          <label htmlFor="email" className="block text-[15px] font-semibold text-[#09090b] mb-2">
+        <div className="mb-5 animate-fade-up delay-150">
+          <label
+            htmlFor="email"
+            className="block mb-2.5"
+            style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#09090b", letterSpacing: "-0.005em" }}
+          >
             Correo electrónico
           </label>
           <input
@@ -105,20 +119,25 @@ export default function LoginPage() {
             className={`field${fieldErrors.email ? " field-error" : ""}`}
           />
           {fieldErrors.email && (
-            <p className="mt-1.5 text-[13px] text-[#DC2626]">{fieldErrors.email}</p>
+            <p className="mt-2" style={{ fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
+              {fieldErrors.email}
+            </p>
           )}
         </div>
 
         {/* Password */}
-        <div className="mb-5 animate-fade-up delay-200">
-          <div className="flex items-center justify-between mb-1.5">
-            <label htmlFor="password" className="text-[15px] font-semibold text-[#09090b]">
+        <div className="mb-6 animate-fade-up delay-200">
+          <div className="flex items-center justify-between mb-2.5">
+            <label
+              htmlFor="password"
+              style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#09090b", letterSpacing: "-0.005em" }}
+            >
               Contraseña
             </label>
             <Link
               href="/reset-password"
-              className="text-[13px] transition-colors"
-              style={{ color: "#B8860B" }}
+              className="transition-colors"
+              style={{ color: "#B8860B", fontSize: "0.8125rem", fontWeight: 600 }}
               onMouseEnter={(e) => (e.currentTarget.style.color = "#926A09")}
               onMouseLeave={(e) => (e.currentTarget.style.color = "#B8860B")}
             >
@@ -133,20 +152,22 @@ export default function LoginPage() {
               autoComplete="current-password"
               required
               placeholder="••••••••••"
-              className={`field pr-11${fieldErrors.password ? " field-error" : ""}`}
+              className={`field pr-12${fieldErrors.password ? " field-error" : ""}`}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               tabIndex={-1}
               aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A1A1AA] hover:text-[#52525B] transition-colors"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A1A1AA] hover:text-[#52525B] transition-colors"
             >
               {showPassword ? <EyeOff /> : <Eye />}
             </button>
           </div>
           {fieldErrors.password && (
-            <p className="mt-1.5 text-[13px] text-[#DC2626]">{fieldErrors.password}</p>
+            <p className="mt-2" style={{ fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
+              {fieldErrors.password}
+            </p>
           )}
         </div>
 
@@ -171,12 +192,15 @@ export default function LoginPage() {
       </form>
 
       {/* Divider */}
-      <div className="relative my-6 animate-fade-up delay-400">
+      <div className="relative my-7 animate-fade-up delay-400">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full" style={{ height: "1px", background: "#E4E4E7" }} />
         </div>
         <div className="relative flex justify-center">
-          <span className="px-3 bg-[#fafafa] text-[13px] text-[#A1A1AA]">
+          <span
+            className="px-4 bg-[#fafafa]"
+            style={{ fontSize: "0.8125rem", color: "#71717A", fontWeight: 500, letterSpacing: "0.02em" }}
+          >
             o continúa con
           </span>
         </div>
@@ -186,10 +210,22 @@ export default function LoginPage() {
       <div className="animate-fade-up delay-500">
         <button
           type="button"
-          className="w-full h-[44px] flex items-center justify-center gap-3 rounded-lg bg-white text-[14px] font-medium text-[#27272A] hover:bg-[#F4F4F5] transition-all duration-150 cursor-pointer"
-          style={{ border: "1.5px solid #E4E4E7" }}
-          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#D4D4D8")}
-          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#E4E4E7")}
+          className="w-full h-[50px] flex items-center justify-center gap-3 rounded-[10px] bg-white transition-all duration-150 cursor-pointer"
+          style={{
+            border: "1.5px solid #E4E4E7",
+            fontSize: "0.9375rem",
+            fontWeight: 500,
+            color: "#27272A",
+            letterSpacing: "-0.005em",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "#D4D4D8";
+            e.currentTarget.style.background = "#F4F4F5";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "#E4E4E7";
+            e.currentTarget.style.background = "#ffffff";
+          }}
         >
           <GoogleMark />
           Continuar con Google
@@ -197,12 +233,15 @@ export default function LoginPage() {
       </div>
 
       {/* Register link */}
-      <p className="mt-7 text-center text-[14px] text-[#52525B] animate-fade-up delay-500">
+      <p
+        className="mt-9 text-center animate-fade-up delay-500"
+        style={{ fontSize: "0.9375rem", color: "#52525B", fontWeight: 400 }}
+      >
         ¿No tienes cuenta?{" "}
         <Link
           href="/register"
-          className="font-semibold transition-colors"
-          style={{ color: "#B8860B" }}
+          className="transition-colors"
+          style={{ color: "#B8860B", fontWeight: 600 }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#926A09")}
           onMouseLeave={(e) => (e.currentTarget.style.color = "#B8860B")}
         >
@@ -216,7 +255,7 @@ export default function LoginPage() {
 /* ── Micro icons ── */
 function Eye() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
       <circle cx="12" cy="12" r="3" />
     </svg>
@@ -225,7 +264,7 @@ function Eye() {
 
 function EyeOff() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
       <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
       <line x1="1" y1="1" x2="23" y2="23" strokeLinecap="round" />
@@ -235,7 +274,7 @@ function EyeOff() {
 
 function AlertCircle({ className = "" }: { className?: string }) {
   return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" className={className}>
+    <svg width="16" height="16" viewBox="0 0 15 15" fill="none" className={className}>
       <circle cx="7.5" cy="7.5" r="6.5" stroke="currentColor" strokeWidth="1.2" />
       <path d="M7.5 4.5v3M7.5 10h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
     </svg>
@@ -244,7 +283,7 @@ function AlertCircle({ className = "" }: { className?: string }) {
 
 function GoogleMark() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden>
       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />

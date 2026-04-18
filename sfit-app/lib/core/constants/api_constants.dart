@@ -4,11 +4,8 @@ import 'package:flutter/foundation.dart';
 class ApiConstants {
   ApiConstants._();
 
-  /// URL base del backend (Next.js API).
-  /// En debug apunta a la red local; en release, al servidor de producción.
-  static final String baseUrl = kDebugMode
-      ? 'http://10.0.2.2:3000/api'        // emulador Android → host
-      : 'https://sfit.ecosdelseo.com/api'; // producción
+  /// URL base del backend desplegado en producción.
+  static const String baseUrl = 'https://sfit.ecosdelseo.com/api';
 
   // Timeouts (ms)
   static const int connectTimeout = 15000;

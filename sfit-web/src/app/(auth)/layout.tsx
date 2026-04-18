@@ -91,8 +91,13 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
             {/* Heading */}
             <h1
-              className="font-black text-white leading-[1.05] tracking-tight animate-fade-up delay-200"
-              style={{ fontFamily: "var(--font-syne)", fontSize: "clamp(2rem, 3.2vw, 2.75rem)" }}
+              className="font-black text-white animate-fade-up delay-200"
+              style={{
+                fontFamily: "var(--font-syne)",
+                fontSize: "clamp(2.25rem, 3.8vw, 3.25rem)",
+                lineHeight: 0.95,
+                letterSpacing: "-0.035em",
+              }}
             >
               Fiscalización<br />
               <span style={{ color: "#B8860B" }}>Inteligente</span><br />
@@ -101,36 +106,47 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
             {/* Gold rule */}
             <div
-              className="my-6 animate-fade-in delay-300"
-              style={{ width: "36px", height: "2px", background: "#B8860B", borderRadius: "1px" }}
+              className="my-7 animate-fade-in delay-300"
+              style={{ width: "44px", height: "2.5px", background: "#B8860B", borderRadius: "1px" }}
             />
 
             {/* Description */}
             <p
-              className="text-sm leading-relaxed animate-fade-up delay-400"
-              style={{ color: "rgba(255,255,255,0.36)", maxWidth: "272px" }}
+              className="animate-fade-up delay-400"
+              style={{
+                color: "rgba(255,255,255,0.68)",
+                maxWidth: "320px",
+                fontSize: "0.9375rem",
+                lineHeight: 1.6,
+                fontWeight: 400,
+              }}
             >
               Gestión integral de flota vehicular, conductores e inspecciones en tiempo real.
             </p>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 gap-2.5 mt-9 animate-fade-up delay-500">
+            <div className="grid grid-cols-2 gap-3 mt-10 animate-fade-up delay-500">
               {STATS.map((s) => (
                 <div
                   key={s.label}
-                  className="rounded-lg p-3.5"
+                  className="rounded-xl p-4"
                   style={{
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid rgba(255,255,255,0.07)",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
                   }}
                 >
                   <div
-                    className="text-white font-bold leading-none mb-1"
-                    style={{ fontFamily: "var(--font-syne)", fontSize: "16px" }}
+                    className="text-white font-bold mb-1.5"
+                    style={{
+                      fontFamily: "var(--font-syne)",
+                      fontSize: "1.0625rem",
+                      lineHeight: 1,
+                      letterSpacing: "-0.01em",
+                    }}
                   >
                     {s.value}
                   </div>
-                  <div className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>
+                  <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.75rem", fontWeight: 500 }}>
                     {s.label}
                   </div>
                 </div>

@@ -68,25 +68,35 @@ export default function ResetPasswordPage() {
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div className="mb-8">
-        <p
-          className="text-[11px] font-semibold tracking-[0.22em] uppercase mb-4 animate-fade-up"
-          style={{ color: "#B8860B" }}
-        >
+      <div className="mb-10">
+        <p className="kicker animate-fade-up">
           Recuperar acceso
         </p>
-        <h2
-          className="font-extrabold text-[#09090b] leading-[1.1] animate-fade-up delay-50"
-          style={{ fontFamily: "var(--font-syne)", fontSize: "2.1rem" }}
+        <h1
+          className="mt-5 font-black text-[#09090b] animate-fade-up delay-50"
+          style={{
+            fontFamily: "var(--font-syne)",
+            fontSize: "2.5rem",
+            lineHeight: 0.95,
+            letterSpacing: "-0.035em",
+          }}
         >
           ¿Olvidaste tu<br />contraseña?
-        </h2>
-        <p className="mt-2.5 text-[15px] text-[#52525b] leading-relaxed animate-fade-up delay-100">
+        </h1>
+        <p
+          className="mt-4 animate-fade-up delay-100"
+          style={{
+            color: "#52525b",
+            fontSize: "1.0625rem",
+            lineHeight: 1.55,
+            fontWeight: 400,
+          }}
+        >
           Ingresa tu correo y te enviaremos un enlace de recuperación.
         </p>
         <p
-          className="mt-2 text-[13px] animate-fade-up delay-150"
-          style={{ color: "#A1A1AA" }}
+          className="mt-3 animate-fade-up delay-150"
+          style={{ color: "#71717A", fontSize: "0.875rem", fontWeight: 500 }}
         >
           No aplica para cuentas de Google.
         </p>
