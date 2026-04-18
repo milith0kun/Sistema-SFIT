@@ -82,8 +82,8 @@ export default function HomePage() {
 
       {/* ── Hero ─────────────────────────────── */}
       <section
-        className="relative flex flex-col items-center justify-center text-center min-h-screen px-6 pt-24 pb-20"
-        style={{ background: "#0A1628" }}
+        className="relative flex flex-col items-center justify-center text-center px-6 pt-28 pb-20"
+        style={{ background: "#0A1628", minHeight: "min(calc(100vh - 0px), 760px)" }}
       >
         {/* Dot grid */}
         <div
@@ -155,12 +155,12 @@ export default function HomePage() {
 
           {/* Subtext */}
           <p
-            className="mx-auto mb-11 animate-fade-up delay-200"
+            className="mx-auto mb-10 animate-fade-up delay-200"
             style={{
-              color: "rgba(255,255,255,0.72)",
-              fontSize: "1.1875rem",
+              color: "rgba(255,255,255,0.85)",
+              fontSize: "1.125rem",
               lineHeight: 1.55,
-              maxWidth: "640px",
+              maxWidth: "620px",
               fontWeight: 400,
             }}
           >
@@ -191,11 +191,13 @@ export default function HomePage() {
             {["7 roles de acceso", "19 módulos RF", "Multi-tenant", "Web + App móvil"].map((chip) => (
               <span
                 key={chip}
-                className="px-3 py-1 rounded-full text-[12px] font-medium"
+                className="px-3.5 py-1.5 rounded-full"
                 style={{
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.09)",
-                  color: "rgba(255,255,255,0.5)",
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.14)",
+                  color: "rgba(255,255,255,0.78)",
+                  fontSize: "0.8125rem",
+                  fontWeight: 500,
                 }}
               >
                 {chip}
