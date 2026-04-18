@@ -15,6 +15,12 @@ abstract class AuthApiService {
     @Body() Map<String, dynamic> body,
   );
 
+  /// RF-01-01: Login / registro con Google (ID token desde cliente)
+  @POST('/auth/google')
+  Future<HttpResponse<Map<String, dynamic>>> loginWithGoogle(
+    @Body() Map<String, dynamic> body,
+  );
+
   /// RF-01-02: Registro con correo
   @POST(ApiConstants.register)
   Future<HttpResponse<Map<String, dynamic>>> register(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../providers/auth_provider.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -11,11 +12,12 @@ class LoginPage extends ConsumerStatefulWidget {
 }
 
 class _LoginPageState extends ConsumerState<LoginPage> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailCtrl = TextEditingController();
+  final _formKey      = GlobalKey<FormState>();
+  final _emailCtrl    = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  bool _obscurePassword = true;
-  bool _loading = false;
+  bool _obscure       = true;
+  bool _loading       = false;
+  bool _googleLoading = false;
 
   @override
   void dispose() {
@@ -36,75 +38,90 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
     if (!ok && mounted) {
       final err = ref.read(authProvider).errorMessage;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(err ?? 'Error al iniciar sesión'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _showError(err ?? 'Error al iniciar sesión');
     }
-    // Si ok, el router redirige automáticamente
+  }
+
+  Future<void> _submitGoogle() async {
+    setState(() => _googleLoading = true);
+
+    final ok = await ref.read(authProvider.notifier).loginWithGoogle();
+
+    if (mounted) setState(() => _googleLoading = false);
+
+    if (!ok && mounted) {
+      final err = ref.read(authProvider).errorMessage;
+      if (err != null) _showError(err);
+    }
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: AppColors.danger,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
 
     return Scaffold(
-      backgroundColor: cs.surface,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Logo
+
+              // ── Marca SFIT ─────────────────────────────────────
               Row(
                 children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: cs.primary,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.directions_bus_rounded,
-                      color: Colors.white,
-                      size: 22,
-                    ),
-                  ),
+                  const _SfitMark(size: 34),
                   const SizedBox(width: 10),
                   Text(
                     'SFIT',
                     style: tt.titleLarge?.copyWith(
+                      letterSpacing: 0.18,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
                     ),
                   ),
                 ],
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 44),
 
+              // ── Encabezado ─────────────────────────────────────
               Text(
-                'Bienvenido',
-                style: tt.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+                'ACCESO AL SISTEMA',
+                style: tt.labelSmall?.copyWith(
+                  color: AppColors.gold,
+                  letterSpacing: 2.0,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
-                'Ingresa a tu cuenta para continuar',
-                style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+                'Ingresar',
+                style: tt.headlineMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Credenciales institucionales requeridas',
+                style: tt.bodyMedium?.copyWith(color: AppColors.ink5),
               ),
 
               const SizedBox(height: 32),
 
+              // ── Formulario ─────────────────────────────────────
               Form(
                 key: _formKey,
                 child: Column(
                   children: [
+
                     // Email
                     TextFormField(
                       controller: _emailCtrl,
@@ -112,7 +129,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
                         labelText: 'Correo electrónico',
-                        prefixIcon: Icon(Icons.email_outlined),
+                        hintText: 'nombre@municipalidad.gob.pe',
                       ),
                       validator: (v) {
                         if (v == null || v.isEmpty) return 'Requerido';
@@ -126,29 +143,28 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     // Contraseña
                     TextFormField(
                       controller: _passwordCtrl,
-                      obscureText: _obscurePassword,
+                      obscureText: _obscure,
                       textInputAction: TextInputAction.done,
                       onFieldSubmitted: (_) => _submit(),
                       decoration: InputDecoration(
                         labelText: 'Contraseña',
-                        prefixIcon: const Icon(Icons.lock_outlined),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscurePassword
+                            _obscure
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
+                            size: 20,
+                            color: AppColors.ink4,
                           ),
-                          onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
+                          onPressed: () =>
+                              setState(() => _obscure = !_obscure),
                         ),
                       ),
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return 'Requerido';
-                        return null;
-                      },
+                      validator: (v) =>
+                          (v == null || v.isEmpty) ? 'Requerido' : null,
                     ),
 
-                    // ¿Olvidaste contraseña?
+                    // ¿Olvidaste contraseña? (RF-01-09)
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
@@ -157,24 +173,20 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       ),
                     ),
 
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
 
-                    // Botón ingresar
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: _loading ? null : _submit,
-                        child: _loading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text('Ingresar'),
-                      ),
+                    // Botón principal
+                    FilledButton(
+                      onPressed: _loading ? null : _submit,
+                      child: _loading
+                          ? const SizedBox(
+                              width: 20, height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Ingresar al sistema'),
                     ),
 
                     const SizedBox(height: 20),
@@ -184,11 +196,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       children: [
                         const Expanded(child: Divider()),
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
                           child: Text(
                             'o continúa con',
-                            style: tt.bodySmall
-                                ?.copyWith(color: cs.onSurfaceVariant),
+                            style: tt.bodySmall?.copyWith(color: AppColors.ink4),
                           ),
                         ),
                         const Expanded(child: Divider()),
@@ -197,14 +208,28 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                     const SizedBox(height: 16),
 
-                    // Google
-                    OutlinedButton.icon(
-                      onPressed: () {},
-                      icon: const _GoogleIcon(),
-                      label: const Text('Continuar con Google'),
+                    // Botón Google (RF-01-01)
+                    OutlinedButton(
+                      onPressed: _googleLoading ? null : _submitGoogle,
                       style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 52),
+                        minimumSize: const Size(double.infinity, 50),
                       ),
+                      child: _googleLoading
+                          ? const SizedBox(
+                              width: 18, height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.ink6,
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const _GoogleMark(),
+                                const SizedBox(width: 10),
+                                const Text('Continuar con Google'),
+                              ],
+                            ),
                     ),
                   ],
                 ),
@@ -212,21 +237,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
               const SizedBox(height: 32),
 
-              // Registro
+              // Link a registro
               Center(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       '¿No tienes cuenta? ',
-                      style: tt.bodyMedium,
+                      style: tt.bodyMedium?.copyWith(color: AppColors.ink5),
                     ),
                     GestureDetector(
                       onTap: () => context.go('/register'),
                       child: Text(
-                        'Regístrate',
+                        'Solicitar acceso',
                         style: tt.bodyMedium?.copyWith(
-                          color: cs.primary,
+                          color: AppColors.gold,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -242,31 +267,102 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 }
 
-class _GoogleIcon extends StatelessWidget {
-  const _GoogleIcon();
+// ── SFIT diamond mark ──────────────────────────────────────────────
+class _SfitMark extends StatelessWidget {
+  final double size;
+  const _SfitMark({required this.size});
 
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 20,
-      height: 20,
-      child: CustomPaint(painter: _GooglePainter()),
+  Widget build(BuildContext context) =>
+      CustomPaint(size: Size(size, size), painter: _SfitMarkPainter());
+}
+
+class _SfitMarkPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size s) {
+    final stroke = Paint()
+      ..color = AppColors.gold
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = s.width * 0.055
+      ..strokeJoin = StrokeJoin.miter;
+
+    final fill = Paint()
+      ..color = AppColors.gold
+      ..style = PaintingStyle.fill;
+
+    canvas.drawPath(
+      Path()
+        ..moveTo(s.width * 0.5,   s.height * 0.094)
+        ..lineTo(s.width * 0.906, s.height * 0.5)
+        ..lineTo(s.width * 0.5,   s.height * 0.906)
+        ..lineTo(s.width * 0.094, s.height * 0.5)
+        ..close(),
+      stroke,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(s.width * 0.5,   s.height * 0.297)
+        ..lineTo(s.width * 0.703, s.height * 0.5)
+        ..lineTo(s.width * 0.5,   s.height * 0.703)
+        ..lineTo(s.width * 0.297, s.height * 0.5)
+        ..close(),
+      fill,
     );
   }
+
+  @override
+  bool shouldRepaint(_) => false;
+}
+
+// ── Google mark (SVG paths en Canvas) ────────────────────────────
+class _GoogleMark extends StatelessWidget {
+  const _GoogleMark();
+
+  @override
+  Widget build(BuildContext context) =>
+      CustomPaint(size: const Size(18, 18), painter: _GooglePainter());
 }
 
 class _GooglePainter extends CustomPainter {
   @override
-  void paint(Canvas canvas, Size size) {
+  void paint(Canvas canvas, Size s) {
     final paint = Paint()..style = PaintingStyle.fill;
-    // Simplified Google "G" representation using colored arcs
+    final cx = s.width / 2;
+    final cy = s.height / 2;
+    final r  = s.width / 2;
+
+    // Blue arc
     paint.color = const Color(0xFF4285F4);
     canvas.drawArc(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      -0.5,
-      3.3,
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      -1.571, // -90°
+      3.665,  // ~210°
       false,
-      paint..style = PaintingStyle.stroke..strokeWidth = size.width * 0.18,
+      paint
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = s.width * 0.22,
+    );
+
+    // Red arc
+    paint
+      ..color = const Color(0xFFEA4335)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = s.width * 0.22;
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      -1.571,
+      -1.309,
+      false,
+      paint,
+    );
+
+    // Horizontal bar (right side - blue)
+    paint
+      ..color = const Color(0xFF4285F4)
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(
+      Rect.fromLTWH(cx, cy - s.height * 0.11, r * 0.95, s.height * 0.22),
+      paint,
     );
   }
 

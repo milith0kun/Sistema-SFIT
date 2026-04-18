@@ -279,7 +279,7 @@ Usuario se registra (Google o correo)
 | RF-01-02 | Registro con correo y contraseña | El usuario registra nombre, correo, contraseña y municipalidad. | Alta | Todos |
 | RF-01-03 | Solicitud de rol al registrarse | Al registrarse, el usuario indica el rol que solicita: conductor, operador o ciudadano. Queda en estado PENDIENTE. | Alta | Todos |
 | RF-01-04 | Aprobación de usuarios | El Admin Municipal ve solicitudes pendientes, revisa datos y aprueba o rechaza, asignando el rol definitivo. | Alta | Admin Municipal |
-| RF-01-05 | Notificación de resultado | El sistema notifica por correo y push cuando la solicitud es aprobada o rechazada. | Alta | Sistema |
+| RF-01-05 | Notificación de resultado | El sistema notifica por co     rreo y push cuando la solicitud es aprobada o rechazada. | Alta | Sistema |
 | RF-01-06 | Inicio de sesión web | Autenticación con Google o correo desde el panel web. | Alta | Super Admin, Admin Provincial, Admin Municipal, Fiscal, Operador |
 | RF-01-07 | Inicio de sesión móvil | Autenticación con Google o correo desde la app Flutter. | Alta | Fiscal, Operador, Conductor, Ciudadano |
 | RF-01-08 | Refresh token | Access token: 15 minutos. Refresh token: 7 días. Renovación automática. | Alta | Todos |

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../data/datasources/auth_api_service.dart';
@@ -9,7 +10,7 @@ import '../../domain/repositories/auth_repository.dart';
 
 part 'auth_provider.g.dart';
 
-// ── Providers de infraestructura ──
+// ── Providers de infraestructura ─────────────────────────────────
 
 @Riverpod(keepAlive: true)
 FlutterSecureStorage secureStorage(Ref ref) =>
@@ -25,9 +26,15 @@ AuthRepository authRepository(Ref ref) => AuthRepositoryImpl(
       ref.watch(secureStorageProvider),
     );
 
-// ── Estado de autenticación ──
+// ── Estado ───────────────────────────────────────────────────────
 
-enum AuthStatus { loading, authenticated, unauthenticated, pendingApproval }
+enum AuthStatus {
+  loading,
+  authenticated,
+  unauthenticated,
+  pendingApproval,
+  rejected,
+}
 
 class AuthState {
   final AuthStatus status;
@@ -52,16 +59,17 @@ class AuthState {
       );
 
   bool get isAuthenticated => status == AuthStatus.authenticated;
-  bool get isLoading => status == AuthStatus.loading;
+  bool get isLoading       => status == AuthStatus.loading;
 }
 
-// ── Notifier ──
+// ── Notifier ─────────────────────────────────────────────────────
 
 @Riverpod(keepAlive: true)
 class Auth extends _$Auth {
+  static final _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
+
   @override
   AuthState build() {
-    // Intentar auto-login al iniciar
     Future.microtask(() => _tryAutoLogin());
     return const AuthState(status: AuthStatus.loading);
   }
@@ -79,6 +87,7 @@ class Auth extends _$Auth {
     }
   }
 
+  // ── RF-01-06 / RF-01-07: Login con correo ─────────────────────
   Future<bool> login(String email, String password) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
@@ -101,6 +110,43 @@ class Auth extends _$Auth {
     }
   }
 
+  // ── RF-01-01: Login con Google ────────────────────────────────
+  Future<bool> loginWithGoogle() async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    try {
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        // El usuario canceló
+        state = const AuthState(status: AuthStatus.unauthenticated);
+        return false;
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final idToken = googleAuth.idToken;
+      if (idToken == null) {
+        throw AuthException('No se pudo obtener el token de Google');
+      }
+
+      final result =
+          await ref.read(authRepositoryProvider).loginWithGoogle(idToken);
+      state = AuthState(status: AuthStatus.authenticated, user: result.user);
+      return true;
+    } on AuthException catch (e) {
+      state = AuthState(
+        status: AuthStatus.unauthenticated,
+        errorMessage: e.message,
+      );
+      return false;
+    } catch (_) {
+      state = const AuthState(
+        status: AuthStatus.unauthenticated,
+        errorMessage: 'Error con Google. Intenta nuevamente.',
+      );
+      return false;
+    }
+  }
+
+  // ── RF-01-02 / RF-01-03: Registro ────────────────────────────
   Future<void> register({
     required String name,
     required String email,
@@ -115,11 +161,12 @@ class Auth extends _$Auth {
           requestedRole: requestedRole,
           municipalityId: municipalityId,
         );
-    // Queda en pendiente — no autentica
     state = const AuthState(status: AuthStatus.pendingApproval);
   }
 
+  // ── RF-01-10: Logout ──────────────────────────────────────────
   Future<void> logout() async {
+    await _googleSignIn.signOut().catchError((_) {});
     await ref.read(authRepositoryProvider).logout();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
