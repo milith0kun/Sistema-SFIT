@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
@@ -303,7 +304,8 @@ export default function UsuarioDetallePage() {
           <div style={{ marginTop: 12 }}>
             <Link href="/usuarios">
               <Button variant="outline" size="sm">
-                ← Volver a la lista
+                <ArrowLeft size={14} strokeWidth={1.8} />
+                Volver a la lista
               </Button>
             </Link>
           </div>
@@ -324,7 +326,8 @@ export default function UsuarioDetallePage() {
         action={
           <Link href="/usuarios">
             <Button variant="outline" size="md">
-              ← Volver
+              <ArrowLeft size={16} strokeWidth={1.8} />
+              Volver
             </Button>
           </Link>
         }
@@ -332,12 +335,13 @@ export default function UsuarioDetallePage() {
 
       {error && (
         <div
+          role="alert"
           style={{
             background: "#FFF5F5",
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#DC2626",
+            color: "#b91c1c",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}
@@ -384,7 +388,7 @@ export default function UsuarioDetallePage() {
                   border: "1.5px solid #E8D090",
                   color: "#926A09",
                   fontFamily: "var(--font-inter)",
-                  fontWeight: 800,
+                  fontWeight: 700,
                   fontSize: "1.25rem",
                   display: "inline-flex",
                   alignItems: "center",
@@ -398,9 +402,10 @@ export default function UsuarioDetallePage() {
               <div
                 style={{
                   fontFamily: "var(--font-inter)",
-                  fontWeight: 800,
+                  fontWeight: 700,
                   fontSize: "1.0625rem",
                   color: "#09090b",
+                  letterSpacing: "-0.01em",
                 }}
               >
                 {target.name}

@@ -3,6 +3,7 @@
 import { useEffect, useState, use as usePromise } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -165,7 +166,10 @@ export default function EmpresaDetallePage({ params }: Props) {
         action={
           <div style={{ display: "flex", gap: 8 }}>
             <Link href="/empresas">
-              <Button variant="outline">← Volver</Button>
+              <Button variant="outline">
+                <ArrowLeft size={16} strokeWidth={1.8} />
+                Volver
+              </Button>
             </Link>
             {canManage && (
               <Button
@@ -187,6 +191,7 @@ export default function EmpresaDetallePage({ params }: Props) {
           <Badge variant="activo">Activa</Badge>
         )}
         <span
+          className="num"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -206,12 +211,13 @@ export default function EmpresaDetallePage({ params }: Props) {
 
       {error && (
         <div
+          role="alert"
           style={{
             background: "#FFF5F5",
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#DC2626",
+            color: "#b91c1c",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}

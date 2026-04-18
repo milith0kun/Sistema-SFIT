@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Plus, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -169,6 +170,7 @@ export default function EmpresasPage() {
         const s = repColor(c.reputationScore);
         return (
           <span
+            className="num"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -203,6 +205,7 @@ export default function EmpresasPage() {
       render: (c) => (
         <Link href={`/empresas/${c.id}`}>
           <Button variant="outline" size="sm">
+            <Eye size={14} strokeWidth={1.8} />
             Ver
           </Button>
         </Link>
@@ -219,7 +222,10 @@ export default function EmpresasPage() {
         action={
           canCreate ? (
             <Link href="/empresas/nueva">
-              <Button variant="primary">+ Nueva empresa</Button>
+              <Button variant="primary">
+                <Plus size={16} strokeWidth={2} />
+                Nueva empresa
+              </Button>
             </Link>
           ) : undefined
         }
@@ -266,12 +272,13 @@ export default function EmpresasPage() {
 
       {error && (
         <div
+          role="alert"
           style={{
             background: "#FFF5F5",
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#DC2626",
+            color: "#b91c1c",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}

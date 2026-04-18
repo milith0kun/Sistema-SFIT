@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Plus, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -170,7 +171,10 @@ export default function TiposVehiculoPage() {
         subtitle="Configura los tipos de vehículos que opera tu municipalidad y sus formularios."
         action={
           <Link href="/tipos-vehiculo/nuevo">
-            <Button variant="primary">+ Nuevo tipo</Button>
+            <Button variant="primary">
+              <Plus size={16} strokeWidth={2} />
+              Nuevo tipo
+            </Button>
           </Link>
         }
       />
@@ -178,12 +182,13 @@ export default function TiposVehiculoPage() {
       {error && (
         <div
           className="animate-fade-up"
+          role="alert"
           style={{
             background: "#FFF5F5",
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#DC2626",
+            color: "#b91c1c",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}
@@ -248,6 +253,7 @@ export default function TiposVehiculoPage() {
                   {existing && (
                     <Link href={`/tipos-vehiculo/${existing.id}`} style={{ marginLeft: "auto" }}>
                       <Button variant="ghost" size="sm">
+                        <Settings size={14} strokeWidth={1.8} />
                         Configurar
                       </Button>
                     </Link>
@@ -275,7 +281,8 @@ export default function TiposVehiculoPage() {
           </h2>
           <Link href="/tipos-vehiculo/nuevo">
             <Button variant="outline" size="sm">
-              + Nuevo personalizado
+              <Plus size={14} strokeWidth={2} />
+              Nuevo personalizado
             </Button>
           </Link>
         </div>
@@ -348,17 +355,19 @@ function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div>
       <div
+        className="num"
         style={{
           fontFamily: "var(--font-inter)",
           fontSize: "1.25rem",
-          fontWeight: 800,
+          fontWeight: 700,
           color: "#09090b",
           lineHeight: 1,
+          letterSpacing: "-0.015em",
         }}
       >
         {value}
       </div>
-      <div style={{ color: "#71717a", fontSize: "0.6875rem", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 4 }}>
+      <div style={{ color: "#71717a", fontSize: "0.6875rem", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 4, fontWeight: 600 }}>
         {label}
       </div>
     </div>

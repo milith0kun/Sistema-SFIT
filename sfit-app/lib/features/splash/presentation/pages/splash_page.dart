@@ -8,17 +8,25 @@ class SplashPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: AppColors.panel,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SfitMark(size: 72, color: AppColors.gold),
-            SizedBox(height: 28),
-            _WordMark(),
-            SizedBox(height: 80),
-            SizedBox(
+            const SfitFullLogo(width: 260),
+            const SizedBox(height: 24),
+            Text(
+              'Fiscalización Inteligente de Transporte',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+                color: Colors.white38,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 80),
+            const SizedBox(
               width: 24,
               height: 24,
               child: CircularProgressIndicator(
@@ -29,37 +37,6 @@ class SplashPage extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _WordMark extends StatelessWidget {
-  const _WordMark();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          'SFIT',
-          style: GoogleFonts.syne(
-            fontSize: 28,
-            fontWeight: FontWeight.w800,
-            color: Colors.white,
-            letterSpacing: 6,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Fiscalización Inteligente de Transporte',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 12,
-            fontWeight: FontWeight.w400,
-            color: Colors.white38,
-            letterSpacing: 0.5,
-          ),
-        ),
-      ],
     );
   }
 }

@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { Check, X, UserCheck } from "lucide-react";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 type PendingUser = {
   id: string;
@@ -97,86 +103,146 @@ export default function AdminUsersPage() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="animate-fade-up">
-        <p className="kicker mb-3">RF-01-04 · Aprobación de usuarios</p>
-        <h1
-          className="font-black text-[#09090b]"
-          style={{ fontFamily: "var(--font-inter)", fontSize: "2.25rem", lineHeight: 0.98, letterSpacing: "-0.035em" }}
-        >
-          Solicitudes pendientes
-        </h1>
-        <p className="mt-3" style={{ color: "#52525b", fontSize: "1rem", lineHeight: 1.55 }}>
-          Revisa y aprueba o rechaza las solicitudes de acceso.
-        </p>
-      </div>
+      <PageHeader
+        kicker="RF-01-04 · Aprobación de usuarios"
+        title="Solicitudes pendientes"
+        subtitle="Revisa y aprueba o rechaza las solicitudes de acceso a la plataforma."
+      />
 
       {error && (
-        <div className="rounded-xl p-4 animate-fade-up" style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5" }}>
-          <p style={{ color: "#DC2626", fontSize: "0.9375rem", fontWeight: 500 }}>{error}</p>
+        <div
+          role="alert"
+          className="animate-fade-up"
+          style={{
+            background: "#FFF5F5",
+            border: "1.5px solid #FCA5A5",
+            borderRadius: 12,
+            padding: 16,
+            color: "#b91c1c",
+            fontSize: "0.9375rem",
+            fontWeight: 500,
+          }}
+        >
+          {error}
         </div>
       )}
 
-      <div className="rounded-2xl overflow-hidden animate-fade-up" style={{ background: "#ffffff", border: "1.5px solid #e4e4e7" }}>
+      <div className="animate-fade-up delay-100">
         {loading ? (
-          <div className="p-12 text-center">
-            <div className="inline-block w-6 h-6 rounded-full border-[3px] border-[#e4e4e7] border-t-[#09090b] animate-spin" />
-            <p className="mt-3" style={{ color: "#71717A", fontSize: "0.875rem" }}>Cargando solicitudes…</p>
-          </div>
+          <Card>
+            <div style={{ color: "#71717a", fontSize: "0.9375rem" }}>Cargando solicitudes…</div>
+          </Card>
         ) : users.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4" style={{ background: "#F0FDF4", border: "1.5px solid #86EFAC" }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-            <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1.125rem", fontWeight: 700, color: "#09090b" }}>
-              Sin solicitudes pendientes
-            </h3>
-            <p className="mt-2" style={{ color: "#71717A", fontSize: "0.9375rem" }}>
-              Todas las solicitudes han sido procesadas.
-            </p>
-          </div>
+          <EmptyState
+            icon={<UserCheck size={22} strokeWidth={1.8} />}
+            title="Sin solicitudes pendientes"
+            subtitle="Todas las solicitudes han sido procesadas."
+          />
         ) : (
-          <ul>
-            {users.map((u, i) => (
-              <li
-                key={u.id}
-                className="flex items-center justify-between gap-4 px-6 py-4"
-                style={{ borderTop: i > 0 ? "1px solid #f4f4f5" : "none" }}
-              >
-                <div className="flex items-center gap-4 min-w-0">
-                  <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                    style={{ background: "#FDF8EC", border: "1.5px solid #E8D090", color: "#926A09", fontWeight: 700, fontSize: "0.9375rem", fontFamily: "var(--font-inter)" }}
-                  >
-                    {u.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="truncate" style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#09090b" }}>{u.name}</div>
-                    <div className="truncate" style={{ fontSize: "0.8125rem", color: "#71717A", marginTop: 2 }}>
-                      {u.email} · Solicita: <span style={{ color: "#926A09", fontWeight: 500 }}>{ROLE_LABELS[u.requestedRole] ?? u.requestedRole}</span>
+          <div
+            style={{
+              background: "#ffffff",
+              border: "1.5px solid #e4e4e7",
+              borderRadius: 16,
+              overflow: "hidden",
+            }}
+          >
+            <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+              {users.map((u, i) => (
+                <li
+                  key={u.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 16,
+                    padding: "16px 22px",
+                    borderTop: i > 0 ? "1px solid #f4f4f5" : "none",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+                    <div
+                      aria-hidden
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: "50%",
+                        background: "#FDF8EC",
+                        border: "1.5px solid #E8D090",
+                        color: "#926A09",
+                        fontWeight: 700,
+                        fontSize: "0.9375rem",
+                        fontFamily: "var(--font-inter)",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {u.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: "0.9375rem",
+                          fontWeight: 600,
+                          color: "#09090b",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {u.name}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "0.8125rem",
+                          color: "#71717a",
+                          marginTop: 2,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <span>{u.email}</span>
+                        <span style={{ color: "#d4d4d8" }}>·</span>
+                        <span>Solicita:</span>
+                        <Badge variant="gold">
+                          {ROLE_LABELS[u.requestedRole] ?? u.requestedRole}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => { setSelected(u.id); setAction("approve"); setAssignedRole(u.requestedRole); }}
-                    className="px-4 h-9 rounded-lg transition-colors"
-                    style={{ background: "#09090b", color: "#ffffff", fontSize: "0.8125rem", fontWeight: 600 }}
-                  >
-                    Aprobar
-                  </button>
-                  <button
-                    onClick={() => { setSelected(u.id); setAction("reject"); }}
-                    className="px-4 h-9 rounded-lg transition-colors"
-                    style={{ background: "#ffffff", border: "1.5px solid #e4e4e7", color: "#3F3F46", fontSize: "0.8125rem", fontWeight: 500 }}
-                  >
-                    Rechazar
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+                  <div style={{ display: "inline-flex", gap: 8, flexShrink: 0 }}>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => {
+                        setSelected(u.id);
+                        setAction("approve");
+                        setAssignedRole(u.requestedRole);
+                      }}
+                    >
+                      <Check size={14} strokeWidth={2} />
+                      Aprobar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelected(u.id);
+                        setAction("reject");
+                      }}
+                    >
+                      <X size={14} strokeWidth={2} />
+                      Rechazar
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
 
@@ -185,26 +251,57 @@ export default function AdminUsersPage() {
         <div
           className="fixed inset-0 z-50 flex items-center justify-center px-4"
           style={{ background: "rgba(9,9,11,0.5)", backdropFilter: "blur(4px)" }}
-          onClick={() => { if (!processing) { setSelected(null); setAction(null); } }}
+          onClick={() => {
+            if (!processing) {
+              setSelected(null);
+              setAction(null);
+            }
+          }}
         >
           <div
-            className="w-full max-w-md rounded-2xl p-6 animate-fade-up"
-            style={{ background: "#ffffff", border: "1.5px solid #e4e4e7" }}
+            className="animate-fade-up"
+            style={{
+              width: "100%",
+              maxWidth: 480,
+              background: "#ffffff",
+              border: "1.5px solid #e4e4e7",
+              borderRadius: 16,
+              padding: 24,
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1.25rem", fontWeight: 700, color: "#09090b", letterSpacing: "-0.02em" }}>
+            <h3
+              style={{
+                fontFamily: "var(--font-inter)",
+                fontSize: "1.25rem",
+                fontWeight: 700,
+                color: "#09090b",
+                letterSpacing: "-0.015em",
+                margin: 0,
+              }}
+            >
               {action === "approve" ? "Aprobar solicitud" : "Rechazar solicitud"}
             </h3>
-            <p className="mt-2 mb-5" style={{ color: "#52525b", fontSize: "0.9375rem", lineHeight: 1.5 }}>
+            <p style={{ margin: "8px 0 20px", color: "#52525b", fontSize: "0.9375rem", lineHeight: 1.55 }}>
               <strong>{target.name}</strong> — {target.email}
             </p>
 
             {action === "approve" ? (
               <div>
-                <label className="block mb-2" style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#09090b" }}>
+                <label
+                  htmlFor="assignedRole"
+                  style={{
+                    display: "block",
+                    marginBottom: 8,
+                    fontSize: "0.9375rem",
+                    fontWeight: 600,
+                    color: "#09090b",
+                  }}
+                >
                   Asignar rol
                 </label>
                 <select
+                  id="assignedRole"
                   value={assignedRole}
                   onChange={(e) => setAssignedRole(e.target.value)}
                   className="field"
@@ -216,10 +313,20 @@ export default function AdminUsersPage() {
               </div>
             ) : (
               <div>
-                <label className="block mb-2" style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#09090b" }}>
+                <label
+                  htmlFor="rejectReason"
+                  style={{
+                    display: "block",
+                    marginBottom: 8,
+                    fontSize: "0.9375rem",
+                    fontWeight: 600,
+                    color: "#09090b",
+                  }}
+                >
                   Motivo (opcional)
                 </label>
                 <textarea
+                  id="rejectReason"
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
                   placeholder="Ej. Datos institucionales no verificados"
@@ -230,25 +337,28 @@ export default function AdminUsersPage() {
               </div>
             )}
 
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => { setSelected(null); setAction(null); }}
+            <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
+              <Button
+                variant="outline"
+                size="md"
+                style={{ flex: 1 }}
                 disabled={processing}
-                className="btn-outline flex-1"
+                onClick={() => {
+                  setSelected(null);
+                  setAction(null);
+                }}
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
+                variant={action === "approve" ? "primary" : "danger"}
+                size="md"
+                style={{ flex: 1 }}
+                loading={processing}
                 onClick={handleAction}
-                disabled={processing}
-                className="btn-primary flex-1"
               >
-                {processing ? (
-                  <><span className="spinner" /><span>Procesando…</span></>
-                ) : (
-                  action === "approve" ? "Confirmar aprobación" : "Confirmar rechazo"
-                )}
-              </button>
+                {action === "approve" ? "Confirmar aprobación" : "Confirmar rechazo"}
+              </Button>
             </div>
           </div>
         </div>

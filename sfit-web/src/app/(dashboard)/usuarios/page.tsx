@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { UserCheck, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
@@ -284,6 +285,7 @@ function UsuariosPageInner() {
             }}
           >
             <Button variant="primary" size="md">
+              <UserCheck size={16} strokeWidth={1.8} />
               Aprobaciones pendientes
             </Button>
           </Link>
@@ -363,12 +365,13 @@ function UsuariosPageInner() {
 
       {error && (
         <div
+          role="alert"
           style={{
             background: "#FFF5F5",
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#DC2626",
+            color: "#b91c1c",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}
@@ -406,7 +409,7 @@ function UsuariosPageInner() {
               }}
             >
               <div style={{ color: "#71717a", fontSize: "0.8125rem" }}>
-                {total} usuarios · Página {page} de {totalPages}
+                <span className="num">{total}</span> usuarios · Página <span className="num">{page}</span> de <span className="num">{totalPages}</span>
               </div>
               <div style={{ display: "inline-flex", gap: 8 }}>
                 <Button
@@ -415,6 +418,7 @@ function UsuariosPageInner() {
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page <= 1}
                 >
+                  <ChevronLeft size={14} strokeWidth={2} />
                   Anterior
                 </Button>
                 <Button
@@ -424,6 +428,7 @@ function UsuariosPageInner() {
                   disabled={page >= totalPages}
                 >
                   Siguiente
+                  <ChevronRight size={14} strokeWidth={2} />
                 </Button>
               </div>
             </div>

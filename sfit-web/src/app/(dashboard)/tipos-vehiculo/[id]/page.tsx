@@ -3,6 +3,7 @@
 import { useEffect, useState, use as usePromise } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowLeft, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -152,7 +153,10 @@ export default function EditarTipoVehiculoPage({ params }: Props) {
         subtitle={vt.description || "Configura los formularios y categorías."}
         action={
           <Link href="/tipos-vehiculo">
-            <Button variant="outline">← Volver</Button>
+            <Button variant="outline">
+              <ArrowLeft size={16} strokeWidth={1.8} />
+              Volver
+            </Button>
           </Link>
         }
       />
@@ -164,12 +168,13 @@ export default function EditarTipoVehiculoPage({ params }: Props) {
 
       {error && (
         <div
+          role="alert"
           style={{
             background: "#FFF5F5",
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#DC2626",
+            color: "#b91c1c",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}
@@ -305,12 +310,13 @@ function StringListEditor({
             type="button"
             variant="ghost"
             size="md"
+            aria-label="Eliminar"
             onClick={() => {
               if (items.length === 1) onChange([""]);
               else onChange(items.filter((_, i) => i !== idx));
             }}
           >
-            ×
+            <X size={16} strokeWidth={2} />
           </Button>
         </div>
       ))}
@@ -320,7 +326,8 @@ function StringListEditor({
         size="sm"
         onClick={() => onChange([...items, ""])}
       >
-        + Agregar
+        <Plus size={14} strokeWidth={2} />
+        Agregar
       </Button>
     </div>
   );
@@ -374,12 +381,13 @@ function InspectionEditor({
             type="button"
             variant="ghost"
             size="md"
+            aria-label="Eliminar"
             onClick={() => {
               if (items.length === 1) onChange([{ key: "", label: "", type: "boolean" }]);
               else onChange(items.filter((_, i) => i !== idx));
             }}
           >
-            ×
+            <X size={16} strokeWidth={2} />
           </Button>
         </div>
       ))}
@@ -389,7 +397,8 @@ function InspectionEditor({
         size="sm"
         onClick={() => onChange([...items, { key: "", label: "", type: "boolean" }])}
       >
-        + Agregar campo
+        <Plus size={14} strokeWidth={2} />
+        Agregar campo
       </Button>
     </div>
   );

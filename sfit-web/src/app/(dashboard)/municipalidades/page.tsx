@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Plus, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -155,6 +156,7 @@ export default function MunicipalidadesPage() {
       render: (m) => (
         <Link href={`/municipalidades/${m.id}`}>
           <Button variant="outline" size="sm">
+            <Pencil size={14} strokeWidth={1.8} />
             Editar
           </Button>
         </Link>
@@ -171,7 +173,10 @@ export default function MunicipalidadesPage() {
         action={
           canCreate ? (
             <Link href="/municipalidades/nueva">
-              <Button variant="primary">+ Nueva municipalidad</Button>
+              <Button variant="primary">
+                <Plus size={16} strokeWidth={2} />
+                Nueva municipalidad
+              </Button>
             </Link>
           ) : undefined
         }
@@ -202,12 +207,13 @@ export default function MunicipalidadesPage() {
       {error && (
         <div
           className="animate-fade-up"
+          role="alert"
           style={{
             background: "#FFF5F5",
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#DC2626",
+            color: "#b91c1c",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}

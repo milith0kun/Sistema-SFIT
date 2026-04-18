@@ -84,21 +84,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             children: [
 
               // ── Marca ─────────────────────────────────────────
-              Row(
-                children: [
-                  const SfitMark(size: 34, color: AppColors.gold),
-                  const SizedBox(width: 10),
-                  Text(
-                    'SFIT',
-                    style: GoogleFonts.syne(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.ink9,
-                      letterSpacing: 3,
-                    ),
-                  ),
-                ],
-              ),
+              const SfitFullLogo(width: 160),
 
               const SizedBox(height: 48),
 

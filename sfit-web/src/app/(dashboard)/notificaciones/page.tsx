@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Bell, Check, TriangleAlert, CircleX, Info } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
@@ -43,52 +44,13 @@ function timeAgo(iso: string): string {
 }
 
 function iconForType(type?: string): React.ReactNode {
-  const common = {
-    width: 18,
-    height: 18,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-  };
-  if (!type || type.includes("info"))
-    return (
-      <svg {...common}>
-        <circle cx="12" cy="12" r="10" />
-        <line x1="12" y1="16" x2="12" y2="12" />
-        <line x1="12" y1="8" x2="12.01" y2="8" />
-      </svg>
-    );
-  if (type.includes("warn") || type.includes("alert"))
-    return (
-      <svg {...common}>
-        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-        <line x1="12" y1="9" x2="12" y2="13" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-      </svg>
-    );
-  if (type.includes("success") || type.includes("approved"))
-    return (
-      <svg {...common}>
-        <polyline points="20 6 9 17 4 12" />
-      </svg>
-    );
-  if (type.includes("error") || type.includes("rejected"))
-    return (
-      <svg {...common}>
-        <circle cx="12" cy="12" r="10" />
-        <line x1="15" y1="9" x2="9" y2="15" />
-        <line x1="9" y1="9" x2="15" y2="15" />
-      </svg>
-    );
-  return (
-    <svg {...common}>
-      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-    </svg>
-  );
+  const size = 18;
+  const stroke = 1.8;
+  if (!type || type.includes("info")) return <Info size={size} strokeWidth={stroke} />;
+  if (type.includes("warn") || type.includes("alert")) return <TriangleAlert size={size} strokeWidth={stroke} />;
+  if (type.includes("success") || type.includes("approved")) return <Check size={size} strokeWidth={stroke} />;
+  if (type.includes("error") || type.includes("rejected")) return <CircleX size={size} strokeWidth={stroke} />;
+  return <Bell size={size} strokeWidth={stroke} />;
 }
 
 function iconBg(type?: string): { bg: string; color: string; border: string } {
@@ -267,12 +229,13 @@ export default function NotificacionesPage() {
 
       {error && (
         <div
+          role="alert"
           style={{
             background: "#FFF5F5",
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#DC2626",
+            color: "#b91c1c",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}

@@ -85,3 +85,5 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   # Las fuentes Syne y Plus Jakarta Sans se cargan dinámicamente vía google_fonts
+  assets:
+    - assets/logos/

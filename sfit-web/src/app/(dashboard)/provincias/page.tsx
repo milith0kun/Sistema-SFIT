@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -141,10 +142,12 @@ export default function ProvinciasPage() {
         <div style={{ display: "inline-flex", gap: 8 }}>
           <Link href={`/provincias/${p.id}`}>
             <Button variant="outline" size="sm">
+              <Pencil size={14} strokeWidth={1.8} />
               Editar
             </Button>
           </Link>
           <Button variant="ghost" size="sm" onClick={() => handleDelete(p.id, p.name)}>
+            <Trash2 size={14} strokeWidth={1.8} />
             Eliminar
           </Button>
         </div>
@@ -161,7 +164,8 @@ export default function ProvinciasPage() {
         action={
           <Link href="/provincias/nueva">
             <Button variant="primary" size="md">
-              + Nueva provincia
+              <Plus size={16} strokeWidth={2} />
+              Nueva provincia
             </Button>
           </Link>
         }
@@ -170,12 +174,13 @@ export default function ProvinciasPage() {
       {error && (
         <div
           className="animate-fade-up"
+          role="alert"
           style={{
             background: "#FFF5F5",
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#DC2626",
+            color: "#b91c1c",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}

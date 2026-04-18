@@ -16,11 +16,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { MapPin, Building2, Truck, Car, Download } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { ComingSoon } from "@/components/ui/ComingSoon";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { StatCard } from "@/components/dashboard/StatCard";
 
 type ApiResponse<T> = { success: boolean; data?: T; error?: string };
 
@@ -229,6 +231,7 @@ export default function EstadisticasPage() {
         }
         action={
           <Button variant="outline" size="md" onClick={exportUsersCsv}>
+            <Download size={16} strokeWidth={1.8} />
             Exportar CSV
           </Button>
         }
@@ -236,12 +239,13 @@ export default function EstadisticasPage() {
 
       {error && (
         <div
+          role="alert"
           style={{
             background: "#FFF5F5",
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#DC2626",
+            color: "#b91c1c",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}
@@ -262,14 +266,38 @@ export default function EstadisticasPage() {
         <>
           {/* KPI bar */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-up">
-            <Kpi label="Provincias" value={provinces.length} />
-            <Kpi
-              label="Municipalidades"
-              value={municipalities.length}
-              sub={`${municipalities.filter((m) => m.active).length} activas`}
+            <StatCard
+              icon={MapPin}
+              label="PROVINCIAS"
+              value={provinces.length}
+              subtitle="en jurisdicción"
+              accent="gold"
+              watermarkIcon={MapPin}
             />
-            <Kpi label="Empresas" value={stats.companiesCount} />
-            <Kpi label="Tipos de vehículo" value={stats.vehicleTypesCount} />
+            <StatCard
+              icon={Building2}
+              label="MUNICIPALIDADES"
+              value={municipalities.length}
+              subtitle={`${municipalities.filter((m) => m.active).length} activas`}
+              accent="apto"
+              watermarkIcon={Building2}
+            />
+            <StatCard
+              icon={Truck}
+              label="EMPRESAS"
+              value={stats.companiesCount}
+              subtitle="registradas"
+              accent="ink"
+              watermarkIcon={Truck}
+            />
+            <StatCard
+              icon={Car}
+              label="TIPOS DE VEHÍCULO"
+              value={stats.vehicleTypesCount}
+              subtitle="configurados"
+              accent="riesgo"
+              watermarkIcon={Car}
+            />
           </div>
 
           {/* Pie + Bar */}
@@ -462,11 +490,13 @@ export default function EstadisticasPage() {
                     {ROLE_LABELS[role] ?? role}
                   </Badge>
                   <span
+                    className="num"
                     style={{
                       fontFamily: "var(--font-inter)",
                       fontSize: "1.125rem",
-                      fontWeight: 800,
+                      fontWeight: 700,
                       color: "#09090b",
+                      letterSpacing: "-0.015em",
                     }}
                   >
                     {count}
@@ -481,27 +511,3 @@ export default function EstadisticasPage() {
   );
 }
 
-function Kpi({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
-  return (
-    <Card>
-      <div
-        style={{
-          fontFamily: "var(--font-inter)",
-          fontSize: "2rem",
-          fontWeight: 900,
-          color: "#09090b",
-          letterSpacing: "-0.03em",
-          lineHeight: 1,
-        }}
-      >
-        {value}
-      </div>
-      <div style={{ color: "#52525b", fontSize: "0.8125rem", fontWeight: 500, marginTop: 8 }}>
-        {label}
-      </div>
-      {sub && (
-        <div style={{ color: "#71717a", fontSize: "0.6875rem", marginTop: 2 }}>{sub}</div>
-      )}
-    </Card>
-  );
-}

@@ -121,12 +121,13 @@ export default function NuevaEmpresaPage() {
 
       {error && (
         <div
+          role="alert"
           style={{
             background: "#FFF5F5",
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#DC2626",
+            color: "#b91c1c",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}
@@ -152,7 +153,7 @@ export default function NuevaEmpresaPage() {
                 placeholder="Empresa de Transportes S.A.C."
               />
               {fieldErrors.razonSocial && (
-                <p style={{ color: "#DC2626", fontSize: "0.8125rem", marginTop: 6 }}>{fieldErrors.razonSocial}</p>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.razonSocial}</p>
               )}
             </div>
             <div>
@@ -168,7 +169,7 @@ export default function NuevaEmpresaPage() {
                 inputMode="numeric"
               />
               {fieldErrors.ruc && (
-                <p style={{ color: "#DC2626", fontSize: "0.8125rem", marginTop: 6 }}>{fieldErrors.ruc}</p>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.ruc}</p>
               )}
             </div>
           </div>
@@ -190,7 +191,7 @@ export default function NuevaEmpresaPage() {
                 placeholder="Juan Pérez Quispe"
               />
               {fieldErrors.repName && (
-                <p style={{ color: "#DC2626", fontSize: "0.8125rem", marginTop: 6 }}>{fieldErrors.repName}</p>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.repName}</p>
               )}
             </div>
             <div>
@@ -206,7 +207,7 @@ export default function NuevaEmpresaPage() {
                 inputMode="numeric"
               />
               {fieldErrors.repDni && (
-                <p style={{ color: "#DC2626", fontSize: "0.8125rem", marginTop: 6 }}>{fieldErrors.repDni}</p>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.repDni}</p>
               )}
             </div>
             <div style={{ gridColumn: "1 / -1" }}>
@@ -264,7 +265,7 @@ export default function NuevaEmpresaPage() {
             </div>
           )}
           {fieldErrors.vehicleTypeKeys && (
-            <p style={{ color: "#DC2626", fontSize: "0.8125rem", marginTop: 12 }}>
+            <p style={{ marginTop: 12, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
               {fieldErrors.vehicleTypeKeys}
             </p>
           )}

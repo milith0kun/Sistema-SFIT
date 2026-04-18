@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
@@ -276,12 +277,13 @@ export default function AuditoriaPage() {
 
       {error && (
         <div
+          role="alert"
           style={{
             background: "#FFF5F5",
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#DC2626",
+            color: "#b91c1c",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}
@@ -421,7 +423,7 @@ export default function AuditoriaPage() {
             }}
           >
             <div style={{ color: "#71717a", fontSize: "0.8125rem" }}>
-              {total} eventos · Página {page} de {totalPages}
+              <span className="num">{total}</span> eventos · Página <span className="num">{page}</span> de <span className="num">{totalPages}</span>
             </div>
             <div style={{ display: "inline-flex", gap: 8 }}>
               <Button
@@ -430,6 +432,7 @@ export default function AuditoriaPage() {
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
               >
+                <ChevronLeft size={14} strokeWidth={2} />
                 Anterior
               </Button>
               <Button
@@ -439,6 +442,7 @@ export default function AuditoriaPage() {
                 disabled={page >= totalPages}
               >
                 Siguiente
+                <ChevronRight size={14} strokeWidth={2} />
               </Button>
             </div>
           </div>

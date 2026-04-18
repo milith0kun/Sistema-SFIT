@@ -3,6 +3,7 @@
 import { useEffect, useState, use as usePromise } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -162,7 +163,8 @@ export default function EditarProvinciaPage({ params }: Props) {
         action={
           <Link href="/provincias">
             <Button variant="outline" size="md">
-              ← Volver
+              <ArrowLeft size={16} strokeWidth={1.8} />
+              Volver
             </Button>
           </Link>
         }
@@ -171,12 +173,13 @@ export default function EditarProvinciaPage({ params }: Props) {
       {error && (
         <div
           className="animate-fade-up"
+          role="alert"
           style={{
             background: "#FFF5F5",
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#DC2626",
+            color: "#b91c1c",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}
@@ -200,7 +203,7 @@ export default function EditarProvinciaPage({ params }: Props) {
               required
             />
             {fieldErrors.name && (
-              <p style={{ color: "#DC2626", fontSize: "0.8125rem", marginTop: 6 }}>{fieldErrors.name}</p>
+              <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.name}</p>
             )}
           </div>
           <div>
@@ -216,7 +219,7 @@ export default function EditarProvinciaPage({ params }: Props) {
               required
             />
             {fieldErrors.region && (
-              <p style={{ color: "#DC2626", fontSize: "0.8125rem", marginTop: 6 }}>{fieldErrors.region}</p>
+              <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.region}</p>
             )}
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>

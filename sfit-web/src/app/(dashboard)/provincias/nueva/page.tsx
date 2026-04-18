@@ -84,12 +84,13 @@ export default function NuevaProvinciaPage() {
       {error && (
         <div
           className="animate-fade-up"
+          role="alert"
           style={{
             background: "#FFF5F5",
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#DC2626",
+            color: "#b91c1c",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}
@@ -113,7 +114,7 @@ export default function NuevaProvinciaPage() {
               required
             />
             {fieldErrors.name && (
-              <p style={{ color: "#DC2626", fontSize: "0.8125rem", marginTop: 6 }}>{fieldErrors.name}</p>
+              <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.name}</p>
             )}
           </div>
 
@@ -130,7 +131,7 @@ export default function NuevaProvinciaPage() {
               required
             />
             {fieldErrors.region && (
-              <p style={{ color: "#DC2626", fontSize: "0.8125rem", marginTop: 6 }}>{fieldErrors.region}</p>
+              <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.region}</p>
             )}
           </div>
 

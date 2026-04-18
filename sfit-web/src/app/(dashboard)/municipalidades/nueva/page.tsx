@@ -108,12 +108,13 @@ export default function NuevaMunicipalidadPage() {
       {error && (
         <div
           className="animate-fade-up"
+          role="alert"
           style={{
             background: "#FFF5F5",
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#DC2626",
+            color: "#b91c1c",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}
@@ -137,7 +138,7 @@ export default function NuevaMunicipalidadPage() {
               required
             />
             {fieldErrors.name && (
-              <p style={{ color: "#DC2626", fontSize: "0.8125rem", marginTop: 6 }}>{fieldErrors.name}</p>
+              <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.name}</p>
             )}
           </div>
 
@@ -163,7 +164,7 @@ export default function NuevaMunicipalidadPage() {
                 ))}
               </select>
               {fieldErrors.provinceId && (
-                <p style={{ color: "#DC2626", fontSize: "0.8125rem", marginTop: 6 }}>{fieldErrors.provinceId}</p>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.provinceId}</p>
               )}
             </div>
           ) : (

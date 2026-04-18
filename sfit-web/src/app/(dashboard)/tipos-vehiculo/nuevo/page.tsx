@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -113,12 +114,13 @@ export default function NuevoTipoVehiculoPage() {
 
       {error && (
         <div
+          role="alert"
           style={{
             background: "#FFF5F5",
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#DC2626",
+            color: "#b91c1c",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}
@@ -145,7 +147,7 @@ export default function NuevoTipoVehiculoPage() {
                 placeholder="Ej. Camión recolector de residuos orgánicos"
               />
               {fieldErrors.name && (
-                <p style={{ color: "#DC2626", fontSize: "0.8125rem", marginTop: 6 }}>{fieldErrors.name}</p>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.name}</p>
               )}
             </div>
             <div>
@@ -161,7 +163,7 @@ export default function NuevoTipoVehiculoPage() {
                 style={{ height: "auto", padding: "14px 18px", resize: "vertical" }}
               />
               {fieldErrors.description && (
-                <p style={{ color: "#DC2626", fontSize: "0.8125rem", marginTop: 6 }}>{fieldErrors.description}</p>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.description}</p>
               )}
             </div>
             <div>
@@ -250,6 +252,7 @@ function StringListEditor({
             variant="ghost"
             type="button"
             size="md"
+            aria-label="Eliminar"
             onClick={() => {
               if (items.length === 1) {
                 onChange([""]);
@@ -258,7 +261,7 @@ function StringListEditor({
               }
             }}
           >
-            ×
+            <X size={16} strokeWidth={2} />
           </Button>
         </div>
       ))}
@@ -268,7 +271,8 @@ function StringListEditor({
         size="sm"
         onClick={() => onChange([...items, ""])}
       >
-        + Agregar
+        <Plus size={14} strokeWidth={2} />
+        Agregar
       </Button>
     </div>
   );
@@ -323,6 +327,7 @@ function InspectionEditor({
             type="button"
             variant="ghost"
             size="md"
+            aria-label="Eliminar"
             onClick={() => {
               if (items.length === 1) {
                 onChange([{ key: "", label: "", type: "boolean" }]);
@@ -331,7 +336,7 @@ function InspectionEditor({
               }
             }}
           >
-            ×
+            <X size={16} strokeWidth={2} />
           </Button>
         </div>
       ))}
@@ -343,7 +348,8 @@ function InspectionEditor({
           onChange([...items, { key: "", label: "", type: "boolean" }])
         }
       >
-        + Agregar campo
+        <Plus size={14} strokeWidth={2} />
+        Agregar campo
       </Button>
     </div>
   );
