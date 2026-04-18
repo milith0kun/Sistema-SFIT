@@ -1,12 +1,9 @@
 import mongoose from "mongoose";
 
-const MONGODB_URI = process.env.MONGODB_URI!;
+const MONGODB_URI = process.env.MONGODB_URI;
 
-if (!MONGODB_URI) {
-  throw new Error(
-    "Por favor define la variable de entorno MONGODB_URI en .env.local"
-  );
-}
+// Movemos la validación dentro de connectDB en caso de que Next.js
+// realice análisis estático de las rutas durante la fase de "build".
 
 interface MongooseCache {
   conn: typeof mongoose | null;
@@ -32,6 +29,12 @@ if (!global.mongooseCache) {
  * Reutiliza la conexión en desarrollo (HMR) y en producción.
  */
 export async function connectDB(): Promise<typeof mongoose> {
+  if (!MONGODB_URI) {
+    throw new Error(
+      "Por favor define la variable de entorno MONGODB_URI"
+    );
+  }
+
   if (cached.conn) {
     return cached.conn;
   }
