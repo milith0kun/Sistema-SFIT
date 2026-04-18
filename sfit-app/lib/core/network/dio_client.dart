@@ -26,6 +26,11 @@ class DioClient {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
+        // Aceptar 2xx y 4xx sin tirar excepción — nuestro backend devuelve
+        // errores con { success:false, error } en 400/401/403/409/422.
+        // Así el repositorio lee `body.error` y muestra mensaje real al usuario.
+        // 5xx siguen tirando DioException (fallo real del servidor).
+        validateStatus: (status) => status != null && status < 500,
       ),
     );
 

@@ -114,10 +114,13 @@ class Auth extends _$Auth {
         errorMessage: e.message,
       );
       return false;
-    } catch (_) {
-      state = const AuthState(
+    } catch (e, st) {
+      // Log completo en debug para diagnosticar conexión / parseo.
+      // ignore: avoid_print
+      print('[Auth.login] unexpected error: $e\n$st');
+      state = AuthState(
         status: AuthStatus.unauthenticated,
-        errorMessage: 'Error de conexión. Intenta nuevamente.',
+        errorMessage: 'Error de conexión: $e',
       );
       return false;
     }
