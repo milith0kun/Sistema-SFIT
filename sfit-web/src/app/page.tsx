@@ -176,7 +176,7 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10 animate-fade-up delay-300">
             <a
               href="/login"
-              className="group relative inline-flex items-center justify-center gap-2 overflow-hidden"
+              className="group relative inline-flex items-center justify-center gap-2 overflow-hidden hover:-translate-y-[1px] hover:shadow-[0_0_0_1px_rgba(212,168,39,0.5),0_14px_40px_rgba(184,134,11,0.5)]"
               style={{
                 width: "auto",
                 minWidth: "200px",
@@ -193,14 +193,6 @@ export default function HomePage() {
                 transition: "transform 0.15s ease, box-shadow 0.2s ease",
                 textDecoration: "none",
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-1px)";
-                e.currentTarget.style.boxShadow = "0 0 0 1px rgba(212,168,39,0.5), 0 14px 40px rgba(184,134,11,0.5)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "0 0 0 1px rgba(212,168,39,0.3), 0 10px 30px rgba(184,134,11,0.35)";
-              }}
             >
               Iniciar sesión
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-hover:translate-x-0.5">
@@ -209,7 +201,7 @@ export default function HomePage() {
             </a>
             <a
               href="/register"
-              className="inline-flex items-center justify-center gap-2"
+              className="inline-flex items-center justify-center gap-2 hover:bg-white/10 hover:border-white/40"
               style={{
                 height: "58px",
                 minWidth: "200px",
@@ -223,14 +215,6 @@ export default function HomePage() {
                 border: "1.5px solid rgba(255,255,255,0.22)",
                 textDecoration: "none",
                 transition: "background 0.15s, border-color 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255,255,255,0.1)";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.4)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)";
               }}
             >
               Solicitar acceso
