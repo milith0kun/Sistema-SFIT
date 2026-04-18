@@ -1,9 +1,12 @@
 import mongoose from "mongoose";
+import dns from "node:dns";
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
-// Movemos la validación dentro de connectDB en caso de que Next.js
-// realice análisis estático de las rutas durante la fase de "build".
+// Fuerza Node a usar DNS de Google/Cloudflare (ignora el DNS del ISP).
+// Esto resuelve el problema de ISPs que bloquean SRV lookups de MongoDB+srv
+// sin necesidad de que el usuario cambie el DNS de su sistema.
+dns.setServers(["8.8.8.8", "1.1.1.1", "8.8.4.4"]);
 
 interface MongooseCache {
   conn: typeof mongoose | null;
@@ -42,8 +45,9 @@ export async function connectDB(): Promise<typeof mongoose> {
   if (!cached.promise) {
     const options = {
       bufferCommands: false,
-      serverSelectionTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 15000,
       socketTimeoutMS: 45000,
+      family: 4, // Preferir IPv4 (más confiable detrás de NATs ISP)
     };
 
     cached.promise = mongoose.connect(MONGODB_URI, options).then((m) => m);
