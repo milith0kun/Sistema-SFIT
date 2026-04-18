@@ -39,16 +39,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <a
               key={item.href}
               href={item.href}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 group"
-              style={{ color: "rgba(255,255,255,0.5)" }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = "rgba(255,255,255,0.92)";
-                e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = "rgba(255,255,255,0.5)";
-                e.currentTarget.style.background = "transparent";
-              }}
+              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 group text-white/50 hover:text-white/90 hover:bg-white/10"
             >
               <svg
                 className="w-3.5 h-3.5 shrink-0"
@@ -71,16 +62,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
         >
           <button
-            className="flex items-center gap-2.5 px-3 py-2 w-full rounded-lg text-[13px] font-medium transition-all duration-150"
-            style={{ color: "rgba(255,255,255,0.38)" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = "rgba(255,255,255,0.7)";
-              e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = "rgba(255,255,255,0.38)";
-              e.currentTarget.style.background = "transparent";
-            }}
+            className="flex items-center gap-2.5 px-3 py-2 w-full rounded-lg text-[13px] font-medium transition-all duration-150 text-white/40 hover:text-white/70 hover:bg-white/5"
           >
             <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
