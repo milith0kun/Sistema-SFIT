@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Política de Privacidad — SFIT</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #fafafa;
+      color: #18181b;
+      line-height: 1.7;
+    }
+    header {
+      background: #18181b;
+      color: #fff;
+      padding: 32px 24px;
+      text-align: center;
+    }
+    header h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
+    header p  { font-size: 0.875rem; color: #a1a1aa; margin-top: 6px; }
+    main {
+      max-width: 760px;
+      margin: 40px auto;
+      padding: 0 24px 60px;
+    }
+    h2 {
+      font-size: 1.125rem;
+      font-weight: 700;
+      margin: 32px 0 10px;
+      color: #18181b;
+      border-left: 3px solid #B8860B;
+      padding-left: 12px;
+    }
+    p, li { font-size: 0.9375rem; color: #3f3f46; }
+    ul { padding-left: 20px; margin-top: 6px; }
+    ul li { margin-bottom: 4px; }
+    .badge {
+      display: inline-block;
+      background: #FDF8EC;
+      color: #926A09;
+      border: 1px solid #E8D090;
+      border-radius: 6px;
+      padding: 2px 10px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      margin: 2px 2px 2px 0;
+    }
+    .updated {
+      font-size: 0.8125rem;
+      color: #71717a;
+      margin-bottom: 24px;
+    }
+    footer {
+      text-align: center;
+      padding: 24px;
+      font-size: 0.8125rem;
+      color: #71717a;
+      border-top: 1px solid #e4e4e7;
+    }
+    a { color: #B8860B; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>SFIT — Sistema de Fiscalización Inteligente de Transporte</h1>
+  <p>Política de Privacidad</p>
+</header>
+
+<main>
+  <p class="updated">Última actualización: 18 de abril de 2026</p>
+
+  <p>
+    Esta Política de Privacidad describe cómo <strong>SFIT</strong> ("la aplicación", "nosotros")
+    recopila, usa y protege la información personal de los usuarios de la aplicación móvil SFIT,
+    desarrollada para la fiscalización y gestión de transporte público municipal.
+  </p>
+
+  <h2>1. Responsable del tratamiento de datos</h2>
+  <p>
+    La entidad responsable del tratamiento de los datos personales recopilados a través de esta
+    aplicación es la municipalidad u organismo gubernamental que haya implementado el sistema SFIT
+    en su jurisdicción. Para consultas sobre privacidad, el usuario puede comunicarse con el
+    administrador de su municipalidad correspondiente.
+  </p>
+
+  <h2>2. Datos que recopilamos</h2>
+  <p>Recopilamos los siguientes tipos de datos según el rol del usuario:</p>
+  <ul>
+    <li><strong>Datos de cuenta:</strong> nombre completo, correo electrónico, número de DNI, número de licencia de conducir.</li>
+    <li><strong>Datos de operación:</strong> registros de viajes, inspecciones vehiculares, reportes ciudadanos y sanciones.</li>
+    <li><strong>Datos del dispositivo:</strong> identificador de dispositivo, sistema operativo, versión de la aplicación.</li>
+    <li><strong>Datos de ubicación:</strong> coordenadas GPS aproximadas del dispositivo durante el uso de funciones de rastreo de flota (solo cuando la aplicación está en uso).</li>
+    <li><strong>Imágenes de cámara:</strong> exclusivamente para escanear códigos QR de verificación vehicular. No se almacenan fotografías del entorno.</li>
+  </ul>
+
+  <h2>3. Permisos requeridos</h2>
+  <p>La aplicación solicita los siguientes permisos del dispositivo:</p>
+  <p style="margin-top: 8px;">
+    <span class="badge">CAMERA</span>
+    <span class="badge">ACCESS_FINE_LOCATION</span>
+    <span class="badge">ACCESS_COARSE_LOCATION</span>
+    <span class="badge">INTERNET</span>
+  </p>
+  <ul style="margin-top: 12px;">
+    <li><strong>Cámara:</strong> utilizada exclusivamente para el escaneo de códigos QR vehiculares durante las inspecciones. No se capturan ni almacenan fotografías.</li>
+    <li><strong>Ubicación:</strong> utilizada para registrar la posición de vehículos durante operaciones de flota y para verificar la proximidad al vehículo reportado. Solo se activa con permiso explícito del usuario.</li>
+    <li><strong>Internet:</strong> necesario para la sincronización de datos con el servidor central de la municipalidad.</li>
+  </ul>
+
+  <h2>4. Finalidad del tratamiento</h2>
+  <p>Los datos recopilados se usan exclusivamente para:</p>
+  <ul>
+    <li>Gestionar la autenticación y el control de acceso por roles (fiscal, conductor, operador, ciudadano).</li>
+    <li>Registrar y verificar inspecciones vehiculares y actas digitales.</li>
+    <li>Monitorear en tiempo real la operación de la flota municipal de transporte.</li>
+    <li>Procesar reportes ciudadanos sobre irregularidades en el transporte público.</li>
+    <li>Generar estadísticas y reportes de fiscalización para las autoridades municipales.</li>
+  </ul>
+
+  <h2>5. Compartición de datos</h2>
+  <p>
+    Los datos <strong>no se venden ni comparten con terceros</strong> con fines comerciales.
+    La información puede ser accesible únicamente por:
+  </p>
+  <ul>
+    <li>Funcionarios municipales autorizados con el rol correspondiente.</li>
+    <li>Proveedores de infraestructura técnica (MongoDB Atlas para base de datos, bajo acuerdo de confidencialidad).</li>
+    <li>Autoridades competentes cuando así lo requiera la ley peruana.</li>
+  </ul>
+
+  <h2>6. Almacenamiento y seguridad</h2>
+  <p>
+    Los datos se almacenan en servidores seguros con cifrado en tránsito (HTTPS/TLS) y en reposo.
+    Los tokens de acceso tienen vigencia de 15 minutos y los de renovación de 7 días, conforme
+    al estándar JWT. Se aplica aislamiento multi-tenant por municipalidad para garantizar que
+    ninguna entidad pueda acceder a datos de otra jurisdicción.
+  </p>
+
+  <h2>7. Retención de datos</h2>
+  <p>
+    Los datos operativos (inspecciones, viajes, sanciones) se conservan conforme a la normativa
+    municipal aplicable. Los datos de cuenta se conservan mientras la cuenta esté activa.
+    El usuario puede solicitar la eliminación de su cuenta al administrador de su municipalidad.
+  </p>
+
+  <h2>8. Derechos del usuario</h2>
+  <p>De acuerdo con la Ley N.° 29733 (Ley de Protección de Datos Personales del Perú), el usuario tiene derecho a:</p>
+  <ul>
+    <li>Acceder a sus datos personales almacenados.</li>
+    <li>Rectificar datos inexactos o incompletos.</li>
+    <li>Solicitar la cancelación o supresión de sus datos.</li>
+    <li>Oponerse al tratamiento de sus datos en los casos permitidos por la ley.</li>
+  </ul>
+  <p>Para ejercer estos derechos, contacte al administrador de su municipalidad.</p>
+
+  <h2>9. Datos de menores de edad</h2>
+  <p>
+    Esta aplicación está destinada a funcionarios municipales, conductores y ciudadanos mayores
+    de 18 años. No recopilamos intencionalmente datos de menores de 13 años.
+  </p>
+
+  <h2>10. Cambios a esta política</h2>
+  <p>
+    Nos reservamos el derecho de actualizar esta política. Las modificaciones se notificarán
+    a través de la aplicación. El uso continuado de la aplicación tras la publicación de cambios
+    implica la aceptación de la nueva política.
+  </p>
+
+  <h2>11. Contacto</h2>
+  <p>
+    Para consultas sobre esta política de privacidad, contacte al administrador del sistema SFIT
+    de su municipalidad o escriba a:
+    <a href="mailto:184193@unsaac.edu.pe">184193@unsaac.edu.pe</a>
+  </p>
+</main>
+
+<footer>
+  &copy; 2026 SFIT — Sistema de Fiscalización Inteligente de Transporte.
+  Todos los derechos reservados.
+</footer>
+
+</body>
+</html>
