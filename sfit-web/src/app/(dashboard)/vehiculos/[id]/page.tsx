@@ -1,422 +1,879 @@
 "use client";
 
-import { useEffect, useState, use as usePromise } from "react";
-import Link from "next/link";
+import { use as usePromise, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Pencil, QrCode, Download, Car, User, CalendarCheck, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/button";
 
-// ─── paleta del proyecto ────────────────────────────────────────────────────
-const G = "#B8860B"; const GD = "#926A09"; const GBG = "#FDF8EC"; const GBR = "#E8D090";
+// ─── paleta ───────────────────────────────────────────────────────────────────
 const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
 const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB"; const RIESGOBD = "#FCD34D";
 const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
-const INFO = "#1e40af"; const INFOBG = "#EFF6FF"; const INFOBD = "#BFDBFE";
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 
-// ─── tipos ───────────────────────────────────────────────────────────────────
+const CURRENT_YEAR = new Date().getFullYear();
+
+const VIEW_ROLES = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
+const EDIT_ROLES = ["admin_municipal", "super_admin"];
+
+// ─── tipos ────────────────────────────────────────────────────────────────────
 type VehicleStatus = "disponible" | "en_ruta" | "en_mantenimiento" | "fuera_de_servicio";
 type InspectionStatus = "aprobada" | "observada" | "rechazada" | "pendiente";
 
-type VehicleDetail = {
+interface Vehicle {
   id: string;
   plate: string;
   vehicleTypeKey: string;
   brand: string;
   model: string;
   year: number;
-  status: VehicleStatus;
   companyId?: string;
   companyName?: string;
-  currentDriverId?: string;
+  status: VehicleStatus;
   currentDriverName?: string;
   lastInspectionStatus?: InspectionStatus;
   reputationScore: number;
   soatExpiry?: string;
-  qrHmac?: string;
   active: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-};
+  createdAt: string;
+}
 
-type QrData = {
-  pngDataUrl: string;
-  payload: { sig: string; plate: string };
-};
+interface Empresa {
+  id: string;
+  razonSocial: string;
+}
 
-// ─── helpers de estilo ────────────────────────────────────────────────────────
-const vehicleStatusStyle = (s: VehicleStatus) => ({
-  disponible:        { bg: APTOBG, color: APTO, border: APTOBD, label: "DISPONIBLE" },
-  en_ruta:           { bg: INFOBG, color: INFO, border: INFOBD, label: "EN RUTA" },
-  en_mantenimiento:  { bg: RIESGOBG, color: RIESGO, border: RIESGOBD, label: "MANTENIMIENTO" },
-  fuera_de_servicio: { bg: NOBG, color: NO, border: NOBD, label: "FUERA DE SERVICIO" },
-}[s]);
+interface TipoVehiculo {
+  id: string;
+  key: string;
+  name: string;
+  active: boolean;
+}
 
-const inspectionStyle = (s?: InspectionStatus) => {
-  if (s === "aprobada")  return { bg: APTOBG, color: APTO, border: APTOBD, label: "Aprobada" };
-  if (s === "observada") return { bg: RIESGOBG, color: RIESGO, border: RIESGOBD, label: "Observada" };
-  if (s === "rechazada") return { bg: NOBG, color: NO, border: NOBD, label: "Rechazada" };
-  return { bg: INK1, color: INK5, border: INK2, label: "Pendiente" };
-};
+interface FormData {
+  plate: string;
+  vehicleTypeKey: string;
+  brand: string;
+  model: string;
+  year: string;
+  companyId: string;
+  status: string;
+  soatExpiry: string;
+}
 
-const scoreColor = (n: number) =>
-  n >= 80 ? APTO : n >= 60 ? RIESGO : NO;
+interface FieldErrors {
+  plate?: string;
+  vehicleTypeKey?: string;
+  brand?: string;
+  model?: string;
+  year?: string;
+}
 
-const TYPE_LABELS: Record<string, string> = {
-  transporte_publico: "Transporte público",
-  limpieza_residuos: "Limpieza",
-  emergencia: "Emergencia",
-  maquinaria: "Maquinaria",
-  municipal_general: "Municipal",
-};
+interface Props {
+  params: Promise<{ id: string }>;
+}
 
-// ─── sub-componentes ──────────────────────────────────────────────────────────
-function StateBadge({ s }: { s: VehicleStatus }) {
-  const st = vehicleStatusStyle(s);
+// ─── badge inspección ─────────────────────────────────────────────────────────
+function inspectionStyle(s?: InspectionStatus) {
+  if (s === "aprobada")  return { bg: APTOBG,  color: APTO,   border: APTOBD,  label: "APROBADA" };
+  if (s === "observada") return { bg: RIESGOBG, color: RIESGO, border: RIESGOBD, label: "OBSERVADA" };
+  if (s === "rechazada") return { bg: NOBG,     color: NO,     border: NOBD,    label: "RECHAZADA" };
+  return { bg: INK1, color: INK5, border: INK2, label: "PENDIENTE" };
+}
+
+function InspectionBadge({ status }: { status?: InspectionStatus }) {
+  const st = inspectionStyle(status);
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 999, fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", background: st.bg, color: st.color, border: `1px solid ${st.border}` }}>
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block" }} />
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "3px 9px",
+        borderRadius: 999,
+        fontSize: "0.6875rem",
+        fontWeight: 700,
+        letterSpacing: "0.04em",
+        textTransform: "uppercase",
+        background: st.bg,
+        color: st.color,
+        border: `1px solid ${st.border}`,
+      }}
+    >
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: "currentColor",
+          display: "inline-block",
+        }}
+      />
       {st.label}
     </span>
   );
 }
-
-function InspectionBadge({ s }: { s?: InspectionStatus }) {
-  const st = inspectionStyle(s);
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 999, fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", background: st.bg, color: st.color, border: `1px solid ${st.border}` }}>
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block" }} />
-      {st.label}
-    </span>
-  );
-}
-
-function Plate({ p }: { p: string }) {
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", padding: "5px 12px", borderRadius: 7, background: GBG, color: INK9, border: `1.5px solid ${GBR}`, fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "1rem", letterSpacing: "0.07em" }}>
-      {p}
-    </span>
-  );
-}
-
-function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={{ display: "flex", gap: 12, padding: "9px 0", borderBottom: `1px solid ${INK1}`, alignItems: "center" }}>
-      <span style={{ color: INK5, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, width: 140, flexShrink: 0 }}>{label}</span>
-      <span style={{ color: INK9, fontWeight: 500, fontSize: "0.875rem" }}>{children}</span>
-    </div>
-  );
-}
-
-const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
 
 // ─── página ───────────────────────────────────────────────────────────────────
-interface Props { params: Promise<{ id: string }> }
-
 export default function VehiculoDetallePage({ params }: Props) {
   const { id } = usePromise(params);
   const router = useRouter();
 
-  const [vehicle, setVehicle] = useState<VehicleDetail | null>(null);
-  const [qr, setQr] = useState<QrData | null>(null);
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [tipos, setTipos] = useState<TipoVehiculo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [qrLoading, setQrLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [canEdit, setCanEdit] = useState(false);
 
+  const [form, setForm] = useState<FormData>({
+    plate: "",
+    vehicleTypeKey: "",
+    brand: "",
+    model: "",
+    year: "",
+    companyId: "",
+    status: "",
+    soatExpiry: "",
+  });
+
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // ─── auth + carga inicial ──────────────────────────────────────────────────
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
-    const u = JSON.parse(raw) as { role: string };
-    if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
+
+    let user: { role?: string } = {};
+    try {
+      user = JSON.parse(raw);
+    } catch {
+      router.replace("/login");
+      return;
+    }
+
+    if (!user.role || !VIEW_ROLES.includes(user.role)) {
+      router.replace("/dashboard");
+      return;
+    }
+
+    setCanEdit(EDIT_ROLES.includes(user.role ?? ""));
     void loadVehicle();
+    void loadDropdowns();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, router]);
 
   async function loadVehicle() {
-    setLoading(true);
-    setError(null);
     try {
       const token = localStorage.getItem("sfit_access_token");
       const res = await fetch(`/api/vehiculos/${id}`, {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
-      if (res.status === 401) { router.replace("/login"); return; }
-      if (res.status === 404) { setNotFound(true); return; }
+      if (res.status === 401) return router.replace("/login");
+      if (res.status === 404) {
+        setNotFound(true);
+        return;
+      }
       const data = await res.json();
-      if (!res.ok || !data.success) { setError(data.error ?? "Error al cargar el vehículo"); return; }
-      setVehicle(data.data);
+      if (!res.ok || !data.success) {
+        setLoadError(data.error ?? "No se pudo cargar el vehículo.");
+        return;
+      }
+      const v: Vehicle = data.data;
+      setVehicle(v);
+      setForm({
+        plate: v.plate,
+        vehicleTypeKey: v.vehicleTypeKey,
+        brand: v.brand,
+        model: v.model,
+        year: String(v.year),
+        companyId: v.companyId ?? "",
+        status: v.status,
+        soatExpiry: v.soatExpiry ? v.soatExpiry.split("T")[0] : "",
+      });
     } catch {
-      setError("Error de conexión");
+      setLoadError("Error de conexión.");
     } finally {
       setLoading(false);
     }
   }
 
-  async function loadQr() {
-    setQrLoading(true);
+  async function loadDropdowns() {
     try {
       const token = localStorage.getItem("sfit_access_token");
-      const res = await fetch(`/api/vehiculos/${id}/qr`, {
-        headers: { Authorization: `Bearer ${token ?? ""}` },
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.success) setQr(data.data);
+      const headers = { Authorization: `Bearer ${token ?? ""}` };
+      const [empRes, tiposRes] = await Promise.all([
+        fetch("/api/empresas?limit=100", { headers }),
+        fetch("/api/tipos-vehiculo?limit=100", { headers }),
+      ]);
+      const [empBody, tiposBody] = await Promise.all([empRes.json(), tiposRes.json()]);
+      setEmpresas(empBody?.data?.items ?? []);
+      const allTipos: TipoVehiculo[] = tiposBody?.data?.items ?? [];
+      setTipos(allTipos.filter((t) => t.active));
     } catch {
-      // silent
-    } finally {
-      setQrLoading(false);
+      // silent — formulario funciona aunque fallen los dropdowns
     }
   }
 
-  function downloadQr() {
-    if (!qr || !vehicle) return;
-    const a = document.createElement("a");
-    a.href = qr.pngDataUrl;
-    a.download = `QR_${vehicle.plate}.png`;
-    a.click();
+  // ─── validación ───────────────────────────────────────────────────────────
+  function validate(): boolean {
+    const next: FieldErrors = {};
+
+    const plate = form.plate.trim();
+    if (!plate) {
+      next.plate = "La placa es requerida.";
+    } else if (plate.length < 5) {
+      next.plate = "La placa debe tener al menos 5 caracteres.";
+    } else if (plate.length > 10) {
+      next.plate = "La placa no puede superar 10 caracteres.";
+    }
+
+    if (!form.vehicleTypeKey) {
+      next.vehicleTypeKey = "El tipo de vehículo es requerido.";
+    }
+
+    const brand = form.brand.trim();
+    if (!brand) {
+      next.brand = "La marca es requerida.";
+    } else if (brand.length > 80) {
+      next.brand = "La marca no puede superar 80 caracteres.";
+    }
+
+    const model = form.model.trim();
+    if (!model) {
+      next.model = "El modelo es requerido.";
+    } else if (model.length > 80) {
+      next.model = "El modelo no puede superar 80 caracteres.";
+    }
+
+    const yearNum = parseInt(form.year, 10);
+    if (!form.year || isNaN(yearNum)) {
+      next.year = "El año es requerido.";
+    } else if (yearNum < 1990 || yearNum > CURRENT_YEAR + 1) {
+      next.year = `El año debe estar entre 1990 y ${CURRENT_YEAR + 1}.`;
+    }
+
+    setFieldErrors(next);
+    return Object.keys(next).length === 0;
   }
 
-  // ─── estados de carga / error ─────────────────────────────────────────────
+  // ─── guardar cambios (PUT) ────────────────────────────────────────────────
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setServerError(null);
+    setSaveSuccess(false);
+
+    if (!validate()) return;
+
+    setSubmitting(true);
+
+    const payload: Record<string, unknown> = {
+      plate: form.plate.trim().toUpperCase(),
+      vehicleTypeKey: form.vehicleTypeKey,
+      brand: form.brand.trim(),
+      model: form.model.trim(),
+      year: parseInt(form.year, 10),
+    };
+    if (form.status) payload.status = form.status;
+    if (form.companyId) payload.companyId = form.companyId;
+    if (form.soatExpiry) payload.soatExpiry = form.soatExpiry;
+
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/vehiculos/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token ?? ""}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.status === 401) return router.replace("/login");
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setServerError(data.error ?? data.message ?? `Error ${res.status}`);
+        return;
+      }
+
+      setVehicle(data.data);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch {
+      setServerError("Error de conexión. Intente nuevamente.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // ─── eliminar (DELETE) ────────────────────────────────────────────────────
+  async function handleDelete() {
+    if (!vehicle) return;
+    if (
+      !window.confirm(
+        `¿Eliminar el vehículo con placa "${vehicle.plate}"? Esta acción no se puede deshacer.`
+      )
+    )
+      return;
+
+    setDeleting(true);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/vehiculos/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (res.status === 401) return router.replace("/login");
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        window.alert(data.error ?? "No se pudo eliminar el vehículo.");
+        return;
+      }
+      router.push("/vehiculos");
+    } catch {
+      window.alert("Error de conexión.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  function handleChange(field: keyof FormData, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (fieldErrors[field as keyof FieldErrors]) {
+      setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  }
+
+  // ─── estados de render ────────────────────────────────────────────────────
   if (notFound) {
     return (
-      <div className="space-y-8 animate-fade-in">
-        <PageHeader kicker="Vehículos" title="Vehículo no encontrado"
-          action={<Link href="/vehiculos"><Button variant="outline" size="md"><ArrowLeft size={16} strokeWidth={1.8} />Volver</Button></Link>} />
-        <Card><p style={{ color: INK5 }}>No existe un vehículo con el ID indicado.</p></Card>
-      </div>
+      <Card>
+        <h3 style={{ fontFamily: "var(--font-inter)", fontWeight: 700 }}>Vehículo no encontrado</h3>
+        <p style={{ color: INK5, marginTop: 8, fontSize: "0.9375rem" }}>
+          El vehículo que buscas no existe o fue eliminado.
+        </p>
+        <div style={{ marginTop: 16 }}>
+          <Link href="/vehiculos">
+            <Button variant="outline">
+              <ArrowLeft size={16} strokeWidth={1.8} />
+              Volver a vehículos
+            </Button>
+          </Link>
+        </div>
+      </Card>
     );
   }
 
   if (loading || !vehicle) {
     return (
-      <div className="space-y-8 animate-fade-in">
-        <PageHeader kicker="Vehículos" title="Cargando…" />
-        <Card><p style={{ color: INK5 }}>Cargando datos del vehículo…</p></Card>
-      </div>
+      <Card>
+        <div style={{ color: INK5 }}>Cargando vehículo…</div>
+      </Card>
     );
   }
 
-  const sc = scoreColor(vehicle.reputationScore);
-  const typeLabel = TYPE_LABELS[vehicle.vehicleTypeKey] ?? vehicle.vehicleTypeKey;
+  const repColor =
+    vehicle.reputationScore >= 80 ? APTO : vehicle.reputationScore >= 50 ? RIESGO : NO;
+  const tipoNombre =
+    tipos.find((t) => t.key === vehicle.vehicleTypeKey)?.name ?? vehicle.vehicleTypeKey;
 
-  // ─── render ───────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-8 animate-fade-in">
-
-      {/* Header */}
+    <div style={{ maxWidth: 860, margin: "0 auto" }}>
       <PageHeader
-        kicker="Vehículos · Detalle"
-        title={`${vehicle.brand} ${vehicle.model}`}
-        subtitle={`${typeLabel} · ${vehicle.year} · ${vehicle.companyName ?? "Sin empresa asignada"}`}
+        kicker="Vehículos · RF-06"
+        title={vehicle.plate}
+        subtitle={`${vehicle.brand} ${vehicle.model} · ${vehicle.year} · ${tipoNombre}`}
         action={
           <div style={{ display: "flex", gap: 8 }}>
             <Link href="/vehiculos">
-              <Button variant="outline" size="md">
+              <Button variant="outline">
                 <ArrowLeft size={16} strokeWidth={1.8} />
                 Volver
               </Button>
             </Link>
-            <Link href={`/vehiculos/${id}/editar`}>
-              <Button variant="primary" size="md">
-                <Pencil size={15} strokeWidth={1.8} />
-                Editar
+            {canEdit && (
+              <Button variant="danger" loading={deleting} onClick={handleDelete}>
+                Eliminar
               </Button>
-            </Link>
+            )}
           </div>
         }
       />
 
-      {/* Badges de estado rápido */}
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-        <Plate p={vehicle.plate} />
-        <StateBadge s={vehicle.status} />
-        {!vehicle.active && (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 999, fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", background: NOBG, color: NO, border: `1px solid ${NOBD}` }}>
-            Inactivo
-          </span>
-        )}
+      {/* ─── Info de solo lectura ─────────────────────────────────────────── */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          gap: 14,
+          margin: "24px 0 20px",
+        }}
+      >
+        {/* Última inspección */}
+        <div
+          style={{
+            background: "#fff",
+            border: `1px solid ${INK2}`,
+            borderRadius: 12,
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              fontSize: "0.6875rem",
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: INK5,
+              marginBottom: 10,
+            }}
+          >
+            Última inspección
+          </div>
+          <InspectionBadge status={vehicle.lastInspectionStatus} />
+        </div>
+
+        {/* Reputación */}
+        <div
+          style={{
+            background: "#fff",
+            border: `1px solid ${INK2}`,
+            borderRadius: 12,
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              fontSize: "0.6875rem",
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: INK5,
+              marginBottom: 10,
+            }}
+          >
+            Reputación
+          </div>
+          <div
+            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}
+          >
+            <span style={{ fontSize: "1.25rem", fontWeight: 800, color: repColor }}>
+              {vehicle.reputationScore}
+              <span style={{ fontSize: "0.75rem", fontWeight: 500, color: INK5 }}>/100</span>
+            </span>
+          </div>
+          <div style={{ height: 6, background: INK2, borderRadius: 999, overflow: "hidden" }}>
+            <span
+              style={{
+                display: "block",
+                height: "100%",
+                borderRadius: 999,
+                background: repColor,
+                width: `${vehicle.reputationScore}%`,
+                transition: "width 0.4s ease",
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Conductor actual */}
+        <div
+          style={{
+            background: "#fff",
+            border: `1px solid ${INK2}`,
+            borderRadius: 12,
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              fontSize: "0.6875rem",
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: INK5,
+              marginBottom: 10,
+            }}
+          >
+            Conductor actual
+          </div>
+          <div
+            style={{
+              fontSize: "0.9375rem",
+              fontWeight: 600,
+              color: vehicle.currentDriverName ? INK9 : INK5,
+            }}
+          >
+            {vehicle.currentDriverName ?? "Sin conductor asignado"}
+          </div>
+        </div>
       </div>
 
-      {error && (
-        <div role="alert" style={{ background: NOBG, border: `1.5px solid ${NOBD}`, borderRadius: 12, padding: 16, color: NO, fontSize: "0.9375rem", fontWeight: 500 }}>
-          {error}
+      {loadError && (
+        <div
+          role="alert"
+          style={{
+            background: NOBG,
+            border: `1.5px solid ${NOBD}`,
+            borderRadius: 12,
+            padding: 16,
+            color: NO,
+            fontSize: "0.9375rem",
+            fontWeight: 500,
+            marginBottom: 16,
+          }}
+        >
+          {loadError}
         </div>
       )}
 
-      {/* Grid principal */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      {/* ─── Formulario ───────────────────────────────────────────────────── */}
+      <form onSubmit={handleSave} noValidate>
+        {/* Identificación */}
+        <Card>
+          <h3
+            style={{
+              fontFamily: "var(--font-inter)",
+              fontSize: "1rem",
+              fontWeight: 700,
+              marginBottom: 16,
+            }}
+          >
+            Identificación del vehículo
+          </h3>
 
-        {/* ── Columna izquierda ───────────────────────────────────────────── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-
-          {/* Info básica */}
-          <Card>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 9, background: INK1, color: INK6, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Car size={18} />
-              </div>
-              <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, color: INK9, margin: 0 }}>
-                Información del vehículo
-              </h3>
-            </div>
-            <InfoRow label="Placa"><Plate p={vehicle.plate} /></InfoRow>
-            <InfoRow label="Marca">{vehicle.brand}</InfoRow>
-            <InfoRow label="Modelo">{vehicle.model}</InfoRow>
-            <InfoRow label="Año">{vehicle.year}</InfoRow>
-            <InfoRow label="Tipo">{typeLabel}</InfoRow>
-            <InfoRow label="Empresa">{vehicle.companyName ?? "—"}</InfoRow>
-            <InfoRow label="Estado"><StateBadge s={vehicle.status} /></InfoRow>
-            {vehicle.soatExpiry && (
-              <InfoRow label="SOAT vence">
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <ShieldCheck size={14} color={APTO} />
-                  {new Date(vehicle.soatExpiry).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
-                </span>
-              </InfoRow>
-            )}
-          </Card>
-
-          {/* Última inspección */}
-          <Card>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 9, background: inspectionStyle(vehicle.lastInspectionStatus).bg, color: inspectionStyle(vehicle.lastInspectionStatus).color, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <CalendarCheck size={18} />
-              </div>
-              <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, color: INK9, margin: 0 }}>
-                Última inspección
-              </h3>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0" }}>
-              <span style={{ color: INK6, fontSize: "0.875rem" }}>Resultado</span>
-              <InspectionBadge s={vehicle.lastInspectionStatus} />
-            </div>
-          </Card>
-
-          {/* Conductor actual */}
-          <Card>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 9, background: vehicle.currentDriverId ? GBG : INK1, color: vehicle.currentDriverId ? GD : INK5, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <User size={18} />
-              </div>
-              <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, color: INK9, margin: 0 }}>
-                Conductor asignado
-              </h3>
-            </div>
-            {vehicle.currentDriverId ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 10, background: GBG, color: GD, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "1rem", flexShrink: 0 }}>
-                  {vehicle.currentDriverName?.charAt(0).toUpperCase() ?? "?"}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 600, color: INK9 }}>{vehicle.currentDriverName}</div>
-                  <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 2, fontFamily: "ui-monospace,monospace" }}>
-                    ID: {vehicle.currentDriverId}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <p style={{ color: INK5, fontSize: "0.875rem", margin: 0 }}>Sin conductor asignado</p>
-            )}
-          </Card>
-        </div>
-
-        {/* ── Columna derecha ─────────────────────────────────────────────── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-
-          {/* Score de reputación */}
-          <Card>
-            <p className="kicker" style={{ marginBottom: 14 }}>Score de reputación</p>
-            <div style={{ padding: 20, background: INK1, borderRadius: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
-                <span style={{ fontSize: "0.875rem", color: INK6 }}>Puntuación</span>
-                <span className="num" style={{ fontWeight: 800, fontSize: "1.75rem", color: sc }}>
-                  {vehicle.reputationScore}
-                  <span style={{ fontSize: "0.875rem", color: INK5, fontWeight: 500 }}>/100</span>
-                </span>
-              </div>
-              <div style={{ height: 8, background: INK2, borderRadius: 999, overflow: "hidden" }}>
-                <span style={{ display: "block", height: "100%", borderRadius: 999, background: sc, width: `${vehicle.reputationScore}%`, transition: "width 0.5s ease" }} />
-              </div>
-              <div style={{ marginTop: 10, fontSize: "0.75rem", color: INK5 }}>
-                {vehicle.reputationScore >= 80 ? "Vehículo con buena reputación operacional"
-                  : vehicle.reputationScore >= 60 ? "Reputación moderada — revisar historial"
-                  : "Reputación baja — requiere atención"}
-              </div>
-            </div>
-          </Card>
-
-          {/* QR */}
-          <Card>
-            <p className="kicker" style={{ marginBottom: 14 }}>QR firmado HMAC-SHA256</p>
-
-            {!qr ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 14, alignItems: "center", padding: "28px 0" }}>
-                <div style={{ width: 64, height: 64, borderRadius: 14, background: INK1, color: INK5, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <QrCode size={30} />
-                </div>
-                <p style={{ color: INK5, fontSize: "0.875rem", textAlign: "center", margin: 0 }}>
-                  El QR se genera al momento de solicitarlo para garantizar la firma HMAC actualizada.
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 16,
+              maxWidth: 720,
+            }}
+          >
+            {/* Placa */}
+            <div>
+              <label htmlFor="plate" style={{ display: "block", marginBottom: 8 }}>
+                Placa <span style={{ color: "#b91c1c" }}>*</span>
+              </label>
+              <input
+                id="plate"
+                type="text"
+                className={`field${fieldErrors.plate ? " field-error" : ""}`}
+                value={form.plate}
+                onChange={(e) => handleChange("plate", e.target.value.toUpperCase())}
+                placeholder="ABC-123"
+                maxLength={10}
+                disabled={submitting || !canEdit}
+                style={{ fontFamily: "ui-monospace,monospace", letterSpacing: "0.05em" }}
+              />
+              {fieldErrors.plate && (
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
+                  {fieldErrors.plate}
                 </p>
-                <Button variant="primary" size="md" loading={qrLoading} onClick={loadQr}>
-                  <QrCode size={16} />
-                  Generar QR
-                </Button>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
-                {/* imagen PNG real del servidor */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={qr.pngDataUrl}
-                  alt={`QR del vehículo ${vehicle.plate}`}
-                  style={{ width: 200, height: 200, borderRadius: 12, border: `2px solid ${INK9}`, objectFit: "contain", background: "#fff" }}
-                />
-                <div style={{ textAlign: "center", fontSize: "0.75rem", color: INK5, fontFamily: "ui-monospace,monospace" }}>
-                  sha256: {qr.payload.sig.slice(0, 14)}…
-                </div>
-                <div style={{ display: "flex", gap: 8, width: "100%" }}>
-                  <Button variant="outline" size="sm" style={{ flex: 1 }} onClick={downloadQr}>
-                    <Download size={14} />
-                    Descargar PNG
-                  </Button>
-                  <Button variant="ghost" size="sm" style={{ flex: 1 }} loading={qrLoading} onClick={loadQr}>
-                    Re-emitir QR
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {vehicle.qrHmac && !qr && (
-              <div style={{ marginTop: 12, padding: "8px 12px", borderRadius: 8, background: GBG, border: `1px solid ${GBR}`, fontSize: "0.75rem", color: GD, fontFamily: "ui-monospace,monospace" }}>
-                Último HMAC: {vehicle.qrHmac.slice(0, 16)}…
-              </div>
-            )}
-          </Card>
-
-          {/* Metadatos */}
-          {(vehicle.createdAt ?? vehicle.updatedAt) && (
-            <Card>
-              <p className="kicker" style={{ marginBottom: 12 }}>Registro</p>
-              {vehicle.createdAt && (
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", padding: "6px 0", borderBottom: `1px solid ${INK1}` }}>
-                  <span style={{ color: INK6 }}>Creado</span>
-                  <strong>{new Date(vehicle.createdAt).toLocaleString("es-PE")}</strong>
-                </div>
               )}
-              {vehicle.updatedAt && (
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", padding: "6px 0" }}>
-                  <span style={{ color: INK6 }}>Actualizado</span>
-                  <strong>{new Date(vehicle.updatedAt).toLocaleString("es-PE")}</strong>
-                </div>
+            </div>
+
+            {/* Tipo de vehículo */}
+            <div>
+              <label htmlFor="vehicleTypeKey" style={{ display: "block", marginBottom: 8 }}>
+                Tipo de vehículo <span style={{ color: "#b91c1c" }}>*</span>
+              </label>
+              <select
+                id="vehicleTypeKey"
+                className={`field${fieldErrors.vehicleTypeKey ? " field-error" : ""}`}
+                value={form.vehicleTypeKey}
+                onChange={(e) => handleChange("vehicleTypeKey", e.target.value)}
+                disabled={submitting || !canEdit}
+              >
+                <option value="">Seleccionar tipo…</option>
+                {tipos.map((t) => (
+                  <option key={t.id} value={t.key}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+              {fieldErrors.vehicleTypeKey && (
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
+                  {fieldErrors.vehicleTypeKey}
+                </p>
               )}
-            </Card>
-          )}
+            </div>
+          </div>
+        </Card>
+
+        {/* Datos del vehículo */}
+        <Card style={{ marginTop: 16 }}>
+          <h3
+            style={{
+              fontFamily: "var(--font-inter)",
+              fontSize: "1rem",
+              fontWeight: 700,
+              marginBottom: 16,
+            }}
+          >
+            Datos del vehículo
+          </h3>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 16,
+              maxWidth: 720,
+            }}
+          >
+            {/* Marca */}
+            <div>
+              <label htmlFor="brand" style={{ display: "block", marginBottom: 8 }}>
+                Marca <span style={{ color: "#b91c1c" }}>*</span>
+              </label>
+              <input
+                id="brand"
+                type="text"
+                className={`field${fieldErrors.brand ? " field-error" : ""}`}
+                value={form.brand}
+                onChange={(e) => handleChange("brand", e.target.value)}
+                placeholder="Ej. Toyota"
+                maxLength={80}
+                disabled={submitting || !canEdit}
+              />
+              {fieldErrors.brand && (
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
+                  {fieldErrors.brand}
+                </p>
+              )}
+            </div>
+
+            {/* Modelo */}
+            <div>
+              <label htmlFor="model" style={{ display: "block", marginBottom: 8 }}>
+                Modelo <span style={{ color: "#b91c1c" }}>*</span>
+              </label>
+              <input
+                id="model"
+                type="text"
+                className={`field${fieldErrors.model ? " field-error" : ""}`}
+                value={form.model}
+                onChange={(e) => handleChange("model", e.target.value)}
+                placeholder="Ej. Hiace"
+                maxLength={80}
+                disabled={submitting || !canEdit}
+              />
+              {fieldErrors.model && (
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
+                  {fieldErrors.model}
+                </p>
+              )}
+            </div>
+
+            {/* Año */}
+            <div>
+              <label htmlFor="year" style={{ display: "block", marginBottom: 8 }}>
+                Año de fabricación <span style={{ color: "#b91c1c" }}>*</span>
+              </label>
+              <input
+                id="year"
+                type="number"
+                className={`field${fieldErrors.year ? " field-error" : ""}`}
+                value={form.year}
+                onChange={(e) => handleChange("year", e.target.value)}
+                placeholder={String(CURRENT_YEAR)}
+                min={1990}
+                max={CURRENT_YEAR + 1}
+                disabled={submitting || !canEdit}
+              />
+              {fieldErrors.year && (
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
+                  {fieldErrors.year}
+                </p>
+              )}
+            </div>
+
+            {/* Estado */}
+            <div>
+              <label htmlFor="status" style={{ display: "block", marginBottom: 8 }}>
+                Estado
+              </label>
+              <select
+                id="status"
+                className="field"
+                value={form.status}
+                onChange={(e) => handleChange("status", e.target.value)}
+                disabled={submitting || !canEdit}
+              >
+                <option value="">Seleccionar estado…</option>
+                <option value="disponible">Disponible</option>
+                <option value="en_ruta">En ruta</option>
+                <option value="en_mantenimiento">En mantenimiento</option>
+                <option value="fuera_de_servicio">Fuera de servicio</option>
+              </select>
+            </div>
+          </div>
+        </Card>
+
+        {/* Empresa y SOAT */}
+        <Card style={{ marginTop: 16 }}>
+          <h3
+            style={{
+              fontFamily: "var(--font-inter)",
+              fontSize: "1rem",
+              fontWeight: 700,
+              marginBottom: 16,
+            }}
+          >
+            Empresa y documentación
+          </h3>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 16,
+              maxWidth: 720,
+            }}
+          >
+            {/* Empresa */}
+            <div>
+              <label htmlFor="companyId" style={{ display: "block", marginBottom: 8 }}>
+                Empresa de transporte
+              </label>
+              <select
+                id="companyId"
+                className="field"
+                value={form.companyId}
+                onChange={(e) => handleChange("companyId", e.target.value)}
+                disabled={submitting || !canEdit}
+              >
+                <option value="">Sin empresa asignada</option>
+                {empresas.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.razonSocial}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* SOAT */}
+            <div>
+              <label htmlFor="soatExpiry" style={{ display: "block", marginBottom: 8 }}>
+                Vencimiento SOAT
+              </label>
+              <input
+                id="soatExpiry"
+                type="date"
+                className="field"
+                value={form.soatExpiry}
+                onChange={(e) => handleChange("soatExpiry", e.target.value)}
+                disabled={submitting || !canEdit}
+              />
+            </div>
+          </div>
+        </Card>
+
+        {/* Meta info */}
+        <div
+          style={{
+            marginTop: 16,
+            padding: "12px 16px",
+            background: INK1,
+            borderRadius: 10,
+            fontSize: "0.8125rem",
+            color: INK5,
+            display: "flex",
+            gap: 24,
+            flexWrap: "wrap",
+          }}
+        >
+          <span>
+            <strong style={{ color: INK6 }}>Empresa:</strong>{" "}
+            {vehicle.companyName ?? "Sin empresa"}
+          </span>
+          <span>
+            <strong style={{ color: INK6 }}>Registrado:</strong>{" "}
+            {new Date(vehicle.createdAt).toLocaleDateString("es-PE", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })}
+          </span>
+          <span>
+            <strong style={{ color: INK6 }}>Estado:</strong>{" "}
+            {vehicle.active ? "Activo" : "Inactivo"}
+          </span>
         </div>
-      </div>
+
+        {/* Feedback mensajes */}
+        {serverError && (
+          <div
+            style={{
+              marginTop: 16,
+              padding: "12px 16px",
+              borderRadius: 8,
+              backgroundColor: NOBG,
+              border: `1px solid ${NOBD}`,
+              color: NO,
+              fontSize: "0.875rem",
+              fontWeight: 500,
+            }}
+          >
+            {serverError}
+          </div>
+        )}
+
+        {saveSuccess && (
+          <div
+            style={{
+              marginTop: 16,
+              padding: "12px 16px",
+              borderRadius: 8,
+              backgroundColor: APTOBG,
+              border: `1px solid ${APTOBD}`,
+              color: APTO,
+              fontSize: "0.875rem",
+              fontWeight: 500,
+            }}
+          >
+            Vehículo actualizado correctamente.
+          </div>
+        )}
+
+        {/* Botones de acción */}
+        {canEdit ? (
+          <div style={{ display: "flex", gap: 12, marginTop: 24, alignItems: "center" }}>
+            <Button type="submit" disabled={submitting || deleting}>
+              {submitting ? "Guardando…" : "Guardar cambios"}
+            </Button>
+            <Link href="/vehiculos">
+              <Button type="button" variant="outline" disabled={submitting || deleting}>
+                Cancelar
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div
+            style={{
+              marginTop: 16,
+              padding: "10px 14px",
+              borderRadius: 8,
+              background: INK1,
+              color: INK5,
+              fontSize: "0.8125rem",
+              border: `1px solid ${INK2}`,
+            }}
+          >
+            Solo administradores municipales y super administradores pueden editar o eliminar vehículos.
+          </div>
+        )}
+      </form>
     </div>
   );
 }

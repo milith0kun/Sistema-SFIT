@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Shield, Check, AlertTriangle, X, QrCode, Plus, Filter, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -92,7 +93,7 @@ export default function InspeccionesPage() {
   return (
     <div>
       <PageHeader kicker="Operación · RF-11" title="Inspecciones" subtitle="Actas digitales por tipo de vehículo, evidencia fotográfica y código de verificación en PDF."
-        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><QrCode size={16} />Escanear QR</button><button style={btnInk}><Plus size={16} />Nueva inspección</button></div>} />
+        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><QrCode size={16} />Escanear QR</button><Link href="/inspecciones/nueva"><button style={btnInk}><Plus size={16} />Nueva inspección</button></Link></div>} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, margin: "24px 0 18px" }}>
         {[

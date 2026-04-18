@@ -3,8 +3,8 @@
 import { use as usePromise, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import PageHeader from "@/components/ui/PageHeader";
-import Card from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
 
 const VIEW_ROLES = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
@@ -315,8 +315,8 @@ export default function ConductorDetallePage({ params }: Props) {
     return (
       <div style={{ maxWidth: 800, margin: "0 auto" }}>
         <PageHeader
+          kicker="Conductores"
           title="Conductor no encontrado"
-          breadcrumbs={[{ label: "Conductores", href: "/conductores" }, { label: "Detalle" }]}
         />
         <Card style={{ marginTop: 16 }}>
           <p style={{ color: "#71717a", marginBottom: 16 }}>
@@ -335,12 +335,9 @@ export default function ConductorDetallePage({ params }: Props) {
   return (
     <div style={{ maxWidth: 800, margin: "0 auto" }}>
       <PageHeader
+        kicker="Conductores"
         title={conductor?.name ?? "Conductor"}
         subtitle="Detalle y edición del conductor."
-        breadcrumbs={[
-          { label: "Conductores", href: "/conductores" },
-          { label: conductor?.name ?? "Detalle" },
-        ]}
       />
 
       {/* Estado y métricas (solo lectura) */}
