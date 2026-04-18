@@ -5,7 +5,8 @@ import '../../../../core/widgets/sfit_mark.dart';
 import '../providers/auth_provider.dart';
 import 'widgets/status_screen.dart';
 
-/// RF-01-03 / RF-01-04: Pantalla mostrada cuando la cuenta está en revisión.
+/// RF-01-03 / RF-01-04: cuenta en revisión.
+/// Usa la paleta `riesgo` (naranja) — es un estado "pendiente/en revisión".
 class PendingPage extends ConsumerWidget {
   const PendingPage({super.key});
 
@@ -14,8 +15,8 @@ class PendingPage extends ConsumerWidget {
     return StatusScreen(
       mark: const SfitMark(size: 36),
       icon: Icons.hourglass_top_rounded,
-      iconColor: AppColors.gold,
-      iconBg: AppColors.goldBg,
+      iconColor: AppColors.riesgo,
+      iconBg: AppColors.riesgoBg,
       title: 'Solicitud enviada',
       message:
           'Tu cuenta está pendiente de aprobación. Recibirás una notificación cuando el administrador revise tu solicitud.',

@@ -3,13 +3,15 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { UserCheck, ChevronLeft, ChevronRight } from "lucide-react";
+import { UserCheck, ChevronLeft, ChevronRight, Users, Clock, CircleCheck, Pause } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { Table, type TableColumn } from "@/components/ui/Table";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { KPIStrip } from "@/components/dashboard/KPIStrip";
+import { FilterBar, type FilterSelectConfig } from "@/components/dashboard/FilterBar";
 
 type ApiResponse<T> = { success: boolean; data?: T; error?: string };
 
@@ -265,103 +267,110 @@ function UsuariosPageInner() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  const activos = rows.filter((r) => r.status === "activo").length;
+  const pendientes = rows.filter((r) => r.status === "pendiente").length;
+  const suspendidos = rows.filter(
+    (r) => r.status === "suspendido" || r.status === "rechazado"
+  ).length;
+
+  const kickerLabel =
+    user.role === "super_admin"
+      ? "Panel global"
+      : user.role === "admin_provincial"
+        ? "Panel provincial"
+        : "Panel municipal";
+
+  const filterSelects: FilterSelectConfig[] = [
+    {
+      key: "role",
+      value: roleFilter,
+      onChange: setRoleFilter,
+      options: [
+        { v: "", l: "Todos los roles" },
+        ...Object.entries(ROLE_LABELS).map(([v, l]) => ({ v, l })),
+      ],
+    },
+    {
+      key: "status",
+      value: statusFilter,
+      onChange: setStatusFilter,
+      options: [
+        { v: "", l: "Todos los estados" },
+        { v: "pendiente", l: "Pendiente" },
+        { v: "activo", l: "Activo" },
+        { v: "suspendido", l: "Suspendido" },
+        { v: "rechazado", l: "Rechazado" },
+      ],
+    },
+  ];
+  if (user.role !== "admin_municipal") {
+    filterSelects.push({
+      key: "province",
+      value: provinceFilter,
+      onChange: (v: string) => {
+        setProvinceFilter(v);
+        setMunicipalityFilter("");
+      },
+      options: [
+        { v: "", l: "Todas las provincias" },
+        ...provinces.map((p) => ({ v: p.id, l: p.name })),
+      ],
+    });
+    if (provinceFilter) {
+      filterSelects.push({
+        key: "municipality",
+        value: municipalityFilter,
+        onChange: setMunicipalityFilter,
+        options: [
+          { v: "", l: "Todas las municipalidades" },
+          ...municipalities.map((m) => ({ v: m.id, l: m.name })),
+        ],
+      });
+    }
+  }
+
   return (
-    <div className="space-y-8 animate-fade-in">
-      <PageHeader
-        kicker={
-          user.role === "super_admin"
-            ? "Panel global"
-            : user.role === "admin_provincial"
-              ? "Panel provincial"
-              : "Panel municipal"
-        }
+    <div className="space-y-6 animate-fade-in">
+      <DashboardHero
+        kicker={kickerLabel}
+        rfCode="RF-01"
         title="Usuarios"
         subtitle="Gestiona cuentas, roles y estados. Aprueba, suspende o reactiva usuarios."
-        action={
+        pills={[
+          { label: "Página actual", value: rows.length },
+          { label: "Pendientes", value: pendientes, warn: pendientes > 0 },
+        ]}
+      />
+
+      <KPIStrip
+        cols={4}
+        items={[
+          { label: "TOTAL", value: total, subtitle: "en resultados", accent: "#0A1628", icon: Users },
+          { label: "PENDIENTES", value: pendientes, subtitle: "en esta página", accent: "#B45309", icon: Clock },
+          { label: "ACTIVOS", value: activos, subtitle: "habilitados", accent: "#15803d", icon: CircleCheck },
+          { label: "SUSPENDIDOS", value: suspendidos, subtitle: "bloqueados/rechazados", accent: "#b91c1c", icon: Pause },
+        ]}
+      />
+
+      <FilterBar
+        searchPlaceholder="Buscar por nombre o email…"
+        searchValue={query}
+        onSearchChange={setQuery}
+        selects={filterSelects}
+        actions={
           <Link
             href="/usuarios?status=pendiente"
             onClick={() => {
               setStatusFilter("pendiente");
             }}
           >
-            <Button variant="primary" size="md">
-              <UserCheck size={16} strokeWidth={1.8} />
-              Aprobaciones pendientes
+            <Button variant="primary" size="sm">
+              <UserCheck size={14} strokeWidth={1.8} />
+              Pendientes
             </Button>
           </Link>
         }
       />
-
-      {/* Filtros */}
-      <Card>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-            gap: 12,
-          }}
-        >
-          <input
-            className="field"
-            placeholder="Buscar por nombre o email…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                setPage(1);
-                void load({ page: 1 });
-              }
-            }}
-          />
-          <select className="field" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
-            <option value="">Todos los roles</option>
-            {Object.entries(ROLE_LABELS).map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
-            ))}
-          </select>
-          <select className="field" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="">Todos los estados</option>
-            <option value="pendiente">Pendiente</option>
-            <option value="activo">Activo</option>
-            <option value="suspendido">Suspendido</option>
-            <option value="rechazado">Rechazado</option>
-          </select>
-          {user.role !== "admin_municipal" && (
-            <select
-              className="field"
-              value={provinceFilter}
-              onChange={(e) => {
-                setProvinceFilter(e.target.value);
-                setMunicipalityFilter("");
-              }}
-            >
-              <option value="">Todas las provincias</option>
-              {provinces.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          )}
-          {user.role !== "admin_municipal" && (
-            <select
-              className="field"
-              value={municipalityFilter}
-              onChange={(e) => setMunicipalityFilter(e.target.value)}
-              disabled={!provinceFilter}
-            >
-              <option value="">Todas las municipalidades</option>
-              {municipalities.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-      </Card>
 
       {error && (
         <div

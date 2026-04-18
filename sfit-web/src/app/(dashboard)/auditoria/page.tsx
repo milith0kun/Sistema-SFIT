@@ -2,12 +2,13 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Shield, Users, TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { KPIStrip } from "@/components/dashboard/KPIStrip";
 
 type ApiResponse<T> = { success: boolean; data?: T; error?: string };
 
@@ -192,12 +193,36 @@ export default function AuditoriaPage() {
 
   if (!user) return null;
 
+  const sensitiveCount = items.filter(
+    (e) =>
+      e.action.includes("suspended") ||
+      e.action.includes("deleted") ||
+      e.action.includes("rejected")
+  ).length;
+  const approvalsCount = items.filter((e) => e.action.includes("approved")).length;
+  const userActionsCount = items.filter((e) => e.action.startsWith("user.")).length;
+
   return (
-    <div className="space-y-8 animate-fade-in">
-      <PageHeader
-        kicker="RNF-16"
+    <div className="space-y-6 animate-fade-in">
+      <DashboardHero
+        kicker="Trazabilidad"
+        rfCode="RNF-16"
         title="Auditoría"
         subtitle="Bitácora cronológica de acciones sensibles del sistema."
+        pills={[
+          { label: "Eventos", value: total },
+          { label: "Sensibles", value: sensitiveCount, warn: sensitiveCount > 0 },
+        ]}
+      />
+
+      <KPIStrip
+        cols={4}
+        items={[
+          { label: "EVENTOS", value: total, subtitle: "en período", accent: "#0A1628", icon: FileText },
+          { label: "APROBACIONES", value: approvalsCount, subtitle: "confirmadas", accent: "#15803d", icon: Shield },
+          { label: "USUARIOS", value: userActionsCount, subtitle: "acciones", accent: "#B8860B", icon: Users },
+          { label: "SENSIBLES", value: sensitiveCount, subtitle: "rechazos/supresiones", accent: "#b91c1c", icon: TriangleAlert },
+        ]}
       />
 
       <Card>

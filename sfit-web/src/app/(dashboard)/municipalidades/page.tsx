@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, Building2, CircleCheck, CircleOff, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { Table, type TableColumn } from "@/components/ui/Table";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { KPIStrip } from "@/components/dashboard/KPIStrip";
 
 type Province = { id: string; name: string };
 type Municipality = {
@@ -164,23 +165,43 @@ export default function MunicipalidadesPage() {
     },
   ];
 
+  const activas = items.filter((m) => m.active).length;
+  const inactivas = items.length - activas;
+
   return (
-    <div className="space-y-8 animate-fade-in">
-      <PageHeader
+    <div className="space-y-6 animate-fade-in">
+      <DashboardHero
         kicker={user.role === "super_admin" ? "Panel global" : "Panel provincial"}
+        rfCode="RF-03"
         title="Municipalidades"
         subtitle="Gestiona las municipalidades de la jurisdicción."
-        action={
-          canCreate ? (
-            <Link href="/municipalidades/nueva">
-              <Button variant="primary">
-                <Plus size={16} strokeWidth={2} />
-                Nueva municipalidad
-              </Button>
-            </Link>
-          ) : undefined
-        }
+        pills={[
+          { label: "Total", value: items.length },
+          { label: "Activas", value: activas },
+          { label: "Inactivas", value: inactivas, warn: inactivas > 0 },
+        ]}
       />
+
+      <KPIStrip
+        cols={4}
+        items={[
+          { label: "MUNICIPIOS", value: items.length, subtitle: "registrados", accent: "#0A1628", icon: Building2 },
+          { label: "ACTIVAS", value: activas, subtitle: "operando", accent: "#15803d", icon: CircleCheck },
+          { label: "INACTIVAS", value: inactivas, subtitle: "sin actividad", accent: "#b91c1c", icon: CircleOff },
+          { label: "PROVINCIAS", value: provinces.length, subtitle: "cubiertas", accent: "#B8860B", icon: MapPin },
+        ]}
+      />
+
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        {canCreate && (
+          <Link href="/municipalidades/nueva">
+            <Button variant="primary">
+              <Plus size={16} strokeWidth={2} />
+              Nueva municipalidad
+            </Button>
+          </Link>
+        )}
+      </div>
 
       {canFilterProvince && (
         <Card padded>

@@ -19,9 +19,9 @@ import {
   CalendarDays,
   Bell,
 } from "lucide-react";
-import { GreetingHeader } from "@/components/dashboard/GreetingHeader";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { HeroActionCard } from "@/components/dashboard/HeroActionCard";
-import { StatCard } from "@/components/dashboard/StatCard";
+import { KPIStrip, type KPIItem } from "@/components/dashboard/KPIStrip";
 import { FeatureCard } from "@/components/dashboard/FeatureCard";
 import { SectionTabs } from "@/components/dashboard/SectionTabs";
 
@@ -120,10 +120,25 @@ export default function DashboardPage() {
 
   const role = user.role;
   const roleLabel = ROLE_LABELS[role] ?? role;
+  const firstName = user.name.split(" ")[0] ?? user.name;
+  const greeting = (() => {
+    if (typeof window === "undefined") return "Buenos días";
+    const h = new Date().getHours();
+    if (h < 12) return "Buenos días";
+    if (h < 19) return "Buenas tardes";
+    return "Buenas noches";
+  })();
+
+  const heroPills = buildHeroPills(role, stats);
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <GreetingHeader name={user.name} role={roleLabel} />
+    <div className="space-y-6 animate-fade-in">
+      <DashboardHero
+        kicker={`${roleLabel} · SFIT`}
+        title={`${greeting}, ${firstName}.`}
+        subtitle="Panel operativo. Accede a tus módulos desde la columna derecha."
+        pills={heroPills}
+      />
 
       {error && (
         <div
@@ -171,206 +186,157 @@ function PrimarySection({
   stats: GlobalStats | null;
   loading: boolean;
 }) {
-  if (role === "super_admin") {
-    return (
-      <>
-        <HeroActionCard
-          icon={Users}
-          title="Gestión de Usuarios y Roles"
-          subtitle="Designar accesos y permisos en toda la plataforma."
-          href="/usuarios"
-          accent="gold"
-        />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <StatCard
-            icon={MapPin}
-            label="PROVINCIAS"
-            value={stats?.provincesCount ?? (loading ? "…" : 0)}
-            subtitle="registradas en el sistema"
-            accent="gold"
-            watermarkIcon={MapPin}
-          />
-          <StatCard
-            icon={Building2}
-            label="MUNICIPALIDADES"
-            value={stats ? stats.activeMunicipalities : loading ? "…" : 0}
-            subtitle={stats ? `activas de ${stats.municipalitiesCount}` : "sin datos"}
-            accent="apto"
-            watermarkIcon={Building2}
-          />
-          <StatCard
-            icon={ClipboardList}
-            label="PENDIENTES"
-            value={stats?.usersPendingApproval ?? (loading ? "…" : 0)}
-            subtitle="usuarios por aprobar"
-            accent="riesgo"
-            watermarkIcon={UserPlus}
-          />
-          <StatCard
-            icon={Truck}
-            label="EMPRESAS"
-            value={stats?.companiesCount ?? (loading ? "…" : 0)}
-            subtitle="registradas"
-            accent="ink"
-            watermarkIcon={Truck}
-          />
-        </div>
-      </>
-    );
-  }
-
-  if (role === "admin_provincial") {
-    return (
-      <>
-        <HeroActionCard
-          icon={Building2}
-          title="Municipalidades de tu provincia"
-          subtitle="Supervisa la gestión de cada municipalidad."
-          href="/municipalidades"
-          accent="navy"
-        />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <StatCard
-            icon={Building2}
-            label="MUNICIPALIDADES"
-            value={stats ? stats.activeMunicipalities : loading ? "…" : 0}
-            subtitle={stats ? `activas de ${stats.municipalitiesCount}` : "sin datos"}
-            accent="apto"
-            watermarkIcon={Building2}
-          />
-          <StatCard
-            icon={UserCheck}
-            label="APROBACIONES"
-            value={stats?.usersPendingApproval ?? (loading ? "…" : 0)}
-            subtitle="pendientes de revisión"
-            accent="riesgo"
-            watermarkIcon={UserCheck}
-          />
-          <StatCard
-            icon={TriangleAlert}
-            label="SANCIONES"
-            value={stats?.sanctionsThisMonth ?? 0}
-            subtitle="este mes"
-            accent="no_apto"
-            watermarkIcon={TriangleAlert}
-          />
-          <StatCard
-            icon={Flag}
-            label="REPORTES"
-            value={stats?.reportsPending ?? 0}
-            subtitle="ciudadanos pendientes"
-            accent="gold"
-            watermarkIcon={Flag}
-          />
-        </div>
-      </>
-    );
-  }
-
-  if (role === "admin_municipal") {
-    return (
-      <>
-        <HeroActionCard
-          icon={UserCheck}
-          title="Aprobaciones pendientes"
-          subtitle="Revisa nuevos usuarios y sus permisos."
-          href="/admin/users"
-          accent="gold"
-        />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <StatCard
-            icon={Truck}
-            label="EMPRESAS"
-            value={stats?.companiesCount ?? (loading ? "…" : 0)}
-            subtitle="registradas"
-            accent="gold"
-            watermarkIcon={Truck}
-          />
-          <StatCard
-            icon={Shield}
-            label="INSPECCIONES"
-            value={"—"}
-            subtitle="próximamente"
-            accent="apto"
-            watermarkIcon={Shield}
-          />
-          <StatCard
-            icon={Flag}
-            label="REPORTES"
-            value={stats?.reportsPending ?? 0}
-            subtitle="pendientes"
-            accent="riesgo"
-            watermarkIcon={Flag}
-          />
-          <StatCard
-            icon={TriangleAlert}
-            label="SANCIONES"
-            value={stats?.sanctionsThisMonth ?? 0}
-            subtitle="este mes"
-            accent="no_apto"
-            watermarkIcon={TriangleAlert}
-          />
-        </div>
-      </>
-    );
-  }
-
-  if (role === "operador") {
-    return (
-      <>
-        <HeroActionCard
-          icon={ClipboardList}
-          title="Flota del día"
-          subtitle="Asignaciones, conductores y despacho de la jornada."
-          href="/flota"
-          accent="gold"
-        />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <StatCard icon={Car}    label="VEHÍCULOS"    value="—" subtitle="activos hoy"    accent="gold"  watermarkIcon={Car} />
-          <StatCard icon={Users}  label="CONDUCTORES"  value="—" subtitle="APTOS"           accent="apto"  watermarkIcon={Users} />
-          <StatCard icon={Route}  label="RUTAS"        value="—" subtitle="asignadas"       accent="ink"   watermarkIcon={Route} />
-          <StatCard icon={CalendarDays} label="VIAJES" value="—" subtitle="del día"         accent="riesgo" watermarkIcon={CalendarDays} />
-        </div>
-      </>
-    );
-  }
-
-  if (role === "fiscal") {
-    return (
-      <>
-        <HeroActionCard
-          icon={Shield}
-          title="Inspecciones en campo"
-          subtitle="Levanta actas digitales y escanea QR de vehículos."
-          href="/inspecciones"
-          accent="navy"
-        />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <StatCard icon={Shield} label="INSPECCIONES" value="—" subtitle="del día"     accent="apto"   watermarkIcon={Shield} />
-          <StatCard icon={Car}    label="VEHÍCULOS"    value="—" subtitle="escaneados"  accent="gold"   watermarkIcon={Car} />
-          <StatCard icon={Flag}   label="REPORTES"     value="—" subtitle="ciudadanos"  accent="riesgo" watermarkIcon={Flag} />
-          <StatCard icon={TriangleAlert} label="SANCIONES" value="—" subtitle="registradas" accent="no_apto" watermarkIcon={TriangleAlert} />
-        </div>
-      </>
-    );
-  }
-
-  // fallback (conductor, ciudadano)
+  const items = buildKpiItemsFor(role, stats, loading);
+  const hero = buildHeroActionFor(role);
   return (
     <>
-      <HeroActionCard
-        icon={Bell}
-        title="Tus notificaciones"
-        subtitle="Mantente al día con novedades de la plataforma."
-        href="/notificaciones"
-        accent="navy"
-      />
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <StatCard icon={Bell} label="NOTIFICACIONES" value="—" subtitle="sin leer" accent="gold" watermarkIcon={Bell} />
-        <StatCard icon={FileText} label="HISTORIAL" value="—" subtitle="registros" accent="ink" watermarkIcon={FileText} />
-      </div>
+      {hero && (
+        <HeroActionCard
+          icon={hero.icon}
+          title={hero.title}
+          subtitle={hero.subtitle}
+          href={hero.href}
+          accent={hero.accent}
+        />
+      )}
+      {items.length > 0 && <KPIStrip items={items} cols={items.length >= 4 ? 4 : 3} />}
     </>
   );
+}
+
+type HeroActionDef = {
+  icon: typeof Users;
+  title: string;
+  subtitle: string;
+  href: string;
+  accent: "gold" | "navy";
+};
+
+function buildHeroActionFor(role: string): HeroActionDef | null {
+  switch (role) {
+    case "super_admin":
+      return {
+        icon: Users,
+        title: "Gestión de Usuarios y Roles",
+        subtitle: "Designar accesos y permisos en toda la plataforma.",
+        href: "/usuarios",
+        accent: "gold",
+      };
+    case "admin_provincial":
+      return {
+        icon: Building2,
+        title: "Municipalidades de tu provincia",
+        subtitle: "Supervisa la gestión de cada municipalidad.",
+        href: "/municipalidades",
+        accent: "navy",
+      };
+    case "admin_municipal":
+      return {
+        icon: UserCheck,
+        title: "Aprobaciones pendientes",
+        subtitle: "Revisa nuevos usuarios y sus permisos.",
+        href: "/admin/users",
+        accent: "gold",
+      };
+    case "operador":
+      return {
+        icon: ClipboardList,
+        title: "Flota del día",
+        subtitle: "Asignaciones, conductores y despacho de la jornada.",
+        href: "/flota",
+        accent: "gold",
+      };
+    case "fiscal":
+      return {
+        icon: Shield,
+        title: "Inspecciones en campo",
+        subtitle: "Levanta actas digitales y escanea QR de vehículos.",
+        href: "/inspecciones",
+        accent: "navy",
+      };
+    default:
+      return {
+        icon: Bell,
+        title: "Tus notificaciones",
+        subtitle: "Mantente al día con novedades de la plataforma.",
+        href: "/notificaciones",
+        accent: "navy",
+      };
+  }
+}
+
+function buildKpiItemsFor(role: string, stats: GlobalStats | null, loading: boolean): KPIItem[] {
+  const val = (n: number | undefined) => (typeof n === "number" ? n : loading ? "…" : 0);
+  if (role === "super_admin") {
+    return [
+      { label: "PROVINCIAS", value: val(stats?.provincesCount), subtitle: "registradas", accent: "#B8860B", icon: MapPin },
+      { label: "MUNICIPALIDADES", value: stats ? stats.activeMunicipalities : loading ? "…" : 0, subtitle: stats ? `activas de ${stats.municipalitiesCount}` : "sin datos", accent: "#15803d", icon: Building2 },
+      { label: "PENDIENTES", value: val(stats?.usersPendingApproval), subtitle: "por aprobar", accent: "#B45309", icon: UserPlus },
+      { label: "EMPRESAS", value: val(stats?.companiesCount), subtitle: "registradas", accent: "#0A1628", icon: Truck },
+    ];
+  }
+  if (role === "admin_provincial") {
+    return [
+      { label: "MUNICIPALIDADES", value: stats ? stats.activeMunicipalities : loading ? "…" : 0, subtitle: stats ? `activas de ${stats.municipalitiesCount}` : "sin datos", accent: "#15803d", icon: Building2 },
+      { label: "APROBACIONES", value: val(stats?.usersPendingApproval), subtitle: "pendientes", accent: "#B45309", icon: UserCheck },
+      { label: "SANCIONES", value: val(stats?.sanctionsThisMonth), subtitle: "este mes", accent: "#b91c1c", icon: TriangleAlert },
+      { label: "REPORTES", value: val(stats?.reportsPending), subtitle: "ciudadanos", accent: "#B8860B", icon: Flag },
+    ];
+  }
+  if (role === "admin_municipal") {
+    return [
+      { label: "EMPRESAS", value: val(stats?.companiesCount), subtitle: "registradas", accent: "#B8860B", icon: Truck },
+      { label: "INSPECCIONES", value: "—", subtitle: "próximamente", accent: "#15803d", icon: Shield },
+      { label: "REPORTES", value: val(stats?.reportsPending), subtitle: "pendientes", accent: "#B45309", icon: Flag },
+      { label: "SANCIONES", value: val(stats?.sanctionsThisMonth), subtitle: "este mes", accent: "#b91c1c", icon: TriangleAlert },
+    ];
+  }
+  if (role === "operador") {
+    return [
+      { label: "VEHÍCULOS", value: "—", subtitle: "activos hoy", accent: "#B8860B", icon: Car },
+      { label: "CONDUCTORES", value: "—", subtitle: "aptos", accent: "#15803d", icon: Users },
+      { label: "RUTAS", value: "—", subtitle: "asignadas", accent: "#0A1628", icon: Route },
+      { label: "VIAJES", value: "—", subtitle: "del día", accent: "#B45309", icon: CalendarDays },
+    ];
+  }
+  if (role === "fiscal") {
+    return [
+      { label: "INSPECCIONES", value: "—", subtitle: "del día", accent: "#15803d", icon: Shield },
+      { label: "VEHÍCULOS", value: "—", subtitle: "escaneados", accent: "#B8860B", icon: Car },
+      { label: "REPORTES", value: "—", subtitle: "ciudadanos", accent: "#B45309", icon: Flag },
+      { label: "SANCIONES", value: "—", subtitle: "registradas", accent: "#b91c1c", icon: TriangleAlert },
+    ];
+  }
+  // fallback
+  return [
+    { label: "NOTIFICACIONES", value: "—", subtitle: "sin leer", accent: "#B8860B", icon: Bell },
+    { label: "HISTORIAL", value: "—", subtitle: "registros", accent: "#0A1628", icon: FileText },
+  ];
+}
+
+function buildHeroPills(role: string, stats: GlobalStats | null) {
+  if (!stats) return undefined;
+  if (role === "super_admin") {
+    return [
+      { label: "Provincias", value: stats.provincesCount },
+      { label: "Municipios", value: stats.activeMunicipalities },
+      { label: "Pendientes", value: stats.usersPendingApproval, warn: stats.usersPendingApproval > 0 },
+    ];
+  }
+  if (role === "admin_provincial") {
+    return [
+      { label: "Municipios", value: stats.activeMunicipalities },
+      { label: "Aprobaciones", value: stats.usersPendingApproval, warn: stats.usersPendingApproval > 0 },
+      { label: "Sanciones", value: stats.sanctionsThisMonth },
+    ];
+  }
+  if (role === "admin_municipal") {
+    return [
+      { label: "Empresas", value: stats.companiesCount },
+      { label: "Reportes", value: stats.reportsPending, warn: stats.reportsPending > 0 },
+    ];
+  }
+  return undefined;
 }
 
 /* ──────────────────────────────────────────

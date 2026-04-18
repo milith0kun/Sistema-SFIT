@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/sfit_mark.dart';
+import '../../../../shared/widgets/widgets.dart';
 import '../../../auth/presentation/pages/widgets/status_screen.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 /// Pantalla principal — adapta el contenido al rol del usuario (RF-05 a RF-16).
 ///
 /// Estructura:
-/// - Roles web-only (super_admin, admin_provincial, admin_municipal) → pantalla
-///   informativa sugiriendo el uso del panel web.
-/// - Resto → `Scaffold` con `BottomNavigationBar` cuyos tabs dependen del rol.
-///   Cada tab renderiza un placeholder hasta que la feature se implemente.
+/// - Roles web-only → `StatusScreen` sugiriendo el panel web.
+/// - Resto → `Scaffold` con `NavigationBar` Material 3; cada tab renderiza
+///   por ahora un `_ComingSoon` con `SfitHeroCard` para mantener el canon
+///   visual hasta que la feature real aterrice.
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
@@ -27,12 +29,11 @@ class _HomePageState extends ConsumerState<HomePage> {
     final user = ref.watch(authProvider).user;
     if (user == null) return const _BlankLoading();
 
-    // ── Roles que operan SOLO en el panel web ────────────────────
     if (user.isWebOnlyRole) {
       return StatusScreen(
         mark: const SfitMark(size: 36),
         icon: Icons.desktop_windows_outlined,
-        iconColor: AppColors.gold,
+        iconColor: AppColors.goldDark,
         iconBg: AppColors.goldBg,
         title: 'Usa la web para este rol',
         message:
@@ -43,38 +44,44 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
 
     final tabs = _tabsForRole(user.role);
-    // Mantener el índice válido si cambia el rol dinámicamente
     final safeIndex = _index.clamp(0, tabs.length - 1);
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
 
     return Scaffold(
+      backgroundColor: AppColors.paper,
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           children: [
-            SfitMark(size: 24, color: AppColors.gold),
-            SizedBox(width: 10),
+            const SfitMark(size: 22),
+            const SizedBox(width: 10),
             Text(
               'SFIT',
-              style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 2),
+              style: AppTheme.inter(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: AppColors.ink9,
+                letterSpacing: 2.4,
+              ),
             ),
           ],
         ),
         actions: [
           IconButton(
+            tooltip: 'Notificaciones',
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () {},
           ),
           PopupMenuButton<String>(
+            tooltip: 'Perfil',
             icon: CircleAvatar(
-              radius: 16,
-              backgroundColor: cs.primaryContainer,
+              radius: 15,
+              backgroundColor: AppColors.goldBg,
               child: Text(
                 user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-                style: TextStyle(
-                    color: cs.onPrimaryContainer,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13),
+                style: AppTheme.inter(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.goldDark,
+                ),
               ),
             ),
             onSelected: (v) {
@@ -86,25 +93,36 @@ class _HomePageState extends ConsumerState<HomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(user.name,
-                        style: tt.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w600)),
-                    Text(_roleLabel(user.role),
-                        style: tt.bodySmall
-                            ?.copyWith(color: cs.onSurfaceVariant)),
+                    Text(
+                      user.name,
+                      style: AppTheme.inter(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.ink9,
+                      ),
+                    ),
+                    Text(
+                      _roleLabel(user.role),
+                      style: AppTheme.inter(
+                        fontSize: 12, color: AppColors.ink5,
+                      ),
+                    ),
                   ],
                 ),
               ),
               const PopupMenuDivider(),
-              const PopupMenuItem(value: 'logout', child: Text('Cerrar sesión')),
+              const PopupMenuItem(
+                value: 'logout',
+                child: Text('Cerrar sesión'),
+              ),
             ],
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
         ],
       ),
       body: IndexedStack(
         index: safeIndex,
-        children: tabs.map((t) => t.builder(context)).toList(),
+        children: tabs.map((t) => t.page).toList(),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: safeIndex,
@@ -120,70 +138,218 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
+  // ── Tabs por rol — cada tab es un placeholder `_RolePlaceholder` con
+  //    SfitHeroCard + KPIStrip mock para mantener el canon visual.
   List<_Tab> _tabsForRole(String role) {
     return switch (role) {
       'fiscal' => const [
-          _Tab('Inspecciones', Icons.assignment_outlined,
-              _ComingSoon('Inspecciones', 'Registrar y revisar inspecciones de campo'),
-              iconFilled: Icons.assignment),
-          _Tab('QR Scanner', Icons.qr_code_scanner_outlined,
-              _ComingSoon('Escanear QR', 'Validar vehículos por QR — funciona offline')),
-          _Tab('Reportes', Icons.flag_outlined,
-              _ComingSoon('Reportes ciudadanos', 'Revisar y validar reportes'),
-              iconFilled: Icons.flag),
-          _Tab('Perfil', Icons.person_outline,
-              _ComingSoon('Perfil', 'Datos del fiscal y sesión'),
-              iconFilled: Icons.person),
+          _Tab(
+            label: 'Inspecciones',
+            icon: Icons.assignment_outlined,
+            iconFilled: Icons.assignment,
+            page: _RolePlaceholder(
+              kicker: 'Operación · RF-08',
+              title: 'Inspecciones de campo',
+              subtitle:
+                  'Registra, valida y revisa actas de inspección generadas en ruta.',
+              rfCode: 'RF-08',
+            ),
+          ),
+          _Tab(
+            label: 'QR',
+            icon: Icons.qr_code_scanner_outlined,
+            iconFilled: Icons.qr_code_scanner,
+            page: _RolePlaceholder(
+              kicker: 'Campo · RF-09',
+              title: 'Escáner QR',
+              subtitle:
+                  'Valida vehículos y conductores incluso sin conexión — HMAC local.',
+              rfCode: 'RF-09',
+            ),
+          ),
+          _Tab(
+            label: 'Reportes',
+            icon: Icons.flag_outlined,
+            iconFilled: Icons.flag,
+            page: _RolePlaceholder(
+              kicker: 'Ciudadanía · RF-13',
+              title: 'Reportes ciudadanos',
+              subtitle:
+                  'Revisa y valida reportes enviados por usuarios del sistema público.',
+              rfCode: 'RF-13',
+            ),
+          ),
+          _Tab(
+            label: 'Perfil',
+            icon: Icons.person_outline,
+            iconFilled: Icons.person,
+            page: _RolePlaceholder(
+              kicker: 'Cuenta',
+              title: 'Tu perfil',
+              subtitle: 'Datos institucionales, sesión y preferencias.',
+            ),
+          ),
         ],
       'operador' => const [
-          _Tab('Flota', Icons.local_shipping_outlined,
-              _ComingSoon('Panel de flota', 'Entradas, salidas y estado de la flota'),
-              iconFilled: Icons.local_shipping),
-          _Tab('Conductores', Icons.groups_2_outlined,
-              _ComingSoon('Conductores', 'Estado de aptitud y asignación'),
-              iconFilled: Icons.groups_2),
-          _Tab('Vehículos', Icons.directions_car_outlined,
-              _ComingSoon('Vehículos', 'Lista de vehículos y mantenimiento'),
-              iconFilled: Icons.directions_car),
-          _Tab('Perfil', Icons.person_outline,
-              _ComingSoon('Perfil', 'Datos del operador y sesión'),
-              iconFilled: Icons.person),
+          _Tab(
+            label: 'Flota',
+            icon: Icons.local_shipping_outlined,
+            iconFilled: Icons.local_shipping,
+            page: _RolePlaceholder(
+              kicker: 'Operación · RF-07',
+              title: 'Panel de flota',
+              subtitle: 'Salidas, retornos y estado de conductores del día.',
+              rfCode: 'RF-07',
+            ),
+          ),
+          _Tab(
+            label: 'Conductores',
+            icon: Icons.groups_2_outlined,
+            iconFilled: Icons.groups_2,
+            page: _RolePlaceholder(
+              kicker: 'Recursos humanos',
+              title: 'Conductores',
+              subtitle:
+                  'Aptitud, asignación, horas de conducción y descanso reglamentario.',
+              rfCode: 'RF-06',
+            ),
+          ),
+          _Tab(
+            label: 'Vehículos',
+            icon: Icons.directions_car_outlined,
+            iconFilled: Icons.directions_car,
+            page: _RolePlaceholder(
+              kicker: 'Flota',
+              title: 'Vehículos',
+              subtitle:
+                  'Lista completa, mantenimiento programado y documentación.',
+              rfCode: 'RF-05',
+            ),
+          ),
+          _Tab(
+            label: 'Perfil',
+            icon: Icons.person_outline,
+            iconFilled: Icons.person,
+            page: _RolePlaceholder(
+              kicker: 'Cuenta',
+              title: 'Tu perfil',
+              subtitle: 'Datos del operador, empresa y sesión.',
+            ),
+          ),
         ],
       'conductor' => const [
-          _Tab('Mis rutas', Icons.route_outlined,
-              _ComingSoon('Rutas del día', 'Rutas o zonas asignadas'),
-              iconFilled: Icons.route),
-          _Tab('Fatiga', Icons.monitor_heart_outlined,
-              _ComingSoon('Estado de fatiga', 'Horas acumuladas y descanso'),
-              iconFilled: Icons.monitor_heart),
-          _Tab('Viajes', Icons.timeline_outlined,
-              _ComingSoon('Viajes', 'Historial de viajes'),
-              iconFilled: Icons.timeline),
-          _Tab('Perfil', Icons.person_outline,
-              _ComingSoon('Perfil', 'Datos del conductor y sesión'),
-              iconFilled: Icons.person),
+          _Tab(
+            label: 'Mis rutas',
+            icon: Icons.route_outlined,
+            iconFilled: Icons.route,
+            page: _RolePlaceholder(
+              kicker: 'Hoy · RF-10',
+              title: 'Rutas del día',
+              subtitle: 'Rutas y zonas asignadas con detalle operativo.',
+              rfCode: 'RF-10',
+            ),
+          ),
+          _Tab(
+            label: 'Fatiga',
+            icon: Icons.monitor_heart_outlined,
+            iconFilled: Icons.monitor_heart,
+            page: _RolePlaceholder(
+              kicker: 'Seguridad · RF-11',
+              title: 'Estado de fatiga',
+              subtitle:
+                  'Horas acumuladas de conducción y descanso — FatigueEngine.',
+              rfCode: 'RF-11',
+            ),
+          ),
+          _Tab(
+            label: 'Viajes',
+            icon: Icons.timeline_outlined,
+            iconFilled: Icons.timeline,
+            page: _RolePlaceholder(
+              kicker: 'Historial',
+              title: 'Mis viajes',
+              subtitle: 'Registro de viajes completados y observaciones.',
+              rfCode: 'RF-12',
+            ),
+          ),
+          _Tab(
+            label: 'Perfil',
+            icon: Icons.person_outline,
+            iconFilled: Icons.person,
+            page: _RolePlaceholder(
+              kicker: 'Cuenta',
+              title: 'Tu perfil',
+              subtitle: 'Licencia, descanso y sesión.',
+            ),
+          ),
         ],
       'ciudadano' => const [
-          _Tab('Vista pública', Icons.qr_code_2_outlined,
-              _ComingSoon('Consultar vehículo',
-                  'Escanea el QR o busca por placa para ver el estado.'),
-              iconFilled: Icons.qr_code_2),
-          _Tab('Reportes', Icons.campaign_outlined,
-              _ComingSoon('Mis reportes', 'Reportar anomalías y ver su estado'),
-              iconFilled: Icons.campaign),
-          _Tab('Recompensas', Icons.emoji_events_outlined,
-              _ComingSoon('Recompensas', 'SFITCoins, nivel y catálogo de beneficios'),
-              iconFilled: Icons.emoji_events),
-          _Tab('Perfil', Icons.person_outline,
-              _ComingSoon('Perfil', 'Datos del ciudadano y sesión'),
-              iconFilled: Icons.person),
+          _Tab(
+            label: 'Inicio',
+            icon: Icons.qr_code_2_outlined,
+            iconFilled: Icons.qr_code_2,
+            page: _RolePlaceholder(
+              kicker: 'Público · RF-14',
+              title: 'Consulta vehicular',
+              subtitle:
+                  'Escanea el QR o busca por placa para ver el estado del vehículo.',
+              rfCode: 'RF-14',
+            ),
+          ),
+          _Tab(
+            label: 'Reportar',
+            icon: Icons.campaign_outlined,
+            iconFilled: Icons.campaign,
+            page: _RolePlaceholder(
+              kicker: 'Ciudadanía · RF-15',
+              title: 'Reportar anomalías',
+              subtitle: 'Envía un reporte con ubicación, fotos y detalles.',
+              rfCode: 'RF-15',
+            ),
+          ),
+          _Tab(
+            label: 'Recompensas',
+            icon: Icons.emoji_events_outlined,
+            iconFilled: Icons.emoji_events,
+            page: _RolePlaceholder(
+              kicker: 'Gamificación · RF-16',
+              title: 'SFITCoins y recompensas',
+              subtitle: 'Nivel, historial de SFITCoins y catálogo de beneficios.',
+              rfCode: 'RF-16',
+            ),
+          ),
+          _Tab(
+            label: 'Perfil',
+            icon: Icons.person_outline,
+            iconFilled: Icons.person,
+            page: _RolePlaceholder(
+              kicker: 'Cuenta',
+              title: 'Tu perfil',
+              subtitle: 'Datos personales, sesión y preferencias.',
+            ),
+          ),
         ],
       _ => const [
-          _Tab('Inicio', Icons.home_outlined, _ComingSoon('Inicio', 'Dashboard general'),
-              iconFilled: Icons.home),
-          _Tab('Perfil', Icons.person_outline,
-              _ComingSoon('Perfil', 'Tu cuenta y sesión'),
-              iconFilled: Icons.person),
+          _Tab(
+            label: 'Inicio',
+            icon: Icons.home_outlined,
+            iconFilled: Icons.home,
+            page: _RolePlaceholder(
+              kicker: 'Bienvenido',
+              title: 'Inicio',
+              subtitle: 'Tablero general del sistema SFIT.',
+            ),
+          ),
+          _Tab(
+            label: 'Perfil',
+            icon: Icons.person_outline,
+            iconFilled: Icons.person,
+            page: _RolePlaceholder(
+              kicker: 'Cuenta',
+              title: 'Tu perfil',
+              subtitle: 'Datos personales y sesión.',
+            ),
+          ),
         ],
     };
   }
@@ -204,65 +370,81 @@ class _Tab {
   final String label;
   final IconData icon;
   final IconData? iconFilled;
-  final Widget builderValue;
-  const _Tab(this.label, this.icon, this.builderValue, {this.iconFilled});
-  Widget builder(BuildContext _) => builderValue;
+  final Widget page;
+  const _Tab({
+    required this.label,
+    required this.icon,
+    required this.page,
+    this.iconFilled,
+  });
 }
 
-class _ComingSoon extends StatelessWidget {
+/// Placeholder de tab por-rol: mantiene el canon visual (hero + KPI mock +
+/// badge "Próximamente") hasta que la feature real aterrice.
+class _RolePlaceholder extends StatelessWidget {
+  final String kicker;
   final String title;
   final String subtitle;
-  const _ComingSoon(this.title, this.subtitle);
+  final String? rfCode;
+
+  const _RolePlaceholder({
+    required this.kicker,
+    required this.title,
+    required this.subtitle,
+    this.rfCode,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: AppColors.goldBg,
-                shape: BoxShape.circle,
-                border: Border.all(
-                    color: AppColors.gold.withValues(alpha: 0.3), width: 1.5),
-              ),
-              child: const Icon(Icons.construction_rounded,
-                  size: 34, color: AppColors.goldDark),
+            SfitHeroCard(
+              kicker: kicker,
+              title: title,
+              subtitle: subtitle,
+              rfCode: rfCode,
+              pills: const [
+                SfitHeroPill(label: 'Estado', value: '—'),
+                SfitHeroPill(label: 'Hoy', value: '0'),
+              ],
             ),
-            const SizedBox(height: 20),
-            Text(title, style: tt.headlineSmall, textAlign: TextAlign.center),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
-              textAlign: TextAlign.center,
+            const SizedBox(height: 18),
+
+            // Placeholder KPI strip para mantener el ritmo visual del canon.
+            const SfitKpiStrip(
+              items: [
+                SfitKpiCardData(
+                  icon: Icons.check_circle_outline,
+                  label: 'Aptos',
+                  value: '—',
+                  subtitle: 'Próximamente',
+                  accent: AppColors.apto,
+                ),
+                SfitKpiCardData(
+                  icon: Icons.warning_amber_outlined,
+                  label: 'Riesgo',
+                  value: '—',
+                  subtitle: 'Próximamente',
+                  accent: AppColors.riesgo,
+                ),
+                SfitKpiCardData(
+                  icon: Icons.block_outlined,
+                  label: 'No aptos',
+                  value: '—',
+                  subtitle: 'Próximamente',
+                  accent: AppColors.noApto,
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.goldBg,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                    color: AppColors.gold.withValues(alpha: 0.4), width: 1),
-              ),
-              child: const Text(
-                'Próximamente',
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.goldDark,
-                    letterSpacing: 1.2),
-              ),
-            ),
+
+            const SizedBox(height: 22),
+
+            // Empty-state canon — card blanca con ícono + mensaje + badge
+            _ComingSoonCard(rfCode: rfCode, title: title),
           ],
         ),
       ),
@@ -270,10 +452,92 @@ class _ComingSoon extends StatelessWidget {
   }
 }
 
+class _ComingSoonCard extends StatelessWidget {
+  final String title;
+  final String? rfCode;
+
+  const _ComingSoonCard({required this.title, this.rfCode});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.ink2, width: 1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
+      child: Column(
+        children: [
+          Container(
+            width: 68,
+            height: 68,
+            decoration: BoxDecoration(
+              color: AppColors.goldBg,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.goldBorder, width: 1.5),
+            ),
+            child: const Icon(
+              Icons.construction_rounded,
+              size: 30,
+              color: AppColors.goldDark,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: AppTheme.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppColors.ink9,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            rfCode != null
+                ? 'Esta vista aún no está implementada.\nReferencia $rfCode.'
+                : 'Esta vista aún no está implementada.',
+            textAlign: TextAlign.center,
+            style: AppTheme.inter(
+              fontSize: 13,
+              color: AppColors.ink5,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.goldBg,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: AppColors.goldBorder, width: 1),
+            ),
+            child: Text(
+              'PRÓXIMAMENTE',
+              style: AppTheme.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: AppColors.goldDark,
+                letterSpacing: 1.6,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _BlankLoading extends StatelessWidget {
   const _BlankLoading();
+
   @override
   Widget build(BuildContext context) => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        backgroundColor: AppColors.paper,
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.gold),
+        ),
       );
 }

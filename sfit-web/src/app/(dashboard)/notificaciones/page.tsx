@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
 
 type ApiResponse<T> = { success: boolean; data?: T; error?: string };
 
@@ -146,24 +146,31 @@ export default function NotificacionesPage() {
   }
 
   const unreadCount = items.filter((n) => !n.read).length;
+  const categoryCount = categories.length;
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <PageHeader
-        kicker="RF-18"
+    <div className="space-y-6 animate-fade-in">
+      <DashboardHero
+        kicker="Centro de avisos"
+        rfCode="RF-18"
         title="Notificaciones"
         subtitle="Tu centro de actividad: aprobaciones, alertas y avisos del sistema."
-        action={
-          <Button
-            variant="outline"
-            size="md"
-            onClick={markAllRead}
-            disabled={unreadCount === 0}
-          >
-            Marcar todas como leídas
-          </Button>
-        }
+        pills={[
+          { label: "No leídas", value: unreadCount, warn: unreadCount > 0 },
+          { label: "Categorías", value: categoryCount },
+        ]}
       />
+
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <Button
+          variant="outline"
+          size="md"
+          onClick={markAllRead}
+          disabled={unreadCount === 0}
+        >
+          Marcar todas como leídas
+        </Button>
+      </div>
 
       {/* Tabs */}
       <div

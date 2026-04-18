@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Check, X, UserCheck } from "lucide-react";
+import { Check, X, UserCheck, Clock, Users } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { KPIStrip } from "@/components/dashboard/KPIStrip";
 
 type PendingUser = {
   id: string;
@@ -101,12 +102,31 @@ export default function AdminUsersPage() {
 
   const target = users.find((u) => u.id === selected);
 
+  const rolesCount = users.reduce<Record<string, number>>((acc, u) => {
+    acc[u.requestedRole] = (acc[u.requestedRole] ?? 0) + 1;
+    return acc;
+  }, {});
+  const maxRole = Object.entries(rolesCount).sort((a, b) => b[1] - a[1])[0];
+
   return (
-    <div className="space-y-8 animate-fade-in">
-      <PageHeader
-        kicker="RF-01-04 · Aprobación de usuarios"
+    <div className="space-y-6 animate-fade-in">
+      <DashboardHero
+        kicker="Aprobaciones pendientes"
+        rfCode="RF-01-04"
         title="Solicitudes pendientes"
         subtitle="Revisa y aprueba o rechaza las solicitudes de acceso a la plataforma."
+        pills={[
+          { label: "Por revisar", value: users.length, warn: users.length > 0 },
+        ]}
+      />
+
+      <KPIStrip
+        cols={3}
+        items={[
+          { label: "PENDIENTES", value: users.length, subtitle: "por revisar", accent: "#B45309", icon: Clock },
+          { label: "TIPOS DE ROL", value: Object.keys(rolesCount).length, subtitle: "solicitados", accent: "#B8860B", icon: Users },
+          { label: "MÁS SOLICITADO", value: maxRole ? (ROLE_LABELS[maxRole[0]] ?? maxRole[0]) : "—", subtitle: maxRole ? `${maxRole[1]} solicitud${maxRole[1] === 1 ? "" : "es"}` : "sin datos", accent: "#0A1628", icon: UserCheck },
+        ]}
       />
 
       {error && (

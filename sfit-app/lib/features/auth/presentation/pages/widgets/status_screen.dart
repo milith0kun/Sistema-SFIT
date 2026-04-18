@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/theme/app_theme.dart';
 
-/// Widget reutilizable para pantallas informativas de estado (pending / rejected /
-/// rol exclusivo de web). Muestra un ícono dentro de un círculo, título, mensaje
-/// y un botón para cerrar sesión.
+/// Pantalla informativa de estado (pending / rejected / rol web-only).
+/// Ícono circular con borde tintado, título, mensaje y botón outlined.
 class StatusScreen extends StatelessWidget {
   final Widget? mark;
   final IconData icon;
@@ -28,41 +28,53 @@ class StatusScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tt = Theme.of(context).textTheme;
-
     return Scaffold(
+      backgroundColor: AppColors.paper,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
+          padding: const EdgeInsets.symmetric(horizontal: 28),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (mark != null) ...[
                 mark!,
-                const SizedBox(height: 40),
+                const SizedBox(height: 36),
               ],
               Container(
-                width: 72,
-                height: 72,
+                width: 76,
+                height: 76,
                 decoration: BoxDecoration(
                   color: iconBg,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: iconColor.withValues(alpha: 0.3),
+                    color: iconColor.withValues(alpha: 0.35),
                     width: 1.5,
                   ),
                 ),
                 child: Icon(icon, size: 34, color: iconColor),
               ),
-              const SizedBox(height: 24),
-              Text(title, style: tt.headlineSmall, textAlign: TextAlign.center),
-              const SizedBox(height: 12),
+              const SizedBox(height: 22),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: AppTheme.inter(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink9,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 10),
               Text(
                 message,
-                style: tt.bodyMedium?.copyWith(color: AppColors.ink5),
                 textAlign: TextAlign.center,
+                style: AppTheme.inter(
+                  fontSize: 14,
+                  color: AppColors.ink6,
+                  height: 1.5,
+                ),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 36),
               OutlinedButton(onPressed: onLogout, child: Text(logoutLabel)),
             ],
           ),

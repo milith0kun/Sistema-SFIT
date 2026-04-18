@@ -5,7 +5,8 @@ import '../../../../core/widgets/sfit_mark.dart';
 import '../providers/auth_provider.dart';
 import 'widgets/status_screen.dart';
 
-/// RF-01-04 / RF-01-05: Pantalla mostrada cuando la solicitud fue rechazada.
+/// RF-01-04 / RF-01-05: solicitud rechazada.
+/// Paleta `noApto` (rojo) — estado final negativo.
 class RejectedPage extends ConsumerWidget {
   const RejectedPage({super.key});
 
@@ -14,8 +15,8 @@ class RejectedPage extends ConsumerWidget {
     return StatusScreen(
       mark: const SfitMark(size: 36),
       icon: Icons.cancel_outlined,
-      iconColor: AppColors.danger,
-      iconBg: const Color(0xFFFFF5F5),
+      iconColor: AppColors.noApto,
+      iconBg: AppColors.noAptoBg,
       title: 'Solicitud rechazada',
       message:
           'Tu solicitud de acceso fue rechazada por el administrador municipal. Puedes crear una nueva cuenta o contactar al soporte.',

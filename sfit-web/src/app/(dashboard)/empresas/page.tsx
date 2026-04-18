@@ -3,13 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Eye } from "lucide-react";
+import { Plus, Eye, Truck, CircleCheck, Pause, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { Table, type TableColumn } from "@/components/ui/Table";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { KPIStrip } from "@/components/dashboard/KPIStrip";
+import { FilterBar } from "@/components/dashboard/FilterBar";
 
 type Company = {
   id: string;
@@ -40,6 +42,7 @@ export default function EmpresasPage() {
   const [types, setTypes] = useState<VehicleType[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
+  const [query, setQuery] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [forbidden, setForbidden] = useState(false);
@@ -112,6 +115,17 @@ export default function EmpresasPage() {
     for (const t of types) m.set(t.key, t.name);
     return m;
   }, [types]);
+
+  const filteredItems = useMemo(() => {
+    if (!query.trim()) return items;
+    const q = query.trim().toLowerCase();
+    return items.filter(
+      (c) =>
+        c.razonSocial.toLowerCase().includes(q) ||
+        c.ruc.toLowerCase().includes(q) ||
+        c.representanteLegal.name.toLowerCase().includes(q)
+    );
+  }, [items, query]);
 
   if (forbidden) {
     return (
@@ -213,62 +227,75 @@ export default function EmpresasPage() {
     },
   ];
 
+  const activas = items.filter((c) => c.active && c.status !== "suspendido").length;
+  const suspendidas = items.filter((c) => !c.active || c.status === "suspendido").length;
+  const pendientes = items.filter((c) => c.status === "pendiente").length;
+  const repAvg =
+    items.length > 0
+      ? Math.round(items.reduce((a, c) => a + c.reputationScore, 0) / items.length)
+      : 0;
+
   return (
-    <div className="space-y-8 animate-fade-in">
-      <PageHeader
+    <div className="space-y-6 animate-fade-in">
+      <DashboardHero
         kicker="Panel municipal"
+        rfCode="RF-03-04"
         title="Empresas de transporte"
         subtitle="Administra las empresas y flotas que operan en tu jurisdicción."
-        action={
+        pills={[
+          { label: "Total", value: items.length },
+          { label: "Activas", value: activas },
+          { label: "Suspendidas", value: suspendidas, warn: suspendidas > 0 },
+        ]}
+      />
+
+      <KPIStrip
+        cols={4}
+        items={[
+          { label: "EMPRESAS", value: items.length, subtitle: "registradas", accent: "#0A1628", icon: Truck },
+          { label: "ACTIVAS", value: activas, subtitle: "operando", accent: "#15803d", icon: CircleCheck },
+          { label: "SUSPENDIDAS", value: suspendidas + pendientes, subtitle: `${pendientes} pendientes`, accent: "#b91c1c", icon: Pause },
+          { label: "REPUTACIÓN", value: repAvg, subtitle: "promedio flota", accent: "#B8860B", icon: Star },
+        ]}
+      />
+
+      <FilterBar
+        searchPlaceholder="Buscar empresa o RUC…"
+        searchValue={query}
+        onSearchChange={setQuery}
+        selects={[
+          {
+            key: "status",
+            value: statusFilter,
+            onChange: setStatusFilter,
+            options: [
+              { v: "", l: "Todos los estados" },
+              { v: "activo", l: "Activa" },
+              { v: "suspendido", l: "Suspendida" },
+              { v: "pendiente", l: "Pendiente" },
+            ],
+          },
+          {
+            key: "type",
+            value: typeFilter,
+            onChange: setTypeFilter,
+            options: [
+              { v: "", l: "Todas las flotas" },
+              ...types.filter((t) => t.active).map((t) => ({ v: t.key, l: t.name })),
+            ],
+          },
+        ]}
+        actions={
           canCreate ? (
             <Link href="/empresas/nueva">
-              <Button variant="primary">
-                <Plus size={16} strokeWidth={2} />
+              <Button variant="primary" size="sm">
+                <Plus size={14} strokeWidth={2} />
                 Nueva empresa
               </Button>
             </Link>
           ) : undefined
         }
       />
-
-      <Card>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
-          <div style={{ flex: "1 1 220px" }}>
-            <label htmlFor="statusFilter" style={{ display: "block", marginBottom: 8 }}>
-              Estado
-            </label>
-            <select
-              id="statusFilter"
-              className="field"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="">Todos</option>
-              <option value="activo">Activa</option>
-              <option value="suspendido">Suspendida</option>
-              <option value="pendiente">Pendiente</option>
-            </select>
-          </div>
-          <div style={{ flex: "1 1 220px" }}>
-            <label htmlFor="typeFilter" style={{ display: "block", marginBottom: 8 }}>
-              Tipo de flota
-            </label>
-            <select
-              id="typeFilter"
-              className="field"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option value="">Todos</option>
-              {types.filter((t) => t.active).map((t) => (
-                <option key={t.key} value={t.key}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </Card>
 
       {error && (
         <div
@@ -292,12 +319,18 @@ export default function EmpresasPage() {
           <Card>
             <div style={{ color: "#71717a" }}>Cargando empresas…</div>
           </Card>
-        ) : items.length === 0 ? (
+        ) : filteredItems.length === 0 ? (
           <EmptyState
-            title="Sin empresas"
-            subtitle={canCreate ? "Registra la primera empresa para comenzar a gestionar su flota." : "Aún no hay empresas registradas."}
+            title={items.length === 0 ? "Sin empresas" : "Sin coincidencias"}
+            subtitle={
+              items.length === 0
+                ? canCreate
+                  ? "Registra la primera empresa para comenzar a gestionar su flota."
+                  : "Aún no hay empresas registradas."
+                : "Ninguna empresa coincide con los filtros actuales."
+            }
             cta={
-              canCreate ? (
+              canCreate && items.length === 0 ? (
                 <Link href="/empresas/nueva">
                   <Button variant="primary">Nueva empresa</Button>
                 </Link>
@@ -307,7 +340,7 @@ export default function EmpresasPage() {
         ) : (
           <Table<Company>
             columns={columns}
-            rows={items}
+            rows={filteredItems}
             rowKey={(c) => c.id}
             emptyLabel="Sin empresas."
           />

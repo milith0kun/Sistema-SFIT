@@ -635,4 +635,163 @@ El ciudadano acumula SFITCoins por acciones válidas. Los puntos se canjean por 
 
 ---
 
+## 11. Estado de implementación (abril 2026)
+
+> Esta sección refleja el avance real del proyecto. Se actualiza en cada entrega.
+> **Leyenda:** ✅ completo · 🟨 parcial (UI o backend aún no están enlazados, o hay pendientes) · ❌ pendiente
+
+### 11.1 Credenciales de prueba
+
+Tras ejecutar `cd sfit-web && npx tsx scripts/seed-test-users.ts` quedan 7 usuarios listos en MongoDB Atlas (password único `Sfit2026!`):
+
+| Email | Rol | Scope |
+|---|---|---|
+| superadmin@sfit.test | super_admin | global |
+| provincial@sfit.test | admin_provincial | provincia semilla |
+| municipal@sfit.test | admin_municipal | municipalidad semilla |
+| fiscal@sfit.test | fiscal | municipalidad semilla |
+| operador@sfit.test | operador | municipalidad semilla |
+| conductor@sfit.test | conductor | municipalidad semilla |
+| ciudadano@sfit.test | ciudadano | global |
+
+Los IDs de la provincia y municipalidad semilla se imprimen al final del script.
+
+### 11.2 Infraestructura común
+
+| Área | Estado | Notas |
+|---|---|---|
+| Conexión MongoDB Atlas con bypass DNS (ISP) | ✅ | `dns.setServers` en `lib/db/mongoose.ts` |
+| JWT helpers (sign/verify, access 15m, refresh 7d) | ✅ | `lib/auth/jwt.ts` |
+| Middleware Edge (presencia de token) | ✅ | `middleware.ts` |
+| Guard + RBAC (`requireRole`, `scopedMunicipalityFilter`) | ✅ | `lib/auth/guard.ts`, `lib/auth/rbac.ts` |
+| Respuestas API estandarizadas `{success, data, error}` | ✅ | `lib/api/response.ts` |
+| Helper de auditoría (`AuditLog`) | ✅ | `lib/audit/log.ts` |
+| Helper de notificaciones | ✅ | `lib/notifications/create.ts` |
+| Sistema de diseño web (Inter + tokens) | ✅ | `globals.css` + `components/dashboard/*` + `components/ui/*` |
+| Sistema de diseño Flutter (AppTheme + SfitHeroCard/SfitKpiStrip/etc.) | ✅ | `core/theme/*` + `shared/widgets/*` |
+| Logo institucional (square 500×500 + horizontal 500×250) | ✅ | `public/logo-*.svg` · `assets/logos/*.png` · mipmap Android regenerados |
+| Generador de íconos (Android + favicons + Apple) | ✅ | `scripts/generate-icons.mjs` |
+
+### 11.3 Backend web (models + API routes)
+
+| RF | Módulo | Modelo | API CRUD | RBAC + multi-tenant | Estado |
+|---|---|---|---|---|---|
+| RF-01 | Auth (login, register, Google, refresh, logout, account linking) | `User` | ✅ | ✅ | ✅ |
+| RF-02 | Provincias / Municipalidades | `Province`, `Municipality` | ✅ | ✅ | ✅ |
+| RF-03 | Tipos de vehículo + checklist + form inspección | `VehicleType` | ✅ | ✅ | ✅ |
+| RF-04 | Empresas de transporte | `Company` | ✅ | ✅ | ✅ |
+| RF-05 | Conductores | `Driver` | ✅ (CRUD + filtros aptitud) | ✅ | 🟨 (falta OCR auto-llenado) |
+| RF-06 | Vehículos + QR HMAC | `Vehicle` | ✅ (CRUD) | ✅ | 🟨 (falta generación/validación QR firmado) |
+| RF-07 | Flota del día (entradas/salidas operador) | `FleetEntry` | ✅ (CRUD) | ✅ | 🟨 (validación pre-salida cableada; checklist sólo en UI) |
+| RF-08 | Vista pública vehículo/conductor (sin auth) | — | ❌ | — | ❌ |
+| RF-09 | Rutas y zonas | `Route` | ✅ | ✅ | 🟨 (filtro por tipo pendiente en route handler) |
+| RF-10 | Viajes y operaciones | `Trip` | ✅ | ✅ | 🟨 (auto-cierre + filtros query) |
+| RF-11 | Inspecciones | `Inspection` | ✅ | ✅ | 🟨 (sugerencias IA + PDF acta) |
+| RF-12 | Reportes ciudadanos + anti-fraude | `CitizenReport` | ✅ | ✅ | 🟨 (5 capas anti-fraude parciales) |
+| RF-13 | Sanciones | `Sanction` | ✅ | ✅ | 🟨 (flujo apelación) |
+| RF-14 | FatigueEngine (cálculo horas/descanso) | lógica dentro de `Driver`/`Trip` | ❌ | — | ❌ |
+| RF-15 | Reputación | `reputationScore` ya existe | ❌ | — | ❌ (cálculo automático pendiente) |
+| RF-16 | Recompensas y gamificación (SFITCoins) | — | ❌ | — | ❌ |
+| RF-17 | IA / OCR (DNI, licencia, SOAT, tarjeta) | — | ❌ | — | ❌ |
+| RF-18 | Notificaciones (in-app) | `Notification` | ✅ | ✅ | 🟨 (push FCM, WhatsApp, correo SMTP pendientes) |
+| RF-18 | Auditoría global | `AuditLog` | ✅ (+ hooks en mutaciones clave) | ✅ | ✅ |
+| RF-19 | Estadísticas agregadas (global + provincia) | — | ✅ (`/api/admin/stats/global`) | ✅ | 🟨 (métricas por rol completas pendientes) |
+
+### 11.4 Frontend web (`sfit-web`)
+
+| Ruta | Rol(es) | Estado | Notas |
+|---|---|---|---|
+| `/login` · `/register` · `/pending` · `/rejected` · `/reset-password` | todos | ✅ | Google OAuth + correo con vinculación automática |
+| `/dashboard` | todos los admin | ✅ | KPIs reales (super_admin) · módulos por rol |
+| `/usuarios` · `/usuarios/[id]` | super_admin, admin_provincial, admin_municipal | ✅ | Aprobación, suspensión, cambio de rol, asignar admin_provincial |
+| `/admin/users` (aprobaciones pendientes) | super/provincial/municipal | ✅ | |
+| `/notificaciones` | todos | ✅ | Tabs + marcar leídas + borrar |
+| `/auditoria` | super/provincial/municipal | ✅ | Filtros + paginación |
+| `/provincias` · `/provincias/[id]` · `/provincias/nueva` | super_admin | ✅ | |
+| `/municipalidades` · `/municipalidades/[id]` · `/municipalidades/nueva` | super, provincial | ✅ | |
+| `/tipos-vehiculo` · `/tipos-vehiculo/[id]` · `/tipos-vehiculo/nuevo` | admin_municipal | ✅ | Predefinidos + personalizados |
+| `/empresas` · `/empresas/[id]` · `/empresas/nueva` | admin_municipal | ✅ | Filtros + suspensión |
+| `/estadisticas` | super, provincial | ✅ | recharts + export CSV |
+| `/flota` | operador | ✅ | Panel completo con drawer de salida, FatigueEngine, reportes (actualmente con mock data; enlace a API real pendiente) |
+| `/conductores` · `/vehiculos` | admin_municipal, operador, fiscal | 🟨 | UI completa; falta cableado fino a API + OCR |
+| `/inspecciones` · `/reportes` · `/rutas` · `/sanciones` · `/viajes` | según RBAC | 🟨 | UI completa con mock data; API existe, falta consumo real |
+
+### 11.5 App Flutter (`sfit-app`)
+
+| Feature | Estado | Notas |
+|---|---|---|
+| Splash (logo + tagline + spinner gold) | ✅ | |
+| Login correo + contraseña | ✅ | Conectado a `/api/auth/login` (real) |
+| Login con Google (`google_sign_in`) | 🟨 | Requiere Android OAuth client con SHA-1 del keystore |
+| Registro con rol solicitado | ✅ | |
+| Pantallas pendiente / rechazado | ✅ | |
+| Auto-login con refresh token | ✅ | `AuthInterceptor` Dio |
+| Home con tabs por rol (fiscal / operador / conductor / ciudadano) | ✅ | Placeholders `SfitHeroCard` + KPI mock |
+| Roles web-only (super/provincial/municipal) → mensaje "usa la web" | ✅ | |
+| Escaneo QR + validación offline HMAC | ❌ | RF-06 / RF-08 |
+| Inspecciones en campo (Fiscal) | ❌ | RF-11 |
+| Registro de viajes (Operador/Conductor) | ❌ | RF-10 |
+| Vista pública vehículo / conductor | ❌ | RF-08 |
+| Reportes ciudadanos | ❌ | RF-12 |
+| Panel de flota móvil (Operador) | ❌ | RF-07 |
+| Push notifications (Firebase) | 🟨 | Paquete integrado, falta wiring con backend + sistema de envío |
+
+### 11.6 Pruebas automatizadas
+
+| Suite | Comando | Estado |
+|---|---|---|
+| Web TypeScript | `cd sfit-web && npx tsc --noEmit` | ✅ 0 errores |
+| Web ESLint | `cd sfit-web && npm run lint` | 🟨 2 errores preexistentes en `(auth)/pending/page.tsx` + `(auth)/rejected/page.tsx` (setState-in-effect); warnings de unused vars |
+| Web unit (Vitest) | `cd sfit-web && npx vitest run` | ✅ 93/93 passed |
+| Flutter analyze | `cd sfit-app && flutter analyze` | ✅ 0 issues |
+| Flutter test | `cd sfit-app && flutter test` | ✅ 1/1 passed |
+| Flutter APK release | `cd sfit-app && flutter build apk --release` | ✅ `build/app/outputs/flutter-apk/app-release.apk` (≈68 MB) |
+| Flutter AAB release | `cd sfit-app && flutter build appbundle --release` | ✅ `build/app/outputs/bundle/release/app-release.aab` (v1.0.1+3) |
+
+### 11.7 Distribución y privacidad
+
+| Artefacto | Estado | Detalles |
+|---|---|---|
+| Google Play Store — Internal Testing | ✅ publicado | versionCode 1 (0.1.0) |
+| Google Play Store — Closed/Alpha Testing | ✅ publicado | versionCode 3 · v1.0.1 |
+| Política de privacidad (requerida por CAMERA) | ✅ live | `https://milith0kun.github.io/sfit-privacy/` |
+| Repositorio de privacidad | ✅ | `github.com/milith0kun/sfit-privacy` — GitHub Pages activado |
+
+### 11.8 Cómo levantar el entorno local
+
+```bash
+# 1. Backend + seed
+cd sfit-web
+cp .env.example .env.local          # ya existe en este repo
+npm install
+npx tsx scripts/seed-test-users.ts  # siembra 7 usuarios de prueba
+npm run dev                          # http://localhost:3000
+
+# 2. App Flutter (dispositivo físico via USB)
+cd sfit-app
+adb reverse tcp:3000 tcp:3000        # permite al celular llegar a localhost:3000
+flutter pub get
+flutter run                          # build + install debug
+
+# 2b. App Flutter (WiFi LAN; sustituye la IP del host)
+flutter run --dart-define=SFIT_DEV_HOST=192.168.1.x
+
+# 3. App Flutter release
+flutter build apk --release
+# → sfit-app/build/app/outputs/flutter-apk/app-release.apk
+```
+
+### 11.9 Próximos bloques sugeridos (orden recomendado)
+
+1. **RF-06 generación QR HMAC + vista pública (RF-08)** — desbloquea fiscalización en campo.
+2. **RF-11 inspecciones móvil** (Fiscal) — QR → form dinámico → acta PDF.
+3. **RF-07 flota móvil** (Operador) — replicar el panel web en Flutter.
+4. **RF-12 reportes ciudadanos** con las 5 capas anti-fraude.
+5. **RF-14 FatigueEngine** (cálculo real + disparo automático de notificaciones).
+6. **RF-17 IA / OCR** — Google Vision API para extracción de DNI/licencia/SOAT.
+7. **RF-18 canales externos** — Firebase push, WhatsApp, correo SMTP.
+8. **RF-15/16 reputación + recompensas** — el cálculo automático y el catálogo de canjes.
+
+---
+
 > SFIT © 2026 — Plataforma multi-municipalidad para fiscalización y gestión de flota vehicular municipal

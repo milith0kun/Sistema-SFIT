@@ -2,9 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/sfit_mark.dart';
+import '../../../../shared/widgets/widgets.dart';
 import '../providers/auth_provider.dart';
 
 /// Usuarios de prueba precargados (solo visibles en modo debug).
@@ -64,7 +65,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor: AppColors.danger,
+        backgroundColor: AppColors.noApto,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -72,50 +73,49 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final tt = Theme.of(context).textTheme;
-
     return Scaffold(
       backgroundColor: AppColors.paper,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               // ── Marca ─────────────────────────────────────────
-              const SfitFullLogo(width: 160),
+              const SfitFullLogo(width: 150),
+              const SizedBox(height: 40),
 
-              const SizedBox(height: 48),
-
-              // ── Encabezado ────────────────────────────────────
+              // ── Kicker + título (Inter, no Syne) ─────────────
+              const _Kicker(),
+              const SizedBox(height: 10),
               Text(
-                'ACCESO AL SISTEMA',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 11,
+                'Ingresar',
+                style: AppTheme.inter(
+                  fontSize: 26,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.gold,
-                  letterSpacing: 2.2,
+                  color: AppColors.ink9,
+                  letterSpacing: -0.6,
+                  height: 1.1,
                 ),
               ),
-              const SizedBox(height: 10),
-              Text('Ingresar', style: tt.headlineMedium),
               const SizedBox(height: 6),
               Text(
                 'Credenciales institucionales requeridas',
-                style: tt.bodyMedium,
+                style: AppTheme.inter(
+                  fontSize: 14,
+                  color: AppColors.ink6,
+                  height: 1.45,
+                ),
               ),
 
-              const SizedBox(height: 36),
+              const SizedBox(height: 32),
 
-              // ── Formulario ────────────────────────────────────
               Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
-                    _FieldLabel('Correo electrónico'),
+                    const _FieldLabel('Correo electrónico'),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _emailCtrl,
@@ -130,13 +130,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         return null;
                       },
                     ),
-
-                    const SizedBox(height: 20),
-
+                    const SizedBox(height: 18),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _FieldLabel('Contraseña'),
+                        const _FieldLabel('Contraseña'),
                         TextButton(
                           onPressed: () {},
                           style: TextButton.styleFrom(
@@ -171,40 +169,45 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           (v == null || v.isEmpty) ? 'Requerido' : null,
                     ),
 
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 26),
 
-                    FilledButton(
-                      onPressed: _loading ? null : _submit,
-                      child: _loading
-                          ? const SizedBox(
-                              width: 20, height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
-                          : const Text('Ingresar al sistema'),
+                    SfitPrimaryButton(
+                      label: 'Ingresar al sistema',
+                      onPressed: _submit,
+                      loading: _loading,
+                      icon: Icons.arrow_forward_rounded,
                     ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 22),
 
-                    // Divider
                     Row(
                       children: [
                         const Expanded(child: Divider()),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 14),
-                          child: Text('o continúa con', style: tt.bodySmall),
+                          child: Text(
+                            'o continúa con',
+                            style: AppTheme.inter(
+                              fontSize: 12.5,
+                              color: AppColors.ink5,
+                            ),
+                          ),
                         ),
                         const Expanded(child: Divider()),
                       ],
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
 
                     OutlinedButton(
                       onPressed: _googleLoading ? null : _submitGoogle,
                       child: _googleLoading
                           ? const SizedBox(
                               width: 18, height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.ink6),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.ink6,
+                              ),
                             )
                           : const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -216,9 +219,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             ),
                     ),
 
-                    // ── Autofill de prueba (solo en debug) ──────
                     if (kDebugMode) ...[
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 22),
                       _DebugAutofill(
                         onPick: (email, password) {
                           _emailCtrl.text = email;
@@ -230,20 +232,26 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 ),
               ),
 
-              const SizedBox(height: 36),
+              const SizedBox(height: 32),
 
               Center(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('¿No tienes cuenta?  ', style: tt.bodyMedium),
+                    Text(
+                      '¿No tienes cuenta?  ',
+                      style: AppTheme.inter(
+                        fontSize: 13.5, color: AppColors.ink6,
+                      ),
+                    ),
                     GestureDetector(
                       onTap: () => context.go('/register'),
                       child: Text(
                         'Solicitar acceso',
-                        style: tt.bodyMedium?.copyWith(
-                          color: AppColors.gold,
+                        style: AppTheme.inter(
+                          fontSize: 13.5,
                           fontWeight: FontWeight.w600,
+                          color: AppColors.goldDark,
                         ),
                       ),
                     ),
@@ -258,23 +266,51 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 }
 
-// ── Label explícito encima del campo ──────────────────────────────
+// ── Kicker uppercase con dot gold ───────────────────────────────
+class _Kicker extends StatelessWidget {
+  const _Kicker();
+
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 5,
+            height: 5,
+            decoration: const BoxDecoration(
+              color: AppColors.goldLight,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 7),
+          Text(
+            'ACCESO AL SISTEMA',
+            style: AppTheme.inter(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.goldDark,
+              letterSpacing: 2.1,
+            ),
+          ),
+        ],
+      );
+}
+
 class _FieldLabel extends StatelessWidget {
   final String text;
   const _FieldLabel(this.text);
 
   @override
   Widget build(BuildContext context) => Text(
-    text,
-    style: GoogleFonts.plusJakartaSans(
-      fontSize: 15,
-      fontWeight: FontWeight.w600,
-      color: AppColors.ink9,
-    ),
-  );
+        text,
+        style: AppTheme.inter(
+          fontSize: 13.5,
+          fontWeight: FontWeight.w600,
+          color: AppColors.ink9,
+        ),
+      );
 }
 
-// ── Google mark ──────────────────────────────────────────────────
 class _GoogleMark extends StatelessWidget {
   const _GoogleMark();
 
@@ -283,14 +319,12 @@ class _GoogleMark extends StatelessWidget {
       CustomPaint(size: const Size(18, 18), painter: _GooglePainter());
 }
 
-// ── Debug autofill ───────────────────────────────────────────────
 class _DebugAutofill extends StatelessWidget {
   final void Function(String email, String password) onPick;
   const _DebugAutofill({required this.onPick});
 
   @override
   Widget build(BuildContext context) {
-    final tt = Theme.of(context).textTheme;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -303,12 +337,14 @@ class _DebugAutofill extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.bug_report_outlined, size: 14, color: AppColors.ink5),
+              const Icon(Icons.bug_report_outlined,
+                  size: 14, color: AppColors.ink5),
               const SizedBox(width: 6),
               Text(
                 'AUTOFILL DE PRUEBA (debug)',
-                style: tt.labelSmall?.copyWith(
+                style: AppTheme.inter(
                   fontSize: 10,
+                  fontWeight: FontWeight.w700,
                   color: AppColors.ink5,
                   letterSpacing: 1.4,
                 ),
@@ -317,16 +353,13 @@ class _DebugAutofill extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             children: _debugTestUsers
                 .map(
-                  (u) => ActionChip(
-                    label: Text(u.label),
-                    onPressed: () => onPick(u.email, u.password),
-                    visualDensity: VisualDensity.compact,
-                    backgroundColor: Colors.white,
-                    side: const BorderSide(color: AppColors.ink2),
+                  (u) => _DebugPill(
+                    label: u.label,
+                    onTap: () => onPick(u.email, u.password),
                   ),
                 )
                 .toList(),
@@ -337,15 +370,48 @@ class _DebugAutofill extends StatelessWidget {
   }
 }
 
+class _DebugPill extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _DebugPill({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: AppColors.ink2, width: 1),
+        ),
+        child: Text(
+          label,
+          style: AppTheme.inter(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: AppColors.ink7,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _GooglePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size s) {
     final p = Paint()..style = PaintingStyle.fill;
-    // Blue (right half)
     p.color = const Color(0xFF4285F4);
-    canvas.drawRect(Rect.fromLTWH(s.width * 0.5, s.height * 0.35, s.width * 0.47, s.height * 0.3), p);
-    // Full circle outlines using arcs
-    p ..style = PaintingStyle.stroke ..strokeWidth = s.width * 0.21;
+    canvas.drawRect(
+      Rect.fromLTWH(s.width * 0.5, s.height * 0.35, s.width * 0.47, s.height * 0.3),
+      p,
+    );
+    p
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = s.width * 0.21;
     p.color = const Color(0xFF4285F4);
     canvas.drawArc(Rect.fromLTWH(0, 0, s.width, s.height), -1.57, 3.66, false, p);
     p.color = const Color(0xFFEA4335);

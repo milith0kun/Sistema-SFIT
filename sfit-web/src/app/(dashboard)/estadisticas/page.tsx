@@ -22,7 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { ComingSoon } from "@/components/ui/ComingSoon";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { StatCard } from "@/components/dashboard/StatCard";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { KPIStrip } from "@/components/dashboard/KPIStrip";
 
 type ApiResponse<T> = { success: boolean; data?: T; error?: string };
 
@@ -219,23 +220,36 @@ export default function EstadisticasPage() {
     return <ComingSoon title="Estadísticas" rf="RF-19" />;
   }
 
+  const totalUsers = stats ? Object.values(stats.usersByRole ?? {}).reduce((a, b) => a + b, 0) : 0;
+
   return (
-    <div className="space-y-8 animate-fade-in">
-      <PageHeader
-        kicker={user.role === "super_admin" ? "Panel global · RF-19" : "Panel provincial · RF-19"}
+    <div className="space-y-6 animate-fade-in">
+      <DashboardHero
+        kicker={user.role === "super_admin" ? "Panel global" : "Panel provincial"}
+        rfCode="RF-19"
         title="Estadísticas"
         subtitle={
           user.role === "super_admin"
             ? "Visión global de la plataforma: usuarios, municipalidades y actividad."
             : "Indicadores de tu provincia y municipalidades asociadas."
         }
-        action={
-          <Button variant="outline" size="md" onClick={exportUsersCsv}>
-            <Download size={16} strokeWidth={1.8} />
-            Exportar CSV
-          </Button>
+        pills={
+          stats
+            ? [
+                { label: "Usuarios", value: totalUsers },
+                { label: "Provincias", value: provinces.length },
+                { label: "Municipios", value: municipalities.filter((m) => m.active).length },
+              ]
+            : undefined
         }
       />
+
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <Button variant="outline" size="md" onClick={exportUsersCsv}>
+          <Download size={16} strokeWidth={1.8} />
+          Exportar CSV
+        </Button>
+      </div>
 
       {error && (
         <div
@@ -265,40 +279,15 @@ export default function EstadisticasPage() {
       ) : (
         <>
           {/* KPI bar */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-up">
-            <StatCard
-              icon={MapPin}
-              label="PROVINCIAS"
-              value={provinces.length}
-              subtitle="en jurisdicción"
-              accent="gold"
-              watermarkIcon={MapPin}
-            />
-            <StatCard
-              icon={Building2}
-              label="MUNICIPALIDADES"
-              value={municipalities.length}
-              subtitle={`${municipalities.filter((m) => m.active).length} activas`}
-              accent="apto"
-              watermarkIcon={Building2}
-            />
-            <StatCard
-              icon={Truck}
-              label="EMPRESAS"
-              value={stats.companiesCount}
-              subtitle="registradas"
-              accent="ink"
-              watermarkIcon={Truck}
-            />
-            <StatCard
-              icon={Car}
-              label="TIPOS DE VEHÍCULO"
-              value={stats.vehicleTypesCount}
-              subtitle="configurados"
-              accent="riesgo"
-              watermarkIcon={Car}
-            />
-          </div>
+          <KPIStrip
+            cols={4}
+            items={[
+              { label: "PROVINCIAS", value: provinces.length, subtitle: "en jurisdicción", accent: "#B8860B", icon: MapPin },
+              { label: "MUNICIPIOS", value: municipalities.length, subtitle: `${municipalities.filter((m) => m.active).length} activas`, accent: "#15803d", icon: Building2 },
+              { label: "EMPRESAS", value: stats.companiesCount, subtitle: "registradas", accent: "#0A1628", icon: Truck },
+              { label: "TIPOS VEHÍC.", value: stats.vehicleTypesCount, subtitle: "configurados", accent: "#B45309", icon: Car },
+            ]}
+          />
 
           {/* Pie + Bar */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-fade-up delay-100">

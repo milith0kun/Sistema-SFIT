@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Settings } from "lucide-react";
+import { Plus, Settings, Car, Boxes, Sparkles, ListChecks } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { KPIStrip } from "@/components/dashboard/KPIStrip";
+import { GroupedSection } from "@/components/dashboard/GroupedSection";
 
 type VehicleType = {
   id: string;
@@ -162,22 +164,42 @@ export default function TiposVehiculoPage() {
   }
 
   const customs = items.filter((t) => t.isCustom);
+  const predefActive = items.filter((t) => !t.isCustom && t.active).length;
+  const withChecklist = items.filter((t) => t.checklistItems.length > 0).length;
+  const totalActive = items.filter((t) => t.active).length;
 
   return (
-    <div className="space-y-10 animate-fade-in">
-      <PageHeader
+    <div className="space-y-6 animate-fade-in">
+      <DashboardHero
         kicker="Panel municipal"
+        rfCode="RF-04"
         title="Tipos de vehículo"
         subtitle="Configura los tipos de vehículos que opera tu municipalidad y sus formularios."
-        action={
-          <Link href="/tipos-vehiculo/nuevo">
-            <Button variant="primary">
-              <Plus size={16} strokeWidth={2} />
-              Nuevo tipo
-            </Button>
-          </Link>
-        }
+        pills={[
+          { label: "Activos", value: totalActive },
+          { label: "Predefinidos", value: predefActive },
+          { label: "Personalizados", value: customs.length },
+        ]}
       />
+
+      <KPIStrip
+        cols={4}
+        items={[
+          { label: "ACTIVOS", value: totalActive, subtitle: "en uso", accent: "#15803d", icon: Car },
+          { label: "PREDEFINIDOS", value: predefActive, subtitle: `de ${PREDEFINED.length} disponibles`, accent: "#B8860B", icon: Boxes },
+          { label: "PERSONALIZADOS", value: customs.length, subtitle: "creados por la municipalidad", accent: "#0A1628", icon: Sparkles },
+          { label: "CON CHECKLIST", value: withChecklist, subtitle: "listos para operar", accent: "#B45309", icon: ListChecks },
+        ]}
+      />
+
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <Link href="/tipos-vehiculo/nuevo">
+          <Button variant="primary">
+            <Plus size={16} strokeWidth={2} />
+            Nuevo tipo
+          </Button>
+        </Link>
+      </div>
 
       {error && (
         <div
@@ -198,19 +220,8 @@ export default function TiposVehiculoPage() {
       )}
 
       {/* Predefinidos */}
-      <section className="animate-fade-up delay-100 space-y-4">
-        <h2
-          style={{
-            fontFamily: "var(--font-inter)",
-            fontSize: "1.25rem",
-            fontWeight: 700,
-            color: "#09090b",
-            letterSpacing: "-0.02em",
-          }}
-        >
-          Tipos predefinidos del sistema
-        </h2>
-        <p style={{ color: "#52525b", fontSize: "0.9375rem" }}>
+      <GroupedSection color="#B8860B" title="Tipos predefinidos del sistema" count={PREDEFINED.length}>
+        <p style={{ color: "#52525b", fontSize: "0.875rem", margin: "0 0 14px" }}>
           Activa los tipos que tu municipalidad maneja. Luego podrás configurar sus checklists, inspecciones y categorías de reporte.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -263,22 +274,11 @@ export default function TiposVehiculoPage() {
             );
           })}
         </div>
-      </section>
+      </GroupedSection>
 
       {/* Personalizados */}
-      <section className="animate-fade-up delay-200 space-y-4">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <h2
-            style={{
-              fontFamily: "var(--font-inter)",
-              fontSize: "1.25rem",
-              fontWeight: 700,
-              color: "#09090b",
-              letterSpacing: "-0.02em",
-            }}
-          >
-            Tipos personalizados
-          </h2>
+      <GroupedSection color="#0A1628" title="Tipos personalizados" count={customs.length}>
+        <div style={{ display: "flex", justifyContent: "flex-end", margin: "-8px 0 14px" }}>
           <Link href="/tipos-vehiculo/nuevo">
             <Button variant="outline" size="sm">
               <Plus size={14} strokeWidth={2} />
@@ -346,7 +346,7 @@ export default function TiposVehiculoPage() {
             ))}
           </div>
         )}
-      </section>
+      </GroupedSection>
     </div>
   );
 }

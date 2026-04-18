@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, MapPin, Building2, CircleCheck, CircleOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { Table, type TableColumn } from "@/components/ui/Table";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { KPIStrip } from "@/components/dashboard/KPIStrip";
 
 type Province = {
   id: string;
@@ -155,21 +156,45 @@ export default function ProvinciasPage() {
     },
   ];
 
+  const totalMunis = items.reduce(
+    (acc, p) => acc + (typeof p.municipalitiesCount === "number" ? p.municipalitiesCount : 0),
+    0
+  );
+  const activas = items.filter((p) => p.active).length;
+  const inactivas = items.length - activas;
+
   return (
-    <div className="space-y-8 animate-fade-in">
-      <PageHeader
+    <div className="space-y-6 animate-fade-in">
+      <DashboardHero
         kicker="Panel global"
+        rfCode="RF-02"
         title="Provincias"
         subtitle="Gestiona las provincias del sistema y sus municipalidades asociadas."
-        action={
-          <Link href="/provincias/nueva">
-            <Button variant="primary" size="md">
-              <Plus size={16} strokeWidth={2} />
-              Nueva provincia
-            </Button>
-          </Link>
-        }
+        pills={[
+          { label: "Total", value: items.length },
+          { label: "Activas", value: activas },
+          { label: "Inactivas", value: inactivas, warn: inactivas > 0 },
+        ]}
       />
+
+      <KPIStrip
+        cols={4}
+        items={[
+          { label: "PROVINCIAS", value: items.length, subtitle: "registradas", accent: "#B8860B", icon: MapPin },
+          { label: "MUNICIPIOS", value: totalMunis, subtitle: "asociados", accent: "#0A1628", icon: Building2 },
+          { label: "ACTIVAS", value: activas, subtitle: "operando", accent: "#15803d", icon: CircleCheck },
+          { label: "INACTIVAS", value: inactivas, subtitle: "sin actividad", accent: "#b91c1c", icon: CircleOff },
+        ]}
+      />
+
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <Link href="/provincias/nueva">
+          <Button variant="primary" size="md">
+            <Plus size={16} strokeWidth={2} />
+            Nueva provincia
+          </Button>
+        </Link>
+      </div>
 
       {error && (
         <div
