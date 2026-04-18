@@ -6,6 +6,10 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import { config } from "dotenv";
+import dns from "node:dns";
+
+// Fuerza DNS públicos para bypasear ISPs que bloquean SRV de MongoDB+srv
+dns.setServers(["8.8.8.8", "1.1.1.1", "8.8.4.4"]);
 
 config({ path: ".env.local" });
 
@@ -38,19 +42,19 @@ async function main() {
         $set: {
           password: hashed,
           name,
-          role: "admin_municipal",
+          role: "super_admin",
           status: "activo",
           provider: "credentials",
         },
       },
     );
-    console.log(`✓ Actualizado: ${email} → admin_municipal ACTIVO`);
+    console.log(`✓ Actualizado: ${email} → super_admin ACTIVO`);
   } else {
     await User.create({
       email,
       password: hashed,
       name,
-      role: "admin_municipal",
+      role: "super_admin",
       status: "activo",
       provider: "credentials",
       createdAt: new Date(),

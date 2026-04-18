@@ -55,10 +55,10 @@ export async function POST(request: NextRequest) {
     // bcrypt 12 rounds (RNF-04)
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Bootstrap: primer usuario con email INITIAL_ADMIN_EMAIL → super_admin activo
+    // Bootstrap: email listado en INITIAL_ADMIN_EMAIL → super_admin activo
     const initialAdminEmail = process.env.INITIAL_ADMIN_EMAIL?.toLowerCase();
     const isInitialAdmin =
-      initialAdminEmail && email.toLowerCase() === initialAdminEmail;
+      !!initialAdminEmail && email.toLowerCase() === initialAdminEmail;
 
     const user = await User.create({
       name,
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     return apiResponse(
       {
         message: isInitialAdmin
-          ? "Cuenta de administrador creada. Ya puedes iniciar sesión."
+          ? "Cuenta de super administrador creada. Ya puedes iniciar sesión."
           : "Registro exitoso. Tu solicitud está pendiente de aprobación por el administrador.",
         userId: user._id.toString(),
       },
