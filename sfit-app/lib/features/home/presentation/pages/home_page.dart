@@ -17,6 +17,7 @@ import '../../../reports/presentation/pages/submit_report_page.dart';
 import '../../../trips/presentation/pages/fatigue_page.dart';
 import '../../../trips/presentation/pages/my_routes_page.dart';
 import '../../../trips/presentation/pages/my_trips_page.dart';
+import '../../../rewards/presentation/pages/rewards_page.dart';
 
 /// Pantalla principal — adapta el contenido al rol del usuario (RF-05 a RF-16).
 ///
@@ -248,12 +249,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             label: 'Recompensas',
             icon: Icons.emoji_events_outlined,
             iconFilled: Icons.emoji_events,
-            page: _RolePlaceholder(
-              kicker: 'Gamificación · RF-16',
-              title: 'SFITCoins y recompensas',
-              subtitle: 'Nivel, historial de SFITCoins y catálogo de beneficios.',
-              rfCode: 'RF-16',
-            ),
+            page: RewardsPage(),
           ),
           _Tab(
             label: 'Perfil',
