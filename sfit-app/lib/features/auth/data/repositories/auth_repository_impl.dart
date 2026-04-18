@@ -16,14 +16,14 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<AuthResult> login(String email, String password) async {
     final res = await _api.login({'email': email, 'password': password});
-    return _handleAuthResponse(res.data);
+    return _handleAuthResponse(res.data as Map<String, dynamic>);
   }
 
   // ── RF-01-01: Login Google ────────────────────────────────────
   @override
   Future<AuthResult> loginWithGoogle(String idToken) async {
     final res = await _api.loginWithGoogle({'idToken': idToken});
-    return _handleAuthResponse(res.data);
+    return _handleAuthResponse(res.data as Map<String, dynamic>);
   }
 
   // ── RF-01-02 / RF-01-03: Registro ─────────────────────────────
@@ -42,7 +42,7 @@ class AuthRepositoryImpl implements AuthRepository {
       'requestedRole': requestedRole,
       if (municipalityId != null) 'municipalityId': municipalityId,
     });
-    final body = res.data;
+    final body = res.data as Map<String, dynamic>;
     if (body['success'] != true) {
       throw AuthException(body['error'] ?? 'Error al registrarse');
     }
@@ -60,7 +60,7 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       final res =
           await _api.refreshToken({'refreshToken': storedRefreshToken});
-      final body = res.data;
+      final body = res.data as Map<String, dynamic>;
       if (body['success'] != true) return null;
 
       final data = body['data'] as Map<String, dynamic>;

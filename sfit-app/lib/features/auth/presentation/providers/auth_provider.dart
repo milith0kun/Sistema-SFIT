@@ -66,7 +66,10 @@ class AuthState {
 
 @Riverpod(keepAlive: true)
 class Auth extends _$Auth {
-  static final _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
+  static final _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+    serverClientId: '378647499793-tbks1mfqq15thpmii1dbirm3o21fkhd3.apps.googleusercontent.com', // Web Client ID
+  );
 
   @override
   AuthState build() {

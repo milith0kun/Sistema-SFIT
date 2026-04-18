@@ -71,3 +71,7 @@ next-env.d.ts
 # ----- OAuth / Secretos -----
 client_secret*.json
 google-services.json
+
+# Screenshots y archivos temporales
+image*.png
+.claude/scheduled_tasks.lock
