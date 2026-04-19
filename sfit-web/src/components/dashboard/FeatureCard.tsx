@@ -97,21 +97,21 @@ export function FeatureCard({
         {subtitle}
       </div>
 
-      {/* Ícono watermark — tamaño proporcional a minHeight:88 */}
+      {/* Ícono watermark — grande para llenar el card, overflow:hidden lo adapta */}
       <div
         aria-hidden
         style={{
           position: "absolute",
-          right: -8,
-          bottom: -8,
-          color: hover ? "#B8860B" : "#D4A827",
-          opacity: hover ? 0.22 : 0.13,
+          right: -12,
+          bottom: -12,
+          color: hover ? "#B8860B" : "#C8971A",
+          opacity: hover ? 0.28 : 0.16,
           pointerEvents: "none",
           lineHeight: 0,
           transition: "opacity 180ms ease, color 180ms ease",
         }}
       >
-        <Icon size={52} strokeWidth={1.4} />
+        <Icon size={88} strokeWidth={1.2} />
       </div>
     </Link>
   );

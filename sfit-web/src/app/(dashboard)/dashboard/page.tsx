@@ -292,9 +292,9 @@ function QuickModuleLink({ icon: Icon, title, subtitle, href }: QuickActionDef) 
         (e.currentTarget as HTMLAnchorElement).style.boxShadow = "none";
       }}
     >
-      {/* Ícono watermark — proporcional a la altura del card (~56px) */}
-      <div aria-hidden style={{ position: "absolute", right: -6, bottom: -6, color: "#B8860B", opacity: 0.1, pointerEvents: "none", lineHeight: 0 }}>
-        <Icon size={38} strokeWidth={1.4} />
+      {/* Ícono watermark — grande para llenar el card, overflow:hidden lo adapta */}
+      <div aria-hidden style={{ position: "absolute", right: -10, bottom: -10, color: "#B8860B", opacity: 0.16, pointerEvents: "none", lineHeight: 0 }}>
+        <Icon size={64} strokeWidth={1.2} />
       </div>
       <div style={{ width: 34, height: 34, borderRadius: 9, background: "#F4F0E6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, position: "relative", zIndex: 1 }}>
         <Icon size={16} color="#926A09" strokeWidth={1.8} />

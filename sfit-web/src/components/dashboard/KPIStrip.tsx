@@ -42,20 +42,20 @@ export function KPIStrip({ items, cols = 6 }: KPIStripProps) {
             minWidth: 0,
           }}
         >
-          {/* Ícono watermark — tamaño proporcional a la altura de la tarjeta KPI */}
+          {/* Ícono watermark — grande para llenar el card, overflow:hidden lo adapta */}
           <div
             aria-hidden
             style={{
               position: "absolute",
-              right: -6,
-              bottom: -6,
+              right: -10,
+              bottom: -10,
               color: it.accent,
-              opacity: 0.12,
+              opacity: 0.18,
               pointerEvents: "none",
               lineHeight: 1,
             }}
           >
-            <it.icon size={42} strokeWidth={1.4} />
+            <it.icon size={72} strokeWidth={1.2} />
           </div>
           <div
             style={{

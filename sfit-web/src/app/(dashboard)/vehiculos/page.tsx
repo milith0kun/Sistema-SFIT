@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, cloneElement } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Car, Check, Route, Wrench, Search, Download, Plus, QrCode } from "lucide-react";
@@ -119,8 +119,8 @@ export default function VehiculosPage() {
   if (!user) return null;
 
   return (
-    <div>
-      <PageHeader kicker="Operación · RF-06" title="Vehículos y QR" subtitle="Registro de unidades, generación de QR firmado con HMAC-SHA256 y verificación offline."
+    <div className="flex flex-col gap-3 animate-fade-in">
+      <PageHeader kicker="Operación · RF-06" title="Vehículos y QR"
         action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><QrCode size={16} />Escanear QR</button><Link href="/vehiculos/nuevo"><button style={btnInk}><Plus size={16} />Nuevo vehículo</button></Link></div>} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, margin: "24px 0 18px" }}>
@@ -130,7 +130,10 @@ export default function VehiculosPage() {
           { ico: <Route size={18} />, lbl: "En ruta", val: statusCounts.en_ruta, bg: INFOBG, ic: INFO },
           { ico: <Wrench size={18} />, lbl: "Mantenimiento", val: statusCounts.en_mantenimiento, bg: RIESGOBG, ic: RIESGO },
         ].map((m, i) => (
-          <div key={i} style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, padding: 18 }}>
+          <div key={i} style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden" }}>
+            <div aria-hidden style={{ position: "absolute", right: -8, bottom: -8, color: m.ic, opacity: 0.16, pointerEvents: "none", lineHeight: 0 }}>
+              {cloneElement(m.ico as React.ReactElement<{ size?: number; strokeWidth?: number }>, { size: 80, strokeWidth: 1.4 })}
+            </div>
             <div style={{ width: 36, height: 36, borderRadius: 9, background: m.bg, color: m.ic, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>{m.ico}</div>
             <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: INK5 }}>{m.lbl}</div>
             <div style={{ fontSize: "2rem", fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.05, marginTop: 6, color: INK9 }}>{loading ? "—" : m.val}</div>

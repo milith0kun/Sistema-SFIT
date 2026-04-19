@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, cloneElement } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, FileText, Check, X, Download, Plus, Filter, Mail, Phone, Bell } from "lucide-react";
@@ -218,8 +218,8 @@ export default function SancionesPage() {
   const canCreate = ["admin_municipal", "fiscal", "super_admin"].includes(user.role);
 
   return (
-    <div>
-      <PageHeader kicker="Ciudadanía · RF-13" title="Sanciones" subtitle="Emisión, notificación y flujo de apelación. El cobro es externo al sistema."
+    <div className="flex flex-col gap-3 animate-fade-in">
+      <PageHeader kicker="Ciudadanía · RF-13" title="Sanciones"
         action={<div style={{ display: "flex", gap: 8 }}>
           <button style={btnOut}><Download size={16} />Exportar CSV</button>
           {canCreate && <button style={btnInk} onClick={openModal}><Plus size={16} />Emitir sanción</button>}
@@ -232,7 +232,10 @@ export default function SancionesPage() {
           { ico: <Check size={18} />, lbl: "Confirmadas", val: confirmadas, bg: NOBG, ic: NO },
           { ico: <X size={18} />, lbl: "Anuladas", val: anuladas, bg: INK1, ic: INK5 },
         ].map((m, i) => (
-          <div key={i} style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, padding: 18 }}>
+          <div key={i} style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden" }}>
+            <div aria-hidden style={{ position: "absolute", right: -8, bottom: -8, color: m.ic, opacity: 0.16, pointerEvents: "none", lineHeight: 0 }}>
+              {cloneElement(m.ico as React.ReactElement<{ size?: number; strokeWidth?: number }>, { size: 80, strokeWidth: 1.4 })}
+            </div>
             <div style={{ width: 36, height: 36, borderRadius: 9, background: m.bg, color: m.ic, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>{m.ico}</div>
             <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: INK5 }}>{m.lbl}</div>
             <div style={{ fontSize: "2rem", fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.05, marginTop: 6, color: INK9 }}>{loading ? "—" : m.val}</div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, cloneElement } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Shield, Check, AlertTriangle, X, QrCode, Plus, Filter, Sparkles, Download } from "lucide-react";
@@ -91,8 +91,8 @@ export default function InspeccionesPage() {
   if (!user) return null;
 
   return (
-    <div>
-      <PageHeader kicker="Operación · RF-11" title="Inspecciones" subtitle="Actas digitales por tipo de vehículo, evidencia fotográfica y código de verificación en PDF."
+    <div className="flex flex-col gap-3 animate-fade-in">
+      <PageHeader kicker="Operación · RF-11" title="Inspecciones"
         action={
           <div style={{ display: "flex", gap: 8 }}>
             <button
@@ -118,7 +118,10 @@ export default function InspeccionesPage() {
           { ico: <AlertTriangle size={18} />, lbl: "Observadas", val: observadas, bg: RIESGOBG, ic: RIESGO },
           { ico: <X size={18} />, lbl: "Rechazadas", val: rechazadas, bg: NOBG, ic: NO },
         ].map((m, i) => (
-          <div key={i} style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, padding: 18 }}>
+          <div key={i} style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden" }}>
+            <div aria-hidden style={{ position: "absolute", right: -8, bottom: -8, color: m.ic, opacity: 0.16, pointerEvents: "none", lineHeight: 0 }}>
+              {cloneElement(m.ico as React.ReactElement<{ size?: number; strokeWidth?: number }>, { size: 80, strokeWidth: 1.4 })}
+            </div>
             <div style={{ width: 36, height: 36, borderRadius: 9, background: m.bg, color: m.ic, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>{m.ico}</div>
             <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: INK5 }}>{m.lbl}</div>
             <div style={{ fontSize: "2rem", fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.05, marginTop: 6, color: INK9 }}>{loading ? "—" : m.val}</div>

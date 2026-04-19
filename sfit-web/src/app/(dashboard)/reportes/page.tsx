@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, cloneElement } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Flag, Eye, Check, X, Download, Sparkles, Camera } from "lucide-react";
@@ -92,8 +92,8 @@ export default function ReportesPage() {
   const TAB_LABELS: Record<ReportStatus, string> = { pendiente: "Pendientes", revision: "En revisión", validado: "Validados", rechazado: "Rechazados" };
 
   return (
-    <div>
-      <PageHeader kicker="Ciudadanía · RF-12" title="Reportes ciudadanos" subtitle="Reportes filtrados por cinco capas anti-fraude. Puntaje de veracidad calculado por IA."
+    <div className="flex flex-col gap-3 animate-fade-in">
+      <PageHeader kicker="Ciudadanía · RF-12" title="Reportes ciudadanos"
         action={
           <div style={{ display: "flex", gap: 8 }}>
             <button
@@ -117,7 +117,10 @@ export default function ReportesPage() {
           { ico: <Check size={18} />, lbl: "Validados (mes)", val: counts.validado ?? 0, bg: APTOBG, ic: APTO },
           { ico: <X size={18} />, lbl: "Rechazados", val: counts.rechazado ?? 0, bg: NOBG, ic: NO },
         ].map((m, i) => (
-          <div key={i} style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, padding: 18 }}>
+          <div key={i} style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden" }}>
+            <div aria-hidden style={{ position: "absolute", right: -8, bottom: -8, color: m.ic, opacity: 0.16, pointerEvents: "none", lineHeight: 0 }}>
+              {cloneElement(m.ico as React.ReactElement<{ size?: number; strokeWidth?: number }>, { size: 80, strokeWidth: 1.4 })}
+            </div>
             <div style={{ width: 36, height: 36, borderRadius: 9, background: m.bg, color: m.ic, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>{m.ico}</div>
             <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: INK5 }}>{m.lbl}</div>
             <div style={{ fontSize: "2rem", fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.05, marginTop: 6, color: INK9 }}>{loading ? "—" : m.val}</div>

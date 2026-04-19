@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, cloneElement } from "react";
 import { useRouter } from "next/navigation";
 import { Gift, Coins, Users, ShoppingBag, Plus, X, ChevronDown } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -335,11 +335,10 @@ export default function RecompensasPage() {
   if (!user) return null;
 
   return (
-    <div>
+    <div className="flex flex-col gap-3 animate-fade-in">
       <PageHeader
         kicker="Ciudadanía · RF-16"
         title="Recompensas"
-        subtitle="Gestión del catálogo de recompensas canjeables con SFITCoins por los ciudadanos participantes."
         action={
           <button style={btnGold} onClick={() => setShowModal(true)}>
             <Plus size={16} />
@@ -356,7 +355,10 @@ export default function RecompensasPage() {
           { ico: <Users size={18} />,       lbl: "Usuarios con coins",     val: kpi?.usuariosConCoins ?? "—",     bg: APTO_BG, ic: APTO_C },
           { ico: <Gift size={18} />,        lbl: "Recompensas activas",    val: loading ? "—" : activas,          bg: GOLD_BG, ic: GOLD_C },
         ].map((m, i) => (
-          <div key={i} style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, padding: 18 }}>
+          <div key={i} style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden" }}>
+            <div aria-hidden style={{ position: "absolute", right: -8, bottom: -8, color: m.ic, opacity: 0.16, pointerEvents: "none", lineHeight: 0 }}>
+              {cloneElement(m.ico as React.ReactElement<{ size?: number; strokeWidth?: number }>, { size: 80, strokeWidth: 1.4 })}
+            </div>
             <div style={{ width: 36, height: 36, borderRadius: 9, background: m.bg, color: m.ic, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
               {m.ico}
             </div>

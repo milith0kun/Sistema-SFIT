@@ -79,8 +79,8 @@ export default function RutasPage() {
   if (!user) return null;
 
   return (
-    <div>
-      <PageHeader kicker="Operación · RF-09" title="Rutas y zonas" subtitle="Rutas fijas para transporte público y polígonos de operación para vehículos municipales."
+    <div className="flex flex-col gap-3 animate-fade-in">
+      <PageHeader kicker="Operación · RF-09" title="Rutas y zonas"
         action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Exportar</button><Link href="/rutas/nueva"><button style={btnInk}><Plus size={16} />Nueva ruta</button></Link></div>} />
 
       <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${INK2}`, marginBottom: 18, marginTop: 24 }}>

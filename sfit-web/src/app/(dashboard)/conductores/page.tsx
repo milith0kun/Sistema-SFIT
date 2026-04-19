@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, cloneElement } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Users, Check, Gauge, AlertTriangle, Search, Filter, Download, Plus, Phone, Car, Eye, Pencil } from "lucide-react";
@@ -88,8 +88,8 @@ export default function ConductoresPage() {
   if (!user) return null;
 
   return (
-    <div>
-      <PageHeader kicker="Operación · RF-05" title="Conductores" subtitle="Estado de fatiga en tiempo real, historial y habilitación calculada por FatigueEngine."
+    <div className="flex flex-col gap-3 animate-fade-in">
+      <PageHeader kicker="Operación · RF-05" title="Conductores"
         action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Exportar CSV</button><Link href="/conductores/nuevo"><button style={btnInk}><Plus size={16} />Nuevo conductor</button></Link></div>} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, margin: "24px 0 18px" }}>
@@ -99,7 +99,10 @@ export default function ConductoresPage() {
           { ico: <Gauge size={18} />, lbl: "En riesgo", val: counts.riesgo ?? 0, ico_bg: RIESGOBG, ico_c: RIESGO },
           { ico: <AlertTriangle size={18} />, lbl: "NO APTOS", val: counts.no_apto ?? 0, ico_bg: NOBG, ico_c: NO },
         ].map((m, i) => (
-          <div key={i} style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, padding: 18 }}>
+          <div key={i} style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden" }}>
+            <div aria-hidden style={{ position: "absolute", right: -8, bottom: -8, color: m.ico_c, opacity: 0.16, pointerEvents: "none", lineHeight: 0 }}>
+              {cloneElement(m.ico as React.ReactElement<{ size?: number; strokeWidth?: number }>, { size: 80, strokeWidth: 1.4 })}
+            </div>
             <div style={{ width: 36, height: 36, borderRadius: 9, background: m.ico_bg, color: m.ico_c, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>{m.ico}</div>
             <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: INK5 }}>{m.lbl}</div>
             <div style={{ fontSize: "2rem", fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.05, marginTop: 6, color: INK9 }}>{loading ? "—" : m.val}</div>
