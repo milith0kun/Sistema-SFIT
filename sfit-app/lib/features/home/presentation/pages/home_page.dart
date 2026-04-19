@@ -10,6 +10,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../fleet/presentation/pages/fleet_page.dart';
 import '../../../inspection/presentation/pages/inspections_list_page.dart';
 import '../../../operator/presentation/pages/conductores_tab_page.dart';
+import '../../../operator/presentation/pages/fleet_analytics_page.dart';
 import '../../../operator/presentation/pages/vehiculos_tab_page.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 import '../../../reports/presentation/pages/reports_review_page.dart';
@@ -237,6 +238,12 @@ class _HomePageState extends ConsumerState<HomePage> {
             icon: Icons.directions_car_outlined,
             iconFilled: Icons.directions_car,
             page: VehiculosTabPage(),
+          ),
+          _Tab(
+            label: 'Análisis',
+            icon: Icons.bar_chart_outlined,
+            iconFilled: Icons.bar_chart,
+            page: FleetAnalyticsPage(),
           ),
           _Tab(
             label: 'Perfil',

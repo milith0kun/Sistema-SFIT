@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/sfit_loading.dart';
 import '../../data/datasources/operator_api_service.dart';
 import '../../data/models/vehicle_model.dart';
 
@@ -135,8 +136,7 @@ class _VehiculosTabPageState extends ConsumerState<VehiculosTabPage> {
           // ── Contenido ────────────────────────────────────────────
           Expanded(
             child: _loading
-                ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.gold))
+                ? const SfitLoading()
                 : _error != null
                     ? _ErrorState(message: _error!, onRetry: _load)
                     : _filtered.isEmpty
@@ -154,6 +154,13 @@ class _VehiculosTabPageState extends ConsumerState<VehiculosTabPage> {
                                     item: _filtered[i],
                                     onTap: () => context.push(
                                         '/inspecciones?vehicleId=${_filtered[i].id}'),
+                                    onQrTap: () => context.push(
+                                      '/vehiculo-qr',
+                                      extra: {
+                                        'id':    _filtered[i].id,
+                                        'plate': _filtered[i].plate,
+                                      },
+                                    ),
                                   ),
                             ),
                           ),
@@ -169,7 +176,8 @@ class _VehiculosTabPageState extends ConsumerState<VehiculosTabPage> {
 class _VehicleCard extends StatelessWidget {
   final VehicleModel item;
   final VoidCallback? onTap;
-  const _VehicleCard({required this.item, this.onTap});
+  final VoidCallback? onQrTap;
+  const _VehicleCard({required this.item, this.onTap, this.onQrTap});
 
   @override
   Widget build(BuildContext context) {
@@ -258,6 +266,23 @@ class _VehicleCard extends StatelessWidget {
               ),
             ),
           ),
+          // Botón Ver QR
+          if (onQrTap != null) ...[
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: onQrTap,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.goldBg,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.goldBorder),
+                ),
+                child: const Icon(Icons.qr_code_2_outlined,
+                    size: 16, color: AppColors.goldDark),
+              ),
+            ),
+          ],
           // Indicador de navegación
           const SizedBox(width: 4),
           const Icon(Icons.chevron_right, size: 18, color: AppColors.ink3),

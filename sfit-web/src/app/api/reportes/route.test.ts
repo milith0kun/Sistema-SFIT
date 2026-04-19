@@ -104,7 +104,12 @@ describe("POST /api/reportes", () => {
   });
 
   it("retorna 422 si la descripción es demasiado corta", async () => {
-    const res = await POST(req("POST", token(ROLES.CIUDADANO), { category: "X", description: "corto" }));
+    const res = await POST(req("POST", token(ROLES.CIUDADANO), { category: "Conductor agresivo", description: "corto" }));
+    expect(res.status).toBe(422);
+  });
+
+  it("retorna 422 si la categoría no es un valor válido", async () => {
+    const res = await POST(req("POST", token(ROLES.CIUDADANO), { category: "Categoria inexistente", description: "Descripción con suficientes caracteres para pasar la validación." }));
     expect(res.status).toBe(422);
   });
 

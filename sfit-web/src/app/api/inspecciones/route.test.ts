@@ -110,6 +110,16 @@ describe("POST /api/inspecciones", () => {
     } as never);
   });
 
+  it("retorna 401 sin token", async () => {
+    const res = await POST(new NextRequest("http://localhost/api/inspecciones", { method: "POST" }));
+    expect(res.status).toBe(401);
+  });
+
+  it("retorna 403 para ciudadanos (no pueden crear inspecciones)", async () => {
+    const res = await POST(req("POST", token(ROLES.CIUDADANO), validBody));
+    expect(res.status).toBe(403);
+  });
+
   it("retorna 403 para operadores (no pueden crear inspecciones)", async () => {
     const res = await POST(req("POST", token(ROLES.OPERADOR), validBody));
     expect(res.status).toBe(403);
@@ -117,6 +127,26 @@ describe("POST /api/inspecciones", () => {
 
   it("retorna 422 si faltan campos requeridos", async () => {
     const res = await POST(req("POST", token(), { vehicleId: VEH_ID }));
+    expect(res.status).toBe(422);
+  });
+
+  it("retorna 422 si score está fuera de rango (>100)", async () => {
+    const res = await POST(req("POST", token(), { ...validBody, score: 150 }));
+    expect(res.status).toBe(422);
+  });
+
+  it("retorna 422 si score está fuera de rango (<0)", async () => {
+    const res = await POST(req("POST", token(), { ...validBody, score: -5 }));
+    expect(res.status).toBe(422);
+  });
+
+  it("retorna 422 si result no es un valor válido", async () => {
+    const res = await POST(req("POST", token(), { ...validBody, result: "invalido" }));
+    expect(res.status).toBe(422);
+  });
+
+  it("retorna 422 si checklistResults está vacío", async () => {
+    const res = await POST(req("POST", token(), { ...validBody, checklistResults: [] }));
     expect(res.status).toBe(422);
   });
 

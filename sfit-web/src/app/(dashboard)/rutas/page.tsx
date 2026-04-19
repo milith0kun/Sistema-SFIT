@@ -100,7 +100,7 @@ export default function RutasPage() {
           : visible.length === 0 ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Sin {tab === "ruta" ? "rutas" : "zonas"} registradas</div>
           : (
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-              <thead><tr>{["Código", tab === "ruta" ? "Ruta" : "Zona", tab === "ruta" ? "Paradas" : "Área", "Vehíc.", "Estado"].map((h,i) => (
+              <thead><tr>{["Código", tab === "ruta" ? "Ruta" : "Zona", tab === "ruta" ? "Paradas" : "Área", "Vehíc.", "Estado", ""].map((h,i) => (
                 <th key={i} style={{ textAlign: "left", padding: "12px 16px", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, background: "#FAFAFA", borderBottom: `1px solid ${INK2}` }}>{h}</th>
               ))}</tr></thead>
               <tbody>{visible.map(r => (
@@ -113,6 +113,9 @@ export default function RutasPage() {
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 999, fontSize: "0.6875rem", fontWeight: 700, textTransform: "uppercase", background: r.status === "activa" ? APTOBG : NOBG, color: r.status === "activa" ? APTO : NO, border: `1px solid ${r.status === "activa" ? APTOBD : NOBD}` }}>
                       <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block" }} />{r.status === "activa" ? "ACTIVA" : "SUSPENDIDA"}
                     </span>
+                  </td>
+                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }} onClick={e => e.stopPropagation()}>
+                    <Link href={`/rutas/${r.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
                   </td>
                 </tr>
               ))}</tbody>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Flag, Eye, Check, X, Download, Sparkles, Camera } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -141,7 +142,7 @@ export default function ReportesPage() {
           : items.length === 0 ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Sin reportes {TAB_LABELS[tab].toLowerCase()}</div>
           : (
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-              <thead><tr>{["Reporte","Categoría","Veracidad"].map((h,i) => (
+              <thead><tr>{["Reporte","Categoría","Veracidad",""].map((h,i) => (
                 <th key={i} style={{ textAlign: "left", padding: "12px 16px", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, background: "#FAFAFA", borderBottom: `1px solid ${INK2}` }}>{h}</th>
               ))}</tr></thead>
               <tbody>{items.map((r, i) => (
@@ -162,6 +163,9 @@ export default function ReportesPage() {
                     <div style={{ height: 4, background: INK1, borderRadius: 999, marginTop: 4, overflow: "hidden" }}>
                       <span style={{ display: "block", height: "100%", background: r.fraudScore >= 80 ? APTO : r.fraudScore >= 60 ? RIESGO : NO, width: `${r.fraudScore}%` }} />
                     </div>
+                  </td>
+                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }} onClick={e => e.stopPropagation()}>
+                    <Link href={`/reportes/${r.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
                   </td>
                 </tr>
               ))}</tbody>

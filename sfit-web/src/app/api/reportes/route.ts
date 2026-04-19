@@ -9,14 +9,42 @@ import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { awardCoins } from "@/lib/coins/awardCoins";
 
+/**
+ * Categorías válidas de reporte ciudadano (RF-14).
+ * Estas etiquetas coinciden con las usadas en la app móvil y el dashboard.
+ */
+const REPORT_CATEGORIES = [
+  "Exceso de velocidad",
+  "Conductor agresivo",
+  "Vehículo en mal estado",
+  "Falta de mantenimiento",
+  "Incumplimiento de ruta",
+  "Cobro indebido",
+  "Conducción peligrosa",
+  "Contaminación ambiental",
+  "Falta de señalización",
+  "Otro",
+] as const;
+
+const LocationSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  address: z.string().max(300).optional(),
+});
+
 const CreateSchema = z.object({
   municipalityId: z.string().refine(isValidObjectId).optional(),
   vehicleId: z.string().refine(isValidObjectId).optional(),
-  category: z.string().min(2).max(100),
+  category: z.enum(REPORT_CATEGORIES, {
+    errorMap: () => ({ message: `Categoría inválida. Valores permitidos: ${REPORT_CATEGORIES.join(", ")}` }),
+  }),
   vehicleTypeKey: z.string().optional(),
-  description: z.string().min(10).max(2000),
+  description: z.string()
+    .min(10, "La descripción debe tener al menos 10 caracteres")
+    .max(2000, "La descripción no puede superar los 2000 caracteres"),
   evidenceUrl: z.string().url().optional(),
   fraudScore: z.number().min(0).max(100).optional(),
+  location: LocationSchema.optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -137,6 +165,7 @@ export async function POST(request: NextRequest) {
       vehicleTypeKey: parsed.data.vehicleTypeKey,
       description: parsed.data.description,
       evidenceUrl: parsed.data.evidenceUrl,
+      location: parsed.data.location,
       fraudScore: parsed.data.fraudScore ?? 60,
       fraudLayers,
       status: "pendiente",

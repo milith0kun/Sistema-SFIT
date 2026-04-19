@@ -27,8 +27,11 @@ export async function GET(request: NextRequest) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }
 
-  const { municipalityId } = auth.session;
-  if (!municipalityId) {
+  const { municipalityId, role } = auth.session;
+  // super_admin y admin_provincial no tienen municipalityId — devuelven totales globales
+  const isSuperScope =
+    role === ROLES.SUPER_ADMIN || role === ROLES.ADMIN_PROVINCIAL;
+  if (!municipalityId && !isSuperScope) {
     return apiError("Sin municipalidad asignada", 400);
   }
 
@@ -40,25 +43,28 @@ export async function GET(request: NextRequest) {
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
+    // Para super_admin / admin_provincial sin municipio: totales globales
+    const muniFilter = isSuperScope ? {} : { municipalityId };
+
     const [
       totalVehicles,
       activeVehicles,
       vehiclesEnRuta,
       activeDrivers,
     ] = await Promise.all([
-      Vehicle.countDocuments({ municipalityId, active: true }),
+      Vehicle.countDocuments({ ...muniFilter, active: true }),
       Vehicle.countDocuments({
-        municipalityId,
+        ...muniFilter,
         active: true,
         status: { $in: [VEHICLE_STATUS.DISPONIBLE, VEHICLE_STATUS.EN_RUTA] },
       }),
       Vehicle.countDocuments({
-        municipalityId,
+        ...muniFilter,
         active: true,
         status: VEHICLE_STATUS.EN_RUTA,
       }),
       Driver.countDocuments({
-        municipalityId,
+        ...muniFilter,
         active: true,
         status: DRIVER_STATUS.APTO,
       }),

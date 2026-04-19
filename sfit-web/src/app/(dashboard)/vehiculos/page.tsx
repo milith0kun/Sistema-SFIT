@@ -158,7 +158,7 @@ export default function VehiculosPage() {
           : items.length === 0 ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Sin vehículos registrados</div>
           : (
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-              <thead><tr>{["Placa","Vehículo","Empresa","Estado","Rep."].map((h,i) => (
+              <thead><tr>{["Placa","Vehículo","Empresa","Estado","Rep.",""].map((h,i) => (
                 <th key={i} style={{ textAlign: "left", padding: "12px 16px", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, background: "#FAFAFA", borderBottom: `1px solid ${INK2}` }}>{h}</th>
               ))}</tr></thead>
               <tbody>{items.map(v => (
@@ -168,6 +168,9 @@ export default function VehiculosPage() {
                   <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><div style={{ fontWeight: 600, fontSize: "0.875rem" }}>{v.companyName ?? "—"}</div><div style={{ fontSize: "0.75rem", color: INK5 }}>{v.currentDriverName ?? "Sin conductor"}</div></td>
                   <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><StateBadge s={v.status} /></td>
                   <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><span style={{ fontWeight: 700 }}>{v.reputationScore}</span></td>
+                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }} onClick={e => e.stopPropagation()}>
+                    <Link href={`/vehiculos/${v.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
+                  </td>
                 </tr>
               ))}</tbody>
             </table>

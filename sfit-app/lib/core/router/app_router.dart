@@ -21,6 +21,7 @@ import '../../features/qr_scanner/presentation/pages/qr_scanner_page.dart';
 import '../../features/splash/presentation/pages/splash_page.dart';
 import '../../features/trips/presentation/pages/trip_checkin_page.dart';
 import '../../features/trips/presentation/pages/trip_checkout_page.dart';
+import '../../features/operator/presentation/pages/vehicle_qr_page.dart';
 import '../../features/vista_publica/presentation/pages/vehicle_public_page.dart';
 
 part 'app_router.g.dart';
@@ -158,6 +159,18 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: '/notificaciones',
         builder: (context, state) => const NotificationsPage(),
+      ),
+
+      // ── QR de vehículo (operador) ─────────────────────────────
+      GoRoute(
+        path: '/vehiculo-qr',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return VehicleQrPage(
+            vehicleId: extra['id'] as String,
+            plate: extra['plate'] as String,
+          );
+        },
       ),
 
       // ── Rutas públicas (accesibles sin auth) ───────────────────

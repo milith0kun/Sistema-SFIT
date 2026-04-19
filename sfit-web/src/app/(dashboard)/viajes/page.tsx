@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Calendar, Route, Check, Clock, Search, Filter, Download, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -114,7 +115,7 @@ export default function ViajesPage() {
         : items.length === 0 ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Sin viajes en este período</div>
         : (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-            <thead><tr>{["ID","Vehículo","Conductor","Ruta/Zona","Inicio","Fin","Km","Pasaj.","Estado"].map((h,i) => (
+            <thead><tr>{["ID","Vehículo","Conductor","Ruta/Zona","Inicio","Fin","Km","Pasaj.","Estado",""].map((h,i) => (
               <th key={i} style={{ textAlign: "left", padding: "12px 16px", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, background: "#FAFAFA", borderBottom: `1px solid ${INK2}` }}>{h}</th>
             ))}</tr></thead>
             <tbody>{items.map(t => (
@@ -128,6 +129,9 @@ export default function ViajesPage() {
                 <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}`, fontVariantNumeric: "tabular-nums" }}>{t.km}</td>
                 <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}`, fontVariantNumeric: "tabular-nums" }}>{t.passengers || "—"}</td>
                 <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><StatusBadge s={t.status} /></td>
+                <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}>
+                  <Link href={`/viajes/${t.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
+                </td>
               </tr>
             ))}</tbody>
           </table>

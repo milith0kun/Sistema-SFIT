@@ -8,6 +8,8 @@ import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 
+const SANCTION_STATUS_VALUES = ["emitida", "apelada", "resuelta", "anulada"] as const;
+
 const CreateSchema = z.object({
   municipalityId: z.string().refine(isValidObjectId).optional(),
   vehicleId: z.string().refine(isValidObjectId),
@@ -16,8 +18,11 @@ const CreateSchema = z.object({
   reportId: z.string().refine(isValidObjectId).optional(),
   inspectionId: z.string().refine(isValidObjectId).optional(),
   faultType: z.string().min(2).max(200),
-  amountSoles: z.number().min(0),
+  // amountSoles must be a positive value (> 0) when provided
+  amountSoles: z.number().positive("El monto debe ser un valor positivo mayor a 0"),
   amountUIT: z.string().min(1).max(30),
+  // Optional explicit status override — defaults to "emitida" in the handler
+  status: z.enum(SANCTION_STATUS_VALUES).optional(),
 });
 
 export async function GET(request: NextRequest) {

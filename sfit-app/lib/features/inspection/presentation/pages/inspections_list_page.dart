@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/sfit_loading.dart';
 import '../../data/datasources/inspection_api_service.dart';
 import '../../data/models/inspection_model.dart';
 
@@ -211,7 +212,7 @@ class _InspectionsListPageState extends ConsumerState<InspectionsListPage> {
           // ── Lista ─────────────────────────────────────────────
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
+                ? const _InspectionsSkeleton()
                 : _error != null
                     ? _ErrorState(message: _error!, onRetry: _load)
                     : _items.isEmpty
@@ -247,10 +248,9 @@ class _DailySummaryStrip extends StatelessWidget {
         padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
         child: SizedBox(
           height: 62,
-          child: Center(child: SizedBox(
-            width: 18, height: 18,
-            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gold),
-          )),
+          child: Center(
+            child: SfitLoading(size: 32),
+          ),
         ),
       );
     }
@@ -546,6 +546,147 @@ class _ErrorState extends StatelessWidget {
                 style: AppTheme.inter(fontSize: 13, color: AppColors.ink6)),
             const SizedBox(height: 14),
             TextButton(onPressed: onRetry, child: const Text('Reintentar')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Skeleton de carga — shimmer básico con TweenAnimationBuilder ──────────────
+
+/// Muestra 4 tarjetas fantasma mientras las inspecciones se cargan.
+/// No requiere dependencia shimmer — usa TweenAnimationBuilder con opacidad
+/// alternante entre 0.3 y 0.7.
+class _InspectionsSkeleton extends StatelessWidget {
+  const _InspectionsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 4,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (_, i) => TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.3, end: 0.7),
+        duration: Duration(milliseconds: 900 + i * 100),
+        curve: Curves.easeInOut,
+        builder: (context, opacity, child) {
+          return Opacity(opacity: opacity, child: child);
+        },
+        onEnd: null, // TweenAnimationBuilder no hace loop nativo;
+        // el efecto se reinicia al rebuild del widget.
+        child: _SkeletonCard(),
+      ),
+    );
+  }
+}
+
+class _SkeletonCard extends StatefulWidget {
+  const _SkeletonCard();
+
+  @override
+  State<_SkeletonCard> createState() => _SkeletonCardState();
+}
+
+class _SkeletonCardState extends State<_SkeletonCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _opacity = Tween<double>(begin: 0.3, end: 0.7).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _opacity,
+      builder: (context, child) => Opacity(opacity: _opacity.value, child: child),
+      child: Container(
+        height: 58,
+        decoration: BoxDecoration(
+          color: AppColors.ink2,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            // Score placeholder
+            Container(
+              width: 36,
+              height: 34,
+              decoration: BoxDecoration(
+                color: AppColors.ink3,
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Text placeholder
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    height: 12,
+                    width: 100,
+                    decoration: BoxDecoration(
+                      color: AppColors.ink3,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    height: 10,
+                    width: 70,
+                    decoration: BoxDecoration(
+                      color: AppColors.ink3,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Right placeholder
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  height: 11,
+                  width: 55,
+                  decoration: BoxDecoration(
+                    color: AppColors.ink3,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  height: 10,
+                  width: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.ink3,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),

@@ -5,6 +5,8 @@ import { Province } from "@/models/Province";
 import { Municipality } from "@/models/Municipality";
 import { Company } from "@/models/Company";
 import { VehicleType } from "@/models/VehicleType";
+import { Sanction } from "@/models/Sanction";
+import { CitizenReport } from "@/models/CitizenReport";
 import {
   apiResponse,
   apiError,
@@ -15,14 +17,15 @@ import { requireRole } from "@/lib/auth/guard";
 import { ROLES, USER_STATUS } from "@/lib/constants";
 
 /**
- * RF-02-07: Dashboard global del Super Admin.
+ * RF-02-07: Dashboard global del Super Admin / Admin Provincial / Admin Municipal.
  * Devuelve métricas agregadas de toda la plataforma.
- *
- * Nota: `sanctionsThisMonth` y `reportsPending` son placeholders — aún
- * no existen los modelos de Sanción / Reporte ciudadano (RF-12 / RF-13).
  */
 export async function GET(request: NextRequest) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN]);
+  const auth = requireRole(request, [
+    ROLES.SUPER_ADMIN,
+    ROLES.ADMIN_PROVINCIAL,
+    ROLES.ADMIN_MUNICIPAL,
+  ]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }
@@ -40,6 +43,26 @@ export async function GET(request: NextRequest) {
       ROLES.CIUDADANO,
     ];
 
+    // Rango del mes en curso
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    // Para admin_provincial y admin_municipal, filtrar por su scope
+    const sanctionFilter =
+      auth.session.role === ROLES.SUPER_ADMIN
+        ? { createdAt: { $gte: monthStart, $lte: monthEnd } }
+        : auth.session.municipalityId
+        ? { municipalityId: auth.session.municipalityId, createdAt: { $gte: monthStart, $lte: monthEnd } }
+        : { createdAt: { $gte: monthStart, $lte: monthEnd } };
+
+    const reportFilter =
+      auth.session.role === ROLES.SUPER_ADMIN
+        ? { status: { $in: ["pendiente", "revision"] } }
+        : auth.session.municipalityId
+        ? { municipalityId: auth.session.municipalityId, status: { $in: ["pendiente", "revision"] } }
+        : { status: { $in: ["pendiente", "revision"] } };
+
     const [
       provincesCount,
       municipalitiesCount,
@@ -47,6 +70,8 @@ export async function GET(request: NextRequest) {
       usersPendingApproval,
       companiesCount,
       vehicleTypesCount,
+      sanctionsThisMonth,
+      reportsPending,
       ...roleCounts
     ] = await Promise.all([
       Province.countDocuments({}),
@@ -55,6 +80,8 @@ export async function GET(request: NextRequest) {
       User.countDocuments({ status: USER_STATUS.PENDIENTE }),
       Company.countDocuments({}),
       VehicleType.countDocuments({}),
+      Sanction.countDocuments(sanctionFilter),
+      CitizenReport.countDocuments(reportFilter),
       ...roleList.map((r) => User.countDocuments({ role: r })),
     ]);
 
@@ -74,9 +101,8 @@ export async function GET(request: NextRequest) {
       usersPendingApproval,
       companiesCount,
       vehicleTypesCount,
-      // TODO: poblar cuando existan los modelos de Sanción y Reporte.
-      sanctionsThisMonth: 0,
-      reportsPending: 0,
+      sanctionsThisMonth,
+      reportsPending,
     });
   } catch (error) {
     console.error("[admin/stats/global GET]", error);

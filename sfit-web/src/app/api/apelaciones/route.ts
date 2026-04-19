@@ -10,7 +10,7 @@ import { ROLES } from "@/lib/constants";
 
 const CreateSchema = z.object({
   inspectionId: z.string().refine(isValidObjectId, { message: "inspectionId inválido" }),
-  reason: z.string().min(10, "El motivo debe tener al menos 10 caracteres").max(2000),
+  reason: z.string().min(20, "El motivo debe tener al menos 20 caracteres").max(2000),
   evidence: z.array(z.string().url("URL de evidencia inválida")).optional(),
 });
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, FileText, Check, X, Download, Plus, Filter, Mail, Phone, Bell } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -259,7 +260,7 @@ export default function SancionesPage() {
           : items.length === 0 ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Sin sanciones registradas</div>
           : (
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-              <thead><tr>{["Sanción","Infracción","Monto","Estado"].map((h,i) => (
+              <thead><tr>{["Sanción","Infracción","Monto","Estado",""].map((h,i) => (
                 <th key={i} style={{ textAlign: "left", padding: "12px 16px", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, background: "#FAFAFA", borderBottom: `1px solid ${INK2}` }}>{h}</th>
               ))}</tr></thead>
               <tbody>{items.map(s => (
@@ -280,6 +281,9 @@ export default function SancionesPage() {
                     <div style={{ fontSize: "0.75rem", color: INK5 }}>{s.amountUIT}</div>
                   </td>
                   <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><StatusBadge s={s.status} /></td>
+                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }} onClick={e => e.stopPropagation()}>
+                    <Link href={`/sanciones/${s.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
+                  </td>
                 </tr>
               ))}</tbody>
             </table>

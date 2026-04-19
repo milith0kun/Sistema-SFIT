@@ -27,8 +27,11 @@ export async function GET(request: NextRequest) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }
 
-  const { municipalityId } = auth.session;
-  if (!municipalityId) {
+  const { municipalityId, role } = auth.session;
+  // super_admin y admin_provincial no tienen municipalityId — devuelven totales globales
+  const isSuperScope =
+    role === ROLES.SUPER_ADMIN || role === ROLES.ADMIN_PROVINCIAL;
+  if (!municipalityId && !isSuperScope) {
     return apiError("Sin municipalidad asignada", 400);
   }
 
@@ -40,6 +43,9 @@ export async function GET(request: NextRequest) {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
+    // Para super_admin / admin_provincial sin municipio: totales globales
+    const muniFilter = isSuperScope ? {} : { municipalityId };
+
     const [
       inspectionsThisMonth,
       inspectionsPending,
@@ -47,19 +53,19 @@ export async function GET(request: NextRequest) {
       reportsNewThisMonth,
     ] = await Promise.all([
       Inspection.countDocuments({
-        municipalityId,
+        ...muniFilter,
         date: { $gte: monthStart, $lte: monthEnd },
       }),
       Inspection.countDocuments({
-        municipalityId,
+        ...muniFilter,
         result: "observada",
       }),
       CitizenReport.countDocuments({
-        municipalityId,
+        ...muniFilter,
         status: { $in: ["pendiente", "revision"] },
       }),
       CitizenReport.countDocuments({
-        municipalityId,
+        ...muniFilter,
         createdAt: { $gte: monthStart, $lte: monthEnd },
       }),
     ]);
