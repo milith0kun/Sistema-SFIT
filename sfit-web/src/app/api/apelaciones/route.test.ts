@@ -166,13 +166,13 @@ describe("GET /api/apelaciones", () => {
   it("listar apelaciones como operador solo ve las suyas", async () => {
     const operToken = signAccessToken({ userId: "op1", role: ROLES.OPERADOR, municipalityId: MUNI_ID });
     await GET(req("GET", operToken));
-    const callArg = vi.mocked(Apelacion.find).mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    const callArg = vi.mocked(Apelacion.find).mock.calls.at(-1)?.[0] as unknown as Record<string, unknown>;
     expect(callArg).toHaveProperty("submittedBy", "op1");
   });
 
   it("filtra por status=aprobada", async () => {
     await GET(req("GET", token(), undefined, "?status=aprobada"));
-    const callArg = vi.mocked(Apelacion.find).mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    const callArg = vi.mocked(Apelacion.find).mock.calls.at(-1)?.[0] as unknown as Record<string, unknown>;
     expect(callArg).toHaveProperty("status", "aprobada");
   });
 });
