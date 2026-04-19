@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/datasources/operator_api_service.dart';
@@ -149,8 +150,11 @@ class _VehiculosTabPageState extends ConsumerState<VehiculosTabPage> {
                               itemCount: _filtered.length,
                               separatorBuilder: (_, __) =>
                                   const SizedBox(height: 8),
-                              itemBuilder: (_, i) =>
-                                  _VehicleCard(item: _filtered[i]),
+                              itemBuilder: (_, i) => _VehicleCard(
+                                    item: _filtered[i],
+                                    onTap: () => context.push(
+                                        '/inspecciones?vehicleId=${_filtered[i].id}'),
+                                  ),
                             ),
                           ),
           ),
@@ -164,7 +168,8 @@ class _VehiculosTabPageState extends ConsumerState<VehiculosTabPage> {
 
 class _VehicleCard extends StatelessWidget {
   final VehicleModel item;
-  const _VehicleCard({required this.item});
+  final VoidCallback? onTap;
+  const _VehicleCard({required this.item, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -176,7 +181,10 @@ class _VehicleCard extends StatelessWidget {
       _                => (AppColors.noApto,  AppColors.noAptoBg, AppColors.noAptoBorder,  'FUERA SERVICIO'),
     };
 
-    return Container(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: AppColors.ink2),
@@ -250,7 +258,11 @@ class _VehicleCard extends StatelessWidget {
               ),
             ),
           ),
+          // Indicador de navegación
+          const SizedBox(width: 4),
+          const Icon(Icons.chevron_right, size: 18, color: AppColors.ink3),
         ],
+      ),
       ),
     );
   }

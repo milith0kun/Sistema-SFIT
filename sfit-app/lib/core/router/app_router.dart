@@ -8,9 +8,17 @@ import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/rejected_page.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/inspection/presentation/pages/inspection_detail_page.dart';
+import '../../features/inspection/presentation/pages/new_appeal_page.dart';
 import '../../features/inspection/presentation/pages/new_inspection_page.dart';
+import '../../features/inspection/presentation/pages/vehicle_inspections_page.dart';
+import '../../features/notifications/presentation/pages/notifications_page.dart';
+import '../../features/ocr/presentation/pages/plate_scanner_page.dart';
+import '../../features/profile/presentation/pages/change_password_page.dart';
 import '../../features/qr_scanner/presentation/pages/qr_scanner_page.dart';
 import '../../features/splash/presentation/pages/splash_page.dart';
+import '../../features/trips/presentation/pages/trip_checkin_page.dart';
+import '../../features/trips/presentation/pages/trip_checkout_page.dart';
 import '../../features/vista_publica/presentation/pages/vehicle_public_page.dart';
 
 part 'app_router.g.dart';
@@ -81,6 +89,66 @@ GoRouter router(Ref ref) {
             driverId: extra['driverId'] as String?,
           );
         },
+      ),
+
+      // ── Rutas de inspección ───────────────────────────────────
+      GoRoute(
+        path: '/inspecciones',
+        builder: (context, state) {
+          final vehicleId = state.uri.queryParameters['vehicleId']!;
+          return VehicleInspectionsPage(vehicleId: vehicleId);
+        },
+      ),
+      GoRoute(
+        path: '/inspeccion/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return InspectionDetailPage(inspectionId: id);
+        },
+      ),
+      GoRoute(
+        path: '/apelacion-nueva',
+        builder: (context, state) {
+          final inspectionId = state.uri.queryParameters['inspectionId']!;
+          return NewAppealPage(inspectionId: inspectionId);
+        },
+      ),
+
+      // ── Rutas de perfil ───────────────────────────────────────
+      GoRoute(
+        path: '/cambiar-password',
+        builder: (context, state) => const ChangePasswordPage(),
+      ),
+
+      // ── RF-17: OCR de placas vehiculares ──────────────────────
+      GoRoute(
+        path: '/ocr-placa',
+        builder: (context, state) => const PlateScannerPage(),
+      ),
+
+      // ── Turno de conductor ────────────────────────────────────
+      GoRoute(
+        path: '/viaje-checkin',
+        builder: (context, state) => const TripCheckinPage(),
+      ),
+      GoRoute(
+        path: '/viaje-checkout/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return TripCheckoutPage(
+            entryId: id,
+            vehiclePlate: extra['vehiclePlate'] as String? ?? '—',
+            departureTime: extra['departureTime'] as String? ?? '',
+            estimatedKm: extra['estimatedKm'] as double?,
+          );
+        },
+      ),
+
+      // ── Centro de notificaciones ──────────────────────────────
+      GoRoute(
+        path: '/notificaciones',
+        builder: (context, state) => const NotificationsPage(),
       ),
 
       // ── Rutas públicas (accesibles sin auth) ───────────────────

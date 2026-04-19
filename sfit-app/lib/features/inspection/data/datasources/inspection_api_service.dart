@@ -52,4 +52,20 @@ class InspectionApiService {
     final data = (resp.data as Map)['data'] as Map;
     return data['id'] as String;
   }
+
+  Future<InspectionModel> getInspectionById(String id) async {
+    final resp = await _dio.get('/inspecciones/$id');
+    final data = (resp.data as Map)['data'] as Map<String, dynamic>;
+    return InspectionModel.fromJson(data);
+  }
+
+  Future<void> createAppeal({
+    required String inspectionId,
+    required String reason,
+  }) async {
+    await _dio.post('/apelaciones', data: {
+      'inspectionId': inspectionId,
+      'reason': reason,
+    });
+  }
 }

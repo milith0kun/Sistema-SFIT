@@ -12,7 +12,8 @@ const CreateSchema = z.object({
   municipalityId: z.string().refine(isValidObjectId).optional(),
   vehicleId: z.string().refine(isValidObjectId),
   routeId: z.string().refine(isValidObjectId).optional(),
-  driverId: z.string().refine(isValidObjectId),
+  // driverId es opcional para conductores (se sobreescribe con su propio userId)
+  driverId: z.string().refine(isValidObjectId).optional(),
   date: z.string().optional(),
   departureTime: z.string().optional(),
   returnTime: z.string().optional(),
@@ -24,7 +25,8 @@ const CreateSchema = z.object({
 
 export async function GET(request: NextRequest) {
   const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL, ROLES.OPERADOR,
+    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL,
+    ROLES.FISCAL, ROLES.OPERADOR, ROLES.CONDUCTOR,
   ]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
@@ -36,7 +38,11 @@ export async function GET(request: NextRequest) {
 
     const filter: Record<string, unknown> = {};
 
-    if (auth.session.role === ROLES.SUPER_ADMIN) {
+    if (auth.session.role === ROLES.CONDUCTOR) {
+      // El conductor sólo ve sus propias entradas activas del día
+      filter.driverId = auth.session.userId;
+      // No filtramos por municipio — el conductor sólo ve sus propios registros
+    } else if (auth.session.role === ROLES.SUPER_ADMIN) {
       if (municipalityIdParam) {
         if (!isValidObjectId(municipalityIdParam)) return apiError("municipalityId inválido", 400);
         filter.municipalityId = municipalityIdParam;
@@ -93,7 +99,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.OPERADOR]);
+  const auth = requireRole(request, [
+    ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.OPERADOR, ROLES.CONDUCTOR,
+  ]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   try {
@@ -115,18 +123,27 @@ export async function POST(request: NextRequest) {
     }
     if (!municipalityId) return apiError("municipalityId requerido", 400);
 
+    // El conductor sólo puede registrar entradas donde él mismo es el driverId.
+    // Otros roles deben proveer driverId explícitamente.
+    let driverId = parsed.data.driverId;
+    if (auth.session.role === ROLES.CONDUCTOR) {
+      driverId = auth.session.userId;
+    } else if (!driverId) {
+      return apiError("driverId requerido", 400);
+    }
+
     await connectDB();
 
     const created = await FleetEntry.create({
       municipalityId,
       vehicleId: parsed.data.vehicleId,
       routeId: parsed.data.routeId,
-      driverId: parsed.data.driverId,
+      driverId,
       date: parsed.data.date ? new Date(parsed.data.date) : new Date(),
-      departureTime: parsed.data.departureTime,
+      departureTime: parsed.data.departureTime ?? new Date().toISOString(),
       returnTime: parsed.data.returnTime,
       km: parsed.data.km ?? 0,
-      status: parsed.data.status ?? "disponible",
+      status: parsed.data.status ?? "en_ruta",
       observations: parsed.data.observations,
       checklistComplete: parsed.data.checklistComplete ?? false,
       registeredBy: auth.session.userId,

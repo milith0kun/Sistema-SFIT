@@ -18,6 +18,7 @@ import '../../../trips/presentation/pages/fatigue_page.dart';
 import '../../../trips/presentation/pages/my_routes_page.dart';
 import '../../../trips/presentation/pages/my_trips_page.dart';
 import '../../../rewards/presentation/pages/rewards_page.dart';
+import '../../../../core/network/dio_client.dart';
 
 /// Pantalla principal — adapta el contenido al rol del usuario (RF-05 a RF-16).
 ///
@@ -35,6 +36,25 @@ class HomePage extends ConsumerStatefulWidget {
 
 class _HomePageState extends ConsumerState<HomePage> {
   int _index = 0;
+  int _unreadNotifCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUnreadCount();
+  }
+
+  Future<void> _loadUnreadCount() async {
+    try {
+      final dio = ref.read(dioClientProvider).dio;
+      final resp = await dio.get('/notificaciones');
+      final data = (resp.data as Map)['data'] as Map<String, dynamic>;
+      final count = data['unreadCount'] as int? ?? 0;
+      if (mounted) setState(() => _unreadNotifCount = count);
+    } catch (_) {
+      // Silencioso — el badge simplemente no se muestra si falla
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,8 +99,19 @@ class _HomePageState extends ConsumerState<HomePage> {
         actions: [
           IconButton(
             tooltip: 'Notificaciones',
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
+            icon: Badge(
+              isLabelVisible: _unreadNotifCount > 0,
+              label: Text(
+                _unreadNotifCount > 99 ? '99+' : '$_unreadNotifCount',
+                style: const TextStyle(fontSize: 10),
+              ),
+              child: const Icon(Icons.notifications_outlined),
+            ),
+            onPressed: () async {
+              await context.push('/notificaciones');
+              // Refrescar el conteo al volver de la pantalla de notificaciones
+              if (mounted) _loadUnreadCount();
+            },
           ),
           PopupMenuButton<String>(
             tooltip: 'Perfil',

@@ -49,6 +49,52 @@ class TripsApiService {
     });
   }
 
+  // ── Turno de conductor (FleetEntry) ─────────────────────────────────────────
+
+  /// POST /flota — inicia un turno del conductor (crea FleetEntry en_ruta).
+  /// Devuelve el id de la FleetEntry creada.
+  Future<String> startTrip({
+    required String vehicleId,
+    required DateTime departureTime,
+    bool checklistComplete = true,
+  }) async {
+    final resp = await _dio.post('/flota', data: {
+      'vehicleId': vehicleId,
+      'departureTime': departureTime.toIso8601String(),
+      'checklistComplete': checklistComplete,
+      'status': 'en_ruta',
+    });
+    final body = resp.data as Map<String, dynamic>;
+    // El backend devuelve { success: true, data: { id: '...' } }
+    final data = body['data'] as Map<String, dynamic>;
+    return data['id'] as String;
+  }
+
+  /// GET /flota — viajes activos del conductor autenticado.
+  Future<List<Map<String, dynamic>>> getMyFleetEntries() async {
+    final resp = await _dio.get('/flota');
+    final body = resp.data as Map<String, dynamic>;
+    final data = body['data'] as Map<String, dynamic>;
+    final items = data['items'] as List;
+    return items.cast<Map<String, dynamic>>();
+  }
+
+  /// PATCH /flota/:id — cierra el turno del conductor.
+  Future<void> closeFleetEntry(
+    String entryId, {
+    required double km,
+    DateTime? returnTime,
+    String? observations,
+  }) async {
+    await _dio.patch('/flota/$entryId', data: {
+      'status': 'cerrado',
+      'returnTime': (returnTime ?? DateTime.now()).toIso8601String(),
+      'km': km,
+      if (observations != null && observations.isNotEmpty)
+        'observations': observations,
+    });
+  }
+
   /// GET /conductor/fatiga — estado de fatiga del conductor autenticado (RF-14).
   Future<FatigaStatus> getFatigaStatus() async {
     final resp = await _dio.get('/conductor/fatiga');

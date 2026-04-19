@@ -41,7 +41,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.OPERADOR]);
+  const auth = requireRole(request, [
+    ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.OPERADOR, ROLES.CONDUCTOR,
+  ]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;
@@ -61,7 +63,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   await connectDB();
   const entry = await FleetEntry.findById(id);
   if (!entry) return apiNotFound("Entrada de flota no encontrada");
-  if (!(await canAccessMunicipality(auth.session, String(entry.municipalityId)))) return apiForbidden();
+
+  if (auth.session.role === ROLES.CONDUCTOR) {
+    // El conductor sólo puede cerrar sus propias entradas
+    if (String(entry.driverId) !== auth.session.userId) return apiForbidden();
+  } else {
+    if (!(await canAccessMunicipality(auth.session, String(entry.municipalityId)))) return apiForbidden();
+  }
 
   Object.assign(entry, parsed.data);
   await entry.save();

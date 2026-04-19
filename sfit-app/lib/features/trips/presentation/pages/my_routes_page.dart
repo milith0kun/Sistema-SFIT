@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/datasources/trips_api_service.dart';
@@ -17,6 +18,10 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
   bool _loading = true;
   String? _error;
 
+  // Estado del turno activo del conductor
+  Map<String, dynamic>? _activeEntry;
+  bool _loadingEntry = true;
+
   @override
   void initState() {
     super.initState();
@@ -26,8 +31,13 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
   Future<void> _load() async {
     setState(() {
       _loading = true;
+      _loadingEntry = true;
       _error = null;
     });
+    await Future.wait([_loadRoutes(), _loadActiveEntry()]);
+  }
+
+  Future<void> _loadRoutes() async {
     try {
       final svc = ref.read(tripsApiServiceProvider);
       final items = await svc.getMyRoutes(limit: 20);
@@ -42,58 +52,229 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
     }
   }
 
+  Future<void> _loadActiveEntry() async {
+    try {
+      final svc = ref.read(tripsApiServiceProvider);
+      final entries = await svc.getMyFleetEntries();
+      final active = entries.where((e) => e['status'] == 'en_ruta').toList();
+      if (mounted) {
+        setState(() {
+          _activeEntry = active.isNotEmpty ? active.first : null;
+          _loadingEntry = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() { _activeEntry = null; _loadingEntry = false; });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final hasActiveTrip = _activeEntry != null;
+
     return SafeArea(
-      child: Column(
+      child: Stack(
         children: [
-          // ── Header ──────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Mis rutas',
-                  style: AppTheme.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.ink9,
+          Column(
+            children: [
+              // ── Header ────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Mis rutas',
+                      style: AppTheme.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.ink9,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Rutas y zonas del día',
+                      style: AppTheme.inter(fontSize: 13, color: AppColors.ink5),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── Banner turno activo ──────────────────────────────
+              if (_loadingEntry)
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  child: LinearProgressIndicator(color: AppColors.gold),
+                )
+              else if (hasActiveTrip)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: _ActiveTripBanner(
+                    entry: _activeEntry!,
+                    onClose: () {
+                      final id = _activeEntry!['id'] as String? ?? '';
+                      final vehicle = _activeEntry!['vehicle'] as Map<String, dynamic>?;
+                      final plate = vehicle?['plate'] as String? ?? '—';
+                      final departure = _activeEntry!['departureTime'] as String? ?? '';
+                      final km = (_activeEntry!['km'] as num?)?.toDouble();
+                      context.push(
+                        '/viaje-checkout/$id',
+                        extra: {
+                          'vehiclePlate': plate,
+                          'departureTime': departure,
+                          'estimatedKm': km,
+                        },
+                      );
+                    },
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Rutas y zonas del día',
-                  style: AppTheme.inter(fontSize: 13, color: AppColors.ink5),
-                ),
-              ],
-            ),
+
+              const SizedBox(height: 8),
+
+              // ── Lista de rutas ──────────────────────────────────
+              Expanded(
+                child: _loading
+                    ? const Center(
+                        child: CircularProgressIndicator(color: AppColors.gold))
+                    : _error != null
+                        ? _ErrorState(message: _error!, onRetry: _load)
+                        : _items.isEmpty
+                            ? _EmptyState(hasActiveTrip: hasActiveTrip)
+                            : RefreshIndicator(
+                                onRefresh: _load,
+                                color: AppColors.gold,
+                                child: ListView.separated(
+                                  // Padding extra al fondo para que el FAB no tape el último ítem
+                                  padding: EdgeInsets.fromLTRB(
+                                    16, 4, 16,
+                                    hasActiveTrip ? 24 : 90,
+                                  ),
+                                  itemCount: _items.length,
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(height: 8),
+                                  itemBuilder: (_, i) =>
+                                      _RouteCard(data: _items[i]),
+                                ),
+                              ),
+              ),
+            ],
           ),
 
-          const SizedBox(height: 8),
+          // ── FAB — sólo cuando NO hay turno activo ────────────────
+          if (!_loadingEntry && !hasActiveTrip)
+            Positioned(
+              bottom: 16,
+              right: 16,
+              child: FloatingActionButton.extended(
+                onPressed: () => context.push('/viaje-checkin'),
+                backgroundColor: AppColors.gold,
+                foregroundColor: Colors.white,
+                icon: const Icon(Icons.play_circle_outline),
+                label: Text(
+                  'Iniciar turno',
+                  style: AppTheme.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
 
-          // ── Lista ─────────────────────────────────────────────
-          Expanded(
-            child: _loading
-                ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.gold))
-                : _error != null
-                    ? _ErrorState(message: _error!, onRetry: _load)
-                    : _items.isEmpty
-                        ? const _EmptyState()
-                        : RefreshIndicator(
-                            onRefresh: _load,
-                            color: AppColors.gold,
-                            child: ListView.separated(
-                              padding:
-                                  const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                              itemCount: _items.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 8),
-                              itemBuilder: (_, i) =>
-                                  _RouteCard(data: _items[i]),
-                            ),
-                          ),
+// ── Banner turno activo ────────────────────────────────────────────────────────
+class _ActiveTripBanner extends StatelessWidget {
+  final Map<String, dynamic> entry;
+  final VoidCallback onClose;
+
+  const _ActiveTripBanner({required this.entry, required this.onClose});
+
+  String _formatTime(String? iso) {
+    if (iso == null) return '—';
+    try {
+      final dt = DateTime.parse(iso).toLocal();
+      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return iso;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final vehicle = entry['vehicle'] as Map<String, dynamic>?;
+    final plate = vehicle?['plate'] as String? ?? '—';
+    final departureTime = entry['departureTime'] as String?;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.panel,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.goldBorder, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: AppColors.apto,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'TURNO ACTIVO',
+                style: AppTheme.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.goldLight,
+                  letterSpacing: 1.4,
+                ),
+              ),
+              const Spacer(),
+              if (departureTime != null)
+                Text(
+                  'Salida ${_formatTime(departureTime)}',
+                  style: AppTheme.inter(fontSize: 11, color: Colors.white54),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.directions_car, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                plate,
+                style: AppTheme.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          FilledButton.icon(
+            onPressed: onClose,
+            icon: const Icon(Icons.stop_circle_outlined, size: 18),
+            label: const Text('Cerrar turno'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.noApto,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 42),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
           ),
         ],
       ),
@@ -101,7 +282,7 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
   }
 }
 
-// ── Tarjeta de ruta ────────────────────────────────────────────────────────
+// ── Tarjeta de ruta ────────────────────────────────────────────────────────────
 class _RouteCard extends StatelessWidget {
   final Map<String, dynamic> data;
   const _RouteCard({required this.data});
@@ -114,7 +295,6 @@ class _RouteCard extends StatelessWidget {
     final destination = data['destination'] as String?;
     final zone = data['zone'] as String?;
 
-    // Sub-label: origen→destino si existe, o zona
     String subLabel = '';
     if (origin != null && destination != null) {
       subLabel = '$origin → $destination';
@@ -137,7 +317,6 @@ class _RouteCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       child: Row(
         children: [
-          // Indicador lateral
           Container(
             width: 4,
             height: 40,
@@ -163,17 +342,14 @@ class _RouteCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subLabel,
-                    style: AppTheme.inter(
-                        fontSize: 12, color: AppColors.ink5),
+                    style: AppTheme.inter(fontSize: 12, color: AppColors.ink5),
                   ),
                 ],
               ],
             ),
           ),
-          // Badge estado
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: badgeBg,
               border: Border.all(color: badgeBorder),
@@ -194,9 +370,10 @@ class _RouteCard extends StatelessWidget {
   }
 }
 
-// ── Estados auxiliares ─────────────────────────────────────────────────────
+// ── Estados auxiliares ─────────────────────────────────────────────────────────
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  final bool hasActiveTrip;
+  const _EmptyState({required this.hasActiveTrip});
 
   @override
   Widget build(BuildContext context) {
@@ -218,7 +395,9 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'No tienes rutas asignadas para hoy',
+              hasActiveTrip
+                  ? 'No tienes rutas asignadas hoy, pero tu turno está activo.'
+                  : 'No tienes rutas asignadas para hoy',
               textAlign: TextAlign.center,
               style: AppTheme.inter(fontSize: 13, color: AppColors.ink5),
             ),

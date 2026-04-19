@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -74,21 +75,84 @@ class ProfilePage extends ConsumerWidget {
             ]),
             const SizedBox(height: 16),
 
-            // ── Acciones ──────────────────────────────────────────
+            // ── SFITCoins (solo ciudadano) ────────────────────────
+            if (user.isCiudadano) ...[
+              _InfoCard(children: [
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.monetization_on_outlined,
+                          size: 20, color: AppColors.gold),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'SFITCoins',
+                              style: AppTheme.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.ink7,
+                              ),
+                            ),
+                            Text(
+                              'Gana puntos por reportar y verificar',
+                              style: AppTheme.inter(
+                                  fontSize: 11, color: AppColors.ink4),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          // Navegar a la tab de recompensas (index 2 en home)
+                          // El home navega por tabs — usamos context.go al home
+                          // con parámetro de tab si está disponible.
+                          context.go('/home');
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.goldBg,
+                            border: Border.all(color: AppColors.goldBorder),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'Ver recompensas',
+                            style: AppTheme.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.goldDark,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 16),
+            ],
+
+            // ── Cuenta ────────────────────────────────────────────
+            _SectionLabel(label: 'Cuenta'),
+            const SizedBox(height: 8),
             _InfoCard(children: [
               _ActionRow(
                 icon: Icons.lock_outline,
-                label: 'Privacidad y seguridad',
-                onTap: () {},
-              ),
-              const Divider(height: 1, color: AppColors.ink1),
-              _ActionRow(
-                icon: Icons.help_outline,
-                label: 'Ayuda',
-                onTap: () {},
+                label: 'Cambiar contraseña',
+                onTap: () => context.push('/cambiar-password'),
               ),
             ]),
             const SizedBox(height: 16),
+
+            // ── Sesión ────────────────────────────────────────────
+            _SectionLabel(label: 'Sesión'),
+            const SizedBox(height: 8),
 
             // ── Cerrar sesión ─────────────────────────────────────
             OutlinedButton.icon(
@@ -171,6 +235,25 @@ class _InfoRow extends StatelessWidget {
                       color: AppColors.ink8)),
             ),
           ],
+        ),
+      );
+}
+
+class _SectionLabel extends StatelessWidget {
+  final String label;
+  const _SectionLabel({required this.label});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(left: 4),
+        child: Text(
+          label.toUpperCase(),
+          style: AppTheme.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: AppColors.ink4,
+            letterSpacing: 0.6,
+          ),
         ),
       );
 }
