@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
   let raw = "";
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // @ts-ignore optional dependency — npm install tesseract.js para activar
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const Tesseract = (await import("tesseract.js")) as any;
 
