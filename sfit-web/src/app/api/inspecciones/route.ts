@@ -7,6 +7,8 @@ import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationErro
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
+import { sendPushToTokens } from "@/lib/notifications/fcm";
+import { User } from "@/models/User";
 
 const ChecklistItemSchema = z.object({
   item: z.string().min(1).max(200),
@@ -134,6 +136,45 @@ export async function POST(request: NextRequest) {
       evidenceUrls: parsed.data.evidenceUrls ?? [],
       date: new Date(),
     });
+
+    // RF-18 — Notificar a operadores activos de la municipalidad (no-bloqueante).
+    // Nota: cuando el esquema incluya User.companyId, filtrar también por companyId
+    // para una notificación más precisa al operador del vehículo inspeccionado.
+    try {
+      const resultLabel =
+        parsed.data.result === "aprobada"
+          ? "Aprobada ✓"
+          : parsed.data.result === "observada"
+            ? "Con observaciones ⚠"
+            : "Rechazada ✗";
+
+      const operadores = await User.find({
+        municipalityId,
+        role: ROLES.OPERADOR,
+        status: "activo",
+        fcmTokens: { $exists: true, $not: { $size: 0 } },
+      })
+        .select("fcmTokens")
+        .lean();
+
+      const tokens = operadores.flatMap((u) => u.fcmTokens ?? []);
+
+      if (tokens.length > 0) {
+        await sendPushToTokens(
+          tokens,
+          "Nueva inspección registrada",
+          `Inspección vehicular: ${resultLabel} — Score ${parsed.data.score}/100`,
+          {
+            type: "inspeccion_creada",
+            inspeccionId: String(created._id),
+            vehicleId: parsed.data.vehicleId,
+            result: parsed.data.result,
+          },
+        );
+      }
+    } catch {
+      // Silencioso — la notificación es best-effort
+    }
 
     return apiResponse({ id: String(created._id), ...created.toObject() }, 201);
   } catch (error) {

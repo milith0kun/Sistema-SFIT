@@ -7,6 +7,7 @@ import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationErro
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
+import { awardCoins } from "@/lib/coins/awardCoins";
 
 const CreateSchema = z.object({
   municipalityId: z.string().refine(isValidObjectId).optional(),
@@ -140,6 +141,11 @@ export async function POST(request: NextRequest) {
       fraudLayers,
       status: "pendiente",
     });
+
+    // RF-15: Otorgar 5 SFITCoins al ciudadano por enviar un reporte
+    if (auth.session.role === ROLES.CIUDADANO) {
+      void awardCoins(auth.session.userId, 5, "reporte_enviado", String(created._id));
+    }
 
     return apiResponse({ id: String(created._id), ...created.toObject() }, 201);
   } catch (error) {

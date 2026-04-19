@@ -6,6 +6,7 @@ import { Apelacion } from "@/models/Apelacion";
 import { apiResponse, apiError, apiForbidden, apiNotFound, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
+import { sendPushToUser } from "@/lib/notifications/fcm";
 
 const ResolveSchema = z.object({
   status: z.enum(["aprobada", "rechazada"]),
@@ -60,6 +61,24 @@ export async function PATCH(
       .populate("submittedBy", "name email")
       .populate("resolvedBy", "name")
       .lean();
+
+    // RF-18 — Notificar al operador que presentó la apelación (no-bloqueante)
+    try {
+      const statusLabel =
+        parsed.data.status === "aprobada" ? "aprobada ✓" : "rechazada ✗";
+      await sendPushToUser(
+        String(apelacion.submittedBy),
+        "Resolución de apelación",
+        `Tu apelación fue ${statusLabel}`,
+        {
+          type: "apelacion_resuelta",
+          apelacionId: id,
+          status: parsed.data.status,
+        },
+      );
+    } catch {
+      // Silencioso — la notificación es best-effort
+    }
 
     return apiResponse({
       id: String(updated!._id),

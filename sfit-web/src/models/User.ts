@@ -27,6 +27,9 @@ export interface IUser extends Document {
   phone?: string;
   dni?: string;
 
+  // FCM Push Tokens (RF-18)
+  fcmTokens: string[];
+
   // Tokens
   refreshToken?: string;
   refreshTokenExpiry?: Date;
@@ -101,6 +104,9 @@ const UserSchema = new Schema<IUser>(
     // Perfil
     phone: { type: String },
     dni: { type: String },
+
+    // FCM Push Tokens (RF-18)
+    fcmTokens: { type: [String], default: [] },
 
     // Tokens
     refreshToken: { type: String, select: false },

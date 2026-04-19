@@ -32,6 +32,9 @@ class ApiConstants {
   static const String googleAuth   = '/auth/google';
   static const String logout       = '/auth/logout';
 
+  // Notifications (RF-18)
+  static const String fcmToken = '/notificaciones/token';
+
   // Storage keys
   static const String accessTokenKey  = 'access_token';
   static const String refreshTokenKey = 'refresh_token';

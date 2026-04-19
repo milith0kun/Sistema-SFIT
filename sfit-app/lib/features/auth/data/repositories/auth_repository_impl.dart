@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../datasources/auth_api_service.dart';
@@ -9,8 +10,11 @@ import '../../domain/repositories/auth_repository.dart';
 class AuthRepositoryImpl implements AuthRepository {
   final AuthApiService _api;
   final FlutterSecureStorage _storage;
+  /// Dio sin interceptor de auth, para endpoints públicos.
+  final Dio? _publicDio;
 
-  AuthRepositoryImpl(this._api, this._storage);
+  AuthRepositoryImpl(this._api, this._storage, {Dio? publicDio})
+      : _publicDio = publicDio;
 
   // ── RF-01-06 / RF-01-07: Login correo ────────────────────────
   @override
@@ -26,7 +30,7 @@ class AuthRepositoryImpl implements AuthRepository {
     return _handleAuthResponse(res.data as Map<String, dynamic>);
   }
 
-  // ── RF-01-02 / RF-01-03: Registro ─────────────────────────────
+  // ── RF-01-02 / RF-01-03: Registro (roles operativos → pendiente) ────────
   @override
   Future<void> register({
     required String name,
@@ -46,6 +50,28 @@ class AuthRepositoryImpl implements AuthRepository {
     if (body['success'] != true) {
       throw AuthException(body['error'] ?? 'Error al registrarse');
     }
+  }
+
+  // ── RF-01-03: Registro ciudadano — auto-aprobado, tokens inmediatos ───
+  @override
+  Future<AuthResult> registerCiudadano({
+    required String name,
+    required String email,
+    required String password,
+    String? municipalityId,
+  }) async {
+    final res = await _api.register({
+      'name': name,
+      'email': email,
+      'password': password,
+      'requestedRole': 'ciudadano',
+      if (municipalityId != null) 'municipalityId': municipalityId,
+    });
+    final body = res.data as Map<String, dynamic>;
+    if (body['success'] != true) {
+      throw AuthException(body['error'] ?? 'Error al registrarse');
+    }
+    return _handleAuthResponse(body);
   }
 
   // ── RF-01-08: Auto-login con refresh token ────────────────────
@@ -155,6 +181,46 @@ class AuthRepositoryImpl implements AuthRepository {
     await _storage.write(
         key: ApiConstants.refreshTokenKey, value: data['refreshToken'] as String);
   }
+
+  // ── Endpoints públicos — datos geográficos ────────────────────
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchProvincias() async {
+    final dio = _publicDio ?? _buildPublicDio();
+    final res = await dio.get('/public/provincias');
+    final body = res.data as Map<String, dynamic>;
+    if (body['success'] != true) {
+      throw AuthException(body['error'] ?? 'Error al obtener provincias');
+    }
+    return List<Map<String, dynamic>>.from(body['data'] as List);
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchMunicipalidades(String provinceId) async {
+    final dio = _publicDio ?? _buildPublicDio();
+    final res = await dio.get(
+      '/public/municipalidades',
+      queryParameters: {'provinceId': provinceId},
+    );
+    final body = res.data as Map<String, dynamic>;
+    if (body['success'] != true) {
+      throw AuthException(body['error'] ?? 'Error al obtener municipalidades');
+    }
+    return List<Map<String, dynamic>>.from(body['data'] as List);
+  }
+
+  Dio _buildPublicDio() => Dio(
+        BaseOptions(
+          baseUrl: ApiConstants.baseUrl,
+          connectTimeout: const Duration(milliseconds: ApiConstants.connectTimeout),
+          receiveTimeout: const Duration(milliseconds: ApiConstants.receiveTimeout),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          validateStatus: (s) => s != null && s < 500,
+        ),
+      );
 }
 
 class AuthException implements Exception {

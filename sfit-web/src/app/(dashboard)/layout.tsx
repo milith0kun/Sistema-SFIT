@@ -24,6 +24,7 @@ import {
   ChevronDown,
   CalendarDays,
   MessageSquareWarning,
+  Gift,
 } from "lucide-react";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
 
@@ -74,6 +75,7 @@ const NAV: NavItem[] = [
 
   { href: "/reportes",        label: "Reportes ciudadanos", icon: Flag,           section: "CIUDADANÍA", roles: ["admin_municipal","fiscal"] },
   { href: "/sanciones",       label: "Sanciones",           icon: TriangleAlert,  section: "CIUDADANÍA", roles: ["admin_municipal","fiscal"] },
+  { href: "/recompensas",     label: "Recompensas",         icon: Gift,           section: "CIUDADANÍA", roles: ["super_admin","admin_municipal"] },
 
   { href: "/estadisticas",    label: "Estadísticas",        icon: ChartColumn,    section: "ANÁLISIS",   roles: ["super_admin","admin_provincial","admin_municipal","operador"] },
   { href: "/auditoria",       label: "Auditoría",           icon: FileText,       section: "ANÁLISIS",   roles: ["super_admin","admin_provincial","admin_municipal"] },
@@ -122,6 +124,7 @@ function titleFromPath(path: string | null): string {
     estadisticas: "Estadísticas",
     auditoria: "Auditoría",
     notificaciones: "Notificaciones",
+    recompensas: "Recompensas",
   };
   return map[seg] ?? seg.charAt(0).toUpperCase() + seg.slice(1);
 }

@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/services/fcm_service.dart';
 import '../../data/datasources/auth_api_service.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/entities/user_entity.dart';
@@ -82,6 +83,10 @@ class Auth extends _$Auth {
       final result = await ref.read(authRepositoryProvider).tryAutoLogin();
       if (result != null) {
         state = AuthState(status: _statusFor(result.user), user: result.user);
+        // RF-18 — Registrar token FCM si la sesión se restaura automáticamente
+        if (_statusFor(result.user) == AuthStatus.authenticated) {
+          FcmService.initialize(ref);
+        }
       } else {
         state = const AuthState(status: AuthStatus.unauthenticated);
       }
@@ -107,6 +112,10 @@ class Auth extends _$Auth {
       final result =
           await ref.read(authRepositoryProvider).login(email, password);
       state = AuthState(status: _statusFor(result.user), user: result.user);
+      // RF-18 — Inicializar FCM tras login exitoso (no-bloqueante)
+      if (_statusFor(result.user) == AuthStatus.authenticated) {
+        FcmService.initialize(ref);
+      }
       return true;
     } on AuthException catch (e) {
       state = AuthState(
@@ -143,6 +152,10 @@ class Auth extends _$Auth {
       final result =
           await ref.read(authRepositoryProvider).loginWithGoogle(idToken);
       state = AuthState(status: _statusFor(result.user), user: result.user);
+      // RF-18 — Inicializar FCM tras login con Google exitoso (no-bloqueante)
+      if (_statusFor(result.user) == AuthStatus.authenticated) {
+        FcmService.initialize(ref);
+      }
       return true;
     } on AuthException catch (e) {
       state = AuthState(
@@ -159,7 +172,7 @@ class Auth extends _$Auth {
     }
   }
 
-  // ── RF-01-02 / RF-01-03: Registro ────────────────────────────
+  // ── RF-01-02 / RF-01-03: Registro (roles operativos → pendiente) ─────
   Future<void> register({
     required String name,
     required String email,
@@ -175,6 +188,43 @@ class Auth extends _$Auth {
           municipalityId: municipalityId,
         );
     state = const AuthState(status: AuthStatus.pendingApproval);
+  }
+
+  // ── RF-01-03: Registro ciudadano — auto-aprobado ──────────────
+  /// Retorna `true` si el registro fue exitoso y el usuario quedó autenticado.
+  Future<bool> registerCiudadano({
+    required String name,
+    required String email,
+    required String password,
+    String? municipalityId,
+  }) async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    try {
+      final result = await ref.read(authRepositoryProvider).registerCiudadano(
+            name: name,
+            email: email,
+            password: password,
+            municipalityId: municipalityId,
+          );
+      state = AuthState(status: _statusFor(result.user), user: result.user);
+      // RF-18 — Inicializar FCM si ciudadano quedó autenticado inmediatamente
+      if (_statusFor(result.user) == AuthStatus.authenticated) {
+        FcmService.initialize(ref);
+      }
+      return true;
+    } on AuthException catch (e) {
+      state = AuthState(
+        status: AuthStatus.unauthenticated,
+        errorMessage: e.message,
+      );
+      return false;
+    } catch (e) {
+      // ignore: avoid_print
+      print('[Auth.registerCiudadano] error: $e');
+      final msg = _networkErrorMsg(e);
+      state = AuthState(status: AuthStatus.unauthenticated, errorMessage: msg);
+      return false;
+    }
   }
 
   // ── Helpers ───────────────────────────────────────────────────
@@ -194,6 +244,9 @@ class Auth extends _$Auth {
 
   // ── RF-01-10: Logout ──────────────────────────────────────────
   Future<void> logout() async {
+    // RF-18 — Eliminar token FCM del backend antes de cerrar sesión
+    await FcmService.unregisterToken(ref);
+
     try {
       await _googleSignIn.signOut();
     } catch (_) {

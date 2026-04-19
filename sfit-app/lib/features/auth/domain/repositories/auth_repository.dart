@@ -17,6 +17,15 @@ abstract class AuthRepository {
     String? municipalityId,
   });
 
+  /// RF-01-03 (ciudadano): Registro con auto-aprobación — devuelve AuthResult
+  /// con tokens listos para uso inmediato.
+  Future<AuthResult> registerCiudadano({
+    required String name,
+    required String email,
+    required String password,
+    String? municipalityId,
+  });
+
   /// RF-01-08: Intenta restaurar sesión con el refresh token almacenado.
   Future<AuthResult?> tryAutoLogin();
 
@@ -25,4 +34,10 @@ abstract class AuthRepository {
 
   /// RF-01-10: Cierre de sesión — revoca refresh y limpia almacenamiento.
   Future<void> logout();
+
+  /// Público — lista provincias activas para el formulario de registro.
+  Future<List<Map<String, dynamic>>> fetchProvincias();
+
+  /// Público — lista municipalidades de una provincia para el formulario de registro.
+  Future<List<Map<String, dynamic>>> fetchMunicipalidades(String provinceId);
 }
