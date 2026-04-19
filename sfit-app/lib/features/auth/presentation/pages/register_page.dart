@@ -490,7 +490,7 @@ class _GeoDropdown<T> extends StatelessWidget {
     }
 
     return DropdownButtonFormField<T>(
-      value: value,
+      initialValue: value,
       isExpanded: true,
       decoration: InputDecoration(
         hintText: hint,

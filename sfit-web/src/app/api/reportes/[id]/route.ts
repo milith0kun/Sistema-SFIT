@@ -7,6 +7,7 @@ import { apiResponse, apiError, apiForbidden, apiNotFound, apiUnauthorized, apiV
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
+import { awardCoins } from "@/lib/coins/awardCoins";
 
 const UpdateSchema = z.object({
   status: z.enum(["pendiente", "revision", "validado", "rechazado"]).optional(),
@@ -57,7 +58,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!report) return apiNotFound("Reporte no encontrado");
   if (!(await canAccessMunicipality(auth.session, String(report.municipalityId)))) return apiForbidden();
 
+  const previousStatus = report.status;
   Object.assign(report, parsed.data);
   await report.save();
+
+  // RF-15: Si el reporte pasa a 'validado', otorgar 20 SFITCoins al ciudadano
+  if (parsed.data.status === "validado" && previousStatus !== "validado" && report.citizenId) {
+    void awardCoins(String(report.citizenId), 20, "reporte_validado", String(report._id));
+  }
+
   return apiResponse({ id: String(report._id), ...report.toObject() });
 }

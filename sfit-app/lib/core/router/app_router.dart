@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/pending_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
@@ -14,6 +15,7 @@ import '../../features/inspection/presentation/pages/new_inspection_page.dart';
 import '../../features/inspection/presentation/pages/vehicle_inspections_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/ocr/presentation/pages/plate_scanner_page.dart';
+import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/profile/presentation/pages/change_password_page.dart';
 import '../../features/qr_scanner/presentation/pages/qr_scanner_page.dart';
 import '../../features/splash/presentation/pages/splash_page.dart';
@@ -40,11 +42,12 @@ GoRouter router(Ref ref) {
     initialLocation: '/',
     debugLogDiagnostics: kDebugMode,
     refreshListenable: refresh,
-    redirect: (context, state) {
+    redirect: (context, state) async {
       final authStatus = ref.read(authProvider).status;
       final path       = state.uri.path;
       final isAuth     = path == '/login' || path == '/register';
       final isSplash   = path == '/';
+      final isOnboarding = path == '/onboarding';
       // Rutas accesibles sin autenticación
       final isPublic   = path == '/qr' || path.startsWith('/vehiculo-publico/');
 
@@ -53,7 +56,7 @@ GoRouter router(Ref ref) {
           return isSplash ? null : '/';
 
         case AuthStatus.authenticated:
-          if (isAuth || isSplash) return '/home';
+          if (isAuth || isSplash || isOnboarding) return '/home';
           return null;
 
         case AuthStatus.pendingApproval:
@@ -65,17 +68,23 @@ GoRouter router(Ref ref) {
           return path == '/rejected' ? null : '/rejected';
 
         case AuthStatus.unauthenticated:
-          if (isAuth || isPublic) return null;
+          if (isOnboarding || isPublic) return null;
+          if (isAuth) return null;
+          // Primera vez sin sesión: mostrar onboarding si no se ha completado
+          final prefs = await SharedPreferences.getInstance();
+          final onboardingDone = prefs.getBool('onboarding_done') ?? false;
+          if (!onboardingDone && isSplash) return '/onboarding';
           return '/login';
       }
     },
     routes: [
-      GoRoute(path: '/',         builder: (_, __) => const SplashPage()),
-      GoRoute(path: '/login',    builder: (_, __) => const LoginPage()),
-      GoRoute(path: '/register', builder: (_, __) => const RegisterPage()),
-      GoRoute(path: '/pending',  builder: (_, __) => const PendingPage()),
-      GoRoute(path: '/rejected', builder: (_, __) => const RejectedPage()),
-      GoRoute(path: '/home',     builder: (_, __) => const HomePage()),
+      GoRoute(path: '/',            builder: (_, __) => const SplashPage()),
+      GoRoute(path: '/onboarding',  builder: (_, __) => const OnboardingPage()),
+      GoRoute(path: '/login',       builder: (_, __) => const LoginPage()),
+      GoRoute(path: '/register',    builder: (_, __) => const RegisterPage()),
+      GoRoute(path: '/pending',     builder: (_, __) => const PendingPage()),
+      GoRoute(path: '/rejected',    builder: (_, __) => const RejectedPage()),
+      GoRoute(path: '/home',        builder: (_, __) => const HomePage()),
 
       // ── Rutas protegidas adicionales ───────────────────────────
       GoRoute(

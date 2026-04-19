@@ -8,12 +8,53 @@ import { requireAuth } from "@/lib/auth/guard";
 import { awardCoins, getBalance } from "@/lib/coins/awardCoins";
 
 const RedeemSchema = z.object({
-  recompensaId: z.string().refine(isValidObjectId, "ID inválido"),
+  recompensaId: z.string().min(1, "ID requerido"),
 });
+
+/** Catálogo estático de respaldo cuando no hay registros en la base de datos. */
+const STATIC_CATALOG = [
+  {
+    id: "static-001",
+    name: "Cupón de transporte público",
+    description: "Descuento en pasaje de transporte público municipal. Válido por 30 días.",
+    cost: 200,
+    category: "descuento",
+    stock: -1,
+    imageUrl: null,
+  },
+  {
+    id: "static-002",
+    name: "Certificado de ciudadano responsable",
+    description: "Certificado digital que acredita tu participación activa en la fiscalización del transporte municipal.",
+    cost: 100,
+    category: "certificado",
+    stock: -1,
+    imageUrl: null,
+  },
+  {
+    id: "static-003",
+    name: "Reconocimiento ciudadano del mes",
+    description: "Mención especial en el portal municipal como ciudadano destacado del mes en fiscalización.",
+    cost: 500,
+    category: "beneficio",
+    stock: 5,
+    imageUrl: null,
+  },
+  {
+    id: "static-004",
+    name: "Descuento en trámites municipales",
+    description: "10% de descuento en tasas administrativas municipales para trámites en línea.",
+    cost: 300,
+    category: "descuento",
+    stock: -1,
+    imageUrl: null,
+  },
+];
 
 /**
  * GET /api/ciudadano/recompensas
  * Lista el catálogo de recompensas activas.
+ * Si no hay registros en BD, devuelve el catálogo estático de respaldo.
  * Auth: cualquier rol.
  */
 export async function GET(request: NextRequest) {
@@ -23,24 +64,31 @@ export async function GET(request: NextRequest) {
   try {
     await connectDB();
 
-    const items = await Recompensa.find({ active: true })
+    const dbItems = await Recompensa.find({ active: true })
       .sort({ cost: 1 })
       .lean();
 
-    return apiResponse({
-      items: items.map((r) => ({
-        id: String(r._id),
-        name: r.name,
-        description: r.description,
-        cost: r.cost,
-        category: r.category,
-        stock: r.stock,
-        imageUrl: r.imageUrl,
-      })),
-    });
+    if (dbItems.length > 0) {
+      return apiResponse({
+        items: dbItems.map((r) => ({
+          id: String(r._id),
+          name: r.name,
+          description: r.description,
+          cost: r.cost,
+          category: r.category,
+          stock: r.stock,
+          imageUrl: r.imageUrl ?? null,
+        })),
+        source: "db",
+      });
+    }
+
+    // Fallback al catálogo estático si la colección está vacía
+    return apiResponse({ items: STATIC_CATALOG, source: "static" });
   } catch (error) {
     console.error("[ciudadano/recompensas GET]", error);
-    return apiError("Error al listar recompensas", 500);
+    // Si falla la conexión a BD, devolver catálogo estático
+    return apiResponse({ items: STATIC_CATALOG, source: "static" });
   }
 }
 
@@ -58,52 +106,76 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const parsed = RedeemSchema.safeParse(body);
     if (!parsed.success) {
-      return apiError("recompensaId inválido", 400);
+      return apiError("recompensaId requerido", 400);
     }
+
+    const { recompensaId } = parsed.data;
+
+    // Resolver recompensa: puede ser un ObjectId de BD o un ID estático de catálogo
+    let rewardName: string;
+    let rewardCost: number;
+    let rewardIdForTx: string | undefined;
 
     await connectDB();
 
-    const recompensa = await Recompensa.findById(parsed.data.recompensaId);
-    if (!recompensa || !recompensa.active) {
-      return apiError("Recompensa no encontrada o inactiva", 404);
-    }
+    if (isValidObjectId(recompensaId)) {
+      const recompensa = await Recompensa.findById(recompensaId);
+      if (!recompensa || !recompensa.active) {
+        return apiError("Recompensa no encontrada o inactiva", 404);
+      }
+      if (recompensa.stock !== -1 && recompensa.stock <= 0) {
+        return apiError("Recompensa sin stock disponible", 409);
+      }
+      rewardName = recompensa.name;
+      rewardCost = recompensa.cost;
+      rewardIdForTx = String(recompensa._id);
 
-    // Verificar stock
-    if (recompensa.stock !== -1 && recompensa.stock <= 0) {
-      return apiError("Recompensa sin stock disponible", 409);
-    }
+      // Verificar balance suficiente
+      const currentBalance = await getBalance(session.userId);
+      if (currentBalance < rewardCost) {
+        return apiError(
+          `Saldo insuficiente. Necesitas ${rewardCost} coins, tienes ${currentBalance}.`,
+          422,
+        );
+      }
 
-    // Verificar balance suficiente
-    const currentBalance = await getBalance(session.userId);
-    if (currentBalance < recompensa.cost) {
-      return apiError(
-        `Saldo insuficiente. Necesitas ${recompensa.cost} coins, tienes ${currentBalance}.`,
-        422,
-      );
-    }
+      // Descontar stock si no es ilimitado
+      if (recompensa.stock !== -1) {
+        recompensa.stock -= 1;
+        await recompensa.save();
+      }
+    } else {
+      // ID estático del catálogo de respaldo
+      const staticItem = STATIC_CATALOG.find((r) => r.id === recompensaId);
+      if (!staticItem) {
+        return apiError("Recompensa no encontrada", 404);
+      }
+      if (staticItem.stock !== -1 && staticItem.stock <= 0) {
+        return apiError("Recompensa sin stock disponible", 409);
+      }
+      rewardName = staticItem.name;
+      rewardCost = staticItem.cost;
+      rewardIdForTx = undefined;
 
-    // Descontar stock si no es ilimitado
-    if (recompensa.stock !== -1) {
-      recompensa.stock -= 1;
-      await recompensa.save();
+      // Verificar balance suficiente
+      const currentBalance = await getBalance(session.userId);
+      if (currentBalance < rewardCost) {
+        return apiError(
+          `Saldo insuficiente. Necesitas ${rewardCost} coins, tienes ${currentBalance}.`,
+          422,
+        );
+      }
     }
 
     // Crear transacción negativa
-    await awardCoins(
-      session.userId,
-      -recompensa.cost,
-      "canje_recompensa",
-      String(recompensa._id),
-    );
+    await awardCoins(session.userId, -rewardCost, "canje_recompensa", rewardIdForTx);
+
+    const newBalance = await getBalance(session.userId);
 
     return apiResponse({
       message: "Canje exitoso",
-      recompensa: {
-        id: String(recompensa._id),
-        name: recompensa.name,
-        cost: recompensa.cost,
-      },
-      newBalance: currentBalance - recompensa.cost,
+      recompensa: { id: recompensaId, name: rewardName, cost: rewardCost },
+      newBalance,
     });
   } catch (error) {
     console.error("[ciudadano/recompensas POST]", error);

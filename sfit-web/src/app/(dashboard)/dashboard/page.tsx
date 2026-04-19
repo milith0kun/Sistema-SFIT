@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import {
   Users,
   MapPin,
@@ -18,6 +19,9 @@ import {
   Route,
   CalendarDays,
   Bell,
+  ClipboardCheck,
+  AlertCircle,
+  MessageSquareWarning,
 } from "lucide-react";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { HeroActionCard } from "@/components/dashboard/HeroActionCard";
@@ -62,6 +66,14 @@ type ConductorStats = {
   reputationScore: number;
   tripsToday: number;
   currentVehicleId?: string;
+};
+
+type ActivityItem = {
+  type: "inspeccion" | "reporte" | "apelacion" | "sancion";
+  title: string;
+  subtitle: string;
+  date: string;
+  href: string;
 };
 
 /* ── Store sincronizado con localStorage para leer sfit_user sin setState en efecto ── */
@@ -110,6 +122,7 @@ export default function DashboardPage() {
   const [operadorStats, setOperadorStats] = useState<OperadorStats | null>(null);
   const [fiscalStats, setFiscalStats] = useState<FiscalStats | null>(null);
   const [conductorStats, setConductorStats] = useState<ConductorStats | null>(null);
+  const [actividad, setActividad] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -198,18 +211,35 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const loadActividad = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch("/api/admin/actividad", {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (res.ok) {
+        const data: ApiResponse<{ items: ActivityItem[] }> = await res.json();
+        if (data.success && data.data) setActividad(data.data.items ?? []);
+      }
+    } catch {
+      // Silencioso: el feed de actividad no bloquea la página
+    }
+  }, []);
+
   useEffect(() => {
     if (!user) return;
     if (user.role === "super_admin" || user.role === "admin_provincial" || user.role === "admin_municipal") {
       void loadSuperAdmin();
+      void loadActividad();
     } else if (user.role === "operador") {
       void loadOperador();
     } else if (user.role === "fiscal") {
       void loadFiscal();
+      void loadActividad();
     } else if (user.role === "conductor") {
       void loadConductor();
     }
-  }, [user, loadSuperAdmin, loadOperador, loadFiscal, loadConductor]);
+  }, [user, loadSuperAdmin, loadOperador, loadFiscal, loadConductor, loadActividad]);
 
   if (!user) return null;
 
@@ -262,6 +292,7 @@ export default function DashboardPage() {
             operadorStats={operadorStats}
             fiscalStats={fiscalStats}
             conductorStats={conductorStats}
+            actividad={actividad}
             loading={loading}
           />
         </div>
@@ -285,6 +316,7 @@ function PrimarySection({
   operadorStats,
   fiscalStats,
   conductorStats,
+  actividad,
   loading,
 }: {
   role: string;
@@ -292,10 +324,12 @@ function PrimarySection({
   operadorStats: OperadorStats | null;
   fiscalStats: FiscalStats | null;
   conductorStats: ConductorStats | null;
+  actividad: ActivityItem[];
   loading: boolean;
 }) {
   const items = buildKpiItemsFor(role, stats, operadorStats, fiscalStats, conductorStats, loading);
   const hero = buildHeroActionFor(role);
+  const showActivity = ["super_admin", "admin_provincial", "admin_municipal", "fiscal"].includes(role);
   return (
     <>
       {hero && (
@@ -308,7 +342,191 @@ function PrimarySection({
         />
       )}
       {items.length > 0 && <KPIStrip items={items} cols={items.length >= 4 ? 4 : 3} />}
+      {showActivity && <ActivityFeed items={actividad} />}
     </>
+  );
+}
+
+/* ──────────────────────────────────────────
+   Feed de actividad reciente
+   ────────────────────────────────────────── */
+
+const ACTIVITY_ICON: Record<ActivityItem["type"], typeof Users> = {
+  inspeccion: ClipboardCheck,
+  reporte: Flag,
+  apelacion: MessageSquareWarning,
+  sancion: AlertCircle,
+};
+
+const ACTIVITY_COLOR: Record<ActivityItem["type"], string> = {
+  inspeccion: "#15803d",
+  reporte: "#B8860B",
+  apelacion: "#1e40af",
+  sancion: "#b91c1c",
+};
+
+const ACTIVITY_BG: Record<ActivityItem["type"], string> = {
+  inspeccion: "#F0FDF4",
+  reporte: "#FDF8EC",
+  apelacion: "#EFF6FF",
+  sancion: "#FFF5F5",
+};
+
+function fmtRelative(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "Ahora";
+  if (mins < 60) return `Hace ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `Hace ${hrs} h`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return "Ayer";
+  return `Hace ${days} días`;
+}
+
+function ActivityFeed({ items }: { items: ActivityItem[] }) {
+  if (items.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        background: "#ffffff",
+        border: "1px solid #e4e4e7",
+        borderRadius: 14,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "16px 20px",
+          borderBottom: "1px solid #e4e4e7",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontSize: "0.6875rem",
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "#71717a",
+              marginBottom: 2,
+            }}
+          >
+            Sistema
+          </div>
+          <h3
+            style={{
+              fontSize: "0.9375rem",
+              fontWeight: 700,
+              color: "#09090b",
+              margin: 0,
+              fontFamily: "var(--font-inter)",
+            }}
+          >
+            Actividad reciente
+          </h3>
+        </div>
+        <span
+          style={{
+            fontSize: "0.6875rem",
+            fontWeight: 700,
+            color: "#71717a",
+            background: "#f4f4f5",
+            borderRadius: 999,
+            padding: "3px 8px",
+          }}
+        >
+          {items.length} eventos
+        </span>
+      </div>
+
+      <div style={{ padding: "8px 0" }}>
+        {items.map((item, idx) => {
+          const Icon = ACTIVITY_ICON[item.type];
+          const color = ACTIVITY_COLOR[item.type];
+          const bg = ACTIVITY_BG[item.type];
+          return (
+            <Link
+              key={idx}
+              href={item.href}
+              style={{ textDecoration: "none", display: "block" }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 12,
+                  padding: "11px 20px",
+                  borderBottom: idx < items.length - 1 ? "1px solid #f4f4f5" : "none",
+                  transition: "background 120ms ease",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#fafafa"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              >
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 9,
+                    background: bg,
+                    color,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    marginTop: 1,
+                  }}
+                >
+                  <Icon size={16} strokeWidth={1.8} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      fontSize: "0.875rem",
+                      color: "#09090b",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {item.title}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "0.75rem",
+                      color: "#71717a",
+                      marginTop: 2,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {item.subtitle}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    fontSize: "0.6875rem",
+                    color: "#a1a1aa",
+                    fontWeight: 500,
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                    paddingTop: 2,
+                  }}
+                >
+                  {fmtRelative(item.date)}
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

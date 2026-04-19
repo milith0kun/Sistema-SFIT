@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/datasources/public_api_service.dart';
 import '../../data/models/public_vehicle_model.dart';
 
 /// Vista pública de vehículo y conductor (RF-08).
 /// Accesible sin autenticación — se navega desde el escáner QR o búsqueda por placa.
-class VehiclePublicPage extends StatefulWidget {
+class VehiclePublicPage extends ConsumerStatefulWidget {
   final String plate;
   final String? qrJson;
   final bool? offlineVerified;
@@ -19,10 +23,10 @@ class VehiclePublicPage extends StatefulWidget {
   });
 
   @override
-  State<VehiclePublicPage> createState() => _VehiclePublicPageState();
+  ConsumerState<VehiclePublicPage> createState() => _VehiclePublicPageState();
 }
 
-class _VehiclePublicPageState extends State<VehiclePublicPage> {
+class _VehiclePublicPageState extends ConsumerState<VehiclePublicPage> {
   final _api = PublicApiService();
   PublicVehicleModel? _data;
   String? _error;
@@ -47,6 +51,9 @@ class _VehiclePublicPageState extends State<VehiclePublicPage> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final isCiudadano = authState.user?.role == 'ciudadano';
+
     return Scaffold(
       backgroundColor: AppColors.paper,
       appBar: AppBar(
@@ -59,10 +66,13 @@ class _VehiclePublicPageState extends State<VehiclePublicPage> {
           ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
           : _error != null
               ? _ErrorView(message: _error!)
-              : _DataView(
-                  data: _data!,
-                  offlineVerified: widget.offlineVerified,
-                ),
+              : _data == null
+                  ? const _EmptyView()
+                  : _DataView(
+                      data: _data!,
+                      offlineVerified: widget.offlineVerified,
+                      isCiudadano: isCiudadano,
+                    ),
     );
   }
 }
@@ -70,8 +80,13 @@ class _VehiclePublicPageState extends State<VehiclePublicPage> {
 class _DataView extends StatelessWidget {
   final PublicVehicleModel data;
   final bool? offlineVerified;
+  final bool isCiudadano;
 
-  const _DataView({required this.data, this.offlineVerified});
+  const _DataView({
+    required this.data,
+    this.offlineVerified,
+    this.isCiudadano = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -83,6 +98,10 @@ class _DataView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // ── Badge de placa ───────────────────────────────────
+          _PlateBadge(plate: v.plate),
+          const SizedBox(height: 12),
+
           // ── Indicador visual de estado ──────────────────────
           _IndicatorBanner(indicator: v.indicator),
           const SizedBox(height: 12),
@@ -100,15 +119,17 @@ class _DataView extends StatelessWidget {
           _InfoCard(
             icon: Icons.directions_car,
             title: '${v.brand} ${v.model} ${v.year}',
-            subtitle: v.plate,
+            subtitle: _vehicleTypeLabel(v.vehicleTypeKey),
             children: [
-              _InfoRow('Tipo', _vehicleTypeLabel(v.vehicleTypeKey)),
               _InfoRow('Empresa', v.company ?? '—'),
-              _InfoRow('Estado', _statusLabel(v.status)),
-              _InfoRow('Última inspección', _inspectionLabel(v.lastInspectionStatus)),
+              _InfoRow('Estado operativo', _statusLabel(v.status)),
               _InfoRow('Reputación', '${v.reputationScore}/100'),
             ],
           ),
+          const SizedBox(height: 12),
+
+          // ── Última inspección ────────────────────────────────
+          _InspectionCard(status: v.lastInspectionStatus),
           const SizedBox(height: 12),
 
           // ── Tarjeta del conductor ────────────────────────────
@@ -116,7 +137,7 @@ class _DataView extends StatelessWidget {
             _InfoCard(
               icon: Icons.person,
               title: d.name,
-              subtitle: 'Conductor habilitado',
+              subtitle: 'Conductor asignado',
               children: [
                 _InfoRow('Categoría de licencia', d.licenseCategory),
                 _InfoRow('Estado de fatiga', _fatigueLabel(d.fatigueStatus)),
@@ -131,6 +152,13 @@ class _DataView extends StatelessWidget {
               subtitle: 'Este vehículo no tiene conductor activo.',
               children: [],
             ),
+
+          // ── Botón Reportar anomalía (solo ciudadano) ─────────
+          if (isCiudadano) ...[
+            const SizedBox(height: 20),
+            _ReportarButton(vehicleId: v.id),
+          ],
+          const SizedBox(height: 12),
         ],
       ),
     );
@@ -153,19 +181,158 @@ class _DataView extends StatelessWidget {
         _ => s,
       };
 
-  String _inspectionLabel(String s) => switch (s) {
-        'aprobada'  => 'Aprobada',
-        'observada' => 'Con observaciones',
-        'rechazada' => 'Rechazada',
-        _ => 'Pendiente',
-      };
-
   String _fatigueLabel(String s) => switch (s) {
         'apto'    => 'Apto',
         'riesgo'  => 'En riesgo',
         'no_apto' => 'No apto',
         _ => s,
       };
+}
+
+// ── Badge de placa ─────────────────────────────────────────────────────────────
+class _PlateBadge extends StatelessWidget {
+  final String plate;
+  const _PlateBadge({required this.plate});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.goldBorder, width: 2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text(
+            'PLACA',
+            style: AppTheme.inter(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.goldDark,
+              letterSpacing: 2,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            plate,
+            style: GoogleFonts.sourceCodePro(
+              fontSize: 34,
+              fontWeight: FontWeight.w700,
+              color: AppColors.panel,
+              letterSpacing: 4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Tarjeta última inspección ──────────────────────────────────────────────────
+class _InspectionCard extends StatelessWidget {
+  final String status;
+  const _InspectionCard({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final (color, bg, border, label, icon) = switch (status) {
+      'aprobada'  => (AppColors.apto,   AppColors.aptoBg,   AppColors.aptoBorder,
+                      'Aprobada',        Icons.check_circle_outline),
+      'observada' => (AppColors.riesgo, AppColors.riesgoBg, AppColors.riesgoBorder,
+                      'Con observaciones', Icons.warning_amber_outlined),
+      'rechazada' => (AppColors.noApto, AppColors.noAptoBg, AppColors.noAptoBorder,
+                      'Rechazada',       Icons.cancel_outlined),
+      _           => (AppColors.ink5,   AppColors.ink1,     AppColors.ink3,
+                      'Sin inspección',  Icons.help_outline),
+    };
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.ink2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.goldBg,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.goldBorder),
+                  ),
+                  child: const Icon(Icons.assignment_outlined,
+                      size: 18, color: AppColors.goldDark),
+                ),
+                const SizedBox(width: 10),
+                Text('Última inspección',
+                    style: AppTheme.inter(
+                        fontSize: 14, fontWeight: FontWeight.w700,
+                        color: AppColors.ink9)),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.ink2),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: bg,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: border),
+                  ),
+                  child: Icon(icon, size: 16, color: color),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  label,
+                  style: AppTheme.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Botón reportar anomalía ────────────────────────────────────────────────────
+class _ReportarButton extends StatelessWidget {
+  final String vehicleId;
+  const _ReportarButton({required this.vehicleId});
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: () => context.push('/reportar?vehicleId=$vehicleId'),
+      icon: const Icon(Icons.campaign_outlined, size: 18),
+      label: const Text('Reportar anomalía'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.riesgo,
+        side: const BorderSide(color: AppColors.riesgoBorder, width: 1.5),
+        backgroundColor: AppColors.riesgoBg,
+        minimumSize: const Size(double.infinity, 48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        textStyle: AppTheme.inter(fontSize: 14.5, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
 }
 
 class _IndicatorBanner extends StatelessWidget {
@@ -316,6 +483,47 @@ class _InfoRow extends StatelessWidget {
             fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.ink8,
           )),
         ],
+      ),
+    );
+  }
+}
+
+class _EmptyView extends StatelessWidget {
+  const _EmptyView();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppColors.ink1,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.ink3),
+              ),
+              child: const Icon(Icons.directions_car_outlined,
+                  size: 38, color: AppColors.ink4),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Vehículo no encontrado',
+              style: AppTheme.inter(
+                  fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.ink9),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Este vehículo no está registrado en el sistema SFIT o la placa es incorrecta.',
+              textAlign: TextAlign.center,
+              style: AppTheme.inter(fontSize: 13, color: AppColors.ink5, height: 1.5),
+            ),
+          ],
+        ),
       ),
     );
   }

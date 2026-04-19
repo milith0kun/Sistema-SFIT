@@ -57,14 +57,14 @@ export async function getBalance(userId: string): Promise<number> {
 
 /**
  * Determina el nivel del usuario según su balance de SFITCoins.
- * 0–49   → Bronce (1)
- * 50–199 → Plata  (2)
- * 200–499→ Oro    (3)
- * 500+   → Platino(4)
+ * 0–99    → Bronce  (1)
+ * 100–499 → Plata   (2)
+ * 500–1999→ Oro     (3)
+ * 2000+   → Platino (4)
  */
 export function getNivel(balance: number): { nivel: number; label: string } {
-  if (balance >= 500) return { nivel: 4, label: "Platino" };
-  if (balance >= 200) return { nivel: 3, label: "Oro" };
-  if (balance >= 50)  return { nivel: 2, label: "Plata" };
+  if (balance >= 2000) return { nivel: 4, label: "Platino" };
+  if (balance >= 500)  return { nivel: 3, label: "Oro" };
+  if (balance >= 100)  return { nivel: 2, label: "Plata" };
   return { nivel: 1, label: "Bronce" };
 }

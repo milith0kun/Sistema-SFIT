@@ -68,6 +68,9 @@ export default function FlotaPage() {
   const [error, setError] = useState<string | null>(null);
   const [showChecklist, setShowChecklist] = useState(false);
   const [checked, setChecked] = useState<Record<number, boolean>>({ 0: true, 1: true, 2: false, 3: false, 4: false, 5: false });
+  const [exitForm, setExitForm] = useState({ vehicleId: "", driverId: "", observations: "" });
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
@@ -100,6 +103,43 @@ export default function FlotaPage() {
 
   const allCritOk = [0, 1, 2].every(i => checked[i]);
   const drivers = items.filter(i => i.driver).map(i => i.driver).filter((d, idx, arr) => arr.findIndex(x => x.name === d.name) === idx);
+
+  const handleConfirmExit = useCallback(async () => {
+    if (!allCritOk) return;
+    if (!exitForm.vehicleId.trim()) { setSubmitError("Selecciona o ingresa el ID del vehículo."); return; }
+    if (!exitForm.driverId.trim() && user?.role !== "conductor") { setSubmitError("Ingresa el ID del conductor."); return; }
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch("/api/flota", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({
+          vehicleId: exitForm.vehicleId.trim(),
+          driverId: exitForm.driverId.trim() || undefined,
+          departureTime: new Date().toISOString(),
+          checklistComplete: true,
+          observations: exitForm.observations.trim() || undefined,
+          status: "en_ruta",
+        }),
+      });
+      if (res.status === 401) { router.replace("/login"); return; }
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setSubmitError(data.error ?? "Error al registrar la salida.");
+        return;
+      }
+      setShowChecklist(false);
+      setChecked({ 0: true, 1: true, 2: false, 3: false, 4: false, 5: false });
+      setExitForm({ vehicleId: "", driverId: "", observations: "" });
+      void load();
+    } catch {
+      setSubmitError("Error de conexión al registrar la salida.");
+    } finally {
+      setSubmitting(false);
+    }
+  }, [allCritOk, exitForm, user, router, load]);
 
   if (!user) return null;
 

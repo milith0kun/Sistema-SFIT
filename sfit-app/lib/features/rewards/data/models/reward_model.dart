@@ -1,4 +1,4 @@
-/// Modelos de datos para el sistema de SFITCoins y recompensas (RF-15 / RF-16).
+// Modelos de datos para el sistema de SFITCoins y recompensas (RF-15 / RF-16).
 
 class CoinTransaction {
   final String id;

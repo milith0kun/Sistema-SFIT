@@ -129,9 +129,27 @@ export default function ReporteDetallePage({ params }: Props) {
       if (fiscalId)  payload.assignedFiscalId = fiscalId;
 
       const res = await fetch(`/api/reportes/${id}`, {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify(payload),
+      });
+      if (res.status === 401) { router.replace("/login"); return; }
+      const data = await res.json();
+      if (!res.ok || !data.success) { setError(data.error ?? "Error al actualizar."); return; }
+      setUpdateSuccess(true);
+      void load();
+    } catch { setError("Error de conexión."); }
+    finally { setUpdating(false); }
+  }
+
+  async function handleUpdateStatus(status: ReportStatus) {
+    setUpdating(true); setError(null); setUpdateSuccess(false);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/reportes/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ status }),
       });
       if (res.status === 401) { router.replace("/login"); return; }
       const data = await res.json();
@@ -320,11 +338,41 @@ export default function ReporteDetallePage({ params }: Props) {
               <span style={{ fontWeight: 700, fontSize: "0.8125rem", color: st.color }}>{st.label}</span>
             </div>
 
-            {/* Action panel */}
+            {/* Quick actions for actionable statuses */}
+            {canAct && (report.status === "pendiente" || report.status === "revision") && (
+              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                <button
+                  disabled={updating}
+                  onClick={() => { setNewStatus("rechazado"); void handleUpdateStatus("rechazado"); }}
+                  style={{
+                    flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    height: 36, padding: "0 12px", borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600,
+                    cursor: "pointer", border: "1.5px solid #FCA5A5", background: "#FFF5F5", color: "#b91c1c",
+                    fontFamily: "inherit", opacity: updating ? 0.6 : 1,
+                  }}
+                >
+                  <X size={14} /> Rechazar
+                </button>
+                <button
+                  disabled={updating}
+                  onClick={() => { setNewStatus("validado"); void handleUpdateStatus("validado"); }}
+                  style={{
+                    flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    height: 36, padding: "0 12px", borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600,
+                    cursor: "pointer", border: "none", background: "#15803d", color: "#fff",
+                    fontFamily: "inherit", opacity: updating ? 0.6 : 1,
+                  }}
+                >
+                  <Check size={14} /> Validar reporte (+20 coins)
+                </button>
+              </div>
+            )}
+
+            {/* Action panel — full form for advanced updates */}
             {canAct && (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <div>
-                  <label style={{ display: "block", marginBottom: 8, fontSize: "0.875rem", fontWeight: 500 }}>Nuevo estado</label>
+                  <label style={{ display: "block", marginBottom: 8, fontSize: "0.875rem", fontWeight: 500 }}>Cambiar estado</label>
                   <select
                     value={newStatus}
                     onChange={e => setNewStatus(e.target.value as ReportStatus)}
@@ -372,7 +420,7 @@ export default function ReporteDetallePage({ params }: Props) {
                   loading={updating}
                   style={{ width: "100%" }}
                 >
-                  Actualizar reporte
+                  Guardar cambios
                 </Button>
               </div>
             )}

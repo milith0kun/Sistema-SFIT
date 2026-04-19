@@ -92,7 +92,7 @@ class _Body extends StatefulWidget {
 }
 
 class _BodyState extends State<_Body> {
-  bool _checklistExpanded = false;
+  bool _checklistExpanded = true;
 
   @override
   Widget build(BuildContext context) {

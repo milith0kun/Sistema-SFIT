@@ -306,7 +306,7 @@ class _NotificationTile extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        color: item.read ? Colors.white : AppColors.infoBg.withOpacity(0.35),
+        color: item.read ? Colors.white : AppColors.infoBg.withValues(alpha: 0.35),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

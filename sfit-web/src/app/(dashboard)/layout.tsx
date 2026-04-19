@@ -77,7 +77,7 @@ const NAV: NavItem[] = [
   { href: "/sanciones",       label: "Sanciones",           icon: TriangleAlert,  section: "CIUDADANÍA", roles: ["admin_municipal","fiscal"] },
   { href: "/recompensas",     label: "Recompensas",         icon: Gift,           section: "CIUDADANÍA", roles: ["super_admin","admin_municipal"] },
 
-  { href: "/estadisticas",    label: "Estadísticas",        icon: ChartColumn,    section: "ANÁLISIS",   roles: ["super_admin","admin_provincial","admin_municipal","operador"] },
+  { href: "/estadisticas",    label: "Estadísticas",        icon: ChartColumn,    section: "ANÁLISIS",   roles: ["super_admin","admin_provincial"] },
   { href: "/auditoria",       label: "Auditoría",           icon: FileText,       section: "ANÁLISIS",   roles: ["super_admin","admin_provincial","admin_municipal"] },
 ];
 

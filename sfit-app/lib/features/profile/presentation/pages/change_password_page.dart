@@ -81,11 +81,11 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
         backgroundColor: AppColors.panel,
         foregroundColor: Colors.white,
       ),
-      body: _success ? _SuccessView(onClose: () => context.pop()) : _Form(),
+      body: _success ? _SuccessView(onClose: () => context.pop()) : _buildForm(),
     );
   }
 
-  Widget _Form() {
+  Widget _buildForm() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Form(

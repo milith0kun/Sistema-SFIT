@@ -19,6 +19,7 @@ import '../../../trips/presentation/pages/my_routes_page.dart';
 import '../../../trips/presentation/pages/my_trips_page.dart';
 import '../../../rewards/presentation/pages/rewards_page.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/widgets/connectivity_banner.dart';
 
 /// Pantalla principal — adapta el contenido al rol del usuario (RF-05 a RF-16).
 ///
@@ -163,9 +164,16 @@ class _HomePageState extends ConsumerState<HomePage> {
           const SizedBox(width: 6),
         ],
       ),
-      body: IndexedStack(
-        index: safeIndex,
-        children: tabs.map((t) => t.page).toList(),
+      body: Column(
+        children: [
+          const ConnectivityBanner(),
+          Expanded(
+            child: IndexedStack(
+              index: safeIndex,
+              children: tabs.map((t) => t.page).toList(),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: safeIndex,
