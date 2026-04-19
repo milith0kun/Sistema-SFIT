@@ -34,8 +34,8 @@ export function DashboardHero({
       className="animate-fade-in"
       style={{
         background: "linear-gradient(100deg, #0A1628 0%, #111F38 55%, #1A2D4A 100%)",
-        borderRadius: 14,
-        padding: "16px 20px",
+        borderRadius: 12,
+        padding: "14px 18px",
         position: "relative",
         overflow: "hidden",
         color: "#fff",
