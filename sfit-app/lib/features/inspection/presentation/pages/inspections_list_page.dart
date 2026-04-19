@@ -577,7 +577,7 @@ class _InspectionsSkeleton extends StatelessWidget {
         },
         onEnd: null, // TweenAnimationBuilder no hace loop nativo;
         // el efecto se reinicia al rebuild del widget.
-        child: _SkeletonCard(),
+        child: const _SkeletonCard(),
       ),
     );
   }

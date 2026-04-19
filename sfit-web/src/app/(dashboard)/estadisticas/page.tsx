@@ -912,7 +912,7 @@ function MunicipalDashboard({
                         ))}
                       </Pie>
                       <Tooltip
-                        formatter={(value: number, name: string) => [value, name]}
+                        formatter={(value, name) => [Number(value), String(name)]}
                       />
                       <Legend wrapperStyle={{ fontSize: "0.75rem" }} />
                     </PieChart>

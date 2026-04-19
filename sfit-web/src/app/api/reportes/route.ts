@@ -26,17 +26,11 @@ const REPORT_CATEGORIES = [
   "Otro",
 ] as const;
 
-const LocationSchema = z.object({
-  lat: z.number().min(-90).max(90),
-  lng: z.number().min(-180).max(180),
-  address: z.string().max(300).optional(),
-});
-
 const CreateSchema = z.object({
   municipalityId: z.string().refine(isValidObjectId).optional(),
   vehicleId: z.string().refine(isValidObjectId).optional(),
   category: z.enum(REPORT_CATEGORIES, {
-    errorMap: () => ({ message: `Categoría inválida. Valores permitidos: ${REPORT_CATEGORIES.join(", ")}` }),
+    error: `Categoría inválida. Valores permitidos: ${REPORT_CATEGORIES.join(", ")}`,
   }),
   vehicleTypeKey: z.string().optional(),
   description: z.string()
@@ -44,7 +38,6 @@ const CreateSchema = z.object({
     .max(2000, "La descripción no puede superar los 2000 caracteres"),
   evidenceUrl: z.string().url().optional(),
   fraudScore: z.number().min(0).max(100).optional(),
-  location: LocationSchema.optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -157,7 +150,7 @@ export async function POST(request: NextRequest) {
       { layer: "Corroboración", passed: false, detail: "Sin corroboración aún" },
     ];
 
-    const created = await CitizenReport.create({
+    const doc = await CitizenReport.create({
       municipalityId,
       vehicleId: parsed.data.vehicleId,
       citizenId: auth.session.userId,
@@ -165,7 +158,6 @@ export async function POST(request: NextRequest) {
       vehicleTypeKey: parsed.data.vehicleTypeKey,
       description: parsed.data.description,
       evidenceUrl: parsed.data.evidenceUrl,
-      location: parsed.data.location,
       fraudScore: parsed.data.fraudScore ?? 60,
       fraudLayers,
       status: "pendiente",
@@ -173,10 +165,10 @@ export async function POST(request: NextRequest) {
 
     // RF-15: Otorgar 5 SFITCoins al ciudadano por enviar un reporte
     if (auth.session.role === ROLES.CIUDADANO) {
-      void awardCoins(auth.session.userId, 5, "reporte_enviado", String(created._id));
+      void awardCoins(auth.session.userId, 5, "reporte_enviado", String(doc._id));
     }
 
-    return apiResponse({ id: String(created._id), ...created.toObject() }, 201);
+    return apiResponse({ id: String(doc._id) }, 201);
   } catch (error) {
     console.error("[reportes POST]", error);
     return apiError("Error al crear reporte", 500);

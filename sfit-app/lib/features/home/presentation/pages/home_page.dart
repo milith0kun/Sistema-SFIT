@@ -21,6 +21,7 @@ import '../../../trips/presentation/pages/my_trips_page.dart';
 import '../../../rewards/presentation/pages/rewards_page.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/widgets/connectivity_banner.dart';
+import '../../../../core/widgets/sfit_loading.dart';
 
 /// Pantalla principal — adapta el contenido al rol del usuario (RF-05 a RF-16).
 ///
@@ -505,9 +506,7 @@ class _BlankLoading extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const Scaffold(
         backgroundColor: AppColors.paper,
-        body: Center(
-          child: CircularProgressIndicator(color: AppColors.gold),
-        ),
+        body: SfitLoading(),
       );
 }
 

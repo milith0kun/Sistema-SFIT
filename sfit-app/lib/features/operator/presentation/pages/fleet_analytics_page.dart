@@ -496,7 +496,7 @@ class _DriverRow extends StatelessWidget {
           ),
           Expanded(
             child: Text(
-              '${fmt.format(stats.totalKm)}',
+              fmt.format(stats.totalKm),
               style: AppTheme.inter(
                 fontSize: 12, fontWeight: FontWeight.w700,
                 color: AppColors.ink7, tabular: true,
