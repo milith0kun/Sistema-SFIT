@@ -76,12 +76,7 @@ export default function NotificacionesPage() {
     setLoading(true);
     setError(null);
     try {
-      const qs = new URLSearchParams();
-      qs.set("limit", "100");
-      if (tab === "unread") qs.set("unread", "true");
-      if (tab === "category" && category) qs.set("category", category);
-
-      const res = await fetch(`/api/notifications?${qs.toString()}`, {
+      const res = await fetch(`/api/notificaciones`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       const data: ApiResponse<{ items: Notification[] }> = await res.json();
@@ -96,7 +91,7 @@ export default function NotificacionesPage() {
     } finally {
       setLoading(false);
     }
-  }, [tab, category]);
+  }, []);
 
   useEffect(() => {
     void load();
@@ -110,9 +105,10 @@ export default function NotificacionesPage() {
 
   async function markAllRead() {
     try {
-      const res = await fetch("/api/notifications/read-all", {
+      const res = await fetch("/api/notificaciones", {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${getToken()}` },
+        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ markAllRead: true }),
       });
       if (res.ok) setItems((prev) => prev.map((n) => ({ ...n, read: true })));
     } catch {
@@ -122,7 +118,7 @@ export default function NotificacionesPage() {
 
   async function markRead(id: string) {
     try {
-      const res = await fetch(`/api/notifications/${id}/read`, {
+      const res = await fetch(`/api/notificaciones/${id}`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${getToken()}` },
       });
@@ -132,21 +128,14 @@ export default function NotificacionesPage() {
     }
   }
 
-  async function remove(id: string) {
-    if (!window.confirm("¿Eliminar esta notificación?")) return;
-    try {
-      const res = await fetch(`/api/notifications/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      if (res.ok) setItems((prev) => prev.filter((n) => n.id !== id));
-    } catch {
-      // silent
-    }
-  }
-
   const unreadCount = items.filter((n) => !n.read).length;
   const categoryCount = categories.length;
+
+  const visibleItems = useMemo(() => {
+    if (tab === "unread") return items.filter((n) => !n.read);
+    if (tab === "category" && category) return items.filter((n) => n.category === category);
+    return items;
+  }, [items, tab, category]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -255,11 +244,11 @@ export default function NotificacionesPage() {
         <Card>
           <div style={{ color: "#71717a" }}>Cargando…</div>
         </Card>
-      ) : items.length === 0 ? (
+      ) : visibleItems.length === 0 ? (
         <EmptyState title="Sin notificaciones" subtitle="No tienes notificaciones en esta vista." />
       ) : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 10 }}>
-          {items.map((n) => {
+          {visibleItems.map((n) => {
             const ibg = iconBg(n.type);
             const content = (
               <div
@@ -365,25 +354,6 @@ export default function NotificacionesPage() {
                         Marcar leída
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        void remove(n.id);
-                      }}
-                      style={{
-                        background: "transparent",
-                        border: "none",
-                        color: "#b91c1c",
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        padding: 0,
-                      }}
-                    >
-                      Eliminar
-                    </button>
                   </div>
                 </div>
               </div>
