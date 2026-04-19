@@ -138,12 +138,11 @@ export default function NotificacionesPage() {
   }, [items, tab, category]);
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="flex flex-col gap-3 animate-fade-in">
       <DashboardHero
         kicker="Centro de avisos"
         rfCode="RF-18"
         title="Notificaciones"
-        subtitle="Tu centro de actividad: aprobaciones, alertas y avisos del sistema."
         pills={[
           { label: "No leídas", value: unreadCount, warn: unreadCount > 0 },
           { label: "Categorías", value: categoryCount },

@@ -308,7 +308,7 @@ export default function EstadisticasPage() {
 
   if (!user) {
     return (
-      <div className="space-y-8 animate-fade-in">
+      <div className="flex flex-col gap-3 animate-fade-in">
         <PageHeader kicker="Cargando" title="Estadísticas" />
         <Card>
           <div style={{ color: "#71717a" }}>Cargando…</div>
@@ -333,16 +333,11 @@ export default function EstadisticasPage() {
   const totalUsers = stats ? Object.values(stats.usersByRole ?? {}).reduce((a, b) => a + b, 0) : 0;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="flex flex-col gap-3 animate-fade-in">
       <DashboardHero
         kicker={user.role === "super_admin" ? "Panel global" : "Panel provincial"}
         rfCode="RF-19"
         title="Estadísticas"
-        subtitle={
-          user.role === "super_admin"
-            ? "Visión global de la plataforma: usuarios, municipalidades y actividad."
-            : "Indicadores de tu provincia y municipalidades asociadas."
-        }
         pills={
           stats
             ? [
@@ -781,12 +776,11 @@ function MunicipalDashboard({
   );
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="flex flex-col gap-3 animate-fade-in">
       <DashboardHero
         kicker="Panel municipal"
         rfCode="RF-19-01"
         title="Estadísticas"
-        subtitle="Indicadores de tu municipalidad: vehículos, conductores, inspecciones y reportes."
         pills={
           data
             ? [

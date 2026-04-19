@@ -278,11 +278,10 @@ export default function UsuariosAdminPage() {
   if (!user) return null;
 
   return (
-    <div>
+    <div className="flex flex-col gap-3 animate-fade-in">
       <PageHeader
         kicker="Administración · RF-01"
         title="Gestión de usuarios"
-        subtitle="Visualiza, aprueba, suspende y gestiona los roles de usuarios del sistema según tu scope de administración."
       />
 
       {/* KPI Strip */}

@@ -203,12 +203,11 @@ export default function AuditoriaPage() {
   const userActionsCount = items.filter((e) => e.action.startsWith("user.")).length;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="flex flex-col gap-3 animate-fade-in">
       <DashboardHero
         kicker="Trazabilidad"
         rfCode="RNF-16"
         title="Auditoría"
-        subtitle="Bitácora cronológica de acciones sensibles del sistema."
         pills={[
           { label: "Eventos", value: total },
           { label: "Sensibles", value: sensitiveCount, warn: sensitiveCount > 0 },

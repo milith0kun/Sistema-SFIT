@@ -164,12 +164,11 @@ export default function ProvinciasPage() {
   const inactivas = items.length - activas;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="flex flex-col gap-3 animate-fade-in">
       <DashboardHero
         kicker="Panel global"
         rfCode="RF-02"
         title="Provincias"
-        subtitle="Gestiona las provincias del sistema y sus municipalidades asociadas."
         pills={[
           { label: "Total", value: items.length },
           { label: "Activas", value: activas },

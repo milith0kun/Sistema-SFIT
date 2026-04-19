@@ -236,12 +236,11 @@ export default function EmpresasPage() {
       : 0;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="flex flex-col gap-3 animate-fade-in">
       <DashboardHero
         kicker="Panel municipal"
         rfCode="RF-03-04"
         title="Empresas de transporte"
-        subtitle="Administra las empresas y flotas que operan en tu jurisdicción."
         pills={[
           { label: "Total", value: items.length },
           { label: "Activas", value: activas },

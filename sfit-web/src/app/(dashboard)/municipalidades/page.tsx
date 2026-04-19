@@ -169,12 +169,11 @@ export default function MunicipalidadesPage() {
   const inactivas = items.length - activas;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="flex flex-col gap-3 animate-fade-in">
       <DashboardHero
         kicker={user.role === "super_admin" ? "Panel global" : "Panel provincial"}
         rfCode="RF-03"
         title="Municipalidades"
-        subtitle="Gestiona las municipalidades de la jurisdicción."
         pills={[
           { label: "Total", value: items.length },
           { label: "Activas", value: activas },

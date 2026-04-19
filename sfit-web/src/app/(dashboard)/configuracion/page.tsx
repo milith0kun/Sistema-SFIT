@@ -139,11 +139,10 @@ export default function ConfiguracionPage() {
   if (!user) return null;
 
   return (
-    <div>
+    <div className="flex flex-col gap-3 animate-fade-in">
       <PageHeader
         kicker="Administración"
         title="Configuración municipal"
-        subtitle="Parámetros operativos del municipio: horas de conducción, límites de inspección y notificaciones."
       />
 
       {loading ? (

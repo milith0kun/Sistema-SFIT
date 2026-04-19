@@ -169,12 +169,11 @@ export default function TiposVehiculoPage() {
   const totalActive = items.filter((t) => t.active).length;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="flex flex-col gap-3 animate-fade-in">
       <DashboardHero
         kicker="Panel municipal"
         rfCode="RF-04"
         title="Tipos de vehículo"
-        subtitle="Configura los tipos de vehículos que opera tu municipalidad y sus formularios."
         pills={[
           { label: "Activos", value: totalActive },
           { label: "Predefinidos", value: predefActive },

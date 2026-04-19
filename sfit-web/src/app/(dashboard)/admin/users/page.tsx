@@ -109,12 +109,11 @@ export default function AdminUsersPage() {
   const maxRole = Object.entries(rolesCount).sort((a, b) => b[1] - a[1])[0];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="flex flex-col gap-3 animate-fade-in">
       <DashboardHero
         kicker="Aprobaciones pendientes"
         rfCode="RF-01-04"
         title="Solicitudes pendientes"
-        subtitle="Revisa y aprueba o rechaza las solicitudes de acceso a la plataforma."
         pills={[
           { label: "Por revisar", value: users.length, warn: users.length > 0 },
         ]}
