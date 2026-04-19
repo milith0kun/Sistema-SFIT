@@ -3,6 +3,7 @@ import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { CitizenReport } from "@/models/CitizenReport";
+import { User } from "@/models/User";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
@@ -142,10 +143,31 @@ export async function POST(request: NextRequest) {
 
     await connectDB();
 
+    // Capa 1: Verificar que el ciudadano no esté suspendido
+    // (el campo status puede ser "suspendido" tras 3 rechazos consecutivos u otras causas)
+    const citizenUser = await User.findById(auth.session.userId).select("status").lean();
+    const capa1Passed = citizenUser?.status === "activo";
+    if (!capa1Passed) {
+      return apiError("Tu cuenta está suspendida o inactiva y no puede enviar reportes", 403);
+    }
+
+    // Capa 3: Límite diario por ciudadano (max 5 reportes/día)
+    const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+    const reportsToday = await CitizenReport.countDocuments({
+      citizenId: auth.session.userId,
+      createdAt: { $gte: startOfDay },
+    });
+    const DAILY_LIMIT = 5;
+    const capa3Passed = reportsToday < DAILY_LIMIT;
+
+    if (!capa3Passed) {
+      return apiError(`Has alcanzado el límite de ${DAILY_LIMIT} reportes por día`, 429);
+    }
+
     const fraudLayers = [
-      { layer: "Identidad", passed: true, detail: "Usuario verificado" },
+      { layer: "Identidad", passed: capa1Passed, detail: "Usuario verificado y activo" },
       { layer: "Contexto", passed: true, detail: "Radio coherente" },
-      { layer: "Límite diario", passed: true, detail: "Dentro del límite" },
+      { layer: "Límite diario", passed: capa3Passed, detail: `${reportsToday + 1}/${DAILY_LIMIT} reportes hoy` },
       { layer: "QR válido", passed: true, detail: "HMAC verificado" },
       { layer: "Corroboración", passed: false, detail: "Sin corroboración aún" },
     ];

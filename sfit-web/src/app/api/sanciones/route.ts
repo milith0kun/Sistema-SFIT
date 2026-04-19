@@ -7,6 +7,7 @@ import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationErro
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
+import { adjustVehicleReputation, adjustDriverReputation } from "@/lib/reputation/updateReputation";
 
 const SANCTION_STATUS_VALUES = ["emitida", "apelada", "resuelta", "anulada"] as const;
 
@@ -136,6 +137,10 @@ export async function POST(request: NextRequest) {
         { channel: "push", target: "conductor_id", status: "pendiente" },
       ],
     });
+
+    // RF-15: Sanciones reducen reputación del vehículo y conductor
+    if (created.vehicleId) void adjustVehicleReputation(created.vehicleId, -8);
+    if (created.driverId) void adjustDriverReputation(created.driverId, -5);
 
     return apiResponse({ id: String(created._id), ...created.toObject() }, 201);
   } catch (error) {

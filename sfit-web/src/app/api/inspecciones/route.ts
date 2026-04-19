@@ -11,6 +11,7 @@ import { sendPushToTokens } from "@/lib/notifications/fcm";
 import { User } from "@/models/User";
 import { logAction } from "@/lib/audit/logAction";
 import { triggerWebhook } from "@/lib/webhooks/triggerWebhook";
+import { adjustVehicleReputation } from "@/lib/reputation/updateReputation";
 
 const ChecklistItemSchema = z.object({
   item: z.string().min(1).max(200),
@@ -138,6 +139,10 @@ export async function POST(request: NextRequest) {
       evidenceUrls: parsed.data.evidenceUrls ?? [],
       date: new Date(),
     });
+
+    // RF-15: Actualizar reputación del vehículo según resultado
+    const repDelta = parsed.data.result === "aprobada" ? 2 : parsed.data.result === "observada" ? -3 : -10;
+    void adjustVehicleReputation(parsed.data.vehicleId, repDelta);
 
     // RF-18 — Notificar a operadores activos de la municipalidad (no-bloqueante).
     // Nota: cuando el esquema incluya User.companyId, filtrar también por companyId

@@ -50,6 +50,13 @@ export async function GET(request: NextRequest) {
 
     if (statusParam) filter.status = statusParam;
 
+    // Auto-cierre pasivo: cierra viajes viejos al listar (silencioso, no bloquea el listado)
+    const cutoff = new Date(Date.now() - 12 * 60 * 60 * 1000);
+    await Trip.updateMany(
+      { status: "en_curso", startTime: { $lte: cutoff } },
+      { $set: { status: "auto_cierre", endTime: new Date() } },
+    ).catch(() => {});
+
     const now = new Date();
     if (period === "hoy") {
       const start = new Date(now); start.setHours(0, 0, 0, 0);
