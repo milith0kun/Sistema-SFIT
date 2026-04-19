@@ -1,10 +1,27 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/datasources/inspection_api_service.dart';
 import '../../data/models/inspection_model.dart';
+
+// ── Modelo de resumen diario ─────────────────────────────────────
+class _DailySummary {
+  final int total;
+  final int approved;
+  final int observed;
+  final int rejected;
+
+  const _DailySummary({
+    required this.total,
+    required this.approved,
+    required this.observed,
+    required this.rejected,
+  });
+}
 
 /// Lista de inspecciones del fiscal — RF-11.
 class InspectionsListPage extends ConsumerStatefulWidget {
@@ -15,25 +32,100 @@ class InspectionsListPage extends ConsumerStatefulWidget {
 }
 
 class _InspectionsListPageState extends ConsumerState<InspectionsListPage> {
-  List<InspectionModel> _items = [];
-  bool _loading = true;
+  List<InspectionModel> _items    = [];
+  List<InspectionModel> _filtered = [];
+  bool _loading     = true;
   String? _error;
+
+  // ── Filtros ──────────────────────────────────────────────────
+  String _selectedResult = 'todas'; // todas | aprobada | observada | rechazada
+  final _searchCtrl = TextEditingController();
+  Timer? _debounce;
+
+  // ── Resumen diario ───────────────────────────────────────────
+  _DailySummary? _summary;
+  bool _loadingSummary = true;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _loadSummary();
   }
 
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  // ── Carga principal ─────────────────────────────────────────
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
       final svc = ref.read(inspectionApiServiceProvider);
-      final items = await svc.getInspections(limit: 50);
-      if (mounted) setState(() { _items = items; _loading = false; });
+      final result = _selectedResult == 'todas' ? null : _selectedResult;
+      final plate  = _searchCtrl.text.trim().isEmpty ? null : _searchCtrl.text.trim();
+      final items  = await svc.getInspections(limit: 50, result: result, plate: plate);
+      if (mounted) setState(() { _items = items; _filtered = items; _loading = false; });
     } catch (_) {
       if (mounted) setState(() { _error = 'No se pudieron cargar las inspecciones.'; _loading = false; });
     }
+  }
+
+  // ── Carga del resumen diario ─────────────────────────────────
+  Future<void> _loadSummary() async {
+    setState(() => _loadingSummary = true);
+    try {
+      final dio = ref.read(dioClientProvider).dio;
+      final resp = await dio.get('/admin/stats/fiscal');
+      final data = (resp.data as Map)['data'] as Map<String, dynamic>;
+      if (mounted) {
+        setState(() {
+          _summary = _DailySummary(
+            total:    (data['total']    as num?)?.toInt() ?? 0,
+            approved: (data['aprobada'] as num?)?.toInt() ?? 0,
+            observed: (data['observada'] as num?)?.toInt() ?? 0,
+            rejected: (data['rechazada'] as num?)?.toInt() ?? 0,
+          );
+          _loadingSummary = false;
+        });
+      }
+    } catch (_) {
+      // Fallback: calcula de la lista si el endpoint no responde
+      if (mounted) _buildSummaryFromList();
+    }
+  }
+
+  void _buildSummaryFromList() {
+    final today = DateTime.now();
+    final todayItems = _items.where((e) =>
+      e.date.year  == today.year &&
+      e.date.month == today.month &&
+      e.date.day   == today.day,
+    ).toList();
+    setState(() {
+      _summary = _DailySummary(
+        total:    todayItems.length,
+        approved: todayItems.where((e) => e.result == 'aprobada').length,
+        observed: todayItems.where((e) => e.result == 'observada').length,
+        rejected: todayItems.where((e) => e.result == 'rechazada').length,
+      );
+      _loadingSummary = false;
+    });
+  }
+
+  // ── Cambio de filtro por resultado ───────────────────────────
+  void _onResultFilterChanged(String value) {
+    setState(() => _selectedResult = value);
+    _load();
+  }
+
+  // ── Cambio en el campo de búsqueda con debounce ──────────────
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), _load);
   }
 
   @override
@@ -41,7 +133,7 @@ class _InspectionsListPageState extends ConsumerState<InspectionsListPage> {
     return SafeArea(
       child: Column(
         children: [
-          // ── Header con botón nueva inspección ───────────────────
+          // ── Header con botón nueva inspección ───────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Row(
@@ -53,7 +145,7 @@ class _InspectionsListPageState extends ConsumerState<InspectionsListPage> {
                       )),
                 ),
                 FilledButton.icon(
-                  onPressed: () => context.push('/qr').then((_) => _load()),
+                  onPressed: () => context.push('/qr').then((_) { _load(); _loadSummary(); }),
                   icon: const Icon(Icons.qr_code_scanner, size: 16),
                   label: const Text('Escanear QR'),
                   style: FilledButton.styleFrom(
@@ -66,6 +158,57 @@ class _InspectionsListPageState extends ConsumerState<InspectionsListPage> {
             ),
           ),
 
+          // ── Resumen diario (KPI strip) ────────────────────────────
+          _DailySummaryStrip(summary: _summary, loading: _loadingSummary),
+
+          // ── Filtro por resultado ──────────────────────────────────
+          _ResultFilterChips(
+            selected: _selectedResult,
+            onChanged: _onResultFilterChanged,
+          ),
+
+          // ── Búsqueda por placa ────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: _onSearchChanged,
+              textCapitalization: TextCapitalization.characters,
+              decoration: InputDecoration(
+                hintText: 'Buscar por placa…',
+                hintStyle: AppTheme.inter(fontSize: 13, color: AppColors.ink4),
+                prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.ink4),
+                suffixIcon: _searchCtrl.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close, size: 16, color: AppColors.ink4),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          _load();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.ink2),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.ink2),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.ink7, width: 1.5),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+              style: AppTheme.inter(fontSize: 13, color: AppColors.ink9, tabular: true),
+            ),
+          ),
+
           // ── Lista ─────────────────────────────────────────────
           Expanded(
             child: _loading
@@ -73,9 +216,9 @@ class _InspectionsListPageState extends ConsumerState<InspectionsListPage> {
                 : _error != null
                     ? _ErrorState(message: _error!, onRetry: _load)
                     : _items.isEmpty
-                        ? _EmptyState(onScan: () => context.push('/qr').then((_) => _load()))
+                        ? _EmptyState(onScan: () => context.push('/qr').then((_) { _load(); _loadSummary(); }))
                         : RefreshIndicator(
-                            onRefresh: _load,
+                            onRefresh: () async { await _load(); await _loadSummary(); },
                             color: AppColors.gold,
                             child: ListView.separated(
                               padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
@@ -91,6 +234,170 @@ class _InspectionsListPageState extends ConsumerState<InspectionsListPage> {
   }
 }
 
+// ── Widget: Resumen diario KPI ───────────────────────────────────
+class _DailySummaryStrip extends StatelessWidget {
+  final _DailySummary? summary;
+  final bool loading;
+
+  const _DailySummaryStrip({required this.summary, required this.loading});
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const Padding(
+        padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+        child: SizedBox(
+          height: 62,
+          child: Center(child: SizedBox(
+            width: 18, height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gold),
+          )),
+        ),
+      );
+    }
+    if (summary == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+      child: Row(
+        children: [
+          _SummaryKpi(
+            label: 'Total hoy',
+            value: '${summary!.total}',
+            color: AppColors.info,
+            bg: AppColors.infoBg,
+          ),
+          const SizedBox(width: 6),
+          _SummaryKpi(
+            label: 'Aprobadas',
+            value: '${summary!.approved}',
+            color: AppColors.apto,
+            bg: AppColors.aptoBg,
+          ),
+          const SizedBox(width: 6),
+          _SummaryKpi(
+            label: 'Observadas',
+            value: '${summary!.observed}',
+            color: AppColors.riesgo,
+            bg: AppColors.riesgoBg,
+          ),
+          const SizedBox(width: 6),
+          _SummaryKpi(
+            label: 'Rechazadas',
+            value: '${summary!.rejected}',
+            color: AppColors.noApto,
+            bg: AppColors.noAptoBg,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryKpi extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  final Color bg;
+
+  const _SummaryKpi({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.bg,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        decoration: BoxDecoration(
+          color: bg,
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(value,
+                style: AppTheme.inter(
+                    fontSize: 18, fontWeight: FontWeight.w800,
+                    color: color, tabular: true)),
+            Text(label,
+                style: AppTheme.inter(fontSize: 9.5, color: color.withValues(alpha: 0.85)),
+                textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Widget: Chips de filtro por resultado ─────────────────────────
+class _ResultFilterChips extends StatelessWidget {
+  final String selected;
+  final ValueChanged<String> onChanged;
+
+  const _ResultFilterChips({required this.selected, required this.onChanged});
+
+  static const _filters = [
+    ('todas',     'Todas'),
+    ('aprobada',  'Aprobadas'),
+    ('observada', 'Observadas'),
+    ('rechazada', 'Rechazadas'),
+  ];
+
+  Color _chipColor(String key) => switch (key) {
+    'aprobada'  => AppColors.apto,
+    'observada' => AppColors.riesgo,
+    'rechazada' => AppColors.noApto,
+    _           => AppColors.panel,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 40,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _filters.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (_, i) {
+          final (key, label) = _filters[i];
+          final isSelected = selected == key;
+          final color = _chipColor(key);
+          return GestureDetector(
+            onTap: () => onChanged(key),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: isSelected ? color : Colors.white,
+                border: Border.all(
+                  color: isSelected ? color : AppColors.ink2,
+                  width: isSelected ? 1.5 : 1,
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                label,
+                style: AppTheme.inter(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected ? Colors.white : AppColors.ink6,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ── Tarjeta de inspección ─────────────────────────────────────────
 class _InspectionCard extends StatelessWidget {
   final InspectionModel item;
   const _InspectionCard({required this.item});
@@ -124,7 +431,7 @@ class _InspectionCard extends StatelessWidget {
             child: Text(
               '${item.score}',
               style: AppTheme.inter(
-                  fontSize: 16, fontWeight: FontWeight.w800, color: color),
+                  fontSize: 16, fontWeight: FontWeight.w800, color: color, tabular: true),
             ),
           ),
           const SizedBox(width: 12),
@@ -180,6 +487,7 @@ class _InspectionCard extends StatelessWidget {
   }
 }
 
+// ── Estado vacío ──────────────────────────────────────────────────
 class _EmptyState extends StatelessWidget {
   final VoidCallback onScan;
   const _EmptyState({required this.onScan});
@@ -194,7 +502,7 @@ class _EmptyState extends StatelessWidget {
           children: [
             const Icon(Icons.assignment_outlined, size: 52, color: AppColors.ink3),
             const SizedBox(height: 12),
-            Text('Sin inspecciones hoy',
+            Text('Sin inspecciones',
                 style: AppTheme.inter(
                     fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.ink7)),
             const SizedBox(height: 6),
@@ -219,6 +527,7 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
+// ── Estado de error ───────────────────────────────────────────────
 class _ErrorState extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;

@@ -290,7 +290,7 @@ class _Step1 extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Encabezado del paso
-          _SectionHeader(
+          const _SectionHeader(
             step: 1,
             title: 'Vehículo y hora de salida',
             subtitle: 'Selecciona el vehículo asignado y confirma la hora estimada de salida.',
@@ -317,7 +317,7 @@ class _Step1 extends StatelessWidget {
           else if (error != null)
             _ErrorRetry(message: error!, onRetry: onRetry)
           else if (vehicles.isEmpty)
-            _InfoCard(
+            const _InfoCard(
               icon: Icons.directions_car_outlined,
               message: 'No hay vehículos disponibles en este momento.',
             )
@@ -523,7 +523,7 @@ class _Step2 extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SectionHeader(
+          const _SectionHeader(
             step: 2,
             title: 'Checklist pre-viaje',
             subtitle: 'Verifica cada ítem antes de iniciar el turno.',

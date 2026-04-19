@@ -223,13 +223,53 @@ export default function FlotaPage() {
 
       {/* Checklist modal */}
       {showChecklist && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(9,9,11,.55)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setShowChecklist(false)}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(9,9,11,.55)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => { if (!submitting) setShowChecklist(false); }}>
           <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, width: 560, maxWidth: "100%", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 22px", borderBottom: `1px solid ${INK2}` }}>
               <div><div style={{ fontWeight: 700, fontSize: "0.9375rem" }}>Checklist de pre-salida</div><div style={{ fontSize: "0.8125rem", color: INK5, marginTop: 2 }}>Verificación obligatoria antes del despacho</div></div>
-              <button style={{ width: 32, height: 32, borderRadius: 7, border: `1px solid ${INK2}`, background: "#fff", color: INK6, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }} onClick={() => setShowChecklist(false)}><X size={14} /></button>
+              <button style={{ width: 32, height: 32, borderRadius: 7, border: `1px solid ${INK2}`, background: "#fff", color: INK6, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }} onClick={() => setShowChecklist(false)} disabled={submitting}><X size={14} /></button>
             </div>
             <div style={{ padding: 22 }}>
+              {/* Datos de salida */}
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: INK5, marginBottom: 10 }}>Datos de la salida</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.8125rem", fontWeight: 600, color: INK6, marginBottom: 4 }}>ID Vehículo <span style={{ color: NO }}>*</span></label>
+                    <input
+                      type="text"
+                      placeholder="ObjectId del vehículo"
+                      value={exitForm.vehicleId}
+                      onChange={e => setExitForm(f => ({ ...f, vehicleId: e.target.value }))}
+                      style={{ width: "100%", height: 38, padding: "0 12px", border: `1px solid ${INK2}`, borderRadius: 8, fontSize: "0.875rem", fontFamily: "ui-monospace,monospace", outline: "none", boxSizing: "border-box" }}
+                    />
+                  </div>
+                  {user?.role !== "conductor" && (
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.8125rem", fontWeight: 600, color: INK6, marginBottom: 4 }}>ID Conductor <span style={{ color: NO }}>*</span></label>
+                      <input
+                        type="text"
+                        placeholder="ObjectId del conductor"
+                        value={exitForm.driverId}
+                        onChange={e => setExitForm(f => ({ ...f, driverId: e.target.value }))}
+                        style={{ width: "100%", height: 38, padding: "0 12px", border: `1px solid ${INK2}`, borderRadius: 8, fontSize: "0.875rem", fontFamily: "ui-monospace,monospace", outline: "none", boxSizing: "border-box" }}
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.8125rem", fontWeight: 600, color: INK6, marginBottom: 4 }}>Observaciones</label>
+                    <input
+                      type="text"
+                      placeholder="Opcional"
+                      value={exitForm.observations}
+                      onChange={e => setExitForm(f => ({ ...f, observations: e.target.value }))}
+                      style={{ width: "100%", height: 38, padding: "0 12px", border: `1px solid ${INK2}`, borderRadius: 8, fontSize: "0.875rem", fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: INK5, marginBottom: 10 }}>Verificación pre-salida</div>
               {CHECKLIST_ITEMS.map((c, i) => (
                 <div key={i} onClick={() => setChecked(prev => ({ ...prev, [i]: !prev[i] }))}
                   style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: `1px solid ${checked[i] ? `rgba(21,128,61,0.25)` : c.critical && !checked[i] ? NOBD : INK2}`, borderRadius: 10, marginBottom: 8, cursor: "pointer", background: checked[i] ? "#F7FCF9" : "#fff", transition: "all .12s" }}>
@@ -245,9 +285,20 @@ export default function FlotaPage() {
                   <AlertTriangle size={16} /><div><strong>Bloqueado:</strong> marca los 3 puntos críticos antes de registrar la salida.</div>
                 </div>
               )}
+              {submitError && (
+                <div style={{ marginTop: 12, padding: 12, background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 10, fontSize: "0.8125rem", color: NO, display: "flex", gap: 10 }}>
+                  <AlertTriangle size={16} /><div>{submitError}</div>
+                </div>
+              )}
               <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-                <button style={{ ...btnOut, flex: 1 }} onClick={() => setShowChecklist(false)}>Cancelar</button>
-                <button style={{ ...btnInk, flex: 1, opacity: allCritOk ? 1 : 0.45, cursor: allCritOk ? "pointer" : "not-allowed" }} disabled={!allCritOk}>Registrar salida</button>
+                <button style={{ ...btnOut, flex: 1 }} onClick={() => setShowChecklist(false)} disabled={submitting}>Cancelar</button>
+                <button
+                  style={{ ...btnInk, flex: 1, opacity: allCritOk && !submitting ? 1 : 0.45, cursor: allCritOk && !submitting ? "pointer" : "not-allowed" }}
+                  disabled={!allCritOk || submitting}
+                  onClick={() => void handleConfirmExit()}
+                >
+                  {submitting ? "Registrando…" : "Confirmar salida"}
+                </button>
               </div>
             </div>
           </div>

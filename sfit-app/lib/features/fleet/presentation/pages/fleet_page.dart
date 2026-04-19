@@ -263,15 +263,26 @@ class _FleetCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(entry.driver.name,
-                          style: AppTheme.inter(
-                              fontSize: 13, fontWeight: FontWeight.w600,
-                              color: AppColors.ink8)),
+                      Row(
+                        children: [
+                          _DriverStatusDot(status: entry.driver.status),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: Text(
+                              entry.driver.name,
+                              style: AppTheme.inter(
+                                  fontSize: 13, fontWeight: FontWeight.w600,
+                                  color: AppColors.ink8),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                       Text(
                         _driverStatusLabel(entry.driver.status),
                         style: AppTheme.inter(
                           fontSize: 11,
-                          color: entry.driver.status == 'apto' ? AppColors.apto : AppColors.riesgo,
+                          color: _driverStatusColor(entry.driver.status),
                         ),
                       ),
                     ],
@@ -336,6 +347,12 @@ class _FleetCard extends StatelessWidget {
         _         => 'Apto',
       };
 
+  Color _driverStatusColor(String s) => switch (s) {
+        'riesgo'  => AppColors.riesgo,
+        'no_apto' => AppColors.noApto,
+        _         => AppColors.apto,
+      };
+
   String _timeRange(String? dep, String? ret) {
     if (dep == null) return 'Sin salida registrada';
     final depTime = _fmtTime(dep);
@@ -350,6 +367,37 @@ class _FleetCard extends StatelessWidget {
     } catch (_) {
       return iso;
     }
+  }
+}
+
+// ── Indicador de estado del conductor ─────────────────────────────
+class _DriverStatusDot extends StatelessWidget {
+  final String status; // apto | riesgo | no_apto
+
+  const _DriverStatusDot({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (status) {
+      'riesgo'  => AppColors.riesgo,
+      'no_apto' => AppColors.noApto,
+      _         => AppColors.apto,
+    };
+    return Container(
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.4),
+            blurRadius: 3,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+    );
   }
 }
 

@@ -17,12 +17,14 @@ class InspectionApiService {
   Future<List<InspectionModel>> getInspections({
     String? vehicleId,
     String? result,
+    String? plate,
     int limit = 50,
   }) async {
     final resp = await _dio.get('/inspecciones', queryParameters: {
       'limit': limit,
       if (vehicleId != null) 'vehicleId': vehicleId,
       if (result != null) 'result': result,
+      if (plate != null && plate.isNotEmpty) 'plate': plate,
     });
     final data = (resp.data as Map)['data'] as Map;
     final items = data['items'] as List;

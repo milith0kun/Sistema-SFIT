@@ -76,10 +76,39 @@ class _NewInspectionPageState extends ConsumerState<NewInspectionPage> {
         observations: _obsCtrl.text.trim().isNotEmpty ? _obsCtrl.text.trim() : null,
       );
       if (mounted) {
+        final (snackBg, snackLabel) = switch (_result) {
+          'aprobada'  => (AppColors.apto,   'Inspección aprobada — Score: $_score'),
+          'observada' => (AppColors.riesgo, 'Inspección observada — Score: $_score'),
+          _           => (AppColors.noApto, 'Inspección rechazada — Score: $_score'),
+        };
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Inspección registrada — $_result'),
-            backgroundColor: _result == 'aprobada' ? AppColors.apto : AppColors.riesgo,
+            content: Row(
+              children: [
+                Icon(
+                  _result == 'aprobada'
+                      ? Icons.check_circle
+                      : _result == 'observada'
+                          ? Icons.warning_amber_rounded
+                          : Icons.cancel,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    snackLabel,
+                    style: AppTheme.inter(
+                      fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: snackBg,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 3),
           ),
         );
         context.pop(true);

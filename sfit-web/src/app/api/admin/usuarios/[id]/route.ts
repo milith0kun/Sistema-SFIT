@@ -14,6 +14,7 @@ import { User } from "@/models/User";
 import { apiResponse, apiError, apiUnauthorized, apiForbidden, apiNotFound } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
+import { logAction } from "@/lib/audit/logAction";
 
 const ALLOWED_ROLES = [ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL];
 
@@ -117,6 +118,18 @@ export async function PATCH(
       .lean();
 
     if (!updated) return apiNotFound("Usuario no encontrado");
+
+    // Audit log — no-bloqueante
+    void logAction({
+      userId: session.userId,
+      action: "update",
+      resource: "user",
+      resourceId: id,
+      details: { status, role },
+      req: request,
+      municipalityId: session.municipalityId,
+      role: session.role,
+    });
 
     return apiResponse({
       id: String(updated._id),

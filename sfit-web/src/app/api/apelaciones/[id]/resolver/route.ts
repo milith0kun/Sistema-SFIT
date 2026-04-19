@@ -7,6 +7,7 @@ import { apiResponse, apiError, apiForbidden, apiNotFound, apiUnauthorized, apiV
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { sendPushToUser } from "@/lib/notifications/fcm";
+import { logAction } from "@/lib/audit/logAction";
 
 const ResolveSchema = z.object({
   status: z.enum(["aprobada", "rechazada"]),
@@ -79,6 +80,18 @@ export async function PATCH(
     } catch {
       // Silencioso — la notificación es best-effort
     }
+
+    // Audit log — no-bloqueante
+    void logAction({
+      userId: auth.session.userId,
+      action: parsed.data.status === "aprobada" ? "approve" : "reject",
+      resource: "appeal",
+      resourceId: id,
+      details: { status: parsed.data.status, resolution: parsed.data.resolution },
+      req: request,
+      municipalityId: auth.session.municipalityId,
+      role: auth.session.role,
+    });
 
     return apiResponse({
       id: String(updated!._id),

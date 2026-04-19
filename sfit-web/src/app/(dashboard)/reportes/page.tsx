@@ -93,7 +93,21 @@ export default function ReportesPage() {
   return (
     <div>
       <PageHeader kicker="Ciudadanía · RF-12" title="Reportes ciudadanos" subtitle="Reportes filtrados por cinco capas anti-fraude. Puntaje de veracidad calculado por IA."
-        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Exportar</button><button style={btnInk}><Sparkles size={16} />Análisis IA</button></div>} />
+        action={
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              style={btnOut}
+              onClick={() => {
+                const qs = new URLSearchParams();
+                if (tab) qs.set("status", tab);
+                window.open(`/api/admin/exportar/reportes?${qs.toString()}`, "_blank");
+              }}
+            >
+              <Download size={16} />Exportar CSV
+            </button>
+            <button style={btnInk}><Sparkles size={16} />Análisis IA</button>
+          </div>
+        } />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, margin: "24px 0 18px" }}>
         {[

@@ -22,6 +22,9 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
   Map<String, dynamic>? _activeEntry;
   bool _loadingEntry = true;
 
+  // Todos los FleetEntry del día (para calcular resumen)
+  List<Map<String, dynamic>> _allEntries = [];
+
   @override
   void initState() {
     super.initState();
@@ -59,14 +62,43 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
       final active = entries.where((e) => e['status'] == 'en_ruta').toList();
       if (mounted) {
         setState(() {
+          _allEntries = entries;
           _activeEntry = active.isNotEmpty ? active.first : null;
           _loadingEntry = false;
         });
       }
     } catch (_) {
-      if (mounted) setState(() { _activeEntry = null; _loadingEntry = false; });
+      if (mounted) setState(() { _allEntries = []; _activeEntry = null; _loadingEntry = false; });
     }
   }
+
+  // ── Cálculos del resumen diario ─────────────────────────────
+  double get _totalKm => _allEntries.fold<double>(
+    0.0,
+    (sum, e) => sum + ((e['km'] as num?)?.toDouble() ?? 0.0),
+  );
+
+  double get _totalHours {
+    double total = 0.0;
+    for (final e in _allEntries) {
+      final dep = e['departureTime'] as String?;
+      final ret = e['returnTime'] as String?;
+      if (dep == null) continue;
+      try {
+        final d = DateTime.parse(dep);
+        final end = ret != null ? DateTime.parse(ret) : DateTime.now();
+        total += end.difference(d).inMinutes / 60.0;
+      } catch (_) {}
+    }
+    return total;
+  }
+
+  int get _completedTrips => _allEntries
+      .where((e) {
+        final s = e['status'] as String? ?? '';
+        return s == 'cerrado' || s == 'auto_cierre';
+      })
+      .length;
 
   @override
   Widget build(BuildContext context) {
@@ -129,6 +161,17 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
                   ),
                 ),
 
+              // ── Resumen de hoy ───────────────────────────────────
+              if (!_loadingEntry && _allEntries.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: _DailySummaryRow(
+                    totalKm: _totalKm,
+                    totalHours: _totalHours,
+                    completed: _completedTrips,
+                  ),
+                ),
+
               const SizedBox(height: 8),
 
               // ── Lista de rutas ──────────────────────────────────
@@ -181,6 +224,102 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Resumen de hoy ─────────────────────────────────────────────────────────────
+class _DailySummaryRow extends StatelessWidget {
+  final double totalKm;
+  final double totalHours;
+  final int completed;
+
+  const _DailySummaryRow({
+    required this.totalKm,
+    required this.totalHours,
+    required this.completed,
+  });
+
+  String _formatHours(double h) {
+    final hrs  = h.floor();
+    final mins = ((h - hrs) * 60).round();
+    if (hrs == 0) return '${mins}m';
+    return '${hrs}h ${mins.toString().padLeft(2, '0')}m';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _MiniCard(
+          icon: Icons.route,
+          value: '${totalKm.toStringAsFixed(0)} km',
+          label: 'Recorridos',
+          color: AppColors.info,
+          bg: AppColors.infoBg,
+        ),
+        const SizedBox(width: 8),
+        _MiniCard(
+          icon: Icons.timer_outlined,
+          value: _formatHours(totalHours),
+          label: 'En ruta',
+          color: AppColors.riesgo,
+          bg: AppColors.riesgoBg,
+        ),
+        const SizedBox(width: 8),
+        _MiniCard(
+          icon: Icons.check_circle_outline,
+          value: '$completed',
+          label: 'Completados',
+          color: AppColors.apto,
+          bg: AppColors.aptoBg,
+        ),
+      ],
+    );
+  }
+}
+
+class _MiniCard extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color color;
+  final Color bg;
+
+  const _MiniCard({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.color,
+    required this.bg,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: bg,
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(height: 4),
+            Text(value,
+                style: AppTheme.inter(
+                    fontSize: 14, fontWeight: FontWeight.w800,
+                    color: color, tabular: true)),
+            Text(label,
+                style: AppTheme.inter(
+                    fontSize: 10, color: color.withValues(alpha: 0.75)),
+                textAlign: TextAlign.center),
+          ],
+        ),
       ),
     );
   }

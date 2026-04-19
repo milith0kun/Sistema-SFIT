@@ -25,6 +25,7 @@ import {
   CalendarDays,
   MessageSquareWarning,
   Gift,
+  Settings,
 } from "lucide-react";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
 
@@ -43,7 +44,8 @@ type NavSection =
   | "TERRITORIO"
   | "OPERACIÓN"
   | "CIUDADANÍA"
-  | "ANÁLISIS";
+  | "ANÁLISIS"
+  | "ADMINISTRACIÓN";
 
 type NavItem = {
   href: string;
@@ -78,7 +80,9 @@ const NAV: NavItem[] = [
   { href: "/recompensas",     label: "Recompensas",         icon: Gift,           section: "CIUDADANÍA", roles: ["super_admin","admin_municipal"] },
 
   { href: "/estadisticas",    label: "Estadísticas",        icon: ChartColumn,    section: "ANÁLISIS",   roles: ["super_admin","admin_provincial"] },
-  { href: "/auditoria",       label: "Auditoría",           icon: FileText,       section: "ANÁLISIS",   roles: ["super_admin","admin_provincial","admin_municipal"] },
+
+  { href: "/auditoria",       label: "Auditoría",           icon: Shield,         section: "ADMINISTRACIÓN", roles: ["super_admin","admin_provincial","admin_municipal"] },
+  { href: "/configuracion",   label: "Configuración",       icon: Settings,       section: "ADMINISTRACIÓN", roles: ["admin_municipal","super_admin"] },
 ];
 
 const SECTION_ORDER: NavSection[] = [
@@ -88,6 +92,7 @@ const SECTION_ORDER: NavSection[] = [
   "OPERACIÓN",
   "CIUDADANÍA",
   "ANÁLISIS",
+  "ADMINISTRACIÓN",
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -123,6 +128,7 @@ function titleFromPath(path: string | null): string {
     sanciones: "Sanciones",
     estadisticas: "Estadísticas",
     auditoria: "Auditoría",
+    configuracion: "Configuración",
     notificaciones: "Notificaciones",
     recompensas: "Recompensas",
   };

@@ -1140,7 +1140,7 @@ function MunicipalDashboard({
                         >
                           S/{s.amountSoles.toLocaleString("es-PE")}
                         </span>
-                        <Badge variant="warning">
+                        <Badge variant={s.status === "anulada" ? "inactivo" : s.status === "confirmada" ? "activo" : "pendiente"}>
                           {SANCION_STATUS_LABELS[s.status] ?? s.status}
                         </Badge>
                       </div>

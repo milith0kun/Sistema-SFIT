@@ -9,6 +9,7 @@ import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { sendPushToTokens } from "@/lib/notifications/fcm";
 import { User } from "@/models/User";
+import { logAction } from "@/lib/audit/logAction";
 
 const ChecklistItemSchema = z.object({
   item: z.string().min(1).max(200),
@@ -175,6 +176,18 @@ export async function POST(request: NextRequest) {
     } catch {
       // Silencioso — la notificación es best-effort
     }
+
+    // Audit log — no-bloqueante
+    void logAction({
+      userId: auth.session.userId,
+      action: "create",
+      resource: "inspection",
+      resourceId: String(created._id),
+      details: { result: parsed.data.result, score: parsed.data.score, vehicleId: parsed.data.vehicleId },
+      req: request,
+      municipalityId: municipalityId,
+      role: auth.session.role,
+    });
 
     return apiResponse({ id: String(created._id), ...created.toObject() }, 201);
   } catch (error) {

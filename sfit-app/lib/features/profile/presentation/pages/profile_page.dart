@@ -139,7 +139,7 @@ class ProfilePage extends ConsumerWidget {
             ],
 
             // ── Cuenta ────────────────────────────────────────────
-            _SectionLabel(label: 'Cuenta'),
+            const _SectionLabel(label: 'Cuenta'),
             const SizedBox(height: 8),
             _InfoCard(children: [
               _ActionRow(
@@ -151,7 +151,7 @@ class ProfilePage extends ConsumerWidget {
             const SizedBox(height: 16),
 
             // ── Sesión ────────────────────────────────────────────
-            _SectionLabel(label: 'Sesión'),
+            const _SectionLabel(label: 'Sesión'),
             const SizedBox(height: 8),
 
             // ── Cerrar sesión ─────────────────────────────────────
