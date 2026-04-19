@@ -1,33 +1,39 @@
 const FEATURES = [
   {
     n: "01",
-    title: "Flota en tiempo real",
-    desc: "Monitoreo de salidas, rutas y estado vehicular. Toda la flota municipal visible desde un único panel.",
+    icon: "📱",
+    title: "Inspecciones QR",
+    desc: "Escanea el código QR del vehículo y registra el acta de inspección en tiempo real desde el campo.",
   },
   {
     n: "02",
-    title: "Inspecciones digitales",
-    desc: "Actas electrónicas con firma digital, evidencia fotográfica y trazabilidad completa.",
+    icon: "😴",
+    title: "Fatiga de conductores",
+    desc: "Monitoreo automático de horas de manejo según las normativas peruanas vigentes. Alertas preventivas.",
   },
   {
     n: "03",
-    title: "Gestión de conductores",
-    desc: "Estado de aptitud, monitoreo de fatiga, historial de infracciones y seguimiento de licencias.",
+    icon: "🏅",
+    title: "Reportes ciudadanos",
+    desc: "Los ciudadanos reportan anomalías con geolocalización y ganan SFITCoins por su participación.",
   },
   {
     n: "04",
-    title: "Reportes ciudadanos",
-    desc: "Canal directo para que la ciudadanía reporte anomalías con geolocalización y seguimiento.",
+    icon: "⚖️",
+    title: "Apelaciones",
+    desc: "Flujo de revisión transparente: el conductor apela, el fiscal revisa, el admin municipal resuelve.",
   },
   {
     n: "05",
-    title: "IA y OCR documental",
-    desc: "Extracción automática de datos en licencias, SOAT, tarjetas de propiedad y documentos vehiculares.",
+    icon: "📋",
+    title: "Sanciones",
+    desc: "Registro oficial de infracciones con trazabilidad completa y exportación a CSV para reportes.",
   },
   {
     n: "06",
-    title: "Multi-tenant",
-    desc: "Aislamiento total por municipalidad. Una sola instancia, datos completamente separados.",
+    icon: "📊",
+    title: "Analytics",
+    desc: "Estadísticas en tiempo real por municipio: inspecciones, sanciones, flota activa y conductores.",
   },
 ];
 
@@ -42,10 +48,10 @@ const ROLES = [
 ];
 
 const STATS = [
+  { n: "100+", label: "Vehículos registrados" },
   { n: "7",    label: "Roles de acceso" },
-  { n: "19",   label: "Módulos RF" },
+  { n: "24/7", label: "Monitoreo continuo" },
   { n: "100%", label: "Aislamiento por tenant" },
-  { n: "15m",  label: "Duración del access token" },
 ];
 
 export default function HomePage() {
@@ -194,13 +200,13 @@ export default function HomePage() {
                 textDecoration: "none",
               }}
             >
-              Iniciar sesión
+              Acceder al panel
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-hover:translate-x-0.5">
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
             </a>
             <a
-              href="/register"
+              href="/consulta-publica"
               className="inline-flex items-center justify-center gap-2 hover:bg-white/10 hover:border-white/40"
               style={{
                 height: "58px",
@@ -217,7 +223,7 @@ export default function HomePage() {
                 transition: "background 0.15s, border-color 0.15s",
               }}
             >
-              Solicitar acceso
+              Consultar vehículo
             </a>
           </div>
 
@@ -227,7 +233,7 @@ export default function HomePage() {
             fontSize: "0.8125rem",
             fontWeight: 500,
           }}>
-            ¿Primera vez? Solicita acceso y el administrador municipal te aprobará.
+            ¿Eres ciudadano? Consulta el estado de cualquier vehículo por su placa.
           </p>
 
           {/* Chips */}
@@ -290,12 +296,15 @@ export default function HomePage() {
                 className="feature-card p-7 rounded-2xl"
                 style={{ background: "#ffffff", border: "1.5px solid #e4e4e7" }}
               >
-                <div
-                  className="font-black text-[#f4f4f5] mb-5 leading-none select-none"
-                  style={{ fontFamily: "var(--font-syne)", fontSize: "3.25rem", letterSpacing: "-0.04em" }}
-                  aria-hidden
-                >
-                  {f.n}
+                <div className="flex items-center gap-3 mb-5">
+                  <span style={{ fontSize: "1.75rem", lineHeight: 1 }} aria-hidden>{f.icon}</span>
+                  <div
+                    className="font-black leading-none select-none"
+                    style={{ fontFamily: "var(--font-syne)", fontSize: "1rem", letterSpacing: "-0.02em", color: "#d4d4d8" }}
+                    aria-hidden
+                  >
+                    {f.n}
+                  </div>
                 </div>
                 <h3
                   className="font-bold text-[#09090b] mb-3"
@@ -464,7 +473,7 @@ export default function HomePage() {
               letterSpacing: "-0.035em",
             }}
           >
-            ¿Tu municipalidad usa SFIT?
+            ¿Tu municipalidad necesita SFIT?
           </h2>
           <p
             className="mb-10 mx-auto"
@@ -476,23 +485,34 @@ export default function HomePage() {
               fontWeight: 400,
             }}
           >
-            Ingresa con tu cuenta institucional o solicita acceso a tu administrador municipal.
+            Contáctanos para implementar SFIT en tu municipalidad o ingresa con tu cuenta institucional.
           </p>
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <a
               href="/login"
               className="btn-primary"
               style={{ width: "auto", padding: "0 34px", height: "54px", fontSize: "1rem" }}
             >
               <span className="shine" aria-hidden />
-              Iniciar sesión
+              Acceder al panel
             </a>
             <a
-              href="/register"
-              className="btn-ghost"
-              style={{ height: "54px", fontSize: "1rem", padding: "0 34px" }}
+              href="mailto:184193@unsaac.edu.pe?subject=Implementación SFIT en mi municipalidad"
+              className="inline-flex items-center justify-center gap-2 hover:bg-white/10 hover:border-white/40"
+              style={{
+                height: "54px",
+                padding: "0 34px",
+                fontSize: "1rem",
+                fontWeight: 500,
+                borderRadius: "10px",
+                background: "rgba(255,255,255,0.05)",
+                color: "#F4F4F5",
+                border: "1.5px solid rgba(255,255,255,0.22)",
+                textDecoration: "none",
+                transition: "background 0.15s, border-color 0.15s",
+              }}
             >
-              Solicitar acceso
+              Contactar
             </a>
           </div>
         </div>
@@ -500,21 +520,31 @@ export default function HomePage() {
 
       {/* ── Footer ───────────────────────────── */}
       <footer
-        className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 md:px-12 py-5"
+        className="px-6 md:px-12 py-6"
         style={{ background: "#09090b", borderTop: "1px solid rgba(255,255,255,0.05)" }}
       >
-        <div className="flex items-center gap-2">
-          <SfitMark size={18} />
-          <span
-            className="text-[12px] font-bold tracking-[0.16em] uppercase"
-            style={{ color: "rgba(255,255,255,0.32)", fontFamily: "var(--font-syne)" }}
-          >
-            SFIT
-          </span>
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <SfitMark size={18} />
+            <span
+              className="text-[12px] font-bold tracking-[0.16em] uppercase"
+              style={{ color: "rgba(255,255,255,0.32)", fontFamily: "var(--font-syne)" }}
+            >
+              SFIT
+            </span>
+          </div>
+          <div className="flex items-center gap-5 flex-wrap justify-center">
+            <a href="/consulta-publica" style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.8125rem", textDecoration: "none" }}
+              className="hover:text-white transition-colors">Consulta pública</a>
+            <a href="/privacidad" style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.8125rem", textDecoration: "none" }}
+              className="hover:text-white transition-colors">Privacidad</a>
+            <a href="/terminos" style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.8125rem", textDecoration: "none" }}
+              className="hover:text-white transition-colors">Términos</a>
+          </div>
+          <p className="text-[11px] text-center" style={{ color: "rgba(255,255,255,0.16)" }}>
+            © 2026 SFIT — Perú
+          </p>
         </div>
-        <p className="text-[11px] text-center" style={{ color: "rgba(255,255,255,0.16)" }}>
-          © 2026 — Plataforma de fiscalización y gestión de flota vehicular municipal
-        </p>
       </footer>
     </div>
   );

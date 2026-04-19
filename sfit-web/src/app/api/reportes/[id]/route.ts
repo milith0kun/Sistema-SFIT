@@ -8,6 +8,7 @@ import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { awardCoins } from "@/lib/coins/awardCoins";
+import { triggerWebhook } from "@/lib/webhooks/triggerWebhook";
 
 const UpdateSchema = z.object({
   status: z.enum(["pendiente", "revision", "validado", "rechazado"]).optional(),
@@ -65,6 +66,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   // RF-15: Si el reporte pasa a 'validado', otorgar 20 SFITCoins al ciudadano
   if (parsed.data.status === "validado" && previousStatus !== "validado" && report.citizenId) {
     void awardCoins(String(report.citizenId), 20, "reporte_validado", String(report._id));
+
+    // Webhook — no-bloqueante (RF integración externa)
+    void triggerWebhook(String(report.municipalityId), "report.validated", {
+      reportId: String(report._id),
+      plate: report.vehicleId ? String(report.vehicleId) : null,
+      category: report.category,
+    });
   }
 
   return apiResponse({ id: String(report._id), ...report.toObject() });

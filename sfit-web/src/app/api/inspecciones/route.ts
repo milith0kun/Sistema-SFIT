@@ -10,6 +10,7 @@ import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { sendPushToTokens } from "@/lib/notifications/fcm";
 import { User } from "@/models/User";
 import { logAction } from "@/lib/audit/logAction";
+import { triggerWebhook } from "@/lib/webhooks/triggerWebhook";
 
 const ChecklistItemSchema = z.object({
   item: z.string().min(1).max(200),
@@ -176,6 +177,14 @@ export async function POST(request: NextRequest) {
     } catch {
       // Silencioso — la notificación es best-effort
     }
+
+    // Webhook — no-bloqueante (RF integración externa)
+    void triggerWebhook(municipalityId, "inspection.created", {
+      inspectionId: String(created._id),
+      plate: parsed.data.vehicleId, // vehicleId; el receptor puede resolver la placa
+      result: parsed.data.result,
+      score: parsed.data.score,
+    });
 
     // Audit log — no-bloqueante
     void logAction({

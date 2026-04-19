@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MessageSquareWarning, Clock, CheckCircle, XCircle, Filter } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -419,22 +420,36 @@ export default function ApelacionesPage() {
 
                   {/* Acción */}
                   <td style={{ padding: "14px 16px" }}>
-                    {ap.status === "pendiente" ? (
-                      <button
-                        onClick={() => setResolving(ap)}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <Link
+                        href={`/apelaciones/${ap.id}`}
                         style={{
                           display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
                           borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
-                          border: `1.5px solid ${INK9}`, background: INK9, color: "#fff", fontFamily: "inherit",
+                          border: `1.5px solid ${INK2}`, background: "#fff", color: INK6,
+                          textDecoration: "none", whiteSpace: "nowrap",
                         }}
                       >
-                        Resolver
-                      </button>
-                    ) : (
-                      <span style={{ fontSize: "0.75rem", color: INK5 }}>
-                        {ap.resolvedAt ? fmtDate(ap.resolvedAt) : "—"}
-                      </span>
-                    )}
+                        Ver detalle
+                      </Link>
+                      {ap.status === "pendiente" && (
+                        <button
+                          onClick={() => setResolving(ap)}
+                          style={{
+                            display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
+                            borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
+                            border: `1.5px solid ${INK9}`, background: INK9, color: "#fff", fontFamily: "inherit",
+                          }}
+                        >
+                          Resolver
+                        </button>
+                      )}
+                      {ap.status !== "pendiente" && ap.resolvedAt && (
+                        <span style={{ fontSize: "0.75rem", color: INK5, whiteSpace: "nowrap" }}>
+                          {fmtDate(ap.resolvedAt)}
+                        </span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
