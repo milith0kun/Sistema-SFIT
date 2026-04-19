@@ -17,6 +17,7 @@ import {
   YAxis,
 } from "recharts";
 import { MapPin, Building2, Truck, Car, Download, FileCheck, AlertCircle, Users, ClipboardList } from "lucide-react";
+import { type ColumnDef, DataTable } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
@@ -123,8 +124,6 @@ export default function EstadisticasPage() {
   const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [municipiosRows, setMunicipiosRows] = useState<MunicipioRow[]>([]);
-  const [sortKey, setSortKey] = useState<keyof MunicipioRow>("inspecciones");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [days, setDays] = useState<7 | 30 | 90>(7);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -267,27 +266,58 @@ export default function EstadisticasPage() {
     }));
   }, [audit, days]);
 
-  const sortedMunicipios = useMemo(() => {
-    return [...municipiosRows].sort((a, b) => {
-      const av = a[sortKey];
-      const bv = b[sortKey];
-      if (typeof av === "number" && typeof bv === "number") {
-        return sortDir === "desc" ? bv - av : av - bv;
-      }
-      const as = String(av);
-      const bs = String(bv);
-      return sortDir === "desc" ? bs.localeCompare(as) : as.localeCompare(bs);
-    });
-  }, [municipiosRows, sortKey, sortDir]);
-
-  function toggleSort(key: keyof MunicipioRow) {
-    if (sortKey === key) {
-      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
-    } else {
-      setSortKey(key);
-      setSortDir("desc");
-    }
-  }
+  const municipiosColumns = useMemo<ColumnDef<MunicipioRow, unknown>[]>(
+    () => [
+      {
+        accessorKey: "municipioNombre",
+        header: "Municipio",
+        cell: ({ getValue }) => (
+          <span style={{ fontWeight: 600, color: "#09090b" }}>{getValue() as string}</span>
+        ),
+      },
+      {
+        accessorKey: "inspecciones",
+        header: "Inspecciones",
+        cell: ({ getValue }) => (
+          <span style={{ fontVariantNumeric: "tabular-nums" }}>{getValue() as number}</span>
+        ),
+      },
+      {
+        accessorKey: "aprobadasPct",
+        header: "Aprobadas %",
+        cell: ({ getValue }) => {
+          const pct = getValue() as number;
+          const color = pct >= 70 ? "#15803d" : pct >= 40 ? "#b45309" : "#b91c1c";
+          return (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 64, height: 6, background: "#e4e4e7", borderRadius: 999, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 999 }} />
+              </div>
+              <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 600, color }}>{pct}%</span>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "reportes",
+        header: "Reportes",
+        cell: ({ getValue }) => (
+          <span style={{ fontVariantNumeric: "tabular-nums" }}>{getValue() as number}</span>
+        ),
+      },
+      {
+        accessorKey: "sanciones",
+        header: "Sanciones",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          return (
+            <Badge variant={v > 0 ? "suspendido" : "inactivo"}>{v}</Badge>
+          );
+        },
+      },
+    ],
+    []
+  );
 
   function exportUsersCsv() {
     if (!stats) return;
@@ -601,120 +631,26 @@ export default function EstadisticasPage() {
           </Card>
 
           {/* ── Tabla por municipio ─────────────────────────────── */}
-          {sortedMunicipios.length > 0 && (
-            <Card>
-              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 16 }}>
-                <div>
-                  <h3
-                    style={{
-                      fontFamily: "var(--font-inter)",
-                      fontSize: "1rem",
-                      fontWeight: 700,
-                      color: "#09090b",
-                      letterSpacing: "-0.01em",
-                      margin: 0,
-                    }}
-                  >
-                    Estadísticas por municipio
-                  </h3>
-                  <p style={{ color: "#71717a", fontSize: "0.8125rem", marginTop: 4 }}>
-                    Haz clic en una columna para ordenar.
-                  </p>
-                </div>
-                <span style={{ color: "#71717a", fontSize: "0.75rem" }}>
-                  {sortedMunicipios.length} municipios
-                </span>
+          {municipiosRows.length > 0 && (
+            <div>
+              <div style={{ marginBottom: 8 }}>
+                <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, color: "#09090b", letterSpacing: "-0.01em", margin: 0 }}>
+                  Estadísticas por municipio
+                </h3>
+                <p style={{ color: "#71717a", fontSize: "0.8125rem", marginTop: 4 }}>
+                  {municipiosRows.length} municipios — haz clic en las columnas para ordenar.
+                </p>
               </div>
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-                  <thead>
-                    <tr style={{ background: "#fafafa" }}>
-                      {(
-                        [
-                          { key: "municipioNombre", label: "Municipio" },
-                          { key: "inspecciones",    label: "Inspecciones" },
-                          { key: "aprobadasPct",    label: "Aprobadas %" },
-                          { key: "reportes",        label: "Reportes" },
-                          { key: "sanciones",       label: "Sanciones" },
-                        ] as { key: keyof MunicipioRow; label: string }[]
-                      ).map(({ key, label }) => (
-                        <th
-                          key={key}
-                          onClick={() => toggleSort(key)}
-                          style={{
-                            textAlign: "left",
-                            padding: "11px 14px",
-                            fontSize: "0.6875rem",
-                            fontWeight: 700,
-                            letterSpacing: "0.08em",
-                            textTransform: "uppercase",
-                            color: sortKey === key ? "#09090b" : "#71717a",
-                            borderBottom: "1px solid #e4e4e7",
-                            cursor: "pointer",
-                            whiteSpace: "nowrap",
-                            userSelect: "none",
-                          }}
-                        >
-                          {label}{" "}
-                          {sortKey === key ? (sortDir === "desc" ? "↓" : "↑") : ""}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedMunicipios.map((row, i) => (
-                      <tr
-                        key={row.municipioId}
-                        style={{ background: i % 2 === 0 ? "#fff" : "#fafafa" }}
-                      >
-                        <td style={{ padding: "11px 14px", borderBottom: "1px solid #f4f4f5", fontWeight: 600, color: "#09090b" }}>
-                          {row.municipioNombre}
-                        </td>
-                        <td style={{ padding: "11px 14px", borderBottom: "1px solid #f4f4f5", fontVariantNumeric: "tabular-nums" }}>
-                          {row.inspecciones}
-                        </td>
-                        <td style={{ padding: "11px 14px", borderBottom: "1px solid #f4f4f5" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <div style={{ width: 64, height: 6, background: "#e4e4e7", borderRadius: 999, overflow: "hidden" }}>
-                              <div
-                                style={{
-                                  height: "100%",
-                                  width: `${row.aprobadasPct}%`,
-                                  background: row.aprobadasPct >= 70 ? "#15803d" : row.aprobadasPct >= 40 ? "#b45309" : "#b91c1c",
-                                  borderRadius: 999,
-                                }}
-                              />
-                            </div>
-                            <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 600, color: row.aprobadasPct >= 70 ? "#15803d" : row.aprobadasPct >= 40 ? "#b45309" : "#b91c1c" }}>
-                              {row.aprobadasPct}%
-                            </span>
-                          </div>
-                        </td>
-                        <td style={{ padding: "11px 14px", borderBottom: "1px solid #f4f4f5", fontVariantNumeric: "tabular-nums" }}>
-                          {row.reportes}
-                        </td>
-                        <td style={{ padding: "11px 14px", borderBottom: "1px solid #f4f4f5", fontVariantNumeric: "tabular-nums" }}>
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              padding: "2px 8px",
-                              borderRadius: 999,
-                              fontSize: "0.8125rem",
-                              fontWeight: 700,
-                              background: row.sanciones > 0 ? "#FFF5F5" : "#f4f4f5",
-                              color: row.sanciones > 0 ? "#b91c1c" : "#71717a",
-                            }}
-                          >
-                            {row.sanciones}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+              <DataTable
+                columns={municipiosColumns}
+                data={municipiosRows}
+                loading={loading}
+                searchPlaceholder="Buscar municipio…"
+                emptyTitle="Sin datos"
+                emptyDescription="No hay estadísticas por municipio disponibles."
+                defaultPageSize={10}
+              />
+            </div>
           )}
         </>
       )}

@@ -1,6 +1,8 @@
 "use client";
 
 import type { ReactNode, CSSProperties } from "react";
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
 export interface TableColumn<T> {
   key: string;
@@ -123,3 +125,45 @@ export function Table<T>({
     </div>
   );
 }
+
+/* ── Shadcn primitives (para nuevos componentes) ── */
+
+function ShadTable({ className, ...props }: React.ComponentProps<"table">) {
+  return (
+    <div className="relative w-full overflow-x-auto">
+      <table className={cn("w-full caption-bottom text-sm", className)} {...props} />
+    </div>
+  );
+}
+
+function ShadTableHeader({ className, ...props }: React.ComponentProps<"thead">) {
+  return <thead className={cn("[&_tr]:border-b", className)} {...props} />;
+}
+
+function ShadTableBody({ className, ...props }: React.ComponentProps<"tbody">) {
+  return <tbody className={cn("[&_tr:last-child]:border-0", className)} {...props} />;
+}
+
+function ShadTableRow({ className, ...props }: React.ComponentProps<"tr">) {
+  return (
+    <tr
+      className={cn("border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted", className)}
+      {...props}
+    />
+  );
+}
+
+function ShadTableHead({ className, ...props }: React.ComponentProps<"th">) {
+  return (
+    <th
+      className={cn("h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground", className)}
+      {...props}
+    />
+  );
+}
+
+function ShadTableCell({ className, ...props }: React.ComponentProps<"td">) {
+  return <td className={cn("p-2 align-middle whitespace-nowrap", className)} {...props} />;
+}
+
+export { ShadTable, ShadTableHeader, ShadTableBody, ShadTableRow, ShadTableHead, ShadTableCell };

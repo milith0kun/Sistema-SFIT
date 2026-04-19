@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback, cloneElement } from "react";
+import { useEffect, useState, useCallback, cloneElement, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, FileText, Check, X, Download, Plus, Filter, Mail, Phone, Bell } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
+import { Badge } from "@/components/ui/Badge";
 
 type SanctionStatus = "emitida" | "notificada" | "apelada" | "confirmada" | "anulada";
 type Notification = { channel: string; target: string; status: string; sentAt?: string };
@@ -29,18 +31,6 @@ const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB"; const RIESGOBD = "#FCD34D"
 const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
 const G = "#B8860B"; const GD = "#926A09"; const GBG = "#FDF8EC"; const GBR = "#E8D090";
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-
-function StatusBadge({ s }: { s: SanctionStatus }) {
-  const map: Record<SanctionStatus, { bg: string; color: string; border: string; label: string }> = {
-    emitida: { bg: GBG, color: GD, border: GBR, label: "EMITIDA" },
-    notificada: { bg: APTOBG, color: APTO, border: APTOBD, label: "NOTIFICADA" },
-    apelada: { bg: RIESGOBG, color: RIESGO, border: RIESGOBD, label: "APELADA" },
-    confirmada: { bg: NOBG, color: NO, border: NOBD, label: "CONFIRMADA" },
-    anulada: { bg: INK1, color: INK5, border: INK2, label: "ANULADA" },
-  };
-  const st = map[s];
-  return <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 999, fontSize: "0.6875rem", fontWeight: 700, textTransform: "uppercase", background: st.bg, color: st.color, border: `1px solid ${st.border}` }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block" }} />{st.label}</span>;
-}
 
 function StepFlow({ status }: { status: SanctionStatus }) {
   const steps = [
@@ -210,6 +200,86 @@ export default function SancionesPage() {
   const anuladas = items.filter(s => s.status === "anulada").length;
   const totalMonto = items.filter(s => s.status === "confirmada").reduce((acc, s) => acc + s.amountSoles, 0);
 
+  const columns = useMemo<ColumnDef<Sanction, unknown>[]>(() => [
+    {
+      id: "sancion",
+      header: "Sanción",
+      accessorFn: (row) => `S-${row.id.slice(-10).toUpperCase()} ${row.vehicle.plate}`,
+      cell: ({ row }) => (
+        <div>
+          <div style={{ fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.75rem" }}>
+            S-{row.original.id.slice(-10).toUpperCase()}
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
+            <span style={{ display: "inline-flex", padding: "2px 7px", borderRadius: 5, background: INK9, color: "#fff", fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.6875rem" }}>
+              {row.original.vehicle.plate}
+            </span>
+            <span style={{ fontSize: "0.75rem", color: INK5 }}>
+              {new Date(row.original.createdAt).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "infraccion",
+      header: "Infracción",
+      accessorFn: (row) => `${row.faultType} ${row.company?.razonSocial ?? ""}`,
+      cell: ({ row }) => (
+        <div>
+          <div style={{ fontWeight: 600 }}>{row.original.faultType}</div>
+          <div style={{ fontSize: "0.75rem", color: INK5 }}>{row.original.company?.razonSocial ?? "—"}</div>
+        </div>
+      ),
+    },
+    {
+      id: "monto",
+      header: "Monto",
+      accessorFn: (row) => row.amountSoles,
+      cell: ({ row }) => (
+        <div>
+          <div style={{ fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>
+            S/ {row.original.amountSoles.toLocaleString("es-PE")}
+          </div>
+          <div style={{ fontSize: "0.75rem", color: INK5 }}>{row.original.amountUIT}</div>
+        </div>
+      ),
+    },
+    {
+      id: "estado",
+      header: "Estado",
+      accessorFn: (row) => row.status,
+      cell: ({ row }) => {
+        const s = row.original.status;
+        const variantMap: Record<SanctionStatus, React.ComponentProps<typeof Badge>["variant"]> = {
+          emitida: "gold",
+          notificada: "activo",
+          apelada: "pendiente",
+          confirmada: "suspendido",
+          anulada: "inactivo",
+        };
+        const labelMap: Record<SanctionStatus, string> = {
+          emitida: "EMITIDA",
+          notificada: "NOTIFICADA",
+          apelada: "APELADA",
+          confirmada: "CONFIRMADA",
+          anulada: "ANULADA",
+        };
+        return <Badge variant={variantMap[s]}>{labelMap[s]}</Badge>;
+      },
+    },
+    {
+      id: "acciones",
+      header: "",
+      enableSorting: false,
+      cell: ({ row }) => (
+        <div onClick={(e) => e.stopPropagation()}>
+          <Link href={`/sanciones/${row.original.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
+        </div>
+      ),
+    },
+  ], []);
+
   if (!user) return null;
 
   const notifIcon = (ch: string) => ch === "email" ? <Mail size={14} /> : ch === "whatsapp" ? <Phone size={14} /> : <Bell size={14} />;
@@ -244,60 +314,37 @@ export default function SancionesPage() {
         ))}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-        {[["", "Todas"], ["emitida", "Emitidas"], ["apelada", "Apeladas"], ["confirmada", "Confirmadas"], ["anulada", "Anuladas"]].map(([k, l]) => (
-          <button key={k} onClick={() => setStatusFilter(k)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: statusFilter === k ? INK9 : "#fff", color: statusFilter === k ? "#fff" : INK6, border: statusFilter === k ? `1.5px solid ${INK9}` : `1.5px solid ${INK2}` }}>{l}</button>
-        ))}
-        <div style={{ marginLeft: "auto" }}><button style={{ ...btnSm }}><Filter size={14} />Más filtros</button></div>
-      </div>
-
       {error && <div style={{ padding: "12px 16px", background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 10, color: NO, marginBottom: 16 }}>{error}</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 20 }}>
-        <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, overflow: "hidden" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 22px", borderBottom: `1px solid ${INK2}` }}>
-            <div style={{ fontWeight: 700, fontSize: "0.9375rem" }}>Últimas sanciones</div>
-            <button style={{ ...btnOut, height: 32, fontSize: "0.8125rem" }}><Filter size={13} />Filtrar</button>
-          </div>
-          {loading ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Cargando…</div>
-          : items.length === 0 ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Sin sanciones registradas</div>
-          : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-              <thead><tr>{["Sanción","Infracción","Monto","Estado",""].map((h,i) => (
-                <th key={i} style={{ textAlign: "left", padding: "12px 16px", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, background: "#FAFAFA", borderBottom: `1px solid ${INK2}` }}>{h}</th>
-              ))}</tr></thead>
-              <tbody>{items.map(s => (
-                <tr key={s.id} onClick={() => setSel(s)} style={{ cursor: "pointer", background: sel?.id === s.id ? GBG : undefined, boxShadow: sel?.id === s.id ? `inset 3px 0 0 ${G}` : undefined }}>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}>
-                    <div style={{ fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.75rem" }}>S-{s.id.slice(-10).toUpperCase()}</div>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
-                      <span style={{ display: "inline-flex", padding: "2px 7px", borderRadius: 5, background: INK9, color: "#fff", fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.6875rem" }}>{s.vehicle.plate}</span>
-                      <span style={{ fontSize: "0.75rem", color: INK5 }}>{new Date(s.createdAt).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}>
-                    <div style={{ fontWeight: 600 }}>{s.faultType}</div>
-                    <div style={{ fontSize: "0.75rem", color: INK5 }}>{s.company?.razonSocial ?? "—"}</div>
-                  </td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}>
-                    <div style={{ fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>S/ {s.amountSoles.toLocaleString("es-PE")}</div>
-                    <div style={{ fontSize: "0.75rem", color: INK5 }}>{s.amountUIT}</div>
-                  </td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><StatusBadge s={s.status} /></td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }} onClick={e => e.stopPropagation()}>
-                    <Link href={`/sanciones/${s.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
-                  </td>
-                </tr>
-              ))}</tbody>
-            </table>
-          )}
+        <div>
+          <DataTable
+            columns={columns}
+            data={items}
+            loading={loading}
+            searchPlaceholder="Buscar por placa, infracción…"
+            emptyTitle="Sin sanciones registradas"
+            emptyDescription="No se encontraron sanciones en este período."
+            toolbarEnd={
+              <div style={{ display: "flex", gap: 6 }}>
+                {[["", "Todas"], ["emitida", "Emitidas"], ["apelada", "Apeladas"], ["confirmada", "Confirmadas"], ["anulada", "Anuladas"]].map(([k, l]) => (
+                  <button key={k} onClick={() => setStatusFilter(k)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 7, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: statusFilter === k ? INK9 : "#fff", color: statusFilter === k ? "#fff" : INK6, border: statusFilter === k ? `1.5px solid ${INK9}` : `1.5px solid ${INK2}` }}>{l}</button>
+                ))}
+                <button style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 7, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: "#fff", color: INK6, border: `1.5px solid ${INK2}` }}><Filter size={13} />Más filtros</button>
+              </div>
+            }
+          />
+          {/* Row click bridge */}
+          <style>{`.dt-row-click tr[data-row] { cursor: pointer; }`}</style>
         </div>
 
         {sel ? (
           <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14 }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "16px 22px", borderBottom: `1px solid ${INK2}`, gap: 12 }}>
               <div><div style={{ fontWeight: 700, fontSize: "0.9375rem" }}>S-{sel.id.slice(-10).toUpperCase()}</div><div style={{ fontSize: "0.8125rem", color: INK5, marginTop: 2 }}>{sel.faultType}</div></div>
-              <StatusBadge s={sel.status} />
+              <Badge variant={{ emitida: "gold", notificada: "activo", apelada: "pendiente", confirmada: "suspendido", anulada: "inactivo" }[sel.status] as React.ComponentProps<typeof Badge>["variant"]}>
+                {sel.status.toUpperCase()}
+              </Badge>
             </div>
             <div style={{ padding: 22 }}>
               <StepFlow status={sel.status} />

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback, cloneElement } from "react";
+import { useEffect, useState, useCallback, useMemo, cloneElement } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Users, Check, Gauge, AlertTriangle, Search, Filter, Download, Plus, Phone, Car, Eye, Pencil } from "lucide-react";
+import { Users, Check, Gauge, AlertTriangle, Download, Plus, Phone, Car, Eye, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 
 type DriverStatus = "apto" | "riesgo" | "no_apto";
 type Driver = {
@@ -43,12 +44,23 @@ const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin",
 const btnInk: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: "none", background: INK9, color: "#fff", fontFamily: "inherit" };
 const btnOut: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontFamily: "inherit" };
 
+const selectStyle: React.CSSProperties = {
+  height: 34,
+  padding: "0 10px",
+  borderRadius: 8,
+  border: `1.5px solid ${INK2}`,
+  fontSize: "0.8125rem",
+  fontFamily: "inherit",
+  background: "#fff",
+  color: INK6,
+  cursor: "pointer",
+};
+
 export default function ConductoresPage() {
   const router = useRouter();
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [items, setItems] = useState<Driver[]>([]);
   const [filter, setFilter] = useState("todos");
-  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -69,7 +81,6 @@ export default function ConductoresPage() {
       const token = localStorage.getItem("sfit_access_token");
       const qs = new URLSearchParams({ limit: "100" });
       if (filter !== "todos") qs.set("status", filter);
-      if (search) qs.set("q", search);
       const res = await fetch(`/api/conductores?${qs}`, { headers: { Authorization: `Bearer ${token ?? ""}` } });
       if (res.status === 401) { router.replace("/login"); return; }
       const data = await res.json();
@@ -79,11 +90,109 @@ export default function ConductoresPage() {
       if (data.data.items?.length && !sel) setSel(data.data.items[0]);
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
-  }, [user, filter, search, router]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, filter, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { void load(); }, [load]);
 
   const total = (counts.apto ?? 0) + (counts.riesgo ?? 0) + (counts.no_apto ?? 0) || items.length;
+
+  const columns = useMemo<ColumnDef<Driver, unknown>[]>(
+    () => [
+      {
+        id: "conductor",
+        header: "Conductor",
+        accessorFn: (d) => `${d.name} ${d.dni} ${d.licenseCategory}`,
+        cell: ({ row: r }) => {
+          const d = r.original;
+          const isSel = sel?.id === d.id;
+          return (
+            <div
+              style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}
+              onClick={() => setSel(d)}
+            >
+              <Avatar name={d.name} />
+              <div>
+                <div style={{ fontWeight: 600, color: isSel ? GD : INK9 }}>{d.name}</div>
+                <div style={{ fontSize: "0.75rem", color: INK5, fontFamily: "ui-monospace,monospace" }}>
+                  DNI {d.dni} · {d.licenseCategory}
+                </div>
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        id: "empresa",
+        header: "Empresa",
+        accessorFn: (d) => `${d.companyName ?? ""} ${d.licenseNumber}`,
+        cell: ({ row: r }) => (
+          <div style={{ cursor: "pointer" }} onClick={() => setSel(r.original)}>
+            <div style={{ fontWeight: 600 }}>{r.original.companyName ?? "—"}</div>
+            <div style={{ fontSize: "0.75rem", color: INK5 }}>Lic. {r.original.licenseNumber}</div>
+          </div>
+        ),
+      },
+      {
+        id: "estado",
+        header: "Estado",
+        accessorFn: (d) => statusStyle(d.status).label,
+        cell: ({ row: r }) => (
+          <div style={{ cursor: "pointer" }} onClick={() => setSel(r.original)}>
+            <StatusBadge s={r.original.status} />
+          </div>
+        ),
+      },
+      {
+        id: "fatiga",
+        header: "Fatiga",
+        accessorFn: (d) => d.continuousHours,
+        cell: ({ row: r }) => {
+          const d = r.original;
+          const pct = Math.min(100, (d.continuousHours / 10) * 100);
+          const barC = d.status === "riesgo" ? RIESGO : d.status === "no_apto" ? NO : APTO;
+          return (
+            <div style={{ width: 140, cursor: "pointer" }} onClick={() => setSel(d)}>
+              <div style={{ height: 6, background: INK1, borderRadius: 999, overflow: "hidden" }}>
+                <span style={{ display: "block", height: "100%", borderRadius: 999, background: barC, width: `${pct}%` }} />
+              </div>
+              <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 4 }}>{d.continuousHours} h conducción</div>
+            </div>
+          );
+        },
+      },
+      {
+        id: "reputacion",
+        header: "Rep.",
+        accessorFn: (d) => d.reputationScore,
+        cell: ({ row: r }) => (
+          <div style={{ cursor: "pointer" }} onClick={() => setSel(r.original)}>
+            <span style={{ fontWeight: 700 }}>{r.original.reputationScore}</span>
+            <span style={{ color: INK5, fontSize: "0.75rem" }}>/100</span>
+          </div>
+        ),
+      },
+      {
+        id: "acciones",
+        header: "",
+        enableSorting: false,
+        cell: ({ row: r }) => (
+          <Link href={`/conductores/${r.original.id}`}>
+            <button style={{ width: 32, height: 32, borderRadius: 7, border: `1px solid ${INK2}`, background: "#fff", color: INK6, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>⋯</button>
+          </Link>
+        ),
+      },
+    ],
+    [sel] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const toolbarEnd = (
+    <select style={selectStyle} value={filter} onChange={(e) => setFilter(e.target.value)}>
+      <option value="todos">Todos ({total})</option>
+      <option value="apto">Apto ({counts.apto ?? 0})</option>
+      <option value="riesgo">Riesgo ({counts.riesgo ?? 0})</option>
+      <option value="no_apto">No apto ({counts.no_apto ?? 0})</option>
+    </select>
+  );
 
   if (!user) return null;
 
@@ -110,64 +219,19 @@ export default function ConductoresPage() {
         ))}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 18px", background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, marginBottom: 16, flexWrap: "wrap" }}>
-        <div style={{ position: "relative", flex: 1, minWidth: 220, maxWidth: 340 }}>
-          <Search size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: INK5, pointerEvents: "none" }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nombre, DNI o licencia…"
-            style={{ width: "100%", height: 38, padding: "0 12px 0 36px", borderRadius: 8, border: `1.5px solid ${INK2}`, fontSize: "0.875rem", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
-        </div>
-        {["todos", "apto", "riesgo", "no_apto"].map(t => {
-          const cnt = t === "todos" ? total : t === "no_apto" ? (counts.no_apto ?? 0) : (counts[t] ?? 0);
-          const active = filter === t;
-          return (
-            <button key={t} onClick={() => setFilter(t)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: active ? INK9 : "#fff", color: active ? "#fff" : INK6, border: active ? `1.5px solid ${INK9}` : `1.5px solid ${INK2}` }}>
-              {t === "todos" ? "Todos" : t === "no_apto" ? "NO APTO" : t.toUpperCase()}
-              <span style={{ fontSize: "0.6875rem", padding: "1px 6px", borderRadius: 999, background: active ? "rgba(255,255,255,0.15)" : INK1, color: active ? "#fff" : INK5, fontWeight: 700 }}>{cnt}</span>
-            </button>
-          );
-        })}
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          <button style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: "#fff", color: INK6, border: `1.5px solid ${INK2}` }}><Filter size={14} />Empresa</button>
-        </div>
-      </div>
-
-      {error && <div style={{ padding: "12px 16px", background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 10, color: NO, marginBottom: 16, fontSize: "0.875rem" }}>{error}</div>}
+      {error && <div style={{ padding: "12px 16px", background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 10, color: NO, fontSize: "0.875rem" }}>{error}</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 20 }}>
-        <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, overflow: "hidden" }}>
-          {loading ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Cargando conductores…</div>
-          : items.length === 0 ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Sin conductores registrados</div>
-          : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-              <thead><tr>{["Conductor","Empresa","Estado","Fatiga","Rep.",""].map((h,i) => (
-                <th key={i} style={{ textAlign: "left", padding: "12px 16px", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, background: "#FAFAFA", borderBottom: `1px solid ${INK2}` }}>{h}</th>
-              ))}</tr></thead>
-              <tbody>{items.map(d => {
-                const pct = Math.min(100, (d.continuousHours / 10) * 100);
-                const barC = d.status === "riesgo" ? RIESGO : d.status === "no_apto" ? NO : APTO;
-                const isSel = sel?.id === d.id;
-                return (
-                  <tr key={d.id} onClick={() => setSel(d)} style={{ cursor: "pointer", background: isSel ? GBG : undefined, boxShadow: isSel ? `inset 3px 0 0 ${G}` : undefined }}>
-                    <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <Avatar name={d.name} />
-                        <div><div style={{ fontWeight: 600, color: INK9 }}>{d.name}</div><div style={{ fontSize: "0.75rem", color: INK5, fontFamily: "ui-monospace,monospace" }}>DNI {d.dni} · {d.licenseCategory}</div></div>
-                      </div>
-                    </td>
-                    <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><div style={{ fontWeight: 600 }}>{d.companyName ?? "—"}</div><div style={{ fontSize: "0.75rem", color: INK5 }}>Lic. {d.licenseNumber}</div></td>
-                    <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><StatusBadge s={d.status} /></td>
-                    <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}`, width: 160 }}>
-                      <div style={{ height: 6, background: INK1, borderRadius: 999, overflow: "hidden" }}><span style={{ display: "block", height: "100%", borderRadius: 999, background: barC, width: `${pct}%` }} /></div>
-                      <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 4 }}>{d.continuousHours} h conducción</div>
-                    </td>
-                    <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><span style={{ fontWeight: 700 }}>{d.reputationScore}</span><span style={{ color: INK5, fontSize: "0.75rem" }}>/100</span></td>
-                    <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><button style={{ width: 32, height: 32, borderRadius: 7, border: `1px solid ${INK2}`, background: "#fff", color: INK6, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>⋯</button></td>
-                  </tr>
-                );
-              })}</tbody>
-            </table>
-          )}
-        </div>
+        <DataTable<Driver>
+          columns={columns}
+          data={items}
+          loading={loading}
+          searchPlaceholder="Buscar por nombre, DNI o licencia…"
+          emptyTitle="Sin conductores"
+          emptyDescription="No hay conductores registrados con los filtros actuales."
+          defaultPageSize={20}
+          toolbarEnd={toolbarEnd}
+        />
 
         {sel ? (
           <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14 }}>

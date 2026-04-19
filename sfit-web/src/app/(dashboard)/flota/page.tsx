@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback, cloneElement } from "react";
+import { useEffect, useState, useCallback, cloneElement, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Car, Route, Wrench, X, Users, Download, Plus, Filter, AlertTriangle, Check } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
+import { Badge } from "@/components/ui/Badge";
 
 type FleetStatus = "disponible" | "en_ruta" | "cerrado" | "auto_cierre" | "mantenimiento" | "fuera_de_servicio";
 type FleetEntry = {
@@ -28,24 +30,34 @@ const INFO = "#1e40af"; const INFOBG = "#EFF6FF"; const INFOBD = "#BFDBFE";
 const G = "#B8860B"; const GD = "#926A09"; const GBG = "#FDF8EC"; const GBR = "#E8D090";
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 
-function StatusBadge({ s }: { s: string }) {
-  const map: Record<string, { bg: string; color: string; border: string; label: string }> = {
-    en_ruta: { bg: INFOBG, color: INFO, border: INFOBD, label: "EN RUTA" },
-    cerrado: { bg: INK1, color: INK5, border: INK2, label: "CERRADO" },
-    auto_cierre: { bg: RIESGOBG, color: RIESGO, border: RIESGOBD, label: "AUTO-CIERRE" },
-    disponible: { bg: APTOBG, color: APTO, border: APTOBD, label: "DISPONIBLE" },
-    mantenimiento: { bg: RIESGOBG, color: RIESGO, border: RIESGOBD, label: "MANTENIMIENTO" },
-    fuera_de_servicio: { bg: NOBG, color: NO, border: NOBD, label: "FUERA SERVICIO" },
-    apto: { bg: APTOBG, color: APTO, border: APTOBD, label: "APTO" },
-    riesgo: { bg: RIESGOBG, color: RIESGO, border: RIESGOBD, label: "RIESGO" },
-    no_apto: { bg: NOBG, color: NO, border: NOBD, label: "NO APTO" },
+function DriverStatusBadge({ s }: { s: string }) {
+  const variantMap: Record<string, React.ComponentProps<typeof Badge>["variant"]> = {
+    en_ruta: "info",
+    cerrado: "inactivo",
+    auto_cierre: "pendiente",
+    disponible: "activo",
+    mantenimiento: "pendiente",
+    fuera_de_servicio: "suspendido",
+    apto: "activo",
+    riesgo: "pendiente",
+    no_apto: "suspendido",
   };
-  const st = map[s] ?? { bg: INK1, color: INK5, border: INK2, label: s.toUpperCase() };
-  return <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 999, fontSize: "0.6875rem", fontWeight: 700, textTransform: "uppercase", background: st.bg, color: st.color, border: `1px solid ${st.border}` }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block" }} />{st.label}</span>;
-}
-
-function Plate({ p }: { p: string }) {
-  return <span style={{ display: "inline-flex", padding: "4px 10px", borderRadius: 6, background: INK9, color: "#fff", fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.8125rem", letterSpacing: "0.05em" }}>{p}</span>;
+  const labelMap: Record<string, string> = {
+    en_ruta: "EN RUTA",
+    cerrado: "CERRADO",
+    auto_cierre: "AUTO-CIERRE",
+    disponible: "DISPONIBLE",
+    mantenimiento: "MANTENIMIENTO",
+    fuera_de_servicio: "FUERA SERVICIO",
+    apto: "APTO",
+    riesgo: "RIESGO",
+    no_apto: "NO APTO",
+  };
+  return (
+    <Badge variant={variantMap[s] ?? "inactivo"}>
+      {labelMap[s] ?? s.toUpperCase()}
+    </Badge>
+  );
 }
 
 const CHECKLIST_ITEMS = [
@@ -98,7 +110,6 @@ export default function FlotaPage() {
   useEffect(() => { void load(); }, [load]);
 
   const enRuta = items.filter(i => i.status === "en_ruta").length;
-  const cerrado = items.filter(i => i.status === "cerrado").length;
   const disponible = items.filter(i => i.status === "disponible").length;
   const mant = items.filter(i => i.status === "mantenimiento" || i.status === "fuera_de_servicio").length;
 
@@ -142,6 +153,82 @@ export default function FlotaPage() {
     }
   }, [allCritOk, exitForm, user, router, load]);
 
+  const columns = useMemo<ColumnDef<FleetEntry, unknown>[]>(() => [
+    {
+      id: "vehiculo",
+      header: "Vehículo",
+      accessorFn: (row) => `${row.vehicle.plate} ${row.vehicle.brand} ${row.vehicle.model}`,
+      cell: ({ row }) => (
+        <span style={{ display: "inline-flex", padding: "4px 10px", borderRadius: 6, background: INK9, color: "#fff", fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.8125rem", letterSpacing: "0.05em" }}>
+          {row.original.vehicle.plate}
+        </span>
+      ),
+    },
+    {
+      id: "ruta",
+      header: "Ruta/Zona",
+      accessorFn: (row) => row.route ? `${row.route.code} ${row.route.name}` : "",
+      cell: ({ row }) => (
+        <div>
+          <div style={{ fontWeight: 600 }}>
+            {row.original.route ? `${row.original.route.code} ${row.original.route.name}` : "—"}
+          </div>
+          {row.original.observations && (
+            <div style={{ fontSize: "0.75rem", color: RIESGO, marginTop: 2 }}>{row.original.observations}</div>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "conductor",
+      header: "Conductor",
+      accessorFn: (row) => row.driver.name,
+      cell: ({ getValue }) => <span style={{ fontSize: "0.875rem" }}>{getValue() as string}</span>,
+    },
+    {
+      id: "salida",
+      header: "Salida",
+      accessorFn: (row) => row.departureTime ?? "",
+      sortingFn: "datetime",
+      cell: ({ row }) => (
+        <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+          {row.original.departureTime ?? "—"}
+        </span>
+      ),
+    },
+    {
+      id: "retorno",
+      header: "Retorno",
+      accessorFn: (row) => row.returnTime ?? "",
+      sortingFn: "datetime",
+      cell: ({ row }) => (
+        <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums", color: row.original.returnTime ? INK9 : INK5 }}>
+          {row.original.returnTime ?? "—"}
+        </span>
+      ),
+    },
+    {
+      id: "km",
+      header: "Km",
+      accessorFn: (row) => row.km,
+      cell: ({ getValue }) => <span style={{ fontVariantNumeric: "tabular-nums" }}>{getValue() as number}</span>,
+    },
+    {
+      id: "estado",
+      header: "Estado",
+      accessorFn: (row) => row.status,
+      cell: ({ row }) => <DriverStatusBadge s={row.original.status} />,
+    },
+    {
+      id: "acciones",
+      header: "",
+      enableSorting: false,
+      cell: ({ row }) => (
+        <Link href={`/flota/${row.original.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
+      ),
+    },
+  ], []);
+
   if (!user) return null;
 
   return (
@@ -171,37 +258,20 @@ export default function FlotaPage() {
       {error && <div style={{ padding: "12px 16px", background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 10, color: NO, marginBottom: 16 }}>{error}</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
-        <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, overflow: "hidden", gridColumn: "span 2" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 22px", borderBottom: `1px solid ${INK2}` }}>
-            <div><div style={{ fontWeight: 700, fontSize: "0.9375rem" }}>Salidas y retornos del día</div><div style={{ fontSize: "0.8125rem", color: INK5, marginTop: 2 }}>{items.length} registros</div></div>
-            <button style={{ ...btnOut, height: 32, fontSize: "0.8125rem" }}><Filter size={14} />Filtrar</button>
-          </div>
-          {loading ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Cargando…</div>
-          : items.length === 0 ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Sin registros para hoy</div>
-          : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-              <thead><tr>{["Vehículo","Ruta/Zona","Conductor","Salida","Retorno","Km","Estado",""].map((h,i) => (
-                <th key={i} style={{ textAlign: "left", padding: "12px 16px", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, background: "#FAFAFA", borderBottom: `1px solid ${INK2}` }}>{h}</th>
-              ))}</tr></thead>
-              <tbody>{items.map(e => (
-                <tr key={e.id}>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><Plate p={e.vehicle.plate} /></td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}>
-                    <div style={{ fontWeight: 600 }}>{e.route ? `${e.route.code} ${e.route.name}` : "—"}</div>
-                    {e.observations && <div style={{ fontSize: "0.75rem", color: RIESGO, marginTop: 2 }}>{e.observations}</div>}
-                  </td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}`, fontSize: "0.875rem" }}>{e.driver.name}</td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}`, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{e.departureTime ?? "—"}</td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}`, fontWeight: 600, color: e.returnTime ? INK9 : INK5, fontVariantNumeric: "tabular-nums" }}>{e.returnTime ?? "—"}</td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}`, fontVariantNumeric: "tabular-nums" }}>{e.km}</td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><StatusBadge s={e.status} /></td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}>
-                    <Link href={`/flota/${e.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
-                  </td>
-                </tr>
-              ))}</tbody>
-            </table>
-          )}
+        <div style={{ gridColumn: "span 2" }}>
+          <DataTable
+            columns={columns}
+            data={items}
+            loading={loading}
+            searchPlaceholder="Buscar por placa, conductor, ruta…"
+            emptyTitle="Sin registros para hoy"
+            emptyDescription="No se encontraron salidas registradas."
+            toolbarEnd={
+              <button style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 7, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: "#fff", color: INK6, border: `1.5px solid ${INK2}` }}>
+                <Filter size={13} />Filtrar
+              </button>
+            }
+          />
         </div>
 
         <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14 }}>
@@ -220,7 +290,7 @@ export default function FlotaPage() {
                     <div style={{ fontSize: "0.875rem", fontWeight: 600 }}>{d.name}</div>
                     <div style={{ fontSize: "0.75rem", color: INK5 }}>Desc. {d.restHours}h</div>
                   </div>
-                  <StatusBadge s={d.status} />
+                  <DriverStatusBadge s={d.status} />
                 </div>
               );
             })}

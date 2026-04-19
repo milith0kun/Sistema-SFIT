@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback, cloneElement } from "react";
+import { useEffect, useState, useCallback, cloneElement, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Calendar, Route, Check, Clock, Search, Filter, Download, Plus } from "lucide-react";
+import { Calendar, Route, Check, Clock, Download, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
+import { Badge } from "@/components/ui/Badge";
 
 type TripStatus = "en_curso" | "completado" | "auto_cierre";
 type Trip = {
@@ -16,21 +18,11 @@ type Trip = {
   km: number; passengers: number; status: TripStatus;
 };
 
-const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
-const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB"; const RIESGOBD = "#FCD34D";
+const APTO = "#15803d"; const APTOBG = "#F0FDF4";
+const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB";
+const INFO = "#1e40af"; const INFOBG = "#EFF6FF";
 const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
-const INFO = "#1e40af"; const INFOBG = "#EFF6FF"; const INFOBD = "#BFDBFE";
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-
-function StatusBadge({ s }: { s: TripStatus }) {
-  const map = {
-    completado: { bg: APTOBG, color: APTO, border: APTOBD, label: "COMPLETADO" },
-    en_curso: { bg: INFOBG, color: INFO, border: INFOBD, label: "EN CURSO" },
-    auto_cierre: { bg: RIESGOBG, color: RIESGO, border: RIESGOBD, label: "AUTO-CIERRE" },
-  };
-  const st = map[s];
-  return <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 999, fontSize: "0.6875rem", fontWeight: 700, textTransform: "uppercase", background: st.bg, color: st.color, border: `1px solid ${st.border}` }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block" }} />{st.label}</span>;
-}
 
 const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
 const btnInk: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: "none", background: INK9, color: "#fff", fontFamily: "inherit" };
@@ -41,7 +33,6 @@ export default function ViajesPage() {
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [items, setItems] = useState<Trip[]>([]);
   const [period, setPeriod] = useState("hoy");
-  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,6 +65,110 @@ export default function ViajesPage() {
   const totalKm = items.reduce((s, t) => s + t.km, 0);
   const autoCierre = items.filter(t => t.status === "auto_cierre").length;
 
+  const columns = useMemo<ColumnDef<Trip, unknown>[]>(() => [
+    {
+      id: "id_viaje",
+      header: "ID",
+      accessorFn: (row) => row.id.slice(-8).toUpperCase(),
+      cell: ({ getValue }) => (
+        <span style={{ fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.75rem" }}>
+          {getValue() as string}
+        </span>
+      ),
+    },
+    {
+      id: "vehiculo",
+      header: "Vehículo",
+      accessorFn: (row) => row.vehicle.plate,
+      cell: ({ getValue }) => (
+        <span style={{ display: "inline-flex", padding: "4px 10px", borderRadius: 6, background: INK9, color: "#fff", fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.8125rem" }}>
+          {getValue() as string}
+        </span>
+      ),
+    },
+    {
+      id: "conductor",
+      header: "Conductor",
+      accessorFn: (row) => row.driver.name,
+      cell: ({ getValue }) => <span>{getValue() as string}</span>,
+    },
+    {
+      id: "ruta",
+      header: "Ruta/Zona",
+      accessorFn: (row) => row.route ? `${row.route.code} ${row.route.name}` : "",
+      cell: ({ row }) => (
+        <span style={{ fontWeight: 600 }}>
+          {row.original.route ? `${row.original.route.code} ${row.original.route.name}` : "—"}
+        </span>
+      ),
+    },
+    {
+      id: "inicio",
+      header: "Inicio",
+      accessorFn: (row) => row.startTime,
+      sortingFn: "datetime",
+      cell: ({ row }) => (
+        <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+          {row.original.startTime
+            ? new Date(row.original.startTime).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })
+            : "—"}
+        </span>
+      ),
+    },
+    {
+      id: "fin",
+      header: "Fin",
+      accessorFn: (row) => row.endTime ?? "",
+      sortingFn: "datetime",
+      cell: ({ row }) => (
+        <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums", color: row.original.endTime ? INK9 : INK5 }}>
+          {row.original.endTime
+            ? new Date(row.original.endTime).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })
+            : "—"}
+        </span>
+      ),
+    },
+    {
+      id: "km",
+      header: "Km",
+      accessorFn: (row) => row.km,
+      cell: ({ getValue }) => <span style={{ fontVariantNumeric: "tabular-nums" }}>{getValue() as number}</span>,
+    },
+    {
+      id: "pasajeros",
+      header: "Pasaj.",
+      accessorFn: (row) => row.passengers,
+      cell: ({ getValue }) => <span style={{ fontVariantNumeric: "tabular-nums" }}>{(getValue() as number) || "—"}</span>,
+    },
+    {
+      id: "estado",
+      header: "Estado",
+      accessorFn: (row) => row.status,
+      cell: ({ row }) => {
+        const s = row.original.status;
+        const variantMap: Record<TripStatus, React.ComponentProps<typeof Badge>["variant"]> = {
+          completado: "activo",
+          en_curso: "info",
+          auto_cierre: "pendiente",
+        };
+        const labelMap: Record<TripStatus, string> = {
+          completado: "COMPLETADO",
+          en_curso: "EN CURSO",
+          auto_cierre: "AUTO-CIERRE",
+        };
+        return <Badge variant={variantMap[s]}>{labelMap[s]}</Badge>;
+      },
+    },
+    {
+      id: "acciones",
+      header: "",
+      enableSorting: false,
+      cell: ({ row }) => (
+        <Link href={`/viajes/${row.original.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
+      ),
+    },
+  ], []);
+
   if (!user) return null;
 
   return (
@@ -99,47 +194,23 @@ export default function ViajesPage() {
         ))}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 18px", background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, marginBottom: 16, flexWrap: "wrap" }}>
-        <div style={{ position: "relative", flex: 1, minWidth: 220, maxWidth: 340 }}>
-          <Search size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: INK5, pointerEvents: "none" }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por placa o conductor…"
-            style={{ width: "100%", height: 38, padding: "0 12px 0 36px", borderRadius: 8, border: `1.5px solid ${INK2}`, fontSize: "0.875rem", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
-        </div>
-        {[["hoy","Hoy"],["semana","Esta semana"],["mes","Este mes"],["todos","Histórico"]].map(([k,l]) => (
-          <button key={k} onClick={() => setPeriod(k)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: period === k ? INK9 : "#fff", color: period === k ? "#fff" : INK6, border: period === k ? `1.5px solid ${INK9}` : `1.5px solid ${INK2}` }}>{l}</button>
-        ))}
-        <div style={{ marginLeft: "auto" }}><button style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: "#fff", color: INK6, border: `1.5px solid ${INK2}` }}><Filter size={14} />Estado</button></div>
-      </div>
-
       {error && <div style={{ padding: "12px 16px", background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 10, color: NO, marginBottom: 16 }}>{error}</div>}
 
-      <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, overflow: "hidden" }}>
-        {loading ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Cargando viajes…</div>
-        : items.length === 0 ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Sin viajes en este período</div>
-        : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-            <thead><tr>{["ID","Vehículo","Conductor","Ruta/Zona","Inicio","Fin","Km","Pasaj.","Estado",""].map((h,i) => (
-              <th key={i} style={{ textAlign: "left", padding: "12px 16px", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, background: "#FAFAFA", borderBottom: `1px solid ${INK2}` }}>{h}</th>
-            ))}</tr></thead>
-            <tbody>{items.map(t => (
-              <tr key={t.id}>
-                <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><span style={{ fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.75rem" }}>{t.id.slice(-8).toUpperCase()}</span></td>
-                <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><span style={{ display: "inline-flex", padding: "4px 10px", borderRadius: 6, background: INK9, color: "#fff", fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.8125rem" }}>{t.vehicle.plate}</span></td>
-                <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}>{t.driver.name}</td>
-                <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}`, fontWeight: 600 }}>{t.route ? `${t.route.code} ${t.route.name}` : "—"}</td>
-                <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}`, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{t.startTime ? new Date(t.startTime).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" }) : "—"}</td>
-                <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}`, fontWeight: 600, color: t.endTime ? INK9 : INK5, fontVariantNumeric: "tabular-nums" }}>{t.endTime ? new Date(t.endTime).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" }) : "—"}</td>
-                <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}`, fontVariantNumeric: "tabular-nums" }}>{t.km}</td>
-                <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}`, fontVariantNumeric: "tabular-nums" }}>{t.passengers || "—"}</td>
-                <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><StatusBadge s={t.status} /></td>
-                <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}>
-                  <Link href={`/viajes/${t.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
-                </td>
-              </tr>
-            ))}</tbody>
-          </table>
-        )}
-      </div>
+      <DataTable
+        columns={columns}
+        data={items}
+        loading={loading}
+        searchPlaceholder="Buscar por placa, conductor, ruta…"
+        emptyTitle="Sin viajes en este período"
+        emptyDescription="No se encontraron registros de viajes."
+        toolbarEnd={
+          <div style={{ display: "flex", gap: 6 }}>
+            {[["hoy","Hoy"],["semana","Esta semana"],["mes","Este mes"],["todos","Histórico"]].map(([k,l]) => (
+              <button key={k} onClick={() => setPeriod(k)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 7, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: period === k ? INK9 : "#fff", color: period === k ? "#fff" : INK6, border: period === k ? `1.5px solid ${INK9}` : `1.5px solid ${INK2}` }}>{l}</button>
+            ))}
+          </div>
+        }
+      />
     </div>
   );
 }

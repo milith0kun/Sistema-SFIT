@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback, cloneElement } from "react";
+import { useEffect, useState, useCallback, cloneElement, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Shield, Check, AlertTriangle, X, QrCode, Plus, Filter, Sparkles, Download } from "lucide-react";
+import { Shield, Check, AlertTriangle, X, QrCode, Plus, Sparkles, Download } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
+import { Badge } from "@/components/ui/Badge";
 
 type InspectionResult = "aprobada" | "observada" | "rechazada";
 type Inspection = {
@@ -25,16 +27,6 @@ const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB"; const RIESGOBD = "#FCD34D"
 const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
 const G = "#B8860B"; const GD = "#926A09"; const GBG = "#FDF8EC"; const GBR = "#E8D090";
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-
-function ResultBadge({ r }: { r: InspectionResult }) {
-  const map = {
-    aprobada: { bg: APTOBG, color: APTO, border: APTOBD, label: "APROBADA" },
-    observada: { bg: RIESGOBG, color: RIESGO, border: RIESGOBD, label: "OBSERVADA" },
-    rechazada: { bg: NOBG, color: NO, border: NOBD, label: "RECHAZADA" },
-  };
-  const st = map[r];
-  return <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 999, fontSize: "0.6875rem", fontWeight: 700, textTransform: "uppercase", background: st.bg, color: st.color, border: `1px solid ${st.border}` }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block" }} />{st.label}</span>;
-}
 
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString("es-PE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -88,6 +80,69 @@ export default function InspeccionesPage() {
   const observadas = items.filter(i => i.result === "observada").length;
   const rechazadas = items.filter(i => i.result === "rechazada").length;
 
+  const columns = useMemo<ColumnDef<Inspection, unknown>[]>(() => [
+    {
+      id: "acta",
+      header: "Acta",
+      accessorFn: (row) => `A-${row.id.slice(-10).toUpperCase()} ${row.score}`,
+      cell: ({ row }) => (
+        <div>
+          <div style={{ fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.75rem" }}>
+            A-{row.original.id.slice(-10).toUpperCase()}
+          </div>
+          <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 2 }}>{row.original.score}/100</div>
+        </div>
+      ),
+    },
+    {
+      id: "vehiculo",
+      header: "Vehículo",
+      accessorFn: (row) => `${row.vehicle.plate} ${row.vehicle.brand} ${row.vehicle.model} ${row.vehicleTypeKey}`,
+      cell: ({ row }) => (
+        <div>
+          <span style={{ display: "inline-flex", padding: "4px 10px", borderRadius: 6, background: INK9, color: "#fff", fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.8125rem" }}>
+            {row.original.vehicle.plate}
+          </span>
+          <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 4 }}>{row.original.vehicleTypeKey}</div>
+        </div>
+      ),
+    },
+    {
+      id: "fiscal",
+      header: "Fiscal",
+      accessorFn: (row) => row.fiscal.name,
+      cell: ({ getValue }) => <span style={{ fontSize: "0.875rem" }}>{getValue() as string}</span>,
+    },
+    {
+      id: "fecha",
+      header: "Fecha",
+      accessorFn: (row) => row.date,
+      sortingFn: "datetime",
+      cell: ({ row }) => (
+        <span style={{ fontSize: "0.8125rem", color: INK6 }}>{fmtDate(row.original.date)}</span>
+      ),
+    },
+    {
+      id: "resultado",
+      header: "Resultado",
+      accessorFn: (row) => row.result,
+      cell: ({ row }) => {
+        const r = row.original.result;
+        const variantMap: Record<InspectionResult, React.ComponentProps<typeof Badge>["variant"]> = {
+          aprobada: "activo",
+          observada: "pendiente",
+          rechazada: "suspendido",
+        };
+        const labelMap: Record<InspectionResult, string> = {
+          aprobada: "APROBADA",
+          observada: "OBSERVADA",
+          rechazada: "RECHAZADA",
+        };
+        return <Badge variant={variantMap[r]}>{labelMap[r]}</Badge>;
+      },
+    },
+  ], []);
+
   if (!user) return null;
 
   return (
@@ -129,45 +184,25 @@ export default function InspeccionesPage() {
         ))}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-        {[["", "Todas"], ["aprobada", "Aprobadas"], ["observada", "Observadas"], ["rechazada", "Rechazadas"]].map(([k, l]) => (
-          <button key={k} onClick={() => setResultFilter(k)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: resultFilter === k ? INK9 : "#fff", color: resultFilter === k ? "#fff" : INK6, border: resultFilter === k ? `1.5px solid ${INK9}` : `1.5px solid ${INK2}` }}>{l}</button>
-        ))}
-        <div style={{ marginLeft: "auto" }}><button style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: "#fff", color: INK6, border: `1.5px solid ${INK2}` }}><Filter size={14} />Tipo</button></div>
-      </div>
-
       {error && <div style={{ padding: "12px 16px", background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 10, color: NO, marginBottom: 16 }}>{error}</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 20 }}>
-        <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, overflow: "hidden" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 22px", borderBottom: `1px solid ${INK2}` }}>
-            <div style={{ fontWeight: 700, fontSize: "0.9375rem" }}>Actas recientes</div>
-            <button style={{ ...btnOut, height: 32, fontSize: "0.8125rem" }}><Filter size={13} />Filtrar</button>
-          </div>
-          {loading ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Cargando…</div>
-          : items.length === 0 ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Sin inspecciones registradas</div>
-          : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-              <thead><tr>{["Acta","Vehículo","Fiscal","Fecha","Resultado"].map((h,i) => (
-                <th key={i} style={{ textAlign: "left", padding: "12px 16px", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, background: "#FAFAFA", borderBottom: `1px solid ${INK2}` }}>{h}</th>
-              ))}</tr></thead>
-              <tbody>{items.map(it => (
-                <tr key={it.id} style={{ cursor: "pointer" }}>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}>
-                    <div style={{ fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.75rem" }}>A-{it.id.slice(-10).toUpperCase()}</div>
-                    <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 2 }}>{it.score}/100</div>
-                  </td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}>
-                    <span style={{ display: "inline-flex", padding: "4px 10px", borderRadius: 6, background: INK9, color: "#fff", fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.8125rem" }}>{it.vehicle.plate}</span>
-                    <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 4 }}>{it.vehicleTypeKey}</div>
-                  </td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}`, fontSize: "0.875rem" }}>{it.fiscal.name}</td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}`, fontSize: "0.8125rem", color: INK6 }}>{fmtDate(it.date)}</td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><ResultBadge r={it.result} /></td>
-                </tr>
-              ))}</tbody>
-            </table>
-          )}
+        <div>
+          <DataTable
+            columns={columns}
+            data={items}
+            loading={loading}
+            searchPlaceholder="Buscar por placa, fiscal…"
+            emptyTitle="Sin inspecciones registradas"
+            emptyDescription="No se encontraron actas en este período."
+            toolbarEnd={
+              <div style={{ display: "flex", gap: 6 }}>
+                {[["", "Todas"], ["aprobada", "Aprobadas"], ["observada", "Observadas"], ["rechazada", "Rechazadas"]].map(([k, l]) => (
+                  <button key={k} onClick={() => setResultFilter(k)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 7, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: resultFilter === k ? INK9 : "#fff", color: resultFilter === k ? "#fff" : INK6, border: resultFilter === k ? `1.5px solid ${INK9}` : `1.5px solid ${INK2}` }}>{l}</button>
+                ))}
+              </div>
+            }
+          />
         </div>
 
         {/* AI Suggestions Panel */}

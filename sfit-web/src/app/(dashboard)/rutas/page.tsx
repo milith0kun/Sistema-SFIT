@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Download, Plus, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
+import { Badge } from "@/components/ui/Badge";
 
 type RouteType = "ruta" | "zona";
 type RouteItem = {
@@ -14,7 +16,6 @@ type RouteItem = {
 };
 
 const G = "#B8860B"; const GD = "#926A09"; const GBG = "#FDF8EC";
-const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
 const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 
@@ -29,6 +30,7 @@ function MapStub({ name }: { name: string }) {
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: G, display: "inline-block" }} />Origen</span>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: INK9, display: "inline-block" }} />Destino</span>
       </div>
+      <div style={{ display: "none" }}>{name}</div>
     </div>
   );
 }
@@ -76,6 +78,70 @@ export default function RutasPage() {
   const zonas = items.filter(i => i.type === "zona");
   const visible = tab === "ruta" ? rutas : zonas;
 
+  const columns = useMemo<ColumnDef<RouteItem, unknown>[]>(() => [
+    {
+      id: "codigo",
+      header: "Código",
+      accessorFn: (row) => row.code,
+      cell: ({ getValue }) => (
+        <span style={{ display: "inline-flex", padding: "4px 10px", borderRadius: 6, background: "#fff", color: INK9, border: `1.5px solid ${G}`, fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.8125rem" }}>
+          {getValue() as string}
+        </span>
+      ),
+    },
+    {
+      id: "nombre",
+      header: tab === "ruta" ? "Ruta" : "Zona",
+      accessorFn: (row) => `${row.name} ${row.companyName ?? ""} ${row.frequencies?.join(" ") ?? ""}`,
+      cell: ({ row }) => (
+        <div>
+          <div style={{ fontWeight: 600 }}>{row.original.name}</div>
+          <div style={{ fontSize: "0.75rem", color: INK5 }}>
+            {row.original.companyName ?? (row.original.frequencies?.[0] ?? "—")}
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "paradas",
+      header: tab === "ruta" ? "Paradas" : "Área",
+      accessorFn: (row) => tab === "ruta" ? (row.stops ?? 0) : (row.area ?? ""),
+      cell: ({ row }) => (
+        <span style={{ fontWeight: 600 }}>
+          {tab === "ruta"
+            ? (row.original.stops != null ? `${row.original.stops} · ${row.original.length ?? ""}` : "—")
+            : (row.original.area ?? "—")}
+        </span>
+      ),
+    },
+    {
+      id: "vehiculos",
+      header: "Vehíc.",
+      accessorFn: (row) => row.vehicleCount,
+      cell: ({ getValue }) => <span>{getValue() as number}</span>,
+    },
+    {
+      id: "estado",
+      header: "Estado",
+      accessorFn: (row) => row.status,
+      cell: ({ row }) => (
+        <Badge variant={row.original.status === "activa" ? "activo" : "suspendido"}>
+          {row.original.status === "activa" ? "ACTIVA" : "SUSPENDIDA"}
+        </Badge>
+      ),
+    },
+    {
+      id: "acciones",
+      header: "",
+      enableSorting: false,
+      cell: ({ row }) => (
+        <div onClick={(e) => e.stopPropagation()}>
+          <Link href={`/rutas/${row.original.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
+        </div>
+      ),
+    },
+  ], [tab]);
+
   if (!user) return null;
 
   return (
@@ -95,33 +161,14 @@ export default function RutasPage() {
       {error && <div style={{ padding: "12px 16px", background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 10, color: NO, marginBottom: 16 }}>{error}</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-        <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, overflow: "hidden" }}>
-          {loading ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Cargando…</div>
-          : visible.length === 0 ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Sin {tab === "ruta" ? "rutas" : "zonas"} registradas</div>
-          : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-              <thead><tr>{["Código", tab === "ruta" ? "Ruta" : "Zona", tab === "ruta" ? "Paradas" : "Área", "Vehíc.", "Estado", ""].map((h,i) => (
-                <th key={i} style={{ textAlign: "left", padding: "12px 16px", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, background: "#FAFAFA", borderBottom: `1px solid ${INK2}` }}>{h}</th>
-              ))}</tr></thead>
-              <tbody>{visible.map(r => (
-                <tr key={r.id} onClick={() => setSel(r)} style={{ cursor: "pointer", background: sel?.id === r.id ? GBG : undefined, boxShadow: sel?.id === r.id ? `inset 3px 0 0 ${G}` : undefined }}>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><span style={{ display: "inline-flex", padding: "4px 10px", borderRadius: 6, background: "#fff", color: INK9, border: `1.5px solid ${G}`, fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.8125rem" }}>{r.code}</span></td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><div style={{ fontWeight: 600 }}>{r.name}</div><div style={{ fontSize: "0.75rem", color: INK5 }}>{r.companyName ?? (r.frequencies?.[0] ?? "—")}</div></td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}`, fontWeight: 600 }}>{tab === "ruta" ? (r.stops != null ? `${r.stops} · ${r.length ?? ""}` : "—") : (r.area ?? "—")}</td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}>{r.vehicleCount}</td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 999, fontSize: "0.6875rem", fontWeight: 700, textTransform: "uppercase", background: r.status === "activa" ? APTOBG : NOBG, color: r.status === "activa" ? APTO : NO, border: `1px solid ${r.status === "activa" ? APTOBD : NOBD}` }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block" }} />{r.status === "activa" ? "ACTIVA" : "SUSPENDIDA"}
-                    </span>
-                  </td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }} onClick={e => e.stopPropagation()}>
-                    <Link href={`/rutas/${r.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
-                  </td>
-                </tr>
-              ))}</tbody>
-            </table>
-          )}
-        </div>
+        <DataTable
+          columns={columns}
+          data={visible}
+          loading={loading}
+          searchPlaceholder="Buscar por código, nombre, empresa…"
+          emptyTitle={`Sin ${tab === "ruta" ? "rutas" : "zonas"} registradas`}
+          emptyDescription="No se encontraron registros."
+        />
 
         {sel ? (
           <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14 }}>

@@ -4,6 +4,8 @@ import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { Apelacion } from "@/models/Apelacion";
 import { Inspection } from "@/models/Inspection";
+import "@/models/Vehicle";
+import "@/models/User";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";

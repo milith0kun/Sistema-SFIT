@@ -4,6 +4,8 @@ import { Inspection } from "@/models/Inspection";
 import { CitizenReport } from "@/models/CitizenReport";
 import { Apelacion } from "@/models/Apelacion";
 import { Sanction } from "@/models/Sanction";
+import "@/models/Vehicle";
+import "@/models/User";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";

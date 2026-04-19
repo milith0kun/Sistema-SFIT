@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useState, useCallback, cloneElement } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MessageSquareWarning, Clock, CheckCircle, XCircle, Filter } from "lucide-react";
+import { MessageSquareWarning, Clock, CheckCircle, XCircle } from "lucide-react";
+import { type ColumnDef, DataTable } from "@/components/ui/DataTable";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/button";
+import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
 
+// ── Tipos ────────────────────────────────────────────────────────────────────
 type ApelacionStatus = "pendiente" | "aprobada" | "rechazada";
 
 type Apelacion = {
@@ -22,51 +27,25 @@ type Apelacion = {
   createdAt: string;
 };
 
-// ── Palette tokens (consistent with rest of dashboard) ──────────────────────
-const INK1 = "#f4f4f5";
-const INK2 = "#e4e4e7";
-const INK5 = "#71717a";
-const INK6 = "#52525b";
-const INK9 = "#18181b";
-
-const PEND_BG = "#FFFBEB"; const PEND_C = "#b45309"; const PEND_BD = "#FCD34D";
-const APRO_BG = "#F0FDF4"; const APRO_C = "#15803d"; const APRO_BD = "#86EFAC";
-const RECH_BG = "#FFF5F5"; const RECH_C = "#b91c1c"; const RECH_BD = "#FCA5A5";
-
 const ALLOWED = ["fiscal", "admin_municipal", "admin_provincial", "super_admin"];
 
-const btnInk: React.CSSProperties = {
-  display: "inline-flex", alignItems: "center", gap: 8, height: 38, padding: "0 16px",
-  borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer",
-  border: "none", background: INK9, color: "#fff", fontFamily: "inherit",
-};
-const btnOut: React.CSSProperties = {
-  display: "inline-flex", alignItems: "center", gap: 8, height: 38, padding: "0 16px",
-  borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer",
-  border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontFamily: "inherit",
+const STATUS_VARIANT: Record<ApelacionStatus, "pendiente" | "activo" | "suspendido"> = {
+  pendiente: "pendiente",
+  aprobada: "activo",
+  rechazada: "suspendido",
 };
 
-function StatusBadge({ s }: { s: ApelacionStatus }) {
-  const map: Record<ApelacionStatus, { bg: string; color: string; border: string; label: string }> = {
-    pendiente: { bg: PEND_BG, color: PEND_C, border: PEND_BD, label: "PENDIENTE" },
-    aprobada:  { bg: APRO_BG, color: APRO_C, border: APRO_BD, label: "APROBADA"  },
-    rechazada: { bg: RECH_BG, color: RECH_C, border: RECH_BD, label: "RECHAZADA" },
-  };
-  const st = map[s];
-  return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px",
-      borderRadius: 999, fontSize: "0.6875rem", fontWeight: 700, textTransform: "uppercase",
-      background: st.bg, color: st.color, border: `1px solid ${st.border}`,
-    }}>
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block" }} />
-      {st.label}
-    </span>
-  );
-}
+const STATUS_LABEL: Record<ApelacionStatus, string> = {
+  pendiente: "Pendiente",
+  aprobada: "Aprobada",
+  rechazada: "Rechazada",
+};
 
 function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return new Date(d).toLocaleDateString("es-PE", {
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
 }
 
 // ── Modal de resolución ──────────────────────────────────────────────────────
@@ -101,13 +80,20 @@ function ResolveModal({
     finally { setLoading(false); }
   }
 
+  const APRO_C = "#15803d"; const APRO_BG = "#F0FDF4"; const APRO_BD = "#86EFAC";
+  const RECH_C = "#b91c1c"; const RECH_BG = "#FFF5F5"; const RECH_BD = "#FCA5A5";
+  const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
+
   return (
-    <div style={{
-      position: "fixed", inset: 0, zIndex: 50,
-      background: "rgba(9,9,11,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
-    }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 50,
+        background: "rgba(9,9,11,0.55)", display: "flex",
+        alignItems: "center", justifyContent: "center", padding: 24,
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 520, overflow: "hidden", boxShadow: "0 24px 48px rgba(0,0,0,0.18)" }}>
-        {/* Header */}
         <div style={{ padding: "20px 24px", borderBottom: `1px solid ${INK2}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ fontWeight: 800, fontSize: "1.0625rem", color: INK9 }}>Resolver apelación</div>
@@ -118,10 +104,8 @@ function ResolveModal({
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${INK2}`, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: INK5, fontSize: 18 }}>×</button>
         </div>
 
-        {/* Body */}
         <div style={{ padding: 24 }}>
-          {/* Motivo de la apelación */}
-          <div style={{ marginBottom: 20, padding: 14, background: INK1, borderRadius: 10, borderLeft: `3px solid ${INK2}` }}>
+          <div style={{ marginBottom: 20, padding: 14, background: "#f4f4f5", borderRadius: 10, borderLeft: `3px solid ${INK2}` }}>
             <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: INK5, marginBottom: 6 }}>Motivo del operador</div>
             <div style={{ fontSize: "0.875rem", color: INK6, lineHeight: 1.6 }}>{apelacion.reason}</div>
             {apelacion.inspection && (
@@ -131,7 +115,6 @@ function ResolveModal({
             )}
           </div>
 
-          {/* Decisión */}
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: "0.8125rem", fontWeight: 600, color: INK9, marginBottom: 8 }}>Decisión</div>
             <div style={{ display: "flex", gap: 10 }}>
@@ -162,7 +145,6 @@ function ResolveModal({
             </div>
           </div>
 
-          {/* Comentario del revisor */}
           <div style={{ marginBottom: 20 }}>
             <label style={{ display: "block", fontSize: "0.8125rem", fontWeight: 600, color: INK9, marginBottom: 6 }}>
               Resolución <span style={{ color: RECH_C }}>*</span>
@@ -173,9 +155,9 @@ function ResolveModal({
               placeholder="Describa el motivo de su decisión…"
               rows={4}
               style={{
-                width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.5px solid ${INK2}`,
-                fontSize: "0.875rem", color: INK9, fontFamily: "inherit", resize: "vertical",
-                outline: "none", boxSizing: "border-box",
+                width: "100%", padding: "10px 14px", borderRadius: 10,
+                border: `1.5px solid ${INK2}`, fontSize: "0.875rem", color: INK9,
+                fontFamily: "inherit", resize: "vertical", outline: "none", boxSizing: "border-box",
               }}
               onFocus={(e) => { e.currentTarget.style.borderColor = INK6; }}
               onBlur={(e) => { e.currentTarget.style.borderColor = INK2; }}
@@ -189,12 +171,19 @@ function ResolveModal({
           )}
 
           <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={onClose} style={{ ...btnOut, flex: 1, justifyContent: "center" }}>Cancelar</button>
+            <button
+              onClick={onClose}
+              style={{ flex: 1, justifyContent: "center", display: "inline-flex", alignItems: "center", height: 38, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontFamily: "inherit" }}
+            >
+              Cancelar
+            </button>
             <button
               onClick={() => { void submit(); }}
               disabled={loading}
               style={{
-                ...btnInk, flex: 1, justifyContent: "center",
+                flex: 1, justifyContent: "center", display: "inline-flex", alignItems: "center", height: 38, padding: "0 16px",
+                borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer",
+                border: "none", fontFamily: "inherit", color: "#fff",
                 background: status === "aprobada" ? APRO_C : RECH_C,
                 opacity: loading ? 0.7 : 1,
               }}
@@ -231,9 +220,11 @@ export default function ApelacionesPage() {
     setLoading(true); setError(null);
     try {
       const token = localStorage.getItem("sfit_access_token");
-      const qs = new URLSearchParams({ limit: "50" });
+      const qs = new URLSearchParams({ limit: "100" });
       if (statusFilter) qs.set("status", statusFilter);
-      const res = await fetch(`/api/apelaciones?${qs}`, { headers: { Authorization: `Bearer ${token ?? ""}` } });
+      const res = await fetch(`/api/apelaciones?${qs}`, {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
       if (res.status === 401) { router.replace("/login"); return; }
       const data = await res.json();
       if (!res.ok || !data.success) { setError(data.error ?? "Error al cargar"); return; }
@@ -249,9 +240,169 @@ export default function ApelacionesPage() {
     setResolving(null);
   }
 
-  const pendientes = items.filter((a) => a.status === "pendiente").length;
-  const aprobadas  = items.filter((a) => a.status === "aprobada").length;
-  const rechazadas = items.filter((a) => a.status === "rechazada").length;
+  const pendientes = useMemo(() => items.filter((a) => a.status === "pendiente").length, [items]);
+  const aprobadas  = useMemo(() => items.filter((a) => a.status === "aprobada").length, [items]);
+  const rechazadas = useMemo(() => items.filter((a) => a.status === "rechazada").length, [items]);
+
+  const columns = useMemo<ColumnDef<Apelacion, unknown>[]>(
+    () => [
+      {
+        id: "vehiculo",
+        header: "Vehículo",
+        accessorFn: (r) => r.vehicle?.plate ?? "",
+        cell: ({ row }) =>
+          row.original.vehicle ? (
+            <div>
+              <span style={{
+                display: "inline-flex", padding: "2px 8px", borderRadius: 6,
+                background: "#18181b", color: "#fff",
+                fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.8125rem",
+              }}>
+                {row.original.vehicle.plate}
+              </span>
+              <div style={{ fontSize: "0.75rem", color: "#71717a", marginTop: 3 }}>
+                {row.original.vehicle.brand} {row.original.vehicle.model}
+              </div>
+            </div>
+          ) : <span style={{ color: "#71717a" }}>—</span>,
+      },
+      {
+        id: "operador",
+        header: "Operador",
+        accessorFn: (r) => `${r.submittedBy?.name ?? ""} ${r.submittedBy?.email ?? ""}`,
+        cell: ({ row }) => (
+          <div>
+            <div style={{ fontWeight: 600, fontSize: "0.875rem" }}>{row.original.submittedBy?.name ?? "—"}</div>
+            <div style={{ fontSize: "0.75rem", color: "#71717a" }}>{row.original.submittedBy?.email ?? ""}</div>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "reason",
+        header: "Motivo",
+        cell: ({ row }) => (
+          <div style={{ maxWidth: 240 }}>
+            <div style={{
+              fontSize: "0.8125rem", color: "#52525b", lineHeight: 1.4,
+              overflow: "hidden", display: "-webkit-box",
+              WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+            }}>
+              {row.original.reason}
+            </div>
+            {row.original.evidence.length > 0 && (
+              <div style={{ fontSize: "0.6875rem", color: "#71717a", marginTop: 3 }}>
+                {row.original.evidence.length} evidencia{row.original.evidence.length > 1 ? "s" : ""}
+              </div>
+            )}
+          </div>
+        ),
+      },
+      {
+        id: "inspeccion",
+        header: "Insp. resultado",
+        accessorFn: (r) => r.inspection?.result ?? "",
+        cell: ({ row }) =>
+          row.original.inspection ? (
+            <div>
+              <Badge variant={row.original.inspection.result === "rechazada" ? "suspendido" : "pendiente"}>
+                {row.original.inspection.result}
+              </Badge>
+              <div style={{ fontSize: "0.75rem", color: "#71717a", marginTop: 3 }}>
+                Score: {row.original.inspection.score}/100
+              </div>
+            </div>
+          ) : <span style={{ color: "#71717a" }}>—</span>,
+      },
+      {
+        accessorKey: "status",
+        header: "Estado",
+        cell: ({ row }) => (
+          <div>
+            <Badge variant={STATUS_VARIANT[row.original.status]}>
+              {STATUS_LABEL[row.original.status]}
+            </Badge>
+            {row.original.resolvedBy && (
+              <div style={{ fontSize: "0.6875rem", color: "#71717a", marginTop: 3 }}>
+                por {row.original.resolvedBy.name}
+              </div>
+            )}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "createdAt",
+        header: "Fecha",
+        cell: ({ getValue }) => (
+          <span style={{ fontSize: "0.8125rem", color: "#52525b", whiteSpace: "nowrap" }}>
+            {fmtDate(getValue() as string)}
+          </span>
+        ),
+      },
+      {
+        id: "acciones",
+        header: "Acción",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <Link
+              href={`/apelaciones/${row.original.id}`}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
+                borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600,
+                border: "1.5px solid #e4e4e7", background: "#fff", color: "#52525b",
+                textDecoration: "none", whiteSpace: "nowrap",
+              }}
+            >
+              Ver detalle
+            </Link>
+            {row.original.status === "pendiente" && (
+              <button
+                onClick={() => setResolving(row.original)}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
+                  borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
+                  border: "1.5px solid #18181b", background: "#18181b", color: "#fff", fontFamily: "inherit",
+                }}
+              >
+                Resolver
+              </button>
+            )}
+            {row.original.status !== "pendiente" && row.original.resolvedAt && (
+              <span style={{ fontSize: "0.75rem", color: "#71717a", whiteSpace: "nowrap" }}>
+                {fmtDate(row.original.resolvedAt)}
+              </span>
+            )}
+          </div>
+        ),
+      },
+    ],
+    []
+  );
+
+  const statusFilterButtons = (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      {(["", "pendiente", "aprobada", "rechazada"] as const).map((k) => {
+        const labels: Record<string, string> = { "": "Todas", pendiente: "Pendientes", aprobada: "Aprobadas", rechazada: "Rechazadas" };
+        const active = statusFilter === k;
+        return (
+          <button
+            key={k}
+            onClick={() => setStatusFilter(k)}
+            style={{
+              display: "inline-flex", alignItems: "center", height: 34, padding: "0 12px", borderRadius: 8,
+              fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+              background: active ? "#18181b" : "#fff",
+              color: active ? "#fff" : "#52525b",
+              border: active ? "1.5px solid #18181b" : "1.5px solid #e4e4e7",
+            }}
+          >
+            {labels[k]}
+          </button>
+        );
+      })}
+      <Button variant="outline" size="sm" onClick={() => void load()}>Actualizar</Button>
+    </div>
+  );
 
   if (!user) return null;
 
@@ -262,205 +413,37 @@ export default function ApelacionesPage() {
         title="Apelaciones"
       />
 
-      {/* KPI Strip */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
-        {[
-          { ico: <MessageSquareWarning size={18} />, lbl: "Total",      val: items.length, bg: INK1,    ic: INK5   },
-          { ico: <Clock size={18} />,                lbl: "Pendientes", val: pendientes,   bg: PEND_BG, ic: PEND_C },
-          { ico: <CheckCircle size={18} />,          lbl: "Aprobadas",  val: aprobadas,    bg: APRO_BG, ic: APRO_C },
-          { ico: <XCircle size={18} />,              lbl: "Rechazadas", val: rechazadas,   bg: RECH_BG, ic: RECH_C },
-        ].map((m, i) => (
-          <div key={i} style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden" }}>
-            <div aria-hidden style={{ position: "absolute", right: -8, bottom: -8, color: m.ic, opacity: 0.16, pointerEvents: "none", lineHeight: 0 }}>
-              {cloneElement(m.ico as React.ReactElement<{ size?: number; strokeWidth?: number }>, { size: 80, strokeWidth: 1.4 })}
-            </div>
-            <div style={{ width: 36, height: 36, borderRadius: 9, background: m.bg, color: m.ic, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>{m.ico}</div>
-            <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: INK5 }}>{m.lbl}</div>
-            <div style={{ fontSize: "2rem", fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.05, marginTop: 6, color: INK9 }}>{loading ? "—" : m.val}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Filtros */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-        {[["", "Todas"], ["pendiente", "Pendientes"], ["aprobada", "Aprobadas"], ["rechazada", "Rechazadas"]].map(([k, l]) => (
-          <button
-            key={k}
-            onClick={() => setStatusFilter(k)}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8,
-              fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-              background: statusFilter === k ? INK9 : "#fff",
-              color: statusFilter === k ? "#fff" : INK6,
-              border: statusFilter === k ? `1.5px solid ${INK9}` : `1.5px solid ${INK2}`,
-            }}
-          >
-            {l}
-          </button>
-        ))}
-        <div style={{ marginLeft: "auto" }}>
-          <button style={{ ...btnOut, height: 36 }} onClick={() => void load()}>
-            <Filter size={14} />Actualizar
-          </button>
-        </div>
-      </div>
+      <KPIStrip
+        cols={4}
+        items={[
+          { label: "TOTAL", value: loading ? "—" : items.length, subtitle: "registradas", accent: "#52525b", icon: MessageSquareWarning },
+          { label: "PENDIENTES", value: loading ? "—" : pendientes, subtitle: "por resolver", accent: "#b45309", icon: Clock },
+          { label: "APROBADAS", value: loading ? "—" : aprobadas, subtitle: "confirmadas", accent: "#15803d", icon: CheckCircle },
+          { label: "RECHAZADAS", value: loading ? "—" : rechazadas, subtitle: "denegadas", accent: "#b91c1c", icon: XCircle },
+        ]}
+      />
 
       {error && (
-        <div style={{ padding: "12px 16px", background: RECH_BG, border: `1px solid ${RECH_BD}`, borderRadius: 10, color: RECH_C, marginBottom: 16 }}>
+        <div style={{
+          padding: "12px 16px", background: "#FFF5F5",
+          border: "1px solid #FCA5A5", borderRadius: 10, color: "#b91c1c",
+        }}>
           {error}
         </div>
       )}
 
-      {/* Tabla */}
-      <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, overflow: "hidden" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 22px", borderBottom: `1px solid ${INK2}` }}>
-          <div style={{ fontWeight: 700, fontSize: "0.9375rem" }}>
-            Lista de apelaciones {!loading && <span style={{ fontWeight: 400, color: INK5 }}>({items.length})</span>}
-          </div>
-        </div>
+      <DataTable
+        columns={columns}
+        data={items}
+        loading={loading}
+        searchPlaceholder="Buscar placa, operador, motivo…"
+        emptyTitle="Sin apelaciones"
+        emptyDescription={statusFilter ? `No hay apelaciones con estado "${statusFilter}".` : "No hay apelaciones en el sistema."}
+        defaultPageSize={20}
+        showColumnToggle
+        toolbarEnd={statusFilterButtons}
+      />
 
-        {loading ? (
-          <div style={{ padding: 60, textAlign: "center", color: INK5 }}>Cargando…</div>
-        ) : items.length === 0 ? (
-          <div style={{ padding: 60, textAlign: "center", color: INK5 }}>
-            <MessageSquareWarning size={36} style={{ margin: "0 auto 12px", display: "block", opacity: 0.3 }} />
-            <div style={{ fontWeight: 600 }}>Sin apelaciones registradas</div>
-            <div style={{ fontSize: "0.875rem", marginTop: 4 }}>
-              {statusFilter ? `No hay apelaciones con estado "${statusFilter}"` : "No hay apelaciones en el sistema"}
-            </div>
-          </div>
-        ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-            <thead>
-              <tr>
-                {["Vehículo", "Operador", "Motivo", "Insp. resultado", "Estado", "Fecha", "Acción"].map((h, i) => (
-                  <th key={i} style={{
-                    textAlign: "left", padding: "12px 16px",
-                    fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
-                    color: INK5, background: "#FAFAFA", borderBottom: `1px solid ${INK2}`,
-                  }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((ap) => (
-                <tr key={ap.id} style={{ borderBottom: `1px solid ${INK1}` }}>
-                  {/* Vehículo */}
-                  <td style={{ padding: "14px 16px" }}>
-                    {ap.vehicle ? (
-                      <>
-                        <span style={{
-                          display: "inline-flex", padding: "3px 9px", borderRadius: 6,
-                          background: INK9, color: "#fff", fontFamily: "ui-monospace,monospace",
-                          fontWeight: 700, fontSize: "0.8125rem",
-                        }}>
-                          {ap.vehicle.plate}
-                        </span>
-                        <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 4 }}>
-                          {ap.vehicle.brand} {ap.vehicle.model}
-                        </div>
-                      </>
-                    ) : <span style={{ color: INK5 }}>—</span>}
-                  </td>
-
-                  {/* Operador */}
-                  <td style={{ padding: "14px 16px" }}>
-                    <div style={{ fontWeight: 600, fontSize: "0.875rem" }}>{ap.submittedBy?.name ?? "—"}</div>
-                    <div style={{ fontSize: "0.75rem", color: INK5 }}>{ap.submittedBy?.email ?? ""}</div>
-                  </td>
-
-                  {/* Motivo */}
-                  <td style={{ padding: "14px 16px", maxWidth: 220 }}>
-                    <div style={{
-                      fontSize: "0.8125rem", color: INK6, lineHeight: 1.4,
-                      overflow: "hidden", display: "-webkit-box",
-                      WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-                    }}>
-                      {ap.reason}
-                    </div>
-                    {ap.evidence.length > 0 && (
-                      <div style={{ fontSize: "0.6875rem", color: INK5, marginTop: 4 }}>
-                        {ap.evidence.length} evidencia{ap.evidence.length > 1 ? "s" : ""}
-                      </div>
-                    )}
-                  </td>
-
-                  {/* Resultado inspección */}
-                  <td style={{ padding: "14px 16px" }}>
-                    {ap.inspection ? (
-                      <>
-                        <span style={{
-                          display: "inline-flex", alignItems: "center", gap: 4,
-                          padding: "3px 9px", borderRadius: 6, fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase",
-                          background: ap.inspection.result === "rechazada" ? RECH_BG : PEND_BG,
-                          color: ap.inspection.result === "rechazada" ? RECH_C : PEND_C,
-                          border: `1px solid ${ap.inspection.result === "rechazada" ? RECH_BD : PEND_BD}`,
-                        }}>
-                          {ap.inspection.result}
-                        </span>
-                        <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 4 }}>Score: {ap.inspection.score}/100</div>
-                      </>
-                    ) : <span style={{ color: INK5 }}>—</span>}
-                  </td>
-
-                  {/* Estado */}
-                  <td style={{ padding: "14px 16px" }}>
-                    <StatusBadge s={ap.status} />
-                    {ap.resolvedBy && (
-                      <div style={{ fontSize: "0.6875rem", color: INK5, marginTop: 4 }}>
-                        por {ap.resolvedBy.name}
-                      </div>
-                    )}
-                  </td>
-
-                  {/* Fecha */}
-                  <td style={{ padding: "14px 16px", fontSize: "0.8125rem", color: INK6, whiteSpace: "nowrap" }}>
-                    {fmtDate(ap.createdAt)}
-                  </td>
-
-                  {/* Acción */}
-                  <td style={{ padding: "14px 16px" }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      <Link
-                        href={`/apelaciones/${ap.id}`}
-                        style={{
-                          display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-                          borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
-                          border: `1.5px solid ${INK2}`, background: "#fff", color: INK6,
-                          textDecoration: "none", whiteSpace: "nowrap",
-                        }}
-                      >
-                        Ver detalle
-                      </Link>
-                      {ap.status === "pendiente" && (
-                        <button
-                          onClick={() => setResolving(ap)}
-                          style={{
-                            display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-                            borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
-                            border: `1.5px solid ${INK9}`, background: INK9, color: "#fff", fontFamily: "inherit",
-                          }}
-                        >
-                          Resolver
-                        </button>
-                      )}
-                      {ap.status !== "pendiente" && ap.resolvedAt && (
-                        <span style={{ fontSize: "0.75rem", color: INK5, whiteSpace: "nowrap" }}>
-                          {fmtDate(ap.resolvedAt)}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Modal resolver */}
       {resolving && (
         <ResolveModal
           apelacion={resolving}

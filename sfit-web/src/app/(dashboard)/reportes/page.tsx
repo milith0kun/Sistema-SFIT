@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback, cloneElement } from "react";
+import { useEffect, useState, useCallback, cloneElement, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Flag, Eye, Check, X, Download, Sparkles, Camera } from "lucide-react";
+import { Flag, Eye, Check, X, Download, Sparkles, Camera, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
+import { Badge } from "@/components/ui/Badge";
 
 type ReportStatus = "pendiente" | "revision" | "validado" | "rechazado";
 type FraudLayer = { layer: string; passed: boolean; detail: string };
@@ -87,6 +89,81 @@ export default function ReportesPage() {
     void load();
   };
 
+  const columns = useMemo<ColumnDef<Report, unknown>[]>(() => [
+    {
+      id: "reporte",
+      header: "Reporte",
+      accessorFn: (row) => `RC-${row.id.slice(-6).toUpperCase()} ${row.vehicle?.plate ?? ""}`,
+      cell: ({ row }) => (
+        <div>
+          <div style={{ fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.75rem" }}>
+            RC-{row.original.id.slice(-6).toUpperCase()}
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
+            {row.original.vehicle && (
+              <span style={{ display: "inline-flex", padding: "2px 7px", borderRadius: 5, background: INK9, color: "#fff", fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.6875rem" }}>
+                {row.original.vehicle.plate}
+              </span>
+            )}
+            <span style={{ fontSize: "0.75rem", color: INK5 }}>{fmtAgo(row.original.createdAt)}</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "categoria",
+      header: "Categoría",
+      accessorFn: (row) => `${row.category} ${row.description}`,
+      cell: ({ row }) => (
+        <div>
+          <div style={{ fontWeight: 600 }}>{row.original.category}</div>
+          <div style={{ fontSize: "0.75rem", color: INK5 }}>
+            Nivel {row.original.citizenReputationLevel} reputación
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "descripcion",
+      header: "Descripción",
+      accessorFn: (row) => row.description,
+      cell: ({ row }) => (
+        <div style={{ fontSize: "0.8125rem", color: INK6, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {row.original.description}
+        </div>
+      ),
+    },
+    {
+      id: "veracidad",
+      header: "Veracidad",
+      accessorFn: (row) => row.fraudScore,
+      cell: ({ row }) => {
+        const score = row.original.fraudScore;
+        const color = score >= 80 ? APTO : score >= 60 ? RIESGO : NO;
+        return (
+          <div style={{ minWidth: 80 }}>
+            <div style={{ fontWeight: 800, color }}>
+              {score}<span style={{ fontWeight: 400, fontSize: "0.75rem", color: INK5 }}>/100</span>
+            </div>
+            <div style={{ height: 4, background: INK1, borderRadius: 999, marginTop: 4, overflow: "hidden" }}>
+              <span style={{ display: "block", height: "100%", background: color, width: `${score}%` }} />
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      id: "acciones",
+      header: "",
+      enableSorting: false,
+      cell: ({ row }) => (
+        <div onClick={(e) => e.stopPropagation()}>
+          <Link href={`/reportes/${row.original.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
+        </div>
+      ),
+    },
+  ], []);
+
   if (!user) return null;
 
   const TAB_LABELS: Record<ReportStatus, string> = { pendiente: "Pendientes", revision: "En revisión", validado: "Validados", rechazado: "Rechazados" };
@@ -140,41 +217,14 @@ export default function ReportesPage() {
       {error && <div style={{ padding: "12px 16px", background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 10, color: NO, marginBottom: 16 }}>{error}</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-        <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, overflow: "hidden" }}>
-          {loading ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Cargando…</div>
-          : items.length === 0 ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Sin reportes {TAB_LABELS[tab].toLowerCase()}</div>
-          : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-              <thead><tr>{["Reporte","Categoría","Veracidad",""].map((h,i) => (
-                <th key={i} style={{ textAlign: "left", padding: "12px 16px", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, background: "#FAFAFA", borderBottom: `1px solid ${INK2}` }}>{h}</th>
-              ))}</tr></thead>
-              <tbody>{items.map((r, i) => (
-                <tr key={r.id} onClick={() => setSel(r)} style={{ cursor: "pointer", background: sel?.id === r.id ? GBG : undefined, boxShadow: sel?.id === r.id ? `inset 3px 0 0 ${G}` : undefined }}>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}>
-                    <div style={{ fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.75rem" }}>RC-{r.id.slice(-6).toUpperCase()}</div>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
-                      {r.vehicle && <span style={{ display: "inline-flex", padding: "2px 7px", borderRadius: 5, background: INK9, color: "#fff", fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.6875rem" }}>{r.vehicle.plate}</span>}
-                      <span style={{ fontSize: "0.75rem", color: INK5 }}>{fmtAgo(r.createdAt)}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}>
-                    <div style={{ fontWeight: 600 }}>{r.category}</div>
-                    <div style={{ fontSize: "0.75rem", color: INK5 }}>Nivel {r.citizenReputationLevel} reputación</div>
-                  </td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}>
-                    <div style={{ fontWeight: 800, color: r.fraudScore >= 80 ? APTO : r.fraudScore >= 60 ? RIESGO : NO }}>{r.fraudScore}<span style={{ fontWeight: 400, fontSize: "0.75rem", color: INK5 }}>/100</span></div>
-                    <div style={{ height: 4, background: INK1, borderRadius: 999, marginTop: 4, overflow: "hidden" }}>
-                      <span style={{ display: "block", height: "100%", background: r.fraudScore >= 80 ? APTO : r.fraudScore >= 60 ? RIESGO : NO, width: `${r.fraudScore}%` }} />
-                    </div>
-                  </td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }} onClick={e => e.stopPropagation()}>
-                    <Link href={`/reportes/${r.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
-                  </td>
-                </tr>
-              ))}</tbody>
-            </table>
-          )}
-        </div>
+        <DataTable
+          columns={columns}
+          data={items}
+          loading={loading}
+          searchPlaceholder="Buscar por placa, categoría, descripción…"
+          emptyTitle={`Sin reportes ${TAB_LABELS[tab].toLowerCase()}`}
+          emptyDescription="No se encontraron reportes en esta categoría."
+        />
 
         {sel ? (
           <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14 }}>
@@ -231,8 +281,4 @@ export default function ReportesPage() {
       </div>
     </div>
   );
-}
-
-function AlertTriangle({ size }: { size: number }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 18h.01"/></svg>;
 }

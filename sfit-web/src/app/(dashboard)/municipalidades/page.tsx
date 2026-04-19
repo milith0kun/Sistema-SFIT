@@ -7,8 +7,7 @@ import { Plus, Pencil, Building2, CircleCheck, CircleOff, MapPin } from "lucide-
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { Table, type TableColumn } from "@/components/ui/Table";
+import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 
@@ -26,6 +25,18 @@ type StoredUser = { role: string; provinceId?: string; municipalityId?: string }
 
 const ALLOWED_ROLES = ["super_admin", "admin_provincial"];
 const CAN_CREATE = ["super_admin", "admin_provincial"];
+
+const selectStyle: React.CSSProperties = {
+  height: 34,
+  padding: "0 10px",
+  borderRadius: 8,
+  border: "1.5px solid #e4e4e7",
+  fontSize: "0.8125rem",
+  fontFamily: "inherit",
+  background: "#fff",
+  color: "#52525b",
+  cursor: "pointer",
+};
 
 export default function MunicipalidadesPage() {
   const router = useRouter();
@@ -103,6 +114,67 @@ export default function MunicipalidadesPage() {
     return map;
   }, [provinces]);
 
+  const columns = useMemo<ColumnDef<Municipality, unknown>[]>(
+    () => [
+      {
+        id: "nombre",
+        header: "Nombre",
+        accessorFn: (m) => m.name,
+        cell: ({ row: r }) => (
+          <Link
+            href={`/municipalidades/${r.original.id}`}
+            style={{ fontWeight: 600, color: "#09090b", textDecoration: "none" }}
+          >
+            {r.original.name}
+          </Link>
+        ),
+      },
+      {
+        id: "provincia",
+        header: "Provincia",
+        accessorFn: (m) => m.provinceName ?? provinceMap.get(m.provinceId) ?? "",
+        cell: ({ row: r }) => (
+          <span style={{ color: "#52525b" }}>
+            {r.original.provinceName ?? provinceMap.get(r.original.provinceId) ?? "—"}
+          </span>
+        ),
+      },
+      {
+        id: "estado",
+        header: "Estado",
+        accessorFn: (m) => (m.active ? "Activa" : "Inactiva"),
+        cell: ({ row: r }) =>
+          r.original.active
+            ? <Badge variant="activo">Activa</Badge>
+            : <Badge variant="inactivo">Inactiva</Badge>,
+      },
+      {
+        accessorKey: "createdAt",
+        header: "Creada",
+        sortingFn: "datetime",
+        cell: ({ row: r }) => (
+          <span style={{ color: "#71717a", fontSize: "0.8125rem" }}>
+            {r.original.createdAt ? new Date(r.original.createdAt).toLocaleDateString("es-PE") : "—"}
+          </span>
+        ),
+      },
+      {
+        id: "acciones",
+        header: "",
+        enableSorting: false,
+        cell: ({ row: r }) => (
+          <Link href={`/municipalidades/${r.original.id}`}>
+            <Button variant="outline" size="sm">
+              <Pencil size={14} strokeWidth={1.8} />
+              Editar
+            </Button>
+          </Link>
+        ),
+      },
+    ],
+    [provinceMap]
+  );
+
   if (forbidden) {
     return (
       <div className="animate-fade-in">
@@ -118,55 +190,33 @@ export default function MunicipalidadesPage() {
   const canCreate = CAN_CREATE.includes(user.role);
   const canFilterProvince = user.role === "super_admin";
 
-  const columns: TableColumn<Municipality>[] = [
-    {
-      key: "name",
-      header: "Nombre",
-      render: (m) => (
-        <Link href={`/municipalidades/${m.id}`} style={{ fontWeight: 600, color: "#09090b", textDecoration: "none" }}>
-          {m.name}
-        </Link>
-      ),
-    },
-    {
-      key: "province",
-      header: "Provincia",
-      render: (m) => (
-        <span style={{ color: "#52525b" }}>{m.provinceName ?? provinceMap.get(m.provinceId) ?? "—"}</span>
-      ),
-    },
-    {
-      key: "estado",
-      header: "Estado",
-      render: (m) =>
-        m.active ? <Badge variant="activo">Activa</Badge> : <Badge variant="inactivo">Inactiva</Badge>,
-    },
-    {
-      key: "createdAt",
-      header: "Creada",
-      render: (m) => (
-        <span style={{ color: "#71717a", fontSize: "0.8125rem" }}>
-          {m.createdAt ? new Date(m.createdAt).toLocaleDateString("es-PE") : "—"}
-        </span>
-      ),
-    },
-    {
-      key: "actions",
-      header: "",
-      align: "right",
-      render: (m) => (
-        <Link href={`/municipalidades/${m.id}`}>
-          <Button variant="outline" size="sm">
-            <Pencil size={14} strokeWidth={1.8} />
-            Editar
-          </Button>
-        </Link>
-      ),
-    },
-  ];
-
   const activas = items.filter((m) => m.active).length;
   const inactivas = items.length - activas;
+
+  const toolbarEnd = (
+    <>
+      {canFilterProvince && (
+        <select
+          style={selectStyle}
+          value={provinceFilter}
+          onChange={(e) => setProvinceFilter(e.target.value)}
+        >
+          <option value="">Todas las provincias</option>
+          {provinces.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+      )}
+      {canCreate && (
+        <Link href="/municipalidades/nueva">
+          <Button variant="primary" size="sm">
+            <Plus size={14} strokeWidth={2} />
+            Nueva municipalidad
+          </Button>
+        </Link>
+      )}
+    </>
+  );
 
   return (
     <div className="flex flex-col gap-3 animate-fade-in">
@@ -191,39 +241,6 @@ export default function MunicipalidadesPage() {
         ]}
       />
 
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        {canCreate && (
-          <Link href="/municipalidades/nueva">
-            <Button variant="primary">
-              <Plus size={16} strokeWidth={2} />
-              Nueva municipalidad
-            </Button>
-          </Link>
-        )}
-      </div>
-
-      {canFilterProvince && (
-        <Card padded>
-          <label htmlFor="provinceFilter" style={{ display: "block", marginBottom: 8 }}>
-            Filtrar por provincia
-          </label>
-          <select
-            id="provinceFilter"
-            className="field"
-            value={provinceFilter}
-            onChange={(e) => setProvinceFilter(e.target.value)}
-            style={{ maxWidth: 360 }}
-          >
-            <option value="">Todas las provincias</option>
-            {provinces.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </Card>
-      )}
-
       {error && (
         <div
           className="animate-fade-up"
@@ -243,30 +260,21 @@ export default function MunicipalidadesPage() {
       )}
 
       <div className="animate-fade-up delay-100">
-        {loading ? (
-          <Card>
-            <div style={{ color: "#71717a" }}>Cargando municipalidades…</div>
-          </Card>
-        ) : items.length === 0 ? (
-          <EmptyState
-            title="Sin municipalidades"
-            subtitle={canCreate ? "Registra una municipalidad para empezar." : "No hay municipalidades registradas en tu jurisdicción."}
-            cta={
-              canCreate ? (
-                <Link href="/municipalidades/nueva">
-                  <Button variant="primary">Nueva municipalidad</Button>
-                </Link>
-              ) : undefined
-            }
-          />
-        ) : (
-          <Table<Municipality>
-            columns={columns}
-            rows={items}
-            rowKey={(m) => m.id}
-            emptyLabel="Sin municipalidades."
-          />
-        )}
+        <DataTable<Municipality>
+          columns={columns}
+          data={items}
+          loading={loading}
+          searchPlaceholder="Buscar municipalidad o provincia…"
+          emptyTitle="Sin municipalidades"
+          emptyDescription={
+            canCreate
+              ? "Registra una municipalidad para empezar."
+              : "No hay municipalidades registradas en tu jurisdicción."
+          }
+          defaultPageSize={20}
+          showColumnToggle
+          toolbarEnd={toolbarEnd}
+        />
       </div>
     </div>
   );

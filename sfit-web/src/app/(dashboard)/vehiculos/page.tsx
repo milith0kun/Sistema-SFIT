@@ -3,8 +3,9 @@
 import { useEffect, useState, useCallback, useMemo, cloneElement } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Car, Check, Route, Wrench, Search, Download, Plus, QrCode } from "lucide-react";
+import { Car, Check, Route, Wrench, Download, Plus, QrCode } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 
 type VehicleStatus = "disponible" | "en_ruta" | "en_mantenimiento" | "fuera_de_servicio";
 type Vehicle = {
@@ -13,7 +14,7 @@ type Vehicle = {
   lastInspectionStatus?: string; reputationScore: number; soatExpiry?: string; qrHmac?: string;
 };
 
-const G = "#B8860B"; const GD = "#926A09"; const GBG = "#FDF8EC"; const GBR = "#E8D090";
+const G = "#B8860B"; const GD = "#926A09"; const GBG = "#FDF8EC";
 const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
 const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB"; const RIESGOBD = "#FCD34D";
 const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
@@ -70,12 +71,23 @@ const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin",
 const btnInk: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: "none", background: INK9, color: "#fff", fontFamily: "inherit" };
 const btnOut: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontFamily: "inherit" };
 
+const selectStyle: React.CSSProperties = {
+  height: 34,
+  padding: "0 10px",
+  borderRadius: 8,
+  border: `1.5px solid ${INK2}`,
+  fontSize: "0.8125rem",
+  fontFamily: "inherit",
+  background: "#fff",
+  color: INK6,
+  cursor: "pointer",
+};
+
 export default function VehiculosPage() {
   const router = useRouter();
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [items, setItems] = useState<Vehicle[]>([]);
   const [typeFilter, setTypeFilter] = useState("todos");
-  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sel, setSel] = useState<Vehicle | null>(null);
@@ -95,7 +107,6 @@ export default function VehiculosPage() {
       const token = localStorage.getItem("sfit_access_token");
       const qs = new URLSearchParams({ limit: "100" });
       if (typeFilter !== "todos") qs.set("type", typeFilter);
-      if (search) qs.set("q", search);
       const res = await fetch(`/api/vehiculos?${qs}`, { headers: { Authorization: `Bearer ${token ?? ""}` } });
       if (res.status === 401) { router.replace("/login"); return; }
       const data = await res.json();
@@ -104,7 +115,7 @@ export default function VehiculosPage() {
       if (data.data.items?.length && !sel) setSel(data.data.items[0]);
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
-  }, [user, typeFilter, search, router]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, typeFilter, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { void load(); }, [load]);
 
@@ -115,6 +126,86 @@ export default function VehiculosPage() {
     en_mantenimiento: items.filter(v => v.status === "en_mantenimiento").length,
     fuera_de_servicio: items.filter(v => v.status === "fuera_de_servicio").length,
   }), [items]);
+
+  const columns = useMemo<ColumnDef<Vehicle, unknown>[]>(
+    () => [
+      {
+        id: "placa",
+        header: "Placa",
+        accessorFn: (v) => v.plate,
+        cell: ({ row: r }) => (
+          <div style={{ cursor: "pointer" }} onClick={() => setSel(r.original)}>
+            <Plate p={r.original.plate} />
+          </div>
+        ),
+      },
+      {
+        id: "vehiculo",
+        header: "Vehículo",
+        accessorFn: (v) => `${v.brand} ${v.model} ${v.year} ${TYPE_LABELS[v.vehicleTypeKey] ?? v.vehicleTypeKey}`,
+        cell: ({ row: r }) => (
+          <div style={{ cursor: "pointer" }} onClick={() => setSel(r.original)}>
+            <div style={{ fontWeight: 600, color: INK9 }}>{r.original.brand} {r.original.model}</div>
+            <div style={{ fontSize: "0.75rem", color: INK5 }}>{TYPE_LABELS[r.original.vehicleTypeKey] ?? r.original.vehicleTypeKey} · {r.original.year}</div>
+          </div>
+        ),
+      },
+      {
+        id: "empresa",
+        header: "Empresa",
+        accessorFn: (v) => `${v.companyName ?? ""} ${v.currentDriverName ?? ""}`,
+        cell: ({ row: r }) => (
+          <div style={{ cursor: "pointer" }} onClick={() => setSel(r.original)}>
+            <div style={{ fontWeight: 600, fontSize: "0.875rem" }}>{r.original.companyName ?? "—"}</div>
+            <div style={{ fontSize: "0.75rem", color: INK5 }}>{r.original.currentDriverName ?? "Sin conductor"}</div>
+          </div>
+        ),
+      },
+      {
+        id: "estado",
+        header: "Estado",
+        accessorFn: (v) => statusStyle(v.status).label,
+        cell: ({ row: r }) => (
+          <div style={{ cursor: "pointer" }} onClick={() => setSel(r.original)}>
+            <StateBadge s={r.original.status} />
+          </div>
+        ),
+      },
+      {
+        id: "reputacion",
+        header: "Rep.",
+        accessorFn: (v) => v.reputationScore,
+        cell: ({ row: r }) => (
+          <div style={{ cursor: "pointer" }} onClick={() => setSel(r.original)}>
+            <span style={{ fontWeight: 700 }}>{r.original.reputationScore}</span>
+          </div>
+        ),
+      },
+      {
+        id: "acciones",
+        header: "",
+        enableSorting: false,
+        cell: ({ row: r }) => (
+          <Link
+            href={`/vehiculos/${r.original.id}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}
+          >
+            ⋯
+          </Link>
+        ),
+      },
+    ],
+    [sel] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const toolbarEnd = (
+    <select style={selectStyle} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+      {TYPES.map(t => (
+        <option key={t} value={t}>{TYPE_LABELS[t]}</option>
+      ))}
+    </select>
+  );
 
   if (!user) return null;
 
@@ -141,44 +232,19 @@ export default function VehiculosPage() {
         ))}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 18px", background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, marginBottom: 16, flexWrap: "wrap" }}>
-        <div style={{ position: "relative", flex: 1, minWidth: 220, maxWidth: 340 }}>
-          <Search size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: INK5, pointerEvents: "none" }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar placa, marca, modelo…"
-            style={{ width: "100%", height: 38, padding: "0 12px 0 36px", borderRadius: 8, border: `1.5px solid ${INK2}`, fontSize: "0.875rem", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
-        </div>
-        {TYPES.map(t => {
-          const active = typeFilter === t;
-          return <button key={t} onClick={() => setTypeFilter(t)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: active ? G : "#fff", color: active ? "#fff" : INK6, border: active ? `1.5px solid ${G}` : `1.5px solid ${INK2}` }}>{TYPE_LABELS[t]}</button>;
-        })}
-      </div>
-
       {error && <div style={{ padding: "12px 16px", background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 10, color: NO, marginBottom: 16 }}>{error}</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 20 }}>
-        <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, overflow: "hidden" }}>
-          {loading ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Cargando vehículos…</div>
-          : items.length === 0 ? <div style={{ padding: 40, textAlign: "center", color: INK5 }}>Sin vehículos registrados</div>
-          : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-              <thead><tr>{["Placa","Vehículo","Empresa","Estado","Rep.",""].map((h,i) => (
-                <th key={i} style={{ textAlign: "left", padding: "12px 16px", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, background: "#FAFAFA", borderBottom: `1px solid ${INK2}` }}>{h}</th>
-              ))}</tr></thead>
-              <tbody>{items.map(v => (
-                <tr key={v.id} onClick={() => setSel(v)} style={{ cursor: "pointer", background: sel?.id === v.id ? GBG : undefined, boxShadow: sel?.id === v.id ? `inset 3px 0 0 ${G}` : undefined }}>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><Plate p={v.plate} /></td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><div style={{ fontWeight: 600, color: INK9 }}>{v.brand} {v.model}</div><div style={{ fontSize: "0.75rem", color: INK5 }}>{TYPE_LABELS[v.vehicleTypeKey] ?? v.vehicleTypeKey} · {v.year}</div></td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><div style={{ fontWeight: 600, fontSize: "0.875rem" }}>{v.companyName ?? "—"}</div><div style={{ fontSize: "0.75rem", color: INK5 }}>{v.currentDriverName ?? "Sin conductor"}</div></td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><StateBadge s={v.status} /></td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }}><span style={{ fontWeight: 700 }}>{v.reputationScore}</span></td>
-                  <td style={{ padding: "14px 16px", borderBottom: `1px solid ${INK1}` }} onClick={e => e.stopPropagation()}>
-                    <Link href={`/vehiculos/${v.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
-                  </td>
-                </tr>
-              ))}</tbody>
-            </table>
-          )}
-        </div>
+        <DataTable<Vehicle>
+          columns={columns}
+          data={items}
+          loading={loading}
+          searchPlaceholder="Buscar placa, marca, modelo o empresa…"
+          emptyTitle="Sin vehículos"
+          emptyDescription="No hay vehículos registrados con los filtros actuales."
+          defaultPageSize={20}
+          toolbarEnd={toolbarEnd}
+        />
 
         {sel ? (
           <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14 }}>
