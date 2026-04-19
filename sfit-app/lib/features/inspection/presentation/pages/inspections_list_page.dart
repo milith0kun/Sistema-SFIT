@@ -32,8 +32,7 @@ class InspectionsListPage extends ConsumerStatefulWidget {
 }
 
 class _InspectionsListPageState extends ConsumerState<InspectionsListPage> {
-  List<InspectionModel> _items    = [];
-  List<InspectionModel> _filtered = [];
+  List<InspectionModel> _items = [];
   bool _loading     = true;
   String? _error;
 
@@ -68,7 +67,7 @@ class _InspectionsListPageState extends ConsumerState<InspectionsListPage> {
       final result = _selectedResult == 'todas' ? null : _selectedResult;
       final plate  = _searchCtrl.text.trim().isEmpty ? null : _searchCtrl.text.trim();
       final items  = await svc.getInspections(limit: 50, result: result, plate: plate);
-      if (mounted) setState(() { _items = items; _filtered = items; _loading = false; });
+      if (mounted) setState(() { _items = items; _loading = false; });
     } catch (_) {
       if (mounted) setState(() { _error = 'No se pudieron cargar las inspecciones.'; _loading = false; });
     }

@@ -175,7 +175,7 @@ class _SlideData {
 
 class _SlidePage extends StatelessWidget {
   final _SlideData data;
-  const _SlidePage({super.key, required this.data});
+  const _SlidePage({required this.data});
 
   @override
   Widget build(BuildContext context) {

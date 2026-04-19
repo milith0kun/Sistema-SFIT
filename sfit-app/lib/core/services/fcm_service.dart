@@ -23,9 +23,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 class FcmService {
-  final Ref _ref;
-
-  FcmService(this._ref);
+  const FcmService();
 
   /// Inicializa FCM: permisos → token → registro en backend → handlers.
   /// Llamar después de que el usuario se autentique exitosamente.
@@ -129,4 +127,4 @@ class FcmService {
 }
 
 @Riverpod(keepAlive: true)
-FcmService fcmService(Ref ref) => FcmService(ref);
+FcmService fcmService(Ref ref) => const FcmService();

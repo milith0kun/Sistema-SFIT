@@ -353,13 +353,11 @@ class _RolePlaceholder extends StatelessWidget {
   final String kicker;
   final String title;
   final String subtitle;
-  final String? rfCode;
 
   const _RolePlaceholder({
     required this.kicker,
     required this.title,
     required this.subtitle,
-    this.rfCode,
   });
 
   @override
@@ -374,7 +372,6 @@ class _RolePlaceholder extends StatelessWidget {
               kicker: kicker,
               title: title,
               subtitle: subtitle,
-              rfCode: rfCode,
               pills: const [
                 SfitHeroPill(label: 'Estado', value: '—'),
                 SfitHeroPill(label: 'Hoy', value: '0'),
@@ -412,7 +409,7 @@ class _RolePlaceholder extends StatelessWidget {
             const SizedBox(height: 22),
 
             // Empty-state canon — card blanca con ícono + mensaje + badge
-            _ComingSoonCard(rfCode: rfCode, title: title),
+            _ComingSoonCard(title: title),
           ],
         ),
       ),
@@ -422,9 +419,8 @@ class _RolePlaceholder extends StatelessWidget {
 
 class _ComingSoonCard extends StatelessWidget {
   final String title;
-  final String? rfCode;
 
-  const _ComingSoonCard({required this.title, this.rfCode});
+  const _ComingSoonCard({required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -464,9 +460,7 @@ class _ComingSoonCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            rfCode != null
-                ? 'Esta vista aún no está implementada.\nReferencia $rfCode.'
-                : 'Esta vista aún no está implementada.',
+            'Esta vista aún no está implementada.',
             textAlign: TextAlign.center,
             style: AppTheme.inter(
               fontSize: 13,
