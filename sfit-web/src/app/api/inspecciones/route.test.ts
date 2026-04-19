@@ -8,6 +8,7 @@ vi.mock("@/lib/db/mongoose", () => ({ connectDB: vi.fn() }));
 vi.mock("@/lib/auth/rbac", () => ({ canAccessMunicipality: vi.fn().mockResolvedValue(true) }));
 vi.mock("@/lib/notifications/fcm", () => ({ sendPushToTokens: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/lib/audit/logAction", () => ({ logAction: vi.fn() }));
+vi.mock("@/lib/reputation/updateReputation", () => ({ adjustVehicleReputation: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/models/User", () => ({
   User: { find: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([]) }) }) },
 }));

@@ -36,7 +36,7 @@ export function KPIStrip({ items, cols = 6 }: KPIStripProps) {
             background: "#fff",
             border: "1px solid #e4e4e7",
             borderRadius: 10,
-            padding: "14px 14px 12px",
+            padding: "11px 12px 9px",
             position: "relative",
             overflow: "hidden",
             minWidth: 0,
@@ -53,7 +53,7 @@ export function KPIStrip({ items, cols = 6 }: KPIStripProps) {
               lineHeight: 1,
             }}
           >
-            <it.icon size={64} strokeWidth={1.6} />
+            <it.icon size={52} strokeWidth={1.5} />
           </div>
           <div
             style={{
@@ -82,10 +82,10 @@ export function KPIStrip({ items, cols = 6 }: KPIStripProps) {
           <div
             className="num"
             style={{
-              fontSize: 28,
+              fontSize: 20,
               fontWeight: 800,
               color: "#09090b",
-              lineHeight: 1.05,
+              lineHeight: 1.1,
               letterSpacing: "-0.02em",
               fontFamily: "var(--font-inter), Inter, system-ui, sans-serif",
             }}

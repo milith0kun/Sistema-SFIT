@@ -38,9 +38,9 @@ export function HeroActionCard({
         display: "grid",
         gridTemplateColumns: "1fr auto",
         alignItems: "center",
-        gap: 24,
-        padding: 28,
-        borderRadius: 20,
+        gap: 16,
+        padding: "16px 20px",
+        borderRadius: 14,
         background: hover ? bgHover : bg,
         color: "#ffffff",
         textDecoration: "none",
@@ -58,20 +58,20 @@ export function HeroActionCard({
         <h3
           style={{
             fontFamily: "var(--font-inter), Inter, system-ui, sans-serif",
-            fontSize: "1.375rem",
+            fontSize: "1.0625rem",
             fontWeight: 700,
             color: "#ffffff",
-            letterSpacing: "-0.015em",
-            lineHeight: 1.2,
+            letterSpacing: "-0.01em",
+            lineHeight: 1.25,
             margin: 0,
-            marginBottom: 6,
+            marginBottom: 4,
           }}
         >
           {title}
         </h3>
         <p
           style={{
-            fontSize: "0.9375rem",
+            fontSize: "0.8125rem",
             lineHeight: 1.45,
             margin: 0,
             color: "rgba(255, 255, 255, 0.82)",
@@ -85,8 +85,8 @@ export function HeroActionCard({
             display: "inline-flex",
             alignItems: "center",
             gap: 6,
-            marginTop: 14,
-            fontSize: "0.8125rem",
+            marginTop: 10,
+            fontSize: "0.75rem",
             fontWeight: 600,
             letterSpacing: "0.04em",
             textTransform: "uppercase",
@@ -108,7 +108,7 @@ export function HeroActionCard({
           lineHeight: 0,
         }}
       >
-        <Icon size={80} strokeWidth={1.6} />
+        <Icon size={56} strokeWidth={1.5} />
       </div>
     </Link>
   );

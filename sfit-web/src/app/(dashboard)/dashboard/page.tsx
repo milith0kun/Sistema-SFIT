@@ -257,7 +257,7 @@ export default function DashboardPage() {
   const heroPills = buildHeroPills(role, stats, operadorStats, fiscalStats, conductorStats);
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
       <DashboardHero
         kicker={`${roleLabel} · SFIT`}
         title={`${greeting}, ${firstName}.`}
@@ -283,9 +283,9 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-up delay-100">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 animate-fade-up delay-100">
         {/* Columna principal */}
-        <div className="lg:col-span-8 space-y-6 min-w-0">
+        <div className="lg:col-span-8 space-y-4 min-w-0">
           <PrimarySection
             role={role}
             stats={stats}
@@ -813,13 +813,13 @@ function SideSection({ role, stats }: { role: string; stats: GlobalStats | null 
   if (!current) return null;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       <SectionTabs
         tabs={tabs.map((t) => ({ key: t.key, label: t.label }))}
         value={active}
         onChange={setActive}
       />
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2">
         {current.items.map((it) => (
           <FeatureCard
             key={it.href + it.title}

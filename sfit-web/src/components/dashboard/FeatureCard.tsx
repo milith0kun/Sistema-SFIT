@@ -34,9 +34,9 @@ export function FeatureCard({
         display: "block",
         background: hover ? "#FDFAF2" : "#ffffff",
         border: `1.5px solid ${hover ? "#E8D090" : "#e4e4e7"}`,
-        borderRadius: 16,
-        padding: 22,
-        minHeight: 128,
+        borderRadius: 12,
+        padding: "14px 16px",
+        minHeight: 88,
         textDecoration: "none",
         transition:
           "border-color 180ms ease, background 180ms ease, box-shadow 180ms ease, transform 180ms ease",
@@ -71,7 +71,7 @@ export function FeatureCard({
       <div
         style={{
           fontFamily: "var(--font-inter), Inter, system-ui, sans-serif",
-          fontSize: "0.9375rem",
+          fontSize: "0.875rem",
           fontWeight: 600,
           color: "#09090b",
           letterSpacing: "-0.005em",
@@ -109,7 +109,7 @@ export function FeatureCard({
           lineHeight: 0,
         }}
       >
-        <Icon size={64} strokeWidth={1.5} />
+        <Icon size={48} strokeWidth={1.5} />
       </div>
     </Link>
   );

@@ -11,6 +11,7 @@ vi.mock("@/models/Trip", () => ({
     find: vi.fn(),
     countDocuments: vi.fn(),
     create: vi.fn(),
+    updateMany: vi.fn(),
   },
 }));
 
@@ -58,6 +59,7 @@ describe("GET /api/viajes", () => {
   beforeEach(() => {
     vi.mocked(Trip.find).mockReturnValue(makeChain([mockTrip]) as never);
     vi.mocked(Trip.countDocuments).mockResolvedValue(1);
+    vi.mocked(Trip.updateMany).mockResolvedValue({ modifiedCount: 0 } as never);
   });
 
   it("retorna 401 sin token", async () => {

@@ -219,14 +219,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="flex h-screen" style={{ background: "#F4F4F5" }}>
       {/* ── Sidebar ── */}
       <aside
-        className="w-64 shrink-0 flex flex-col"
+        className="w-56 shrink-0 flex flex-col"
         style={{ background: "#0A1628" }}
       >
         <div
-          className="flex items-center gap-3 px-5 py-5"
+          className="flex items-center gap-3 px-4 py-4"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
         >
-          <img src="/logo-horizontal.svg" alt="SFIT Admin" className="w-[180px] h-auto object-contain" />
+          <img src="/logo-horizontal.svg" alt="SFIT Admin" className="w-[150px] h-auto object-contain" />
         </div>
 
         <nav className="flex-1 px-2 py-3 overflow-y-auto">
@@ -342,10 +342,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             alignItems: "center",
             justifyContent: "space-between",
             gap: 16,
-            padding: "12px 28px",
+            padding: "10px 24px",
             background: "#ffffff",
             borderBottom: "1px solid #e4e4e7",
-            minHeight: 60,
+            minHeight: 52,
           }}
         >
           <div
@@ -436,7 +436,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 lg:p-8">{children}</div>
+        <div className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</div>
       </main>
     </div>
   );

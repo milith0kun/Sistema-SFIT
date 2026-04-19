@@ -6,6 +6,14 @@ import { ROLES, type Role } from "@/lib/constants";
 
 vi.mock("@/lib/db/mongoose", () => ({ connectDB: vi.fn() }));
 vi.mock("@/lib/auth/rbac", () => ({ canAccessMunicipality: vi.fn().mockResolvedValue(true) }));
+vi.mock("@/lib/coins/awardCoins", () => ({ awardCoins: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@/models/User", () => ({
+  User: {
+    findById: vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ status: "activo" }) }),
+    }),
+  },
+}));
 vi.mock("@/models/CitizenReport", () => ({
   CitizenReport: {
     find: vi.fn(),
@@ -97,6 +105,7 @@ describe("POST /api/reportes", () => {
   };
 
   beforeEach(() => {
+    vi.mocked(CitizenReport.countDocuments).mockResolvedValue(0);
     vi.mocked(CitizenReport.create).mockResolvedValue({
       _id: { toString: () => "newRep" },
       toObject: () => ({ ...validBody, fraudLayers: [] }),

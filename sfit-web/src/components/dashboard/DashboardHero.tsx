@@ -35,7 +35,7 @@ export function DashboardHero({
       style={{
         background: "linear-gradient(100deg, #0A1628 0%, #111F38 55%, #1A2D4A 100%)",
         borderRadius: 14,
-        padding: "20px 24px",
+        padding: "16px 20px",
         position: "relative",
         overflow: "hidden",
         color: "#fff",
@@ -122,10 +122,10 @@ export function DashboardHero({
             style={{
               margin: 0,
               fontFamily: "var(--font-syne), Syne, system-ui, sans-serif",
-              fontSize: 30,
+              fontSize: 22,
               fontWeight: 800,
-              letterSpacing: "-0.03em",
-              lineHeight: 1.05,
+              letterSpacing: "-0.025em",
+              lineHeight: 1.1,
               color: "#fff",
             }}
           >
@@ -171,9 +171,9 @@ function QuickStatPill({
       style={{
         background: warn ? "rgba(239,68,68,0.12)" : "rgba(255,255,255,0.08)",
         border: `1px solid ${warn ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.12)"}`,
-        borderRadius: 10,
-        padding: "10px 14px",
-        minWidth: 110,
+        borderRadius: 9,
+        padding: "8px 12px",
+        minWidth: 76,
       }}
     >
       <div
@@ -190,7 +190,7 @@ function QuickStatPill({
       <div
         className="num"
         style={{
-          fontSize: 24,
+          fontSize: 17,
           fontWeight: 800,
           color: "#fff",
           letterSpacing: "-0.02em",
