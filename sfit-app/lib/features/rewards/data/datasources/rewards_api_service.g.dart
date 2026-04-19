@@ -6,8 +6,7 @@ part of 'rewards_api_service.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$rewardsApiServiceHash() =>
-    r'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0';
+String _$rewardsApiServiceHash() => r'31331e3e24108e0404545f4866d3989099391e26';
 
 /// See also [rewardsApiService].
 @ProviderFor(rewardsApiService)

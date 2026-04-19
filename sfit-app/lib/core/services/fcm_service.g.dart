@@ -6,7 +6,7 @@ part of 'fcm_service.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$fcmServiceHash() => r'placeholder_run_build_runner_to_regenerate';
+String _$fcmServiceHash() => r'c057a042d369dea46a72008cc1447adb2ece34d1';
 
 /// See also [fcmService].
 @ProviderFor(fcmService)
