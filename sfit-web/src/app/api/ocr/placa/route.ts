@@ -90,7 +90,8 @@ export async function POST(request: NextRequest) {
   try {
     // Importación dinámica para no romper el build si tesseract.js no está instalado
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const Tesseract = (await import("tesseract.js")) as typeof import("tesseract.js");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const Tesseract = (await import("tesseract.js")) as any;
 
     const ocrPromise = Tesseract.recognize(imageBuffer, "eng", {
       // Configuraciones optimizadas para placas: solo caracteres alfanuméricos
