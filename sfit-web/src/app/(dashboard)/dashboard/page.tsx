@@ -274,6 +274,7 @@ function QuickModuleLink({ icon: Icon, title, subtitle, href }: QuickActionDef) 
     <Link
       href={href}
       style={{
+        position: "relative", overflow: "hidden",
         display: "flex", alignItems: "center", gap: 12,
         padding: "11px 14px", borderRadius: 10,
         background: "#ffffff", border: "1px solid #e4e4e7",
@@ -291,14 +292,18 @@ function QuickModuleLink({ icon: Icon, title, subtitle, href }: QuickActionDef) 
         (e.currentTarget as HTMLAnchorElement).style.boxShadow = "none";
       }}
     >
-      <div style={{ width: 34, height: 34, borderRadius: 9, background: "#F4F0E6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      {/* Ícono watermark — proporcional a la altura del card (~56px) */}
+      <div aria-hidden style={{ position: "absolute", right: -6, bottom: -6, color: "#B8860B", opacity: 0.1, pointerEvents: "none", lineHeight: 0 }}>
+        <Icon size={38} strokeWidth={1.4} />
+      </div>
+      <div style={{ width: 34, height: 34, borderRadius: 9, background: "#F4F0E6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, position: "relative", zIndex: 1 }}>
         <Icon size={16} color="#926A09" strokeWidth={1.8} />
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, position: "relative", zIndex: 1 }}>
         <div style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#09090b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
         <div style={{ fontSize: "0.6875rem", color: "#71717a", marginTop: 1 }}>{subtitle}</div>
       </div>
-      <ArrowUpRight size={14} color="#a1a1aa" strokeWidth={2} />
+      <ArrowUpRight size={14} color="#a1a1aa" strokeWidth={2} style={{ position: "relative", zIndex: 1, flexShrink: 0 }} />
     </Link>
   );
 }
