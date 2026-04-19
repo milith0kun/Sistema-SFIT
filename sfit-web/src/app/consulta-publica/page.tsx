@@ -2,8 +2,6 @@
 
 import { useState, useRef } from "react";
 
-export const metadata = undefined; // metadata must be in layout or server component
-
 /* ─── Tipos ─────────────────────────────────────────────────────── */
 type IndicadorColor = "verde" | "amarillo" | "rojo";
 
