@@ -32,7 +32,7 @@ function scoreColor(s: number) {
 }
 function scoreResult(s: number): "aprobada" | "observada" | "rechazada" {
   if (s >= 80) return "aprobada";
-  if (s >= 50) return "observada";
+  if (s >= 60) return "observada";
   return "rechazada";
 }
 function resultLabel(r: "aprobada" | "observada" | "rechazada") {
