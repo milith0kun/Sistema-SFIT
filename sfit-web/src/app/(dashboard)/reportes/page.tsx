@@ -110,7 +110,7 @@ export default function ReportesPage() {
           </div>
         } />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, margin: "24px 0 18px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
         {[
           { ico: <Flag size={18} />, lbl: "Pendientes", val: counts.pendiente ?? 0, bg: GBG, ic: GD },
           { ico: <Eye size={18} />, lbl: "En revisión", val: counts.revision ?? 0, bg: INFOBG, ic: INFO },

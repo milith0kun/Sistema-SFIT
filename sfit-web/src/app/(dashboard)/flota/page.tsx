@@ -149,7 +149,7 @@ export default function FlotaPage() {
       <PageHeader kicker="Operación · RF-07" title="Flota del día"
         action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Reporte diario</button><button style={btnInk} onClick={() => setShowChecklist(true)}><Plus size={16} />Registrar salida</button></div>} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 14, margin: "24px 0 18px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 14 }}>
         {[
           { ico: <Car size={18} />, lbl: "Disponibles", val: disponible, bg: APTOBG, ic: APTO },
           { ico: <Route size={18} />, lbl: "En ruta", val: enRuta, bg: INFOBG, ic: INFO },

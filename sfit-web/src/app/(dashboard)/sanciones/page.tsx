@@ -225,7 +225,7 @@ export default function SancionesPage() {
           {canCreate && <button style={btnInk} onClick={openModal}><Plus size={16} />Emitir sanción</button>}
         </div>} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, margin: "24px 0 18px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
         {[
           { ico: <AlertTriangle size={18} />, lbl: "Emitidas", val: emitidas, bg: GBG, ic: GD },
           { ico: <FileText size={18} />, lbl: "En apelación", val: apeladas, bg: RIESGOBG, ic: RIESGO },

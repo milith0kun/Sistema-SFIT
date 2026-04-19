@@ -348,7 +348,7 @@ export default function RecompensasPage() {
       />
 
       {/* KPI Strip */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, margin: "24px 0 18px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
         {[
           { ico: <ShoppingBag size={18} />, lbl: "Total canjes",           val: kpi?.totalCanjes ?? "—",          bg: INK1,    ic: INK5   },
           { ico: <Coins size={18} />,       lbl: "Coins en circulación",   val: kpi?.coinsEnCirculacion ?? "—",   bg: GOLD_BG, ic: GOLD_C },

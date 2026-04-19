@@ -92,7 +92,7 @@ export default function ConductoresPage() {
       <PageHeader kicker="Operación · RF-05" title="Conductores"
         action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Exportar CSV</button><Link href="/conductores/nuevo"><button style={btnInk}><Plus size={16} />Nuevo conductor</button></Link></div>} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, margin: "24px 0 18px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
         {[
           { ico: <Users size={18} />, lbl: "Total registrados", val: total, ico_bg: INK1, ico_c: INK5 },
           { ico: <Check size={18} />, lbl: "APTOS ahora", val: counts.apto ?? 0, ico_bg: APTOBG, ico_c: APTO },

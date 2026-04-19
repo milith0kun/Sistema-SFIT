@@ -111,7 +111,7 @@ export default function InspeccionesPage() {
           </div>
         } />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, margin: "24px 0 18px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
         {[
           { ico: <Shield size={18} />, lbl: "Este mes", val: items.length, bg: INK1, ic: INK5 },
           { ico: <Check size={18} />, lbl: "Aprobadas", val: aprobadas, bg: APTOBG, ic: APTO },

@@ -81,7 +81,7 @@ export default function ViajesPage() {
       <PageHeader kicker="Operación · RF-10" title="Viajes"
         action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Exportar CSV</button><button style={btnInk}><Plus size={16} />Iniciar viaje</button></div>} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, margin: "24px 0 18px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
         {[
           { ico: <Calendar size={18} />, lbl: "Total", val: items.length, bg: INK1, ic: INK5 },
           { ico: <Route size={18} />, lbl: "En curso", val: enCurso, bg: INFOBG, ic: INFO },

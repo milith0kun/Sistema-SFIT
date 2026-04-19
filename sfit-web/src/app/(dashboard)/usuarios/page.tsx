@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, cloneElement } from "react";
 import { useRouter } from "next/navigation";
 import { Users, Clock, CheckCircle, XCircle, Filter, ShieldCheck, ShieldOff, UserCog } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -285,14 +285,17 @@ export default function UsuariosAdminPage() {
       />
 
       {/* KPI Strip */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, margin: "24px 0 18px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
         {[
           { ico: <Users size={18} />,        lbl: "Total",       val: total,      bg: INK1,    ic: INK5   },
           { ico: <Clock size={18} />,         lbl: "Pendientes",  val: pendientes, bg: PEND_BG, ic: PEND_C },
           { ico: <CheckCircle size={18} />,   lbl: "Activos",     val: activos,    bg: ACTI_BG, ic: ACTI_C },
           { ico: <XCircle size={18} />,       lbl: "Suspendidos", val: suspendidos,bg: SUSP_BG, ic: SUSP_C },
         ].map((m, i) => (
-          <div key={i} style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, padding: 18 }}>
+          <div key={i} style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden" }}>
+            <div aria-hidden style={{ position: "absolute", right: -8, bottom: -8, color: m.ic, opacity: 0.16, pointerEvents: "none", lineHeight: 0 }}>
+              {cloneElement(m.ico as React.ReactElement<{ size?: number; strokeWidth?: number }>, { size: 80, strokeWidth: 1.4 })}
+            </div>
             <div style={{ width: 36, height: 36, borderRadius: 9, background: m.bg, color: m.ic, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>{m.ico}</div>
             <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: INK5 }}>{m.lbl}</div>
             <div style={{ fontSize: "2rem", fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.05, marginTop: 6, color: INK9 }}>{loading ? "—" : m.val}</div>

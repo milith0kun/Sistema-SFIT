@@ -263,7 +263,7 @@ export default function ApelacionesPage() {
       />
 
       {/* KPI Strip */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, margin: "24px 0 18px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
         {[
           { ico: <MessageSquareWarning size={18} />, lbl: "Total",      val: items.length, bg: INK1,    ic: INK5   },
           { ico: <Clock size={18} />,                lbl: "Pendientes", val: pendientes,   bg: PEND_BG, ic: PEND_C },

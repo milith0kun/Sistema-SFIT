@@ -83,7 +83,7 @@ export default function RutasPage() {
       <PageHeader kicker="Operación · RF-09" title="Rutas y zonas"
         action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Exportar</button><Link href="/rutas/nueva"><button style={btnInk}><Plus size={16} />Nueva ruta</button></Link></div>} />
 
-      <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${INK2}`, marginBottom: 18, marginTop: 24 }}>
+      <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${INK2}`, marginBottom: 18 }}>
         {[["ruta", "Rutas fijas", rutas.length], ["zona", "Zonas de operación", zonas.length]].map(([k, l, c]) => (
           <div key={k as string} onClick={() => { setTab(k as RouteType); const f = items.find(i => i.type === k); if (f) setSel(f); }}
             style={{ padding: "10px 14px", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", borderBottom: tab === k ? `2px solid ${G}` : "2px solid transparent", marginBottom: -1, color: tab === k ? INK9 : INK5 }}>

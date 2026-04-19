@@ -123,7 +123,7 @@ export default function VehiculosPage() {
       <PageHeader kicker="Operación · RF-06" title="Vehículos y QR"
         action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><QrCode size={16} />Escanear QR</button><Link href="/vehiculos/nuevo"><button style={btnInk}><Plus size={16} />Nuevo vehículo</button></Link></div>} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, margin: "24px 0 18px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
         {[
           { ico: <Car size={18} />, lbl: "Registrados", val: statusCounts.total, bg: INK1, ic: INK5 },
           { ico: <Check size={18} />, lbl: "Disponibles", val: statusCounts.disponible, bg: APTOBG, ic: APTO },
