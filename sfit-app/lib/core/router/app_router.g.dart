@@ -6,7 +6,7 @@ part of 'app_router.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$routerHash() => r'f04449e1b2301f4b394068e223c4a8f3124270b7';
+String _$routerHash() => r'a41cf356a28aa69eb0af282feee52893c0dce4a9';
 
 /// RF-01: Router con guard de autenticación que redirige según `authProvider.status`.
 ///
