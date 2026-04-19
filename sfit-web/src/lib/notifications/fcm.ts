@@ -6,39 +6,30 @@
  *   FIREBASE_CLIENT_EMAIL   — Email de la cuenta de servicio firebase-adminsdk
  *   FIREBASE_PRIVATE_KEY    — Clave privada PEM (con \n literales en .env)
  *
- * DEPENDENCIA: npm install firebase-admin
- * Si la variable FIREBASE_PROJECT_ID no está configurada, todas las funciones
- * se resuelven sin error (modo degradado tolerante).
+ * DEPENDENCIA OPCIONAL: npm install firebase-admin
+ * Si FIREBASE_PROJECT_ID no está configurado, todas las funciones se resuelven
+ * sin error (modo degradado tolerante).
  */
 
-import type admin from "firebase-admin";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _app: any = null;
 
-// Importación dinámica para que el módulo sea opcional en tiempo de ejecución
-let _app: admin.app.App | null = null;
-
-async function getAdminApp(): Promise<admin.app.App | null> {
-  if (!process.env.FIREBASE_PROJECT_ID) {
-    // Firebase no configurado: modo degradado
-    return null;
-  }
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getAdminApp(): Promise<any> {
+  if (!process.env.FIREBASE_PROJECT_ID) return null;
   if (_app) return _app;
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const adminModule = require("firebase-admin") as typeof admin;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
+    const adminModule = require("firebase-admin") as any;
     const { cert } = adminModule.credential;
 
-    // Verificar si ya existe una app inicializada (Next.js hot-reload)
     if (adminModule.apps.length > 0) {
-      _app = adminModule.apps[0]!;
+      _app = adminModule.apps[0];
       return _app;
     }
 
-    const privateKey = (process.env.FIREBASE_PRIVATE_KEY ?? "").replace(
-      /\\n/g,
-      "\n",
-    );
+    const privateKey = (process.env.FIREBASE_PRIVATE_KEY ?? "").replace(/\\n/g, "\n");
 
     _app = adminModule.initializeApp({
       credential: cert({
@@ -55,12 +46,6 @@ async function getAdminApp(): Promise<admin.app.App | null> {
   }
 }
 
-/**
- * Envía una notificación push a todos los tokens FCM de un usuario.
- * Obtiene los tokens desde MongoDB (el modelo User debe estar ya hidratado).
- *
- * No lanza excepción — falla silenciosamente para no bloquear el flujo principal.
- */
 export async function sendPushToUser(
   userId: string,
   title: string,
@@ -71,13 +56,13 @@ export async function sendPushToUser(
     const app = await getAdminApp();
     if (!app) return;
 
-    // Importar User aquí para evitar ciclos si fcm.ts se importa desde modelos
     const { connectDB } = await import("@/lib/db/mongoose");
     const { User } = await import("@/models/User");
 
     await connectDB();
-    const user = await User.findById(userId).select("fcmTokens").lean();
-    if (!user || !user.fcmTokens || user.fcmTokens.length === 0) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const user = await User.findById(userId).select("fcmTokens").lean() as any;
+    if (!user?.fcmTokens?.length) return;
 
     await sendPushToTokens(user.fcmTokens, title, body, data);
   } catch (err) {
@@ -85,12 +70,6 @@ export async function sendPushToUser(
   }
 }
 
-/**
- * Envía una notificación push a una lista de tokens FCM.
- * Tokens inválidos/expirados se ignoran automáticamente.
- *
- * No lanza excepción — falla silenciosamente.
- */
 export async function sendPushToTokens(
   tokens: string[],
   title: string,
@@ -103,29 +82,22 @@ export async function sendPushToTokens(
     const app = await getAdminApp();
     if (!app) return;
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const adminModule = require("firebase-admin") as typeof admin;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
+    const adminModule = require("firebase-admin") as any;
     const messaging = adminModule.messaging(app);
 
-    const message: admin.messaging.MulticastMessage = {
+    const message = {
       tokens,
       notification: { title, body },
-      android: {
-        priority: "high",
-        notification: { sound: "default" },
-      },
-      apns: {
-        payload: { aps: { sound: "default" } },
-      },
+      android: { priority: "high", notification: { sound: "default" } },
+      apns: { payload: { aps: { sound: "default" } } },
       ...(data ? { data } : {}),
     };
 
     const response = await messaging.sendEachForMulticast(message);
 
     if (response.failureCount > 0) {
-      console.warn(
-        `[FCM] ${response.failureCount}/${tokens.length} tokens fallaron`,
-      );
+      console.warn(`[FCM] ${response.failureCount}/${tokens.length} tokens fallaron`);
     }
   } catch (err) {
     console.error("[FCM] sendPushToTokens falló:", err);
