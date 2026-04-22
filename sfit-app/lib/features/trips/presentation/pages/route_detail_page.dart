@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -375,6 +376,32 @@ class _RouteDetailPageState extends ConsumerState<RouteDetailPage> {
                 ),
               ),
             ],
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () => context.push(
+                '/viaje-checkin',
+                extra: {
+                  'routeId': widget.routeId,
+                  'routeName': widget.routeName,
+                },
+              ),
+              icon: const Icon(Icons.play_arrow_rounded, size: 20),
+              label: Text(
+                'Iniciar turno en esta ruta',
+                style: AppTheme.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.apto,
+                minimumSize: const Size(double.infinity, 52),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
           ],
         ),
       ),

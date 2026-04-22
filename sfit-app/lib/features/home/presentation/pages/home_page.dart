@@ -13,6 +13,7 @@ import '../../../operator/presentation/pages/conductores_tab_page.dart';
 import '../../../operator/presentation/pages/fleet_analytics_page.dart';
 import '../../../operator/presentation/pages/vehiculos_tab_page.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
+import '../../../reports/presentation/pages/mis_reportes_page.dart';
 import '../../../reports/presentation/pages/reports_review_page.dart';
 import '../../../reports/presentation/pages/submit_report_page.dart';
 import '../../../trips/presentation/pages/fatigue_page.dart';
@@ -291,6 +292,12 @@ class _HomePageState extends ConsumerState<HomePage> {
             icon: Icons.campaign_outlined,
             iconFilled: Icons.campaign,
             page: SubmitReportPage(),
+          ),
+          _Tab(
+            label: 'Historial',
+            icon: Icons.history_outlined,
+            iconFilled: Icons.history,
+            page: MisReportesPage(),
           ),
           _Tab(
             label: 'Recompensas',

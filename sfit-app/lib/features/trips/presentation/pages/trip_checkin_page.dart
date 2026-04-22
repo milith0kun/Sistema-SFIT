@@ -11,7 +11,9 @@ import '../../../fleet/data/datasources/fleet_api_service.dart';
 /// Paso 1: Selector de vehículo + hora de salida estimada.
 /// Paso 2: Checklist de pre-viaje (5 ítems).
 class TripCheckinPage extends ConsumerStatefulWidget {
-  const TripCheckinPage({super.key});
+  final String? preRouteId;
+  final String? preRouteName;
+  const TripCheckinPage({super.key, this.preRouteId, this.preRouteName});
 
   @override
   ConsumerState<TripCheckinPage> createState() => _TripCheckinPageState();
@@ -218,6 +220,7 @@ class _TripCheckinPageState extends ConsumerState<TripCheckinPage> {
             }),
             onPickTime: _pickDepartureTime,
             onNext: _goToStep2,
+            preRouteName: widget.preRouteName,
           ),
           _Step2(
             checklist: _checklist,
@@ -269,6 +272,7 @@ class _Step1 extends StatelessWidget {
   final void Function(String id, String plate) onVehicleSelected;
   final VoidCallback onPickTime;
   final VoidCallback onNext;
+  final String? preRouteName;
 
   const _Step1({
     required this.vehicles,
@@ -280,6 +284,7 @@ class _Step1 extends StatelessWidget {
     required this.onVehicleSelected,
     required this.onPickTime,
     required this.onNext,
+    this.preRouteName,
   });
 
   @override
@@ -296,6 +301,49 @@ class _Step1 extends StatelessWidget {
             subtitle: 'Selecciona el vehículo asignado y confirma la hora estimada de salida.',
           ),
           const SizedBox(height: 20),
+
+          if (preRouteName != null) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.goldBg,
+                border: Border.all(color: AppColors.goldBorder),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.route, size: 18, color: AppColors.goldDark),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'RUTA ASIGNADA',
+                          style: AppTheme.inter(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.goldDark,
+                            letterSpacing: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          preRouteName!,
+                          style: AppTheme.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.goldDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           // Selector de vehículo
           Text(

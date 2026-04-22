@@ -50,4 +50,18 @@ class ReportApiService {
   Future<void> updateReportStatus(String id, String status) async {
     await _dio.patch('/reportes/$id', data: {'status': status});
   }
+
+  Future<Map<String, dynamic>> getMisReportes({int page = 1, int limit = 20}) async {
+    final resp = await _dio.get('/reportes/mis-reportes', queryParameters: {
+      'page': page,
+      'limit': limit,
+    });
+    final data = (resp.data as Map)['data'] as Map;
+    return {
+      'items': (data['items'] as List)
+          .map((e) => e as Map<String, dynamic>)
+          .toList(),
+      'total': data['total'] ?? 0,
+    };
+  }
 }

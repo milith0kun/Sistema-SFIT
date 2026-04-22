@@ -155,7 +155,13 @@ GoRouter router(Ref ref) {
       // ── Turno de conductor ────────────────────────────────────
       GoRoute(
         path: '/viaje-checkin',
-        builder: (context, state) => const TripCheckinPage(),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return TripCheckinPage(
+            preRouteId: extra?['routeId'] as String?,
+            preRouteName: extra?['routeName'] as String?,
+          );
+        },
       ),
       GoRoute(
         path: '/viaje-checkout/:id',
