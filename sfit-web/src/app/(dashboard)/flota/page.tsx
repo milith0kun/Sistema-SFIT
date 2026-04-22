@@ -69,6 +69,15 @@ const CHECKLIST_ITEMS = [
   { t: "Limpieza interior y exterior", critical: false },
 ];
 
+const ALL_FLEET_STATUSES: { key: FleetStatus; label: string }[] = [
+  { key: "disponible",        label: "Disponible" },
+  { key: "en_ruta",           label: "En ruta" },
+  { key: "mantenimiento",     label: "Mantenimiento" },
+  { key: "fuera_de_servicio", label: "Fuera de servicio" },
+  { key: "cerrado",           label: "Cerrado" },
+  { key: "auto_cierre",       label: "Auto-cierre" },
+];
+
 const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
 const btnInk: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: "none", background: INK9, color: "#fff", fontFamily: "inherit" };
 const btnOut: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontFamily: "inherit" };
@@ -84,6 +93,13 @@ export default function FlotaPage() {
   const [exitForm, setExitForm] = useState({ vehicleId: "", driverId: "", observations: "" });
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [modalVehicles, setModalVehicles] = useState<{ id: string; plate: string; brand: string; model: string }[]>([]);
+  const [modalDrivers, setModalDrivers] = useState<{ id: string; name: string; status: string }[]>([]);
+  const [modalDataLoading, setModalDataLoading] = useState(false);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<FleetStatus[]>([]);
+  const [filterRoute, setFilterRoute] = useState("");
+  const [filterDriver, setFilterDriver] = useState("");
 
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
@@ -92,6 +108,22 @@ export default function FlotaPage() {
     if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
     setUser(u);
   }, [router]);
+
+  const loadModalData = useCallback(async () => {
+    setModalDataLoading(true);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const h = { Authorization: `Bearer ${token ?? ""}` };
+      const [vRes, dRes] = await Promise.all([
+        fetch("/api/vehiculos?limit=100&status=disponible", { headers: h }),
+        fetch("/api/conductores?limit=100&status=apto", { headers: h }),
+      ]);
+      const [vData, dData] = await Promise.all([vRes.json(), dRes.json()]);
+      if (vRes.ok && vData.success) setModalVehicles(vData.data.items ?? []);
+      if (dRes.ok && dData.success) setModalDrivers(dData.data.items ?? []);
+    } catch { /* silencioso */ }
+    finally { setModalDataLoading(false); }
+  }, []);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -113,13 +145,24 @@ export default function FlotaPage() {
   const disponible = items.filter(i => i.status === "disponible").length;
   const mant = items.filter(i => i.status === "mantenimiento" || i.status === "fuera_de_servicio").length;
 
+  const filteredItems = useMemo(() => items.filter(i => {
+    if (filterStatus.length > 0 && !filterStatus.includes(i.status)) return false;
+    if (filterRoute && !`${i.route?.code ?? ""} ${i.route?.name ?? ""}`.toLowerCase().includes(filterRoute.toLowerCase())) return false;
+    if (filterDriver && !(i.driver?.name ?? "").toLowerCase().includes(filterDriver.toLowerCase())) return false;
+    return true;
+  }), [items, filterStatus, filterRoute, filterDriver]);
+
+  const activeFilters = filterStatus.length + (filterRoute ? 1 : 0) + (filterDriver ? 1 : 0);
+  const clearFilters = () => { setFilterStatus([]); setFilterRoute(""); setFilterDriver(""); };
+  const toggleStatus = (s: FleetStatus) => setFilterStatus(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
+
   const allCritOk = [0, 1, 2].every(i => checked[i]);
   const drivers = items.filter(i => i.driver).map(i => i.driver).filter((d, idx, arr) => arr.findIndex(x => x.name === d.name) === idx);
 
   const handleConfirmExit = useCallback(async () => {
     if (!allCritOk) return;
-    if (!exitForm.vehicleId.trim()) { setSubmitError("Selecciona o ingresa el ID del vehículo."); return; }
-    if (!exitForm.driverId.trim()) { setSubmitError("Ingresa el ID del conductor."); return; }
+    if (!exitForm.vehicleId.trim()) { setSubmitError("Selecciona un vehículo."); return; }
+    if (!exitForm.driverId.trim()) { setSubmitError("Selecciona un conductor."); return; }
     setSubmitting(true);
     setSubmitError(null);
     try {
@@ -234,7 +277,7 @@ export default function FlotaPage() {
   return (
     <div className="flex flex-col gap-3 animate-fade-in">
       <PageHeader kicker="Operación · RF-07" title="Flota del día"
-        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Reporte diario</button>{user.role === "operador" && (<button style={btnInk} onClick={() => setShowChecklist(true)}><Plus size={16} />Registrar salida</button>)}</div>} />
+        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Reporte diario</button>{user.role === "operador" && (<button style={btnInk} onClick={() => { setShowChecklist(true); void loadModalData(); }}><Plus size={16} />Registrar salida</button>)}</div>} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 14 }}>
         {[
@@ -259,16 +302,79 @@ export default function FlotaPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
         <div style={{ gridColumn: "span 2" }}>
+          {showFilterPanel && (
+            <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, padding: "16px 18px", marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: INK9 }}>Filtros activos</span>
+                {activeFilters > 0 && (
+                  <button onClick={clearFilters} style={{ fontSize: "0.75rem", fontWeight: 600, color: NO, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                    Limpiar todo
+                  </button>
+                )}
+              </div>
+
+              {/* Estado */}
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: INK5, marginBottom: 8 }}>Estado</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {ALL_FLEET_STATUSES.map(s => {
+                    const active = filterStatus.includes(s.key);
+                    return (
+                      <button key={s.key} onClick={() => toggleStatus(s.key)}
+                        style={{ padding: "4px 12px", borderRadius: 999, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all .12s", background: active ? INK9 : INK1, color: active ? "#fff" : INK6, border: `1.5px solid ${active ? INK9 : INK2}` }}>
+                        {s.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Ruta y Conductor */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: INK5, marginBottom: 6 }}>Ruta / Zona</label>
+                  <input
+                    type="text"
+                    placeholder="Buscar por código o nombre…"
+                    value={filterRoute}
+                    onChange={e => setFilterRoute(e.target.value)}
+                    style={{ width: "100%", height: 36, padding: "0 10px", border: `1px solid ${INK2}`, borderRadius: 8, fontSize: "0.875rem", fontFamily: "inherit", outline: "none", boxSizing: "border-box", color: INK9 }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: INK5, marginBottom: 6 }}>Conductor</label>
+                  <input
+                    type="text"
+                    placeholder="Buscar por nombre…"
+                    value={filterDriver}
+                    onChange={e => setFilterDriver(e.target.value)}
+                    style={{ width: "100%", height: 36, padding: "0 10px", border: `1px solid ${INK2}`, borderRadius: 8, fontSize: "0.875rem", fontFamily: "inherit", outline: "none", boxSizing: "border-box", color: INK9 }}
+                  />
+                </div>
+              </div>
+
+              {activeFilters > 0 && (
+                <div style={{ marginTop: 12, fontSize: "0.8125rem", color: INK5 }}>
+                  Mostrando <strong style={{ color: INK9 }}>{filteredItems.length}</strong> de {items.length} registros
+                </div>
+              )}
+            </div>
+          )}
+
           <DataTable
             columns={columns}
-            data={items}
+            data={filteredItems}
             loading={loading}
             searchPlaceholder="Buscar por placa, conductor, ruta…"
             emptyTitle="Sin registros para hoy"
             emptyDescription="No se encontraron salidas registradas."
             toolbarEnd={
-              <button style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 7, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: "#fff", color: INK6, border: `1.5px solid ${INK2}` }}>
+              <button
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 7, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: showFilterPanel || activeFilters > 0 ? INK9 : "#fff", color: showFilterPanel || activeFilters > 0 ? "#fff" : INK6, border: `1.5px solid ${showFilterPanel || activeFilters > 0 ? INK9 : INK2}`, transition: "all .15s" }}
+                onClick={() => setShowFilterPanel(v => !v)}
+              >
                 <Filter size={13} />Filtrar
+                {activeFilters > 0 && <span style={{ background: G, color: "#fff", borderRadius: 999, padding: "1px 7px", fontSize: "0.6875rem", fontWeight: 700, lineHeight: "18px" }}>{activeFilters}</span>}
               </button>
             }
           />
@@ -312,25 +418,37 @@ export default function FlotaPage() {
                 <div style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: INK5, marginBottom: 10 }}>Datos de la salida</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "0.8125rem", fontWeight: 600, color: INK6, marginBottom: 4 }}>ID Vehículo <span style={{ color: NO }}>*</span></label>
-                    <input
-                      type="text"
-                      placeholder="ObjectId del vehículo"
+                    <label style={{ display: "block", fontSize: "0.8125rem", fontWeight: 600, color: INK6, marginBottom: 4 }}>Vehículo <span style={{ color: NO }}>*</span></label>
+                    <select
                       value={exitForm.vehicleId}
                       onChange={e => setExitForm(f => ({ ...f, vehicleId: e.target.value }))}
-                      style={{ width: "100%", height: 38, padding: "0 12px", border: `1px solid ${INK2}`, borderRadius: 8, fontSize: "0.875rem", fontFamily: "ui-monospace,monospace", outline: "none", boxSizing: "border-box" }}
-                    />
+                      style={{ width: "100%", height: 38, padding: "0 10px", border: `1px solid ${INK2}`, borderRadius: 8, fontSize: "0.875rem", fontFamily: "inherit", outline: "none", boxSizing: "border-box", background: "#fff", color: INK9, cursor: "pointer" }}
+                    >
+                      <option value="">— Seleccionar vehículo —</option>
+                      {modalDataLoading
+                        ? <option disabled>Cargando…</option>
+                        : modalVehicles.map(v => (
+                          <option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}</option>
+                        ))
+                      }
+                    </select>
                   </div>
                   {user?.role !== "conductor" && (
                     <div>
-                      <label style={{ display: "block", fontSize: "0.8125rem", fontWeight: 600, color: INK6, marginBottom: 4 }}>ID Conductor <span style={{ color: NO }}>*</span></label>
-                      <input
-                        type="text"
-                        placeholder="ObjectId del conductor"
+                      <label style={{ display: "block", fontSize: "0.8125rem", fontWeight: 600, color: INK6, marginBottom: 4 }}>Conductor <span style={{ color: NO }}>*</span></label>
+                      <select
                         value={exitForm.driverId}
                         onChange={e => setExitForm(f => ({ ...f, driverId: e.target.value }))}
-                        style={{ width: "100%", height: 38, padding: "0 12px", border: `1px solid ${INK2}`, borderRadius: 8, fontSize: "0.875rem", fontFamily: "ui-monospace,monospace", outline: "none", boxSizing: "border-box" }}
-                      />
+                        style={{ width: "100%", height: 38, padding: "0 10px", border: `1px solid ${INK2}`, borderRadius: 8, fontSize: "0.875rem", fontFamily: "inherit", outline: "none", boxSizing: "border-box", background: "#fff", color: INK9, cursor: "pointer" }}
+                      >
+                        <option value="">— Seleccionar conductor —</option>
+                        {modalDataLoading
+                          ? <option disabled>Cargando…</option>
+                          : modalDrivers.map(d => (
+                            <option key={d.id} value={d.id}>{d.name}</option>
+                          ))
+                        }
+                      </select>
                     </div>
                   )}
                   <div>

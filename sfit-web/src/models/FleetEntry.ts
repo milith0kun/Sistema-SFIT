@@ -1,5 +1,14 @@
 import mongoose, { Schema, type Document, type Model } from "mongoose";
 
+export interface IGpsPoint {
+  lat: number;
+  lng: number;
+}
+
+export interface ICurrentLocation extends IGpsPoint {
+  updatedAt: Date;
+}
+
 export interface IFleetEntry extends Document {
   municipalityId: mongoose.Types.ObjectId;
   date: Date;
@@ -13,6 +22,9 @@ export interface IFleetEntry extends Document {
   observations?: string;
   checklistComplete: boolean;
   registeredBy: mongoose.Types.ObjectId;
+  currentLocation?: ICurrentLocation;
+  startLocation?: IGpsPoint;
+  endLocation?: IGpsPoint;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,6 +47,19 @@ const FleetEntrySchema = new Schema<IFleetEntry>(
     observations: { type: String },
     checklistComplete: { type: Boolean, default: false },
     registeredBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    currentLocation: {
+      lat: { type: Number },
+      lng: { type: Number },
+      updatedAt: { type: Date },
+    },
+    startLocation: {
+      lat: { type: Number },
+      lng: { type: Number },
+    },
+    endLocation: {
+      lat: { type: Number },
+      lng: { type: Number },
+    },
   },
   { timestamps: true },
 );

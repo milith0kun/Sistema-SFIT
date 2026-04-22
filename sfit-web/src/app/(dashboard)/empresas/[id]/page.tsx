@@ -90,7 +90,7 @@ export default function EmpresaDetallePage({ params }: Props) {
       if (!res.ok || !data.success) { setError(data.error ?? "No se pudo cargar la empresa."); return; }
       const c: Company = data.data;
       setCompany(c);
-      setForm({ razonSocial: c.razonSocial, ruc: c.ruc, repName: c.representanteLegal.name, repDni: c.representanteLegal.dni, repPhone: c.representanteLegal.phone ?? "" });
+      setForm({ razonSocial: c.razonSocial, ruc: c.ruc, repName: c.representanteLegal?.name ?? "", repDni: c.representanteLegal?.dni ?? "", repPhone: c.representanteLegal?.phone ?? "" });
     } catch { setError("Error de conexión."); }
     finally { setLoading(false); }
   }
@@ -105,7 +105,7 @@ export default function EmpresaDetallePage({ params }: Props) {
   }
 
   function startEdit() { setEditing(true); setSaveError(null); }
-  function cancelEdit() { if (!company) return; setEditing(false); setSaveError(null); setForm({ razonSocial: company.razonSocial, ruc: company.ruc, repName: company.representanteLegal.name, repDni: company.representanteLegal.dni, repPhone: company.representanteLegal.phone ?? "" }); }
+  function cancelEdit() { if (!company) return; setEditing(false); setSaveError(null); setForm({ razonSocial: company.razonSocial, ruc: company.ruc, repName: company.representanteLegal?.name ?? "", repDni: company.representanteLegal?.dni ?? "", repPhone: company.representanteLegal?.phone ?? "" }); }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault(); setSaveError(null);
@@ -311,7 +311,7 @@ export default function EmpresaDetallePage({ params }: Props) {
                   {editing ? (
                     <input value={form[key]} onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))} style={fieldStyle} placeholder={placeholder} onFocus={e => { e.target.style.borderColor = G; }} onBlur={e => { e.target.style.borderColor = INK2; }} />
                   ) : (
-                    <input value={key === "repName" ? company.representanteLegal.name : key === "repDni" ? company.representanteLegal.dni : (company.representanteLegal.phone ?? "—")} style={readStyle} readOnly />
+                    <input value={key === "repName" ? (company.representanteLegal?.name ?? "—") : key === "repDni" ? (company.representanteLegal?.dni ?? "—") : (company.representanteLegal?.phone ?? "—")} style={readStyle} readOnly />
                   )}
                 </div>
               ))}

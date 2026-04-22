@@ -91,6 +91,8 @@ export default function VehiculosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sel, setSel] = useState<Vehicle | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
@@ -118,6 +120,41 @@ export default function VehiculosPage() {
   }, [user, typeFilter, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { void load(); }, [load]);
+
+  const fetchQr = useCallback(async (vehicleId: string) => {
+    setQrLoading(true); setQrError(null);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/vehiculos/${vehicleId}/qr`, { headers: { Authorization: `Bearer ${token ?? ""}` } });
+      if (res.status === 401) { router.replace("/login"); return null; }
+      const data = await res.json();
+      if (!res.ok || !data.success) { setQrError(data.error ?? "Error al generar QR"); return null; }
+      return data.data as { pngDataUrl: string; payload: { sig: string } };
+    } catch { setQrError("Error de conexión"); return null; }
+    finally { setQrLoading(false); }
+  }, [router]);
+
+  const handleReemitirQr = useCallback(async () => {
+    if (!sel) return;
+    const result = await fetchQr(sel.id);
+    if (!result) return;
+    const newHmac = result.payload.sig;
+    setSel(prev => prev ? { ...prev, qrHmac: newHmac } : prev);
+    setItems(prev => prev.map(v => v.id === sel.id ? { ...v, qrHmac: newHmac } : v));
+  }, [sel, fetchQr]);
+
+  const handleDescargarQr = useCallback(async () => {
+    if (!sel) return;
+    const result = await fetchQr(sel.id);
+    if (!result) return;
+    const link = document.createElement("a");
+    link.href = result.pngDataUrl;
+    link.download = `QR_SFIT_${sel.plate.replace(/-/g, "")}.png`;
+    link.click();
+    const newHmac = result.payload.sig;
+    setSel(prev => prev ? { ...prev, qrHmac: newHmac } : prev);
+    setItems(prev => prev.map(v => v.id === sel.id ? { ...v, qrHmac: newHmac } : v));
+  }, [sel, fetchQr]);
 
   const statusCounts = useMemo(() => ({
     total: items.length,
@@ -251,9 +288,26 @@ export default function VehiculosPage() {
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-                <button style={{ ...btnOut, flex: 1, height: 32, fontSize: "0.8125rem" }}>Descargar PDF</button>
-                <button style={{ ...btnInk, flex: 1, height: 32, fontSize: "0.8125rem" }}>Re-emitir QR</button>
+                <button
+                  style={{ ...btnOut, flex: 1, height: 32, fontSize: "0.8125rem", opacity: qrLoading ? 0.5 : 1, cursor: qrLoading ? "not-allowed" : "pointer" }}
+                  disabled={qrLoading}
+                  onClick={() => void handleDescargarQr()}
+                >
+                  Descargar QR
+                </button>
+                <button
+                  style={{ ...btnInk, flex: 1, height: 32, fontSize: "0.8125rem", opacity: qrLoading ? 0.5 : 1, cursor: qrLoading ? "not-allowed" : "pointer" }}
+                  disabled={qrLoading}
+                  onClick={() => void handleReemitirQr()}
+                >
+                  {qrLoading ? "Generando…" : "Re-emitir QR"}
+                </button>
               </div>
+              {qrError && (
+                <div style={{ marginTop: 8, padding: "8px 12px", background: "#FFF5F5", border: "1px solid #FCA5A5", borderRadius: 8, fontSize: "0.8125rem", color: "#b91c1c" }}>
+                  {qrError}
+                </div>
+              )}
               <div style={{ height: 1, background: INK2, margin: "18px 0" }} />
               <p className="kicker" style={{ marginBottom: 10 }}>Historial</p>
               {[["Última inspección", sel.lastInspectionStatus ?? "Pendiente"], ["Reputación", `${sel.reputationScore}/100`], ["SOAT vigente", sel.soatExpiry ? new Date(sel.soatExpiry).toLocaleDateString("es-PE", { month: "short", year: "numeric" }) : "—"]].map(([lbl, val]) => (

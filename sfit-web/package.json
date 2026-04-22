@@ -17,6 +17,7 @@
   "dependencies": {
     "@auth/mongodb-adapter": "^3.11.1",
     "@base-ui/react": "^1.4.0",
+    "@googlemaps/js-api-loader": "^2.0.2",
     "@tanstack/react-table": "^8.21.3",
     "@types/nodemailer": "^8.0.0",
     "@upstash/ratelimit": "^2.0.8",

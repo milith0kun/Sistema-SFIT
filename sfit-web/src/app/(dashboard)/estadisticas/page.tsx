@@ -156,7 +156,7 @@ export default function EstadisticasPage() {
   const lineData = useMemo(() => {
     const map = new Map<string, number>();
     for (let i = days - 1; i >= 0; i--) { const key = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10); map.set(key, 0); }
-    audit.forEach(a => { const key = new Date(a.createdAt).toISOString().slice(0, 10); if (map.has(key)) map.set(key, (map.get(key) ?? 0) + 1); });
+    audit.forEach(a => { if (!a.createdAt) return; const d = new Date(a.createdAt); if (isNaN(d.getTime())) return; const key = d.toISOString().slice(0, 10); if (map.has(key)) map.set(key, (map.get(key) ?? 0) + 1); });
     return Array.from(map.entries()).map(([date, count]) => ({ date: date.slice(5), count }));
   }, [audit, days]);
 
@@ -388,7 +388,7 @@ function MunicipalDashboard({ loading, error, data }: { loading: boolean; error:
       <div style={{ background: `linear-gradient(135deg, ${INK9} 0%, #2a2a2e 100%)`, borderRadius: 16, padding: "24px 28px" }}>
         <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: G, marginBottom: 6 }}>Panel municipal · RF-19-01</div>
         <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "#fff", margin: 0, letterSpacing: "-0.03em" }}>Estadísticas</h1>
-        {data && <p style={{ fontSize: "0.875rem", color: "#a1a1aa", marginTop: 6, margin: 0 }}>{data.kpis.activeVehicles} vehículos · {data.kpis.activeDrivers} conductores · {data.kpis.inspectionsThisMonth} inspecciones este mes</p>}
+        {data?.kpis && <p style={{ fontSize: "0.875rem", color: "#a1a1aa", marginTop: 6, margin: 0 }}>{data.kpis.activeVehicles} vehículos · {data.kpis.activeDrivers} conductores · {data.kpis.inspectionsThisMonth} inspecciones este mes</p>}
       </div>
 
       {error && <div role="alert" style={{ background: NOBG, border: `1.5px solid ${NOBD}`, borderRadius: 12, padding: 14, color: NO, fontWeight: 500 }}>{error}</div>}
@@ -402,10 +402,10 @@ function MunicipalDashboard({ loading, error, data }: { loading: boolean; error:
       ) : (
         <>
           <KPIStrip cols={4} items={[
-            { label: "VEHÍCULOS ACTIVOS", value: data.kpis.activeVehicles, subtitle: "en la municipalidad", accent: INK9, icon: Truck },
-            { label: "CONDUCTORES", value: data.kpis.activeDrivers, subtitle: "activos", accent: INFO, icon: Users },
-            { label: "INSPECCIONES", value: data.kpis.inspectionsThisMonth, subtitle: "este mes", accent: APTO, icon: FileCheck },
-            { label: "REPORTES PEND.", value: data.kpis.reportsPending, subtitle: "ciudadanos", accent: data.kpis.reportsPending > 0 ? NO : INK5, icon: AlertCircle },
+            { label: "VEHÍCULOS ACTIVOS", value: data.kpis?.activeVehicles ?? 0, subtitle: "en la municipalidad", accent: INK9, icon: Truck },
+            { label: "CONDUCTORES", value: data.kpis?.activeDrivers ?? 0, subtitle: "activos", accent: INFO, icon: Users },
+            { label: "INSPECCIONES", value: data.kpis?.inspectionsThisMonth ?? 0, subtitle: "este mes", accent: APTO, icon: FileCheck },
+            { label: "REPORTES PEND.", value: data.kpis?.reportsPending ?? 0, subtitle: "ciudadanos", accent: (data.kpis?.reportsPending ?? 0) > 0 ? NO : INK5, icon: AlertCircle },
           ]} />
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>

@@ -70,21 +70,24 @@ export async function GET(
 
     if (!user) return apiNotFound("Usuario no encontrado");
 
+    // Extraer _id del populate (lean devuelve el objeto populado, no el ObjectId crudo)
+    const muni = user.municipalityId as unknown as { _id: string; name: string } | null;
+    const prov = user.provinceId     as unknown as { _id: string; name: string } | null;
+
     // Scope: admin_municipal solo ve usuarios de su muni
     if (session.role === ROLES.ADMIN_MUNICIPAL) {
-      if (session.municipalityId && String(user.municipalityId) !== String(session.municipalityId)) {
+      const userMuniId = muni ? String(muni._id) : null;
+      if (session.municipalityId && userMuniId !== String(session.municipalityId)) {
         return apiForbidden();
       }
     }
     // Scope: admin_provincial solo ve usuarios de su provincia
     if (session.role === ROLES.ADMIN_PROVINCIAL) {
-      if (session.provinceId && String(user.provinceId) !== String(session.provinceId)) {
+      const userProvId = prov ? String(prov._id) : null;
+      if (session.provinceId && userProvId !== String(session.provinceId)) {
         return apiForbidden();
       }
     }
-
-    const muni = user.municipalityId as unknown as { _id: string; name: string } | null;
-    const prov = user.provinceId     as unknown as { _id: string; name: string } | null;
 
     return apiResponse({
       id:               String(user._id),

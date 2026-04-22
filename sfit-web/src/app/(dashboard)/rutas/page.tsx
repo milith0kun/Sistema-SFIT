@@ -7,6 +7,7 @@ import { Download, Plus, Eye } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
+import { GoogleMapView } from "@/components/ui/GoogleMapView";
 
 type RouteType = "ruta" | "zona";
 type RouteItem = {
@@ -19,21 +20,6 @@ const G = "#B8860B"; const GD = "#926A09"; const GBG = "#FDF8EC";
 const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 
-function MapStub({ name }: { name: string }) {
-  const pins = [{ x: 12, y: 70, n: "A" }, { x: 28, y: 58 }, { x: 56, y: 40 }, { x: 72, y: 34 }, { x: 86, y: 26, n: "B", ink: true }];
-  return (
-    <div style={{ position: "relative", height: 260, borderRadius: 14, overflow: "hidden", background: "linear-gradient(135deg,#E8EEF5 0%,#DCE5EF 100%)", border: `1px solid ${INK2}` }}>
-      <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(255,255,255,.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.5) 1px,transparent 1px)", backgroundSize: "40px 40px", opacity: .7 }} />
-      <div style={{ position: "absolute", height: 6, background: "#fff", width: "80%", top: "60%", left: "8%", transform: "rotate(-12deg)", transformOrigin: "left center" }} />
-      {pins.map((p, i) => <div key={i} style={{ position: "absolute", width: 26, height: 26, borderRadius: "50%", background: p.ink ? INK9 : G, border: "3px solid #fff", boxShadow: "0 4px 10px rgba(0,0,0,.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: "0.7rem", transform: "translate(-50%,-50%)", left: `${p.x}%`, top: `${p.y}%` }}>{p.n ?? ""}</div>)}
-      <div style={{ position: "absolute", bottom: 12, left: 12, padding: "7px 10px", background: "rgba(255,255,255,.9)", borderRadius: 8, border: `1px solid ${INK2}`, display: "flex", gap: 12, fontSize: "0.7rem", fontWeight: 600, color: INK6 }}>
-        <span style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: G, display: "inline-block" }} />Origen</span>
-        <span style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: INK9, display: "inline-block" }} />Destino</span>
-      </div>
-      <div style={{ display: "none" }}>{name}</div>
-    </div>
-  );
-}
 
 const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
 const btnInk: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: "none", background: INK9, color: "#fff", fontFamily: "inherit" };
@@ -167,7 +153,16 @@ export default function RutasPage() {
               <Link href={`/rutas/${sel.id}`}><button style={{ ...btnOut, height: 32, fontSize: "0.8125rem" }}><Eye size={13}/>Ver detalle</button></Link>
             </div>
             <div style={{ padding: 18 }}>
-              <MapStub name={sel.name} />
+              <GoogleMapView
+                center={{ lat: -13.5178, lng: -71.9785 }}
+                zoom={13}
+                height={260}
+                markers={[
+                  { lat: -13.5178, lng: -71.9785, title: "Origen", color: "green" },
+                  { lat: -13.5050, lng: -71.9650, title: sel.name, color: "gold" },
+                ]}
+                style={{ borderRadius: 14 }}
+              />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginTop: 16 }}>
                 {[["Vehículos", sel.vehicleCount], ["Tipo", tab === "ruta" ? "Ruta fija" : "Zona"], ["Estado", sel.status === "activa" ? "Activa" : "Suspendida"]].map(([lbl, val]) => (
                   <div key={lbl as string} style={{ padding: 12, background: INK1, borderRadius: 10 }}>

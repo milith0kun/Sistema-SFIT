@@ -6,7 +6,7 @@ import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
   House, UserCheck, Users, MapPin, Building2, Car, ClipboardList,
-  Route, Shield, Flag, TriangleAlert, ChartColumn, Bell, LogOut,
+  Route, Shield, Flag, TriangleAlert, ChartColumn, LogOut,
   ChevronDown, CalendarDays, MessageSquareWarning, Gift, Settings, Menu, X,
 } from "lucide-react";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
@@ -18,8 +18,6 @@ type NavItem = { href: string; label: string; icon: LucideIcon; roles: string[];
 const NAV: NavItem[] = [
   // PANEL — todos los roles con acceso web
   { href: "/dashboard",       label: "Dashboard",           icon: House,                 section: "PANEL",          roles: ["super_admin","admin_provincial","admin_municipal","fiscal","operador"] },
-  { href: "/notificaciones",  label: "Notificaciones",      icon: Bell,                  section: "PANEL",          roles: ["super_admin","admin_provincial","admin_municipal","fiscal","operador","conductor","ciudadano"] },
-
   // GESTIÓN — administración de cuentas
   { href: "/usuarios",        label: "Usuarios",            icon: Users,                 section: "GESTIÓN",        roles: ["super_admin","admin_provincial","admin_municipal"] },
   { href: "/admin/users",     label: "Aprobaciones",        icon: UserCheck,             section: "GESTIÓN",        roles: ["super_admin","admin_provincial","admin_municipal"] },
