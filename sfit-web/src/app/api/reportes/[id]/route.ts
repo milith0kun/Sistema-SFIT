@@ -10,6 +10,8 @@ import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { awardCoins } from "@/lib/coins/awardCoins";
 import { triggerWebhook } from "@/lib/webhooks/triggerWebhook";
 import { adjustVehicleReputation } from "@/lib/reputation/updateReputation";
+import { sendPushToUser } from "@/lib/notifications/fcm";
+import { createNotification } from "@/lib/notifications/create";
 
 const UpdateSchema = z.object({
   status: z.enum(["pendiente", "revision", "validado", "rechazado"]).optional(),
@@ -63,6 +65,28 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const previousStatus = report.status;
   Object.assign(report, parsed.data);
   await report.save();
+
+  // RF-12-10: Notificación push + in-app al ciudadano cuando cambia el estado de su reporte
+  if (parsed.data.status && parsed.data.status !== previousStatus && report.citizenId) {
+    const ciudadanoId = String(report.citizenId);
+    const notifMsgs: Partial<Record<string, { title: string; body: string }>> = {
+      revision:  { title: "Tu reporte está siendo revisado",    body: "Un fiscal está analizando tu denuncia. Te notificaremos cuando haya novedades." },
+      validado:  { title: "¡Tu reporte fue validado!",          body: "Tu denuncia fue confirmada. Ganaste 20 SFITCoins por contribuir al transporte seguro." },
+      rechazado: { title: "Resultado de tu reporte",            body: "Tu reporte fue revisado y no pudo ser validado en esta ocasión." },
+    };
+    const msg = notifMsgs[parsed.data.status];
+    if (msg) {
+      void sendPushToUser(ciudadanoId, msg.title, msg.body, { type: "reporte" });
+      void createNotification({
+        userId: ciudadanoId,
+        title: msg.title,
+        body: msg.body,
+        type: "info",
+        category: "reporte",
+        link: "/mis-reportes",
+      });
+    }
+  }
 
   // RF-15: Si el reporte pasa a 'validado', otorgar 20 SFITCoins al ciudadano y reducir reputación del vehículo
   if (parsed.data.status === "validado" && previousStatus !== "validado" && report.citizenId) {

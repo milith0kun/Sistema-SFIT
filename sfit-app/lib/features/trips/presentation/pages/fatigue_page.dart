@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../data/datasources/trips_api_service.dart';
 
 /// Estado de fatiga del conductor — RF-14.
@@ -37,6 +38,9 @@ class _FatiguePageState extends ConsumerState<FatiguePage> {
           _fatiga = result;
           _loading = false;
         });
+        if (_fatiga != null && (_fatiga!.estado == 'riesgo' || _fatiga!.estado == 'no_apto')) {
+          _triggerFatigaAlert(_fatiga!.estado);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -46,6 +50,22 @@ class _FatiguePageState extends ConsumerState<FatiguePage> {
         });
       }
     }
+  }
+
+  Future<void> _triggerFatigaAlert(String estado) async {
+    try {
+      final title = estado == 'no_apto'
+          ? '⚠️ ALERTA: No apto para conducir'
+          : '⚠️ Precaución: Fatiga detectada';
+      final body = estado == 'no_apto'
+          ? 'Tu nivel de fatiga es crítico. Detén el vehículo y descansa de inmediato.'
+          : 'Tu nivel de fatiga está en zona de riesgo. Considera tomar un descanso.';
+      await NotificationService.showNotification(
+        title: title,
+        body: body,
+        payload: 'fatiga',
+      );
+    } catch (_) {}
   }
 
   @override

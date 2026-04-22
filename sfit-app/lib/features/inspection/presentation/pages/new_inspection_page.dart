@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/datasources/inspection_api_service.dart';
@@ -33,12 +34,37 @@ class _NewInspectionPageState extends ConsumerState<NewInspectionPage> {
   bool _submitting = false;
 
   late List<String> _items;
+  List<String> _sugerencias = [];
+  bool _sugerenciasLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _items = checklistForType(widget.vehicleTypeKey);
     _passed = List.filled(_items.length, true);
+    _loadSugerencias();
+  }
+
+  Future<void> _loadSugerencias() async {
+    try {
+      final dio = ref.read(dioClientProvider).dio;
+      final resp = await dio.get('/inspecciones/sugerencias', queryParameters: {
+        'vehicleId': widget.vehicleId,
+      });
+      final data = (resp.data as Map)['data'] as Map<String, dynamic>?;
+      if (data != null && data['hayHistorial'] == true) {
+        final items = (data['sugerencias'] as List?)
+            ?.map((s) => s['item'] as String)
+            .toList() ?? [];
+        if (mounted && items.isNotEmpty) {
+          setState(() {
+            _sugerencias = items;
+            _sugerenciasLoaded = true;
+          });
+        }
+      }
+    } catch (_) {
+    }
   }
 
   @override
@@ -212,13 +238,23 @@ class _NewInspectionPageState extends ConsumerState<NewInspectionPage> {
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              itemCount: _items.length,
+              itemCount: _items.length + (_sugerenciasLoaded && _sugerencias.isNotEmpty ? 1 : 0),
               separatorBuilder: (_, __) => const SizedBox(height: 6),
-              itemBuilder: (_, i) => _ChecklistRow(
-                item: _items[i],
-                passed: _passed[i],
-                onChanged: (v) => setState(() => _passed[i] = v),
-              ),
+              itemBuilder: (_, i) {
+                if (_sugerenciasLoaded && _sugerencias.isNotEmpty) {
+                  if (i == 0) return _SugerenciasIABanner(sugerencias: _sugerencias);
+                  return _ChecklistRow(
+                    item: _items[i - 1],
+                    passed: _passed[i - 1],
+                    onChanged: (v) => setState(() => _passed[i - 1] = v),
+                  );
+                }
+                return _ChecklistRow(
+                  item: _items[i],
+                  passed: _passed[i],
+                  onChanged: (v) => setState(() => _passed[i] = v),
+                );
+              },
             ),
           ),
 
@@ -294,6 +330,61 @@ class _NewInspectionPageState extends ConsumerState<NewInspectionPage> {
         'observada' => 'OBSERVADA',
         _           => 'RECHAZADA',
       };
+}
+
+class _SugerenciasIABanner extends StatelessWidget {
+  final List<String> sugerencias;
+  const _SugerenciasIABanner({required this.sugerencias});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(0, 0, 0, 6),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        border: Border.all(color: const Color(0xFFFED7AA)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome_outlined, size: 16, color: Color(0xFFD97706)),
+              const SizedBox(width: 8),
+              Text(
+                'PUNTOS CRÍTICOS DETECTADOS',
+                style: AppTheme.inter(
+                  fontSize: 10, fontWeight: FontWeight.w700,
+                  color: const Color(0xFFD97706), letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Basado en el historial, este vehículo ha fallado frecuentemente en:',
+            style: AppTheme.inter(fontSize: 12, color: const Color(0xFF92400E), height: 1.4),
+          ),
+          const SizedBox(height: 6),
+          ...sugerencias.map((item) => Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.warning_amber_outlined, size: 14, color: Color(0xFFD97706)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(item, style: AppTheme.inter(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF78350F))),
+                ),
+              ],
+            ),
+          )),
+        ],
+      ),
+    );
+  }
 }
 
 class _ChecklistRow extends StatelessWidget {
