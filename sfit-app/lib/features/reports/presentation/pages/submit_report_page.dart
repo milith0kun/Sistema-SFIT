@@ -26,6 +26,7 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
 
   // ── Step 2: formulario de reporte ──────────────────────────────
   String? _selectedCategory;
+  String? _suggestedCategory;
   final _descCtrl = TextEditingController();
   bool _submitting = false;
 
@@ -171,6 +172,27 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
         _showError('No se pudo enviar el reporte. Intenta de nuevo.');
       }
     }
+  }
+
+  void _inferCategory() {
+    final text = _descCtrl.text.toLowerCase();
+    if (text.length < 15) {
+      if (_suggestedCategory != null) setState(() => _suggestedCategory = null);
+      return;
+    }
+    const _kw = {
+      'Conducción peligrosa': ['peligros', 'velocidad', 'rápido', 'rapido', 'acelerado', 'frenaz', 'semáforo', 'semaforo', 'maniobra', 'adelant'],
+      'Cobro indebido':       ['cobro', 'cobró', 'precio', 'tarifa', 'excesivo', 'caro', 'pagó de más', 'cobró de más'],
+      'Mal estado del vehículo': ['mal estado', 'roto', 'falla', 'humo', 'ruido', 'llanta', 'freno', 'avería', 'averia', 'descompuesto'],
+    };
+    String? best;
+    int bestCount = 0;
+    for (final entry in _kw.entries) {
+      final count = entry.value.where((k) => text.contains(k)).length;
+      if (count > bestCount) { bestCount = count; best = entry.key; }
+    }
+    final suggested = bestCount > 0 ? best : null;
+    if (suggested != _suggestedCategory) setState(() => _suggestedCategory = suggested);
   }
 
   void _showError(String msg) {
@@ -360,7 +382,7 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
                     hintText: 'Describe el incidente con el mayor detalle posible (mín. 20 caracteres)...',
                     alignLabelWithHint: true,
                   ),
-                  onChanged: (_) => setState(() {}),
+                  onChanged: (_) { setState(() {}); _inferCategory(); },
                 ),
 
                 // Contador de caracteres / aviso mínimo
@@ -372,6 +394,18 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
                       style: AppTheme.inter(fontSize: 12, color: AppColors.noApto),
                     ),
                   ),
+
+                if (_suggestedCategory != null && _selectedCategory == null) ...[
+                  const SizedBox(height: 10),
+                  _AISuggestionChip(
+                    category: _suggestedCategory!,
+                    onAccept: () => setState(() {
+                      _selectedCategory = _suggestedCategory;
+                      _suggestedCategory = null;
+                    }),
+                    onDismiss: () => setState(() => _suggestedCategory = null),
+                  ),
+                ],
 
                 const SizedBox(height: 28),
 
@@ -738,6 +772,60 @@ class _FieldLabel extends StatelessWidget {
           color: AppColors.ink9,
         ),
       );
+}
+
+// ── Sugerencia IA de categoría ──────────────────────────────────────
+class _AISuggestionChip extends StatelessWidget {
+  final String category;
+  final VoidCallback onAccept;
+  final VoidCallback onDismiss;
+  const _AISuggestionChip({required this.category, required this.onAccept, required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        border: Border.all(color: const Color(0xFF93C5FD)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.auto_awesome_outlined, size: 16, color: Color(0xFF2563EB)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: AppTheme.inter(fontSize: 12.5, color: const Color(0xFF1E40AF)),
+                children: [
+                  const TextSpan(text: 'Sugerencia: '),
+                  TextSpan(text: category, style: const TextStyle(fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: onAccept,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2563EB),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text('Usar', style: AppTheme.inter(fontSize: 11.5, fontWeight: FontWeight.w700, color: Colors.white)),
+            ),
+          ),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: onDismiss,
+            child: const Icon(Icons.close, size: 16, color: Color(0xFF93C5FD)),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ── Pantalla de éxito ───────────────────────────────────────────────
