@@ -352,7 +352,7 @@ export default function SancionesPage() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 4 }}>
                 <div style={{ padding: 12, background: INK1, borderRadius: 10 }}>
                   <div style={{ fontSize: "0.75rem", color: INK5 }}>Vehículo</div>
-                  <div style={{ fontWeight: 700, marginTop: 2 }}><span style={{ display: "inline-flex", padding: "3px 8px", borderRadius: 5, background: INK9, color: "#fff", fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.75rem" }}>{sel.vehicle.plate}</span></div>
+                  <div style={{ fontWeight: 700, marginTop: 2 }}><span style={{ display: "inline-flex", padding: "3px 8px", borderRadius: 5, background: INK9, color: "#fff", fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.75rem" }}>{sel.vehicle?.plate ?? "—"}</span></div>
                 </div>
                 <div style={{ padding: 12, background: INK1, borderRadius: 10 }}>
                   <div style={{ fontSize: "0.75rem", color: INK5 }}>Conductor</div>

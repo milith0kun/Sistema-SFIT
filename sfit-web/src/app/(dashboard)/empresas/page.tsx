@@ -228,7 +228,7 @@ export default function EmpresasPage() {
   const toolbarEnd = (
     <>
       <select style={selectStyle} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-        <option value="">Todas las flotas</option>
+        <option key="all" value="">Todas las flotas</option>
         {types.filter((t) => t.active).map((t) => (
           <option key={t.key} value={t.key}>{t.name}</option>
         ))}
