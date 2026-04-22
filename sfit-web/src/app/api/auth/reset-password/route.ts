@@ -22,11 +22,18 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const user = await User.findOne({ email: email.toLowerCase().trim() })
-      .select("+passwordResetToken +passwordResetExpiry")
+      .select("+password +passwordResetToken +passwordResetExpiry")
       .lean();
 
     // Siempre devolver éxito (no revelar si el email existe)
-    if (!user || user.provider === "google" || !user.password) {
+    if (!user) {
+      console.log("[reset-password] usuario no encontrado:", email);
+      return apiResponse({ sent: true });
+    }
+    // Solo saltamos usuarios sin contraseña (Google puro).
+    // Si un admin asignó contraseña a un usuario Google, sí puede resetearla.
+    if (!user.password) {
+      console.log("[reset-password] usuario sin contraseña (Google puro):", email);
       return apiResponse({ sent: true });
     }
 
@@ -41,7 +48,9 @@ export async function POST(request: NextRequest) {
     const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     const resetUrl = `${appUrl}/reset-password?token=${token}`;
 
+    console.log("[reset-password] enviando a:", user.email);
     await sendResetEmail(user.email, user.name, resetUrl);
+    console.log("[reset-password] enviado OK a:", user.email);
 
     return apiResponse({ sent: true });
   } catch (err) {

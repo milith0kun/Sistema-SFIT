@@ -23,6 +23,8 @@ import '../../features/splash/presentation/pages/splash_page.dart';
 import '../../features/trips/presentation/pages/trip_checkin_page.dart';
 import '../../features/trips/presentation/pages/trip_checkout_page.dart';
 import '../../features/operator/presentation/pages/vehicle_qr_page.dart';
+import '../../features/operator/presentation/pages/nuevo_conductor_page.dart';
+import '../../features/operator/presentation/pages/nuevo_vehiculo_page.dart';
 import '../../features/vista_publica/presentation/pages/vehicle_public_page.dart';
 
 part 'app_router.g.dart';
@@ -184,6 +186,10 @@ GoRouter router(Ref ref) {
           );
         },
       ),
+
+      // ── Alta de conductor y vehículo (RF-05-01 / RF-05-02) ───
+      GoRoute(path: '/nuevo-conductor', builder: (_, __) => const NuevoConductorPage()),
+      GoRoute(path: '/nuevo-vehiculo',  builder: (_, __) => const NuevoVehiculoPage()),
 
       // ── Rutas públicas (accesibles sin auth) ───────────────────
       GoRoute(

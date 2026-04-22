@@ -34,6 +34,7 @@ class ReportsApiService {
   /// POST /reportes — envía un nuevo reporte ciudadano.
   /// Retorna el ID del reporte creado.
   /// [latitude] y [longitude] son opcionales (RF-12-03 anti-fraude capa 2).
+  /// [qrToken] es el JSON serializado del QR escaneado (RF-12-04 anti-fraude capa 4).
   Future<String> submitReport({
     required String vehiclePlate,
     required String category,
@@ -41,6 +42,7 @@ class ReportsApiService {
     String? vehicleTypeKey,
     double? latitude,
     double? longitude,
+    String? qrToken, // RF-12-04: payload JSON del QR escaneado
   }) async {
     final resp = await _dio.post('/reportes', data: {
       'vehiclePlate': vehiclePlate,
@@ -49,6 +51,7 @@ class ReportsApiService {
       if (vehicleTypeKey != null) 'vehicleTypeKey': vehicleTypeKey,
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
+      if (qrToken != null) 'qrToken': qrToken, // RF-12-04
     });
     final data = (resp.data as Map)['data'] as Map;
     return data['id'] as String;

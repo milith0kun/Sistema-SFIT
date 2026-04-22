@@ -32,4 +32,28 @@ class OperatorApiService {
         .map((e) => VehicleModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  Future<void> createConductor({
+    required String name, required String dni,
+    required String licenseNumber, required String licenseCategory,
+    String? phone,
+  }) async {
+    await _dio.post('/conductores', data: {
+      'name': name, 'dni': dni,
+      'licenseNumber': licenseNumber, 'licenseCategory': licenseCategory,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
+    });
+  }
+
+  Future<void> createVehiculo({
+    required String plate, required String brand,
+    required String model, required int year,
+    required String vehicleTypeKey, String? soatExpiry,
+  }) async {
+    await _dio.post('/vehiculos', data: {
+      'plate': plate.toUpperCase(), 'brand': brand, 'model': model,
+      'year': year, 'vehicleTypeKey': vehicleTypeKey,
+      if (soatExpiry != null && soatExpiry.isNotEmpty) 'soatExpiry': soatExpiry,
+    });
+  }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/datasources/operator_api_service.dart';
@@ -70,10 +71,22 @@ class _ConductoresTabPageState extends ConsumerState<ConductoresTabPage> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return Scaffold(
+      backgroundColor: AppColors.paper,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final added = await context.push<bool>('/nuevo-conductor');
+          if (added == true && mounted) _load();
+        },
+        backgroundColor: AppColors.gold,
+        foregroundColor: Colors.white,
+        tooltip: 'Registrar conductor',
+        child: const Icon(Icons.person_add_outlined),
+      ),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // ── Header ───────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -155,6 +168,7 @@ class _ConductoresTabPageState extends ConsumerState<ConductoresTabPage> {
                           ),
           ),
         ],
+      ),
       ),
     );
   }

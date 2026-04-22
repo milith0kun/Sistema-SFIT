@@ -8,6 +8,10 @@ import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { adjustVehicleReputation, adjustDriverReputation } from "@/lib/reputation/updateReputation";
+import { sendEmail } from "@/lib/email/email_service";
+import { sanctionEmailHtml } from "@/lib/email/templates";
+import { Company } from "@/models/Company";
+import { Vehicle } from "@/models/Vehicle";
 
 const SANCTION_STATUS_VALUES = ["emitida", "apelada", "resuelta", "anulada"] as const;
 
@@ -141,6 +145,29 @@ export async function POST(request: NextRequest) {
     // RF-15: Sanciones reducen reputación del vehículo y conductor
     if (created.vehicleId) void adjustVehicleReputation(created.vehicleId, -8);
     if (created.driverId) void adjustDriverReputation(created.driverId, -5);
+
+    // RF-18: Email de notificación — void, no bloqueante
+    void (async () => {
+      try {
+        const company = created.companyId
+          ? await Company.findById(created.companyId).select('name email').lean()
+          : null;
+        if (!company) return;
+        const companyDoc = company as { name?: string; email?: string };
+        if (!companyDoc.email) return;
+        const vehicle = created.vehicleId
+          ? await Vehicle.findById(created.vehicleId).select('plate').lean()
+          : null;
+        const vehicleDoc = vehicle as { plate?: string } | null;
+        const html = sanctionEmailHtml({
+          companyName: companyDoc.name ?? 'Empresa',
+          plate: vehicleDoc?.plate ?? '—',
+          faultType: created.faultType,
+          amountSoles: created.amountSoles,
+        });
+        await sendEmail(companyDoc.email, `[SFIT] Sanción emitida — ${vehicleDoc?.plate ?? 'Vehículo'}`, html);
+      } catch (e) { console.error('[sanciones email]', e); }
+    })();
 
     return apiResponse({ id: String(created._id), ...created.toObject() }, 201);
   } catch (error) {

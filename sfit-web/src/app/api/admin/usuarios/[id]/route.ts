@@ -20,6 +20,8 @@ import { apiResponse, apiError, apiUnauthorized, apiForbidden, apiNotFound } fro
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { logAction } from "@/lib/audit/logAction";
+import { sendEmail } from "@/lib/email/email_service";
+import { accountRejectedEmailHtml } from "@/lib/email/templates";
 
 const ALLOWED_ROLES = [ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL];
 
@@ -221,6 +223,15 @@ export async function PATCH(
       .lean();
 
     if (!updated) return apiNotFound("Usuario no encontrado");
+
+    // RF-18: Email de rechazo — best-effort
+    if (status === "rechazado") {
+      void sendEmail(
+        updated.email,
+        '[SFIT] Tu solicitud fue rechazada',
+        accountRejectedEmailHtml({ userName: updated.name }),
+      ).catch(() => {});
+    }
 
     // Audit log — no-bloqueante
     void logAction({

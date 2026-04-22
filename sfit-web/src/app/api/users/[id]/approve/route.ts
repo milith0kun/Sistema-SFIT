@@ -6,6 +6,8 @@ import { requireRole } from "@/lib/auth/guard";
 import { ROLES, USER_STATUS, type Role } from "@/lib/constants";
 import { createNotification } from "@/lib/notifications/create";
 import { logAudit } from "@/lib/audit/log";
+import { sendEmail } from "@/lib/email/email_service";
+import { accountApprovedEmailHtml } from "@/lib/email/templates";
 
 /**
  * RF-01-04: Admin Municipal aprueba una solicitud de usuario y asigna rol definitivo.
@@ -66,6 +68,13 @@ export async function POST(
     target.role = assignedRole;
     target.requestedRole = undefined;
     await target.save();
+
+    // RF-18: Email de aprobación — best-effort
+    void sendEmail(
+      target.email,
+      '[SFIT] Tu solicitud fue aprobada',
+      accountApprovedEmailHtml({ userName: target.name, role: assignedRole }),
+    ).catch(() => {});
 
     await createNotification({
       userId: target._id.toString(),

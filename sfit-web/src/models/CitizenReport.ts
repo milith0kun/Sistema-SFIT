@@ -19,6 +19,8 @@ export interface ICitizenReport extends Document {
   fraudScore: number;
   fraudLayers: IFraudLayer[];
   assignedFiscalId?: mongoose.Types.ObjectId;
+  /** RF-12-04: indica que el QR del vehículo fue verificado con HMAC válido */
+  qrVerified?: boolean;
   /** Coordenadas opcionales del ciudadano al momento de enviar el reporte (capa 2 anti-fraude geográfico) */
   latitude?: number;
   longitude?: number;
@@ -53,6 +55,7 @@ const CitizenReportSchema = new Schema<ICitizenReport>(
     fraudScore: { type: Number, default: 50, min: 0, max: 100 },
     fraudLayers: { type: [FraudLayerSchema], default: [] },
     assignedFiscalId: { type: Schema.Types.ObjectId, ref: "User" },
+    qrVerified: { type: Boolean, default: false }, // RF-12-04
     latitude: { type: Number },
     longitude: { type: Number },
   },

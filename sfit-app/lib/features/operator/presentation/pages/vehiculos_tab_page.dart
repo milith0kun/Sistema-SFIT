@@ -72,10 +72,22 @@ class _VehiculosTabPageState extends ConsumerState<VehiculosTabPage> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return Scaffold(
+      backgroundColor: AppColors.paper,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final added = await context.push<bool>('/nuevo-vehiculo');
+          if (added == true && mounted) _load();
+        },
+        backgroundColor: AppColors.gold,
+        foregroundColor: Colors.white,
+        tooltip: 'Registrar vehículo',
+        child: const Icon(Icons.add_box_outlined),
+      ),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // ── Header ───────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -166,6 +178,7 @@ class _VehiculosTabPageState extends ConsumerState<VehiculosTabPage> {
                           ),
           ),
         ],
+      ),
       ),
     );
   }

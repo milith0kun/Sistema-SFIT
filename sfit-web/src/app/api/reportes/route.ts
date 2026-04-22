@@ -3,13 +3,15 @@ import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { CitizenReport } from "@/models/CitizenReport";
+import { SfitCoin } from "@/models/SfitCoin";
 import { AuditLog } from "@/models/AuditLog";
 import { User } from "@/models/User";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
-import { awardCoins } from "@/lib/coins/awardCoins";
+import { awardCoins, getNivel } from "@/lib/coins/awardCoins";
+import { verifyQrPayload, type QrPayload } from "@/lib/qr/hmac";
 
 /**
  * Categorías válidas de reporte ciudadano (RF-14).
@@ -43,6 +45,10 @@ const CreateSchema = z.object({
   // Validación geográfica capa 2 — opcionales; no rechazan el reporte si están ausentes
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
+  // RF-12-04: QR anti-fraude — payload JSON del QR escaneado por el ciudadano
+  qrToken: z.string().optional(),
+  // Placa del vehículo si viene del scan de QR (permite crear sin vehicleId)
+  vehiclePlate: z.string().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -168,16 +174,47 @@ export async function POST(request: NextRequest) {
       return apiError(`Has alcanzado el límite de ${DAILY_LIMIT} reportes por día`, 429);
     }
 
+    // RF-12-04: Capa 4 — Verificar HMAC del QR escaneado
+    let qrVerified = false;
+    let qrDetail = "QR no provisto";
+    if (parsed.data.qrToken) {
+      try {
+        const rawPayload = JSON.parse(parsed.data.qrToken) as QrPayload;
+        qrVerified = verifyQrPayload(rawPayload);
+        qrDetail = qrVerified ? "HMAC verificado" : "HMAC inválido";
+      } catch {
+        qrDetail = "QR malformado";
+      }
+    }
+
+    // RF-12-06: Capa 5 — Nivel de reputación del ciudadano basado en balance SFITCoins
+    let citizenReputationLevel = 1;
+    try {
+      const lastCoinTx = await SfitCoin.findOne({ userId: auth.session.userId })
+        .sort({ createdAt: -1 })
+        .select("balance")
+        .lean();
+      const balance = lastCoinTx?.balance ?? 0;
+      citizenReputationLevel = getNivel(balance).nivel;
+    } catch {
+      citizenReputationLevel = 1;
+    }
+
+    // FraudScore compuesto: base 60, reducido por capas superadas
+    const { latitude, longitude } = parsed.data;
+    const hasCoords = latitude !== undefined && longitude !== undefined;
+    let fraudScore = parsed.data.fraudScore ?? 60;
+    if (qrVerified) fraudScore = Math.max(0, fraudScore - 20);
+    if (citizenReputationLevel >= 3) fraudScore = Math.max(0, fraudScore - 10);
+    if (hasCoords) fraudScore = Math.max(0, fraudScore - 5);
+
     const fraudLayers = [
       { layer: "Identidad", passed: capa1Passed, detail: "Usuario verificado y activo" },
       { layer: "Contexto", passed: true, detail: "Radio coherente" },
       { layer: "Límite diario", passed: capa3Passed, detail: `${reportsToday + 1}/${DAILY_LIMIT} reportes hoy` },
-      { layer: "QR válido", passed: true, detail: "HMAC verificado" },
+      { layer: "QR válido", passed: qrVerified, detail: qrDetail },
       { layer: "Corroboración", passed: false, detail: "Sin corroboración aún" },
     ];
-
-    const { latitude, longitude } = parsed.data;
-    const hasCoords = latitude !== undefined && longitude !== undefined;
 
     const doc = await CitizenReport.create({
       municipalityId,
@@ -187,7 +224,9 @@ export async function POST(request: NextRequest) {
       vehicleTypeKey: parsed.data.vehicleTypeKey,
       description: parsed.data.description,
       evidenceUrl: parsed.data.evidenceUrl,
-      fraudScore: parsed.data.fraudScore ?? 60,
+      qrVerified,
+      citizenReputationLevel,
+      fraudScore,
       fraudLayers,
       status: "pendiente",
       ...(hasCoords && { latitude, longitude }),
