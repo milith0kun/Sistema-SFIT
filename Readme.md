@@ -841,15 +841,18 @@ flutter build apk --release
 - ✅ **RF-12 capa 4** — `qrVerified` en reportes: validación HMAC del QR escaneado al reportar
 - ✅ **RF-12 capa 5** — `citizenReputationLevel` en reportes: nivel SFITCoin pondera `fraudScore` del reporte
 
+- ✅ **RF-09 detalle ruta Conductor** — `RouteDetailPage` con origen/destino/paradas; toque en MyRoutesPage navega al detalle
+- ✅ **RF-16 Ranking Ciudadano** — `RankingPage` semana/mes/total, top 3 medallones, card acceso desde Recompensas
+- ✅ **RF-15 Reputación en vista pública** — 5 estrellas coloreadas + label (Excelente/Bueno/Regular) en VehiclePublicPage
+- ✅ **RF-10 auto-cierre endpoint** — `POST /api/viajes/auto-close` con auth dual (cron secret o super_admin)
+
 #### Pendientes reales (en orden de impacto)
 
 | # | Bloque | RF | Impacto |
 |---|---|---|---|
-| 1 | **Google Sign In SHA-1** — registrar en GCP Console para habilitar login Google en app | RF-01-01 | Medio |
-| 2 | **RF-09 Rutas/zonas en app (Conductor)** — pantalla de detalle de ruta asignada con paradas y mapa | RF-09 | Bajo |
-| 3 | **RF-10 auto-cierre programado** — cron job externo (Dokploy scheduler) | RF-10 | Bajo |
-| 4 | **RF-16 Ranking ciudadanos en app** — tabla de posiciones filtrable | RF-16 | Bajo |
-| 5 | **RF-15 Reputación visible** — mostrar score de reputación en vista pública del conductor/vehículo | RF-15 | Bajo |
+| 1 | **Google Sign In SHA-1** — acción manual en GCP Console (no es código) | RF-01-01 | Medio |
+| 2 | **RF-10 scheduler Dokploy** — configurar cron en Dokploy que llame `POST /api/viajes/auto-close` | RF-10 | Bajo |
+| 3 | **RESEND_API_KEY en producción** — añadir variable de entorno en Dokploy para activar emails | RF-18 | Bajo |
 
 ---
 
