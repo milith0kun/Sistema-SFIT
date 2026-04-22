@@ -26,6 +26,8 @@ import '../../features/operator/presentation/pages/vehicle_qr_page.dart';
 import '../../features/operator/presentation/pages/nuevo_conductor_page.dart';
 import '../../features/operator/presentation/pages/nuevo_vehiculo_page.dart';
 import '../../features/vista_publica/presentation/pages/vehicle_public_page.dart';
+import '../../features/trips/presentation/pages/route_detail_page.dart';
+import '../../features/rewards/presentation/pages/ranking_page.dart';
 
 part 'app_router.g.dart';
 
@@ -190,6 +192,21 @@ GoRouter router(Ref ref) {
       // ── Alta de conductor y vehículo (RF-05-01 / RF-05-02) ───
       GoRoute(path: '/nuevo-conductor', builder: (_, __) => const NuevoConductorPage()),
       GoRoute(path: '/nuevo-vehiculo',  builder: (_, __) => const NuevoVehiculoPage()),
+
+      // ── RF-09: Detalle de ruta (conductor) ───────────────────
+      GoRoute(
+        path: '/ruta-detalle',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return RouteDetailPage(
+            routeId:   extra['routeId']   as String,
+            routeName: extra['routeName'] as String? ?? 'Ruta',
+          );
+        },
+      ),
+
+      // ── RF-16: Ranking de ciudadanos ──────────────────────────
+      GoRoute(path: '/ranking', builder: (_, __) => const RankingPage()),
 
       // ── Rutas públicas (accesibles sin auth) ───────────────────
       GoRoute(

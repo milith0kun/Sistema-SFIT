@@ -31,6 +31,7 @@ class PublicVehicle {
   final String? company;
   final String lastInspectionStatus;
   final int reputationScore;
+  final String reputationLabel; // Excelente / Bueno / Regular / Deficiente / Sin historial
   final String indicator; // verde | amarillo | rojo
 
   const PublicVehicle({
@@ -44,6 +45,7 @@ class PublicVehicle {
     required this.company,
     required this.lastInspectionStatus,
     required this.reputationScore,
+    required this.reputationLabel,
     required this.indicator,
   });
 
@@ -57,7 +59,8 @@ class PublicVehicle {
         status: json['status'] as String,
         company: json['company'] as String?,
         lastInspectionStatus: json['lastInspectionStatus'] as String,
-        reputationScore: (json['reputationScore'] as num).toInt(),
+        reputationScore: (json['reputationScore'] as num? ?? 0).toInt(),
+        reputationLabel: json['reputationLabel'] as String? ?? 'Sin historial',
         indicator: json['indicator'] as String,
       );
 }
@@ -68,6 +71,7 @@ class PublicDriver {
   final String licenseCategory;
   final String fatigueStatus;
   final int reputationScore;
+  final String reputationLabel; // Excelente / Bueno / Regular / Deficiente / Sin historial
   final bool enabled;
 
   const PublicDriver({
@@ -76,6 +80,7 @@ class PublicDriver {
     required this.licenseCategory,
     required this.fatigueStatus,
     required this.reputationScore,
+    required this.reputationLabel,
     required this.enabled,
   });
 
@@ -84,7 +89,8 @@ class PublicDriver {
         name: json['name'] as String,
         licenseCategory: json['licenseCategory'] as String,
         fatigueStatus: json['fatigueStatus'] as String,
-        reputationScore: (json['reputationScore'] as num).toInt(),
+        reputationScore: (json['reputationScore'] as num? ?? 0).toInt(),
+        reputationLabel: json['reputationLabel'] as String? ?? 'Sin historial',
         enabled: json['enabled'] as bool,
       );
 }

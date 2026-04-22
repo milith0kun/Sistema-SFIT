@@ -10,7 +10,21 @@ import { verifyQrPayload, type QrPayload } from "@/lib/qr/hmac";
  * GET /api/public/vehiculo?qr=<encoded_json>
  * Vista pública de vehículo y conductor — sin autenticación.
  * RF-08: expone sólo los datos permitidos (sin DNI ni contacto).
+ * RF-15: incluye reputationScore y reputationLabel para el vehículo y conductor.
  */
+
+/**
+ * RF-15: Convierte un puntaje numérico de reputación (0-100) en una etiqueta
+ * legible por el ciudadano.
+ */
+function getReputationLabel(score: number): string {
+  if (score >= 80) return "Excelente";
+  if (score >= 60) return "Bueno";
+  if (score >= 40) return "Regular";
+  if (score >= 20) return "Deficiente";
+  return "Sin historial";
+}
+
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const plate = url.searchParams.get("plate")?.toUpperCase();
@@ -69,7 +83,8 @@ export async function GET(request: NextRequest) {
       status: v.status,
       company: (v.companyId as { razonSocial?: string } | null)?.razonSocial ?? null,
       lastInspectionStatus: v.lastInspectionStatus ?? "pendiente",
-      reputationScore: v.reputationScore,
+      reputationScore: v.reputationScore ?? 0,
+      reputationLabel: getReputationLabel(v.reputationScore ?? 0),
       indicator,
     },
     driver: driver
@@ -78,7 +93,8 @@ export async function GET(request: NextRequest) {
           name: driver.name ?? "—",
           licenseCategory: driver.licenseCategory ?? "—",
           fatigueStatus: driver.status ?? "apto",
-          reputationScore: driver.reputationScore ?? 100,
+          reputationScore: driver.reputationScore ?? 0,
+          reputationLabel: getReputationLabel(driver.reputationScore ?? 0),
           enabled: driver.status !== "no_apto",
         }
       : null,

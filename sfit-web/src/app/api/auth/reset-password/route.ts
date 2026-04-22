@@ -26,14 +26,8 @@ export async function POST(request: NextRequest) {
       .lean();
 
     // Siempre devolver éxito (no revelar si el email existe)
-    if (!user) {
-      console.log("[reset-password] usuario no encontrado:", email);
-      return apiResponse({ sent: true });
-    }
-    // Solo saltamos usuarios sin contraseña (Google puro).
-    // Si un admin asignó contraseña a un usuario Google, sí puede resetearla.
-    if (!user.password) {
-      console.log("[reset-password] usuario sin contraseña (Google puro):", email);
+    // Solo saltamos usuarios sin contraseña (Google puro — usan "Continuar con Google")
+    if (!user || !user.password) {
       return apiResponse({ sent: true });
     }
 
@@ -48,9 +42,7 @@ export async function POST(request: NextRequest) {
     const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     const resetUrl = `${appUrl}/reset-password?token=${token}`;
 
-    console.log("[reset-password] enviando a:", user.email);
     await sendResetEmail(user.email, user.name, resetUrl);
-    console.log("[reset-password] enviado OK a:", user.email);
 
     return apiResponse({ sent: true });
   } catch (err) {

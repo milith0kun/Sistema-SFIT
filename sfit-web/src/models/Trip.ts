@@ -8,9 +8,13 @@ export interface ITrip extends Document {
   fleetEntryId?: mongoose.Types.ObjectId;
   startTime: Date;
   endTime?: Date;
+  expectedReturnTime?: Date;
   km: number;
   passengers: number;
-  status: "en_curso" | "completado" | "auto_cierre";
+  status: "en_curso" | "completado" | "auto_cierre" | "cerrado_automatico";
+  closedAt?: Date;
+  autoClosedReason?: string;
+  notes?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,13 +28,17 @@ const TripSchema = new Schema<ITrip>(
     fleetEntryId: { type: Schema.Types.ObjectId, ref: "FleetEntry" },
     startTime: { type: Date, required: true },
     endTime: { type: Date },
+    expectedReturnTime: { type: Date },
     km: { type: Number, default: 0 },
     passengers: { type: Number, default: 0 },
     status: {
       type: String,
-      enum: ["en_curso", "completado", "auto_cierre"],
+      enum: ["en_curso", "completado", "auto_cierre", "cerrado_automatico"],
       default: "en_curso",
     },
+    closedAt: { type: Date },
+    autoClosedReason: { type: String },
+    notes: { type: String },
   },
   { timestamps: true },
 );

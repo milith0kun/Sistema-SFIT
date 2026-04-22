@@ -123,7 +123,10 @@ class _DataView extends StatelessWidget {
             children: [
               _InfoRow('Empresa', v.company ?? '—'),
               _InfoRow('Estado operativo', _statusLabel(v.status)),
-              _InfoRow('Reputación', '${v.reputationScore}/100'),
+              _ReputationRow(
+                score: v.reputationScore,
+                label: v.reputationLabel,
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -141,7 +144,10 @@ class _DataView extends StatelessWidget {
               children: [
                 _InfoRow('Categoría de licencia', d.licenseCategory),
                 _InfoRow('Estado de fatiga', _fatigueLabel(d.fatigueStatus)),
-                _InfoRow('Reputación', '${d.reputationScore}/100'),
+                _ReputationRow(
+                  score: d.reputationScore,
+                  label: d.reputationLabel,
+                ),
                 _InfoRow('Habilitado', d.enabled ? 'Sí' : 'No'),
               ],
             )
@@ -460,6 +466,67 @@ class _InfoCard extends StatelessWidget {
               child: Column(children: children),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Fila de reputación con estrellas y etiqueta coloreada (RF-15) ─────────────
+class _ReputationRow extends StatelessWidget {
+  final int score;
+  final String label;
+
+  const _ReputationRow({required this.score, required this.label});
+
+  /// Devuelve el color del texto/icono según el nivel de reputación.
+  Color get _color {
+    if (score >= 80) return AppColors.apto;       // verde
+    if (score >= 60) return const Color(0xFF16A34A); // verde medio
+    if (score >= 40) return AppColors.riesgo;     // naranja
+    return AppColors.noApto;                       // rojo
+  }
+
+  /// Número de estrellas llenas (0-5) redondeado desde el puntaje 0-100.
+  int get _stars => (score / 20).round().clamp(0, 5);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Reputación',
+            style: AppTheme.inter(fontSize: 13, color: AppColors.ink5),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Estrellas
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(5, (i) {
+                  return Icon(
+                    i < _stars ? Icons.star_rounded : Icons.star_outline_rounded,
+                    size: 15,
+                    color: i < _stars ? _color : AppColors.ink3,
+                  );
+                }),
+              ),
+              const SizedBox(width: 6),
+              // Etiqueta textual
+              Text(
+                label,
+                style: AppTheme.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: _color,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

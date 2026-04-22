@@ -836,15 +836,20 @@ flutter build apk --release
 - ✅ **RF-18 push listeners** — `NotificationService` + `FcmBackgroundHandler`: canal Android `sfit_alerts`, listeners foreground/background/terminated, routing por payload
 - ✅ **RF-12 anti-fraude capa 2** — geolocalización en `SubmitReportPage`: captura GPS automática al encontrar vehículo, envío opcional de `latitude/longitude` con el reporte
 
+- ✅ **RF-17 OCR en formularios Operador** — `NuevoConductorPage` (DNI+licencia) y `NuevoVehiculoPage` (tarjeta+SOAT) con FAB en las tabs; rutas `/nuevo-conductor` y `/nuevo-vehiculo`
+- ✅ **RF-18 SMTP email** — `lib/email/email_service.ts` con Resend; templates para sanción, apelación, aprobación/rechazo; integrado en sanciones y usuarios
+- ✅ **RF-12 capa 4** — `qrVerified` en reportes: validación HMAC del QR escaneado al reportar
+- ✅ **RF-12 capa 5** — `citizenReputationLevel` en reportes: nivel SFITCoin pondera `fraudScore` del reporte
+
 #### Pendientes reales (en orden de impacto)
 
 | # | Bloque | RF | Impacto |
 |---|---|---|---|
 | 1 | **Google Sign In SHA-1** — registrar en GCP Console para habilitar login Google en app | RF-01-01 | Medio |
-| 2 | **RF-12 anti-fraude capas 4/5** — HMAC QR en reporte (capa 4), corroboración por historial ciudadano (capa 5) | RF-12 | Medio |
-| 3 | **RF-18 WhatsApp + SMTP** — sanciones y alertas por canal externo | RF-18 | Bajo |
-| 4 | **RF-10 auto-cierre programado** — cron job externo (Dokploy scheduler) | RF-10 | Bajo |
-| 5 | **RF-17 OCR integrado en formularios** — botón "Escanear documento" dentro de los formularios de alta de conductor/vehículo del Operador | RF-17 | Bajo |
+| 2 | **RF-09 Rutas/zonas en app (Conductor)** — pantalla de detalle de ruta asignada con paradas y mapa | RF-09 | Bajo |
+| 3 | **RF-10 auto-cierre programado** — cron job externo (Dokploy scheduler) | RF-10 | Bajo |
+| 4 | **RF-16 Ranking ciudadanos en app** — tabla de posiciones filtrable | RF-16 | Bajo |
+| 5 | **RF-15 Reputación visible** — mostrar score de reputación en vista pública del conductor/vehículo | RF-15 | Bajo |
 
 ---
 

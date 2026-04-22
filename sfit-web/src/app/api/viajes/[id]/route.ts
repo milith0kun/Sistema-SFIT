@@ -12,7 +12,7 @@ const UpdateSchema = z.object({
   endTime: z.string().optional(),
   km: z.number().min(0).optional(),
   passengers: z.number().min(0).optional(),
-  status: z.enum(["en_curso", "completado", "auto_cierre"]).optional(),
+  status: z.enum(["en_curso", "completado", "auto_cierre", "cerrado_automatico"]).optional(),
 });
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -131,7 +132,11 @@ class _RewardsPageState extends ConsumerState<RewardsPage> {
             children: [
               // ── Hero SFITCoins ─────────────────────────────────
               _CoinsHeroCard(status: status, userName: user?.name),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
+
+              // ── Acceso al ranking ──────────────────────────────
+              _RankingAccessCard(onTap: () => context.push('/ranking')),
+              const SizedBox(height: 20),
 
               // ── Catálogo de recompensas ────────────────────────
               Text(
@@ -629,6 +634,74 @@ class _EmptyTransactionsCard extends StatelessWidget {
           ],
         ),
       );
+}
+
+// ── Card acceso ranking ───────────────────────────────────────────────────────
+class _RankingAccessCard extends StatelessWidget {
+  final VoidCallback onTap;
+  const _RankingAccessCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: AppColors.goldBorder),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.goldBg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.goldBorder),
+                ),
+                child: const Icon(
+                  Icons.leaderboard_rounded,
+                  size: 20,
+                  color: AppColors.goldDark,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Ver ranking',
+                      style: AppTheme.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink9,
+                      ),
+                    ),
+                    Text(
+                      'Tabla de posiciones por SFITCoins',
+                      style: AppTheme.inter(fontSize: 12, color: AppColors.ink5),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                color: AppColors.ink4,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ErrorState extends StatelessWidget {

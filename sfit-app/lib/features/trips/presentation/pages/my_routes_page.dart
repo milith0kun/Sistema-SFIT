@@ -196,7 +196,19 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
                                   separatorBuilder: (_, __) =>
                                       const SizedBox(height: 8),
                                   itemBuilder: (_, i) =>
-                                      _RouteCard(data: _items[i]),
+                                      _RouteCard(
+                                        data: _items[i],
+                                        onTap: () {
+                                          final route = _items[i];
+                                          context.push(
+                                            '/ruta-detalle',
+                                            extra: {
+                                              'routeId': route['_id'] ?? route['id'] ?? '',
+                                              'routeName': route['name'] ?? 'Ruta',
+                                            },
+                                          );
+                                        },
+                                      ),
                                 ),
                               ),
               ),
@@ -424,7 +436,8 @@ class _ActiveTripBanner extends StatelessWidget {
 // ── Tarjeta de ruta ────────────────────────────────────────────────────────────
 class _RouteCard extends StatelessWidget {
   final Map<String, dynamic> data;
-  const _RouteCard({required this.data});
+  final VoidCallback? onTap;
+  const _RouteCard({required this.data, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -447,63 +460,72 @@ class _RouteCard extends StatelessWidget {
         ? (AppColors.gold, AppColors.goldBg, AppColors.goldBorder, 'Activa')
         : (AppColors.ink4, AppColors.ink1, AppColors.ink3, 'Inactiva');
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: AppColors.ink2),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(10),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 40,
-            decoration: BoxDecoration(
-              color: active ? AppColors.gold : AppColors.ink3,
-              borderRadius: BorderRadius.circular(4),
-            ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: AppColors.ink2),
+            borderRadius: BorderRadius.circular(10),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: active ? AppColors.gold : AppColors.ink3,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: AppTheme.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink9,
+                      ),
+                    ),
+                    if (subLabel.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subLabel,
+                        style: AppTheme.inter(fontSize: 12, color: AppColors.ink5),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  border: Border.all(color: badgeBorder),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  badgeLabel,
                   style: AppTheme.inter(
-                    fontSize: 14,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.ink9,
+                    color: badgeColor,
                   ),
                 ),
-                if (subLabel.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subLabel,
-                    style: AppTheme.inter(fontSize: 12, color: AppColors.ink5),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: badgeBg,
-              border: Border.all(color: badgeBorder),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              badgeLabel,
-              style: AppTheme.inter(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: badgeColor,
               ),
-            ),
+              const SizedBox(width: 6),
+              const Icon(Icons.chevron_right, size: 16, color: AppColors.ink4),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
