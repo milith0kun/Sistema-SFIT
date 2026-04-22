@@ -33,17 +33,22 @@ class ReportsApiService {
 
   /// POST /reportes — envía un nuevo reporte ciudadano.
   /// Retorna el ID del reporte creado.
+  /// [latitude] y [longitude] son opcionales (RF-12-03 anti-fraude capa 2).
   Future<String> submitReport({
     required String vehiclePlate,
     required String category,
     required String description,
     String? vehicleTypeKey,
+    double? latitude,
+    double? longitude,
   }) async {
     final resp = await _dio.post('/reportes', data: {
       'vehiclePlate': vehiclePlate,
       'category': category,
       'description': description,
       if (vehicleTypeKey != null) 'vehicleTypeKey': vehicleTypeKey,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
     });
     final data = (resp.data as Map)['data'] as Map;
     return data['id'] as String;

@@ -7,9 +7,10 @@ export interface KPIItem {
   label: string;
   value: string | number;
   subtitle?: string;
-  accent: string;
+  /** Semantic accent — solo para estados (green, amber, red). Omitir para neutros. */
+  accent?: string;
   icon: LucideIcon;
-  trend?: { value: number; label?: string }; // +12 = +12%, -5 = -5%
+  trend?: { value: number; label?: string };
 }
 
 export interface KPIStripProps {
@@ -19,116 +20,67 @@ export interface KPIStripProps {
 
 export function KPIStrip({ items, cols = 6 }: KPIStripProps) {
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-        gap: 12,
-      }}
-    >
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gap: 10 }}>
       {items.map((it, i) => {
         const trendUp = it.trend && it.trend.value >= 0;
+        const hasAccent = Boolean(it.accent);
         return (
           <div
             key={`${it.label}-${i}`}
             style={{
               background: "#fff",
-              border: "1px solid #e4e4e7",
+              border: "1.5px solid #e4e4e7",
+              borderLeft: hasAccent ? `3px solid ${it.accent}` : "1.5px solid #e4e4e7",
               borderRadius: 12,
-              padding: "16px 16px 14px",
-              position: "relative",
-              overflow: "hidden",
+              padding: "14px 16px 13px",
               minWidth: 0,
             }}
           >
-            {/* Watermark */}
-            <div
-              aria-hidden
-              style={{
-                position: "absolute",
-                right: -10,
-                bottom: -10,
-                color: it.accent,
-                opacity: 0.15,
-                pointerEvents: "none",
-                lineHeight: 1,
-              }}
-            >
-              <it.icon size={76} strokeWidth={1.2} />
-            </div>
-
-            {/* Icon chip */}
-            <div style={{
-              width: 36,
-              height: 36,
-              borderRadius: 9,
-              background: `${it.accent}18`,
-              color: it.accent,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginBottom: 12,
-            }}>
-              <it.icon size={18} strokeWidth={2} />
-            </div>
-
-            {/* Label */}
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              marginBottom: 5,
-              fontSize: "0.6875rem",
-              fontWeight: 700,
-              letterSpacing: "0.13em",
-              color: "#71717a",
-              textTransform: "uppercase",
-            }}>
-              <span
-                aria-hidden
-                style={{ width: 4, height: 4, borderRadius: "50%", background: it.accent, flexShrink: 0 }}
-              />
-              {it.label}
+            {/* Icon + label row */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <div style={{
+                width: 28, height: 28, borderRadius: 7,
+                background: "#f4f4f5",
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                <it.icon size={14} color="#71717a" strokeWidth={2} />
+              </div>
+              <span style={{
+                fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.12em",
+                color: "#71717a", textTransform: "uppercase", overflow: "hidden",
+                textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>
+                {it.label}
+              </span>
             </div>
 
             {/* Value */}
-            <div
-              className="num"
-              style={{
-                fontSize: "1.875rem",
-                fontWeight: 800,
-                color: "#09090b",
-                lineHeight: 1.05,
-                letterSpacing: "-0.03em",
-                fontFamily: "var(--font-inter), Inter, system-ui, sans-serif",
-              }}
-            >
+            <div style={{
+              fontSize: "1.75rem", fontWeight: 800, color: it.accent ?? "#09090b",
+              lineHeight: 1, letterSpacing: "-0.03em",
+              fontFamily: "var(--font-inter), Inter, system-ui, sans-serif",
+              fontVariantNumeric: "tabular-nums",
+            }}>
               {it.value}
             </div>
 
-            {/* Trend + subtitle row */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
+            {/* Trend + subtitle */}
+            <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 6 }}>
               {it.trend !== undefined && (
                 <span style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 3,
-                  fontSize: "0.7rem",
-                  fontWeight: 700,
+                  display: "inline-flex", alignItems: "center", gap: 3,
+                  fontSize: "0.6875rem", fontWeight: 700,
                   color: trendUp ? "#15803d" : "#b91c1c",
                   background: trendUp ? "#F0FDF4" : "#FFF5F5",
                   border: `1px solid ${trendUp ? "#86EFAC" : "#FCA5A5"}`,
-                  borderRadius: 5,
-                  padding: "1px 6px",
+                  borderRadius: 5, padding: "1px 5px",
                 }}>
-                  {trendUp
-                    ? <TrendingUp size={10} />
-                    : <TrendingDown size={10} />}
+                  {trendUp ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
                   {it.trend.value > 0 ? "+" : ""}{it.trend.value}%
                 </span>
               )}
               {it.subtitle && (
-                <span style={{ fontSize: "0.75rem", color: "#71717a", fontWeight: 500 }}>
+                <span style={{ fontSize: "0.75rem", color: "#a1a1aa", fontWeight: 500 }}>
                   {it.subtitle}
                 </span>
               )}

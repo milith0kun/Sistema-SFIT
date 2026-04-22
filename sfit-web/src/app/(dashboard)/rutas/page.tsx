@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Download, Plus, Pencil } from "lucide-react";
+import { Download, Plus, Eye } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
@@ -130,16 +130,6 @@ export default function RutasPage() {
         </Badge>
       ),
     },
-    {
-      id: "acciones",
-      header: "",
-      enableSorting: false,
-      cell: ({ row }) => (
-        <div onClick={(e) => e.stopPropagation()}>
-          <Link href={`/rutas/${row.original.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
-        </div>
-      ),
-    },
   ], [tab]);
 
   if (!user) return null;
@@ -147,7 +137,7 @@ export default function RutasPage() {
   return (
     <div className="flex flex-col gap-3 animate-fade-in">
       <PageHeader kicker="Operación · RF-09" title="Rutas y zonas"
-        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Exportar</button><Link href="/rutas/nueva"><button style={btnInk}><Plus size={16} />Nueva ruta</button></Link></div>} />
+        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Exportar</button>{user.role !== "fiscal" && (<Link href="/rutas/nueva"><button style={btnInk}><Plus size={16} />Nueva ruta</button></Link>)}</div>} />
 
       <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${INK2}`, marginBottom: 18 }}>
         {[["ruta", "Rutas fijas", rutas.length], ["zona", "Zonas de operación", zonas.length]].map(([k, l, c]) => (
@@ -174,7 +164,7 @@ export default function RutasPage() {
           <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 22px", borderBottom: `1px solid ${INK2}` }}>
               <div><div style={{ fontWeight: 700, fontSize: "0.9375rem" }}>{sel.code} · {sel.name}</div><div style={{ fontSize: "0.8125rem", color: INK5, marginTop: 2 }}>{tab === "ruta" ? `${sel.stops ?? 0} paradas · ${sel.length ?? "—"}` : sel.area ?? "—"}</div></div>
-              <button style={{ ...btnOut, height: 32, fontSize: "0.8125rem" }}><Pencil size={13} />Editar</button>
+              <Link href={`/rutas/${sel.id}`}><button style={{ ...btnOut, height: 32, fontSize: "0.8125rem" }}><Eye size={13}/>Ver detalle</button></Link>
             </div>
             <div style={{ padding: 18 }}>
               <MapStub name={sel.name} />

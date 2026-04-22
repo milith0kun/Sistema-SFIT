@@ -79,18 +79,18 @@ export default function ViajesPage() {
     {
       id: "vehiculo",
       header: "Vehículo",
-      accessorFn: (row) => row.vehicle.plate,
+      accessorFn: (row) => row.vehicle?.plate ?? "",
       cell: ({ getValue }) => (
         <span style={{ display: "inline-flex", padding: "4px 10px", borderRadius: 6, background: INK9, color: "#fff", fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.8125rem" }}>
-          {getValue() as string}
+          {(getValue() as string) || "—"}
         </span>
       ),
     },
     {
       id: "conductor",
       header: "Conductor",
-      accessorFn: (row) => row.driver.name,
-      cell: ({ getValue }) => <span>{getValue() as string}</span>,
+      accessorFn: (row) => row.driver?.name ?? "",
+      cell: ({ getValue }) => <span>{(getValue() as string) || "—"}</span>,
     },
     {
       id: "ruta",
@@ -174,7 +174,7 @@ export default function ViajesPage() {
   return (
     <div className="flex flex-col gap-3 animate-fade-in">
       <PageHeader kicker="Operación · RF-10" title="Viajes"
-        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Exportar CSV</button><button style={btnInk}><Plus size={16} />Iniciar viaje</button></div>} />
+        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Exportar CSV</button>{user.role === "operador" && (<button style={btnInk}><Plus size={16} />Iniciar viaje</button>)}</div>} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
         {[

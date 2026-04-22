@@ -14,6 +14,7 @@ import '../../features/inspection/presentation/pages/new_appeal_page.dart';
 import '../../features/inspection/presentation/pages/new_inspection_page.dart';
 import '../../features/inspection/presentation/pages/vehicle_inspections_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
+import '../../features/ai_ocr/presentation/pages/document_ocr_page.dart';
 import '../../features/ocr/presentation/pages/plate_scanner_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/profile/presentation/pages/change_password_page.dart';
@@ -134,6 +135,17 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: '/ocr-placa',
         builder: (context, state) => const PlateScannerPage(),
+      ),
+
+      // ── RF-17: OCR de documentos (DNI, licencia, SOAT, tarjeta) ──
+      GoRoute(
+        path: '/ocr-documento',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return DocumentOcrPage(
+            docType: extra['docType'] as OcrDocType,
+          );
+        },
       ),
 
       // ── Turno de conductor ────────────────────────────────────

@@ -37,6 +37,8 @@ type FormState = {
   companyId: string;
 };
 
+type Empresa = { id: string; razonSocial: string };
+
 const VEHICLE_STATUSES: { value: VehicleStatus; label: string }[] = [
   { value: "disponible",        label: "Disponible" },
   { value: "en_ruta",           label: "En ruta" },
@@ -71,6 +73,7 @@ export default function VehiculoEditarPage({ params }: Props) {
   const [form, setForm] = useState<FormState>({
     brand: "", model: "", year: "", status: "disponible", companyId: "",
   });
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,8 +86,18 @@ export default function VehiculoEditarPage({ params }: Props) {
     const u = JSON.parse(raw) as { role: string };
     if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
     void loadVehicle();
+    void loadEmpresas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, router]);
+
+  async function loadEmpresas() {
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch("/api/empresas?limit=200", { headers: { Authorization: `Bearer ${token ?? ""}` } });
+      const data = await res.json();
+      setEmpresas(data?.data?.items ?? []);
+    } catch { setEmpresas([]); }
+  }
 
   async function loadVehicle() {
     setLoading(true);
@@ -293,28 +306,22 @@ export default function VehiculoEditarPage({ params }: Props) {
               </select>
             </label>
 
-            {/* Company ID */}
+            {/* Empresa */}
             <label style={{ display: "flex", flexDirection: "column", gap: 6, gridColumn: "span 2" }}>
               <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: INK6, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                ID de empresa
-                <span style={{ fontSize: "0.75rem", fontWeight: 400, color: INK5, textTransform: "none", letterSpacing: 0, marginLeft: 6 }}>
-                  (opcional — MongoDB ObjectId)
-                </span>
+                Empresa de transporte
+                <span style={{ fontSize: "0.75rem", fontWeight: 400, color: INK5, textTransform: "none", letterSpacing: 0, marginLeft: 6 }}>(opcional)</span>
               </span>
-              <input
-                style={fieldStyle}
+              <select
+                style={{ ...fieldStyle, appearance: "none", cursor: "pointer", maxWidth: "100%" }}
                 value={form.companyId}
                 onChange={e => field("companyId", e.target.value)}
-                placeholder="Ej. 6645f3a0b2e7c1d8f4a9b123"
-                maxLength={24}
-                pattern="[a-fA-F0-9]{24}"
-                title="ObjectId de MongoDB (24 caracteres hexadecimales)"
-              />
-              {vehicle.companyName && (
-                <span style={{ fontSize: "0.75rem", color: INK5 }}>
-                  Empresa actual: <strong style={{ color: INK9 }}>{vehicle.companyName}</strong>
-                </span>
-              )}
+              >
+                <option value="">Sin empresa asignada</option>
+                {empresas.map(emp => (
+                  <option key={emp.id} value={emp.id}>{emp.razonSocial}</option>
+                ))}
+              </select>
             </label>
           </div>
 

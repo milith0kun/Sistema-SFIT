@@ -61,12 +61,13 @@ export async function POST(request: NextRequest) {
     }
 
     const apelacion = await Apelacion.create({
-      inspectionId: parsed.data.inspectionId,
-      vehicleId: inspection.vehicleId,
-      submittedBy: auth.session.userId,
-      reason: parsed.data.reason,
-      evidence: parsed.data.evidence ?? [],
-      status: "pendiente",
+      inspectionId:   parsed.data.inspectionId,
+      vehicleId:      inspection.vehicleId,
+      municipalityId: inspection.municipalityId,
+      submittedBy:    auth.session.userId,
+      reason:         parsed.data.reason,
+      evidence:       parsed.data.evidence ?? [],
+      status:         "pendiente",
     });
 
     return apiResponse({ id: String(apelacion._id), ...apelacion.toObject() }, 201);
@@ -94,10 +95,20 @@ export async function GET(request: NextRequest) {
 
     const filter: Record<string, unknown> = {};
 
-    // El operador solo ve sus propias apelaciones
+    // Scoping por rol
     if (auth.session.role === ROLES.OPERADOR) {
+      // Operador solo ve las que él mismo presentó
       filter.submittedBy = auth.session.userId;
+    } else if (auth.session.role === ROLES.ADMIN_MUNICIPAL || auth.session.role === ROLES.FISCAL) {
+      if (!auth.session.municipalityId) return apiForbidden();
+      filter.municipalityId = auth.session.municipalityId;
+    } else if (auth.session.role === ROLES.ADMIN_PROVINCIAL) {
+      // Filtra apelaciones de municipios de su provincia
+      const { Municipality } = await import("@/models/Municipality");
+      const munis = await Municipality.find({ provinceId: auth.session.provinceId }).select("_id").lean();
+      filter.municipalityId = { $in: munis.map((m) => m._id) };
     }
+    // super_admin: sin filtro (ve todas)
 
     if (statusParam && ["pendiente", "aprobada", "rechazada"].includes(statusParam)) {
       filter.status = statusParam;

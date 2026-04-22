@@ -19,15 +19,23 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .populate("resolvedBy", "name")
       .lean();
     if (!apel) return apiNotFound("Apelación no encontrada");
+
+    // Scope: admin_municipal y fiscal solo ven su municipio; operador solo las suyas
+    if (auth.session.role === ROLES.ADMIN_MUNICIPAL || auth.session.role === ROLES.FISCAL) {
+      if (String(apel.municipalityId) !== String(auth.session.municipalityId)) return apiForbidden();
+    } else if (auth.session.role === ROLES.OPERADOR) {
+      if (String(apel.submittedBy) !== auth.session.userId) return apiForbidden();
+    }
+    const insp = apel.inspectionId as { _id: unknown; date?: string; result?: string; score?: number; vehicleId?: { plate?: string } } | null;
     return apiResponse({
       id: String(apel._id),
-      inspection: {
-        id: String((apel.inspectionId as { _id: unknown })._id),
-        date: (apel.inspectionId as { date?: string }).date,
-        result: (apel.inspectionId as { result?: string }).result,
-        score: (apel.inspectionId as { score?: number }).score ?? 0,
-        vehicle: (apel.inspectionId as { vehicleId?: { plate?: string } }).vehicleId,
-      },
+      inspection: insp ? {
+        id: String(insp._id),
+        date: insp.date,
+        result: insp.result,
+        score: insp.score ?? 0,
+        vehicle: insp.vehicleId,
+      } : null,
       submittedBy: apel.submittedBy,
       reason: apel.reason,
       evidence: apel.evidence ?? [],

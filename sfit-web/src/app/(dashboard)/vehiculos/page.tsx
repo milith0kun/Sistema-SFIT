@@ -181,20 +181,6 @@ export default function VehiculosPage() {
           </div>
         ),
       },
-      {
-        id: "acciones",
-        header: "",
-        enableSorting: false,
-        cell: ({ row: r }) => (
-          <Link
-            href={`/vehiculos/${r.original.id}`}
-            onClick={(e) => e.stopPropagation()}
-            style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}
-          >
-            ⋯
-          </Link>
-        ),
-      },
     ],
     [sel] // eslint-disable-line react-hooks/exhaustive-deps
   );

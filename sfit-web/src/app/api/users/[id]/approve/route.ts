@@ -29,16 +29,16 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
     const assignedRole: Role | undefined = body.role;
 
-    const validRoles: Role[] = [
-      ROLES.CIUDADANO,
-      ROLES.CONDUCTOR,
-      ROLES.OPERADOR,
-      ROLES.FISCAL,
-      ROLES.ADMIN_MUNICIPAL,
-    ];
+    // Roles asignables según el rango del actor
+    const rolesForActor: Record<string, Role[]> = {
+      [ROLES.SUPER_ADMIN]:      [ROLES.CIUDADANO, ROLES.CONDUCTOR, ROLES.OPERADOR, ROLES.FISCAL, ROLES.ADMIN_MUNICIPAL, ROLES.ADMIN_PROVINCIAL],
+      [ROLES.ADMIN_PROVINCIAL]: [ROLES.CIUDADANO, ROLES.CONDUCTOR, ROLES.OPERADOR, ROLES.FISCAL, ROLES.ADMIN_MUNICIPAL],
+      [ROLES.ADMIN_MUNICIPAL]:  [ROLES.CIUDADANO, ROLES.CONDUCTOR, ROLES.OPERADOR, ROLES.FISCAL],
+    };
+    const validRoles = rolesForActor[auth.session.role] ?? [];
 
     if (!assignedRole || !validRoles.includes(assignedRole)) {
-      return apiError("Rol inválido", 400);
+      return apiError("No tienes permiso para asignar ese rol", 403);
     }
 
     await connectDB();
@@ -52,6 +52,12 @@ export async function POST(
     if (
       auth.session.role === ROLES.ADMIN_MUNICIPAL &&
       String(target.municipalityId) !== String(auth.session.municipalityId)
+    ) {
+      return apiForbidden();
+    }
+    if (
+      auth.session.role === ROLES.ADMIN_PROVINCIAL &&
+      String(target.provinceId) !== String(auth.session.provinceId)
     ) {
       return apiForbidden();
     }

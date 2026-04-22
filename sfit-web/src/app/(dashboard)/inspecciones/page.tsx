@@ -84,11 +84,11 @@ export default function InspeccionesPage() {
     {
       id: "acta",
       header: "Acta",
-      accessorFn: (row) => `A-${row.id.slice(-10).toUpperCase()} ${row.score}`,
+      accessorFn: (row) => `A-${(row.id ?? "").slice(-10).toUpperCase()} ${row.score}`,
       cell: ({ row }) => (
         <div>
           <div style={{ fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.75rem" }}>
-            A-{row.original.id.slice(-10).toUpperCase()}
+            A-{(row.original.id ?? "").slice(-10).toUpperCase()}
           </div>
           <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 2 }}>{row.original.score}/100</div>
         </div>
@@ -97,11 +97,11 @@ export default function InspeccionesPage() {
     {
       id: "vehiculo",
       header: "Vehículo",
-      accessorFn: (row) => `${row.vehicle.plate} ${row.vehicle.brand} ${row.vehicle.model} ${row.vehicleTypeKey}`,
+      accessorFn: (row) => `${row.vehicle?.plate ?? ""} ${row.vehicle?.brand ?? ""} ${row.vehicle?.model ?? ""} ${row.vehicleTypeKey}`,
       cell: ({ row }) => (
         <div>
           <span style={{ display: "inline-flex", padding: "4px 10px", borderRadius: 6, background: INK9, color: "#fff", fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.8125rem" }}>
-            {row.original.vehicle.plate}
+            {row.original.vehicle?.plate ?? "—"}
           </span>
           <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 4 }}>{row.original.vehicleTypeKey}</div>
         </div>
@@ -110,8 +110,8 @@ export default function InspeccionesPage() {
     {
       id: "fiscal",
       header: "Fiscal",
-      accessorFn: (row) => row.fiscal.name,
-      cell: ({ getValue }) => <span style={{ fontSize: "0.875rem" }}>{getValue() as string}</span>,
+      accessorFn: (row) => row.fiscal?.name ?? "",
+      cell: ({ getValue }) => <span style={{ fontSize: "0.875rem" }}>{getValue() as string || "—"}</span>,
     },
     {
       id: "fecha",
@@ -162,7 +162,7 @@ export default function InspeccionesPage() {
               <Download size={16} />Exportar CSV
             </button>
             <button style={btnOut}><QrCode size={16} />Escanear QR</button>
-            <Link href="/inspecciones/nueva"><button style={btnInk}><Plus size={16} />Nueva inspección</button></Link>
+            {user?.role === "fiscal" && (<Link href="/inspecciones/nueva"><button style={btnInk}><Plus size={16} />Nueva inspección</button></Link>)}
           </div>
         } />
 

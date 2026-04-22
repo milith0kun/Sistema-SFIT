@@ -209,8 +209,6 @@ export default function RecompensasPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<"" | "activa" | "inactiva">("");
 
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
@@ -244,33 +242,11 @@ export default function RecompensasPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  async function toggleActive(item: Recompensa) {
-    setTogglingId(item.id);
-    try {
-      const token = localStorage.getItem("sfit_access_token");
-      const res = await fetch(`/api/admin/recompensas/${item.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
-        body: JSON.stringify({ active: !item.active }),
-      });
-      if (res.ok) setItems((prev) => prev.map((r) => (r.id === item.id ? { ...r, active: !r.active } : r)));
-    } catch { /* silencioso */ }
-    finally { setTogglingId(null); }
-  }
-
   function handleCreated(r: Recompensa) {
     setItems((prev) => [r, ...prev]);
     setShowModal(false);
   }
 
-  const activas   = useMemo(() => items.filter((r) => r.active).length, [items]);
-  const inactivas = useMemo(() => items.filter((r) => !r.active).length, [items]);
-
-  const filteredItems = useMemo(() => {
-    if (activeFilter === "activa") return items.filter((r) => r.active);
-    if (activeFilter === "inactiva") return items.filter((r) => !r.active);
-    return items;
-  }, [items, activeFilter]);
 
   const columns = useMemo<ColumnDef<Recompensa, unknown>[]>(
     () => [
@@ -328,65 +304,10 @@ export default function RecompensasPage() {
           );
         },
       },
-      {
-        accessorKey: "active",
-        header: "Estado",
-        cell: ({ getValue }) => (
-          <Badge variant={(getValue() as boolean) ? "activo" : "inactivo"}>
-            {(getValue() as boolean) ? "Activa" : "Inactiva"}
-          </Badge>
-        ),
-      },
-      {
-        id: "acciones",
-        header: "Acciones",
-        enableSorting: false,
-        cell: ({ row }) => (
-          <button
-            disabled={togglingId === row.original.id}
-            onClick={() => { void toggleActive(row.original); }}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-              borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
-              fontFamily: "inherit",
-              border: row.original.active ? "1.5px solid #FCA5A5" : "1.5px solid #86EFAC",
-              background: row.original.active ? "#FFF5F5" : "#F0FDF4",
-              color: row.original.active ? "#b91c1c" : "#15803d",
-              opacity: togglingId === row.original.id ? 0.6 : 1,
-            }}
-          >
-            {togglingId === row.original.id ? "…" : row.original.active ? "Desactivar" : "Activar"}
-          </button>
-        ),
-      },
     ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [togglingId]
+    []
   );
 
-  const filterButtons = (
-    <div style={{ display: "flex", gap: 6 }}>
-      {(["", "activa", "inactiva"] as const).map((k) => {
-        const labels = { "": "Todas", activa: "Activas", inactiva: "Inactivas" };
-        const active = activeFilter === k;
-        return (
-          <button
-            key={k}
-            onClick={() => setActiveFilter(k)}
-            style={{
-              display: "inline-flex", alignItems: "center", height: 34, padding: "0 12px",
-              borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-              background: active ? "#18181b" : "#fff",
-              color: active ? "#fff" : "#52525b",
-              border: active ? "1.5px solid #18181b" : "1.5px solid #e4e4e7",
-            }}
-          >
-            {labels[k]}
-          </button>
-        );
-      })}
-    </div>
-  );
 
   if (!user) return null;
 
@@ -415,7 +336,7 @@ export default function RecompensasPage() {
           { label: "TOTAL CANJES", value: kpi?.totalCanjes ?? "—", subtitle: "histórico", accent: "#52525b", icon: ShoppingBag },
           { label: "COINS CIRC.", value: kpi?.coinsEnCirculacion ?? "—", subtitle: "en circulación", accent: "#B8860B", icon: Coins },
           { label: "USUARIOS", value: kpi?.usuariosConCoins ?? "—", subtitle: "con saldo", accent: "#15803d", icon: Users },
-          { label: "ACTIVAS", value: loading ? "—" : activas, subtitle: `${inactivas} inactivas`, accent: "#B8860B", icon: Gift },
+          { label: "EN CATÁLOGO", value: loading ? "—" : items.length, subtitle: "recompensas", accent: "#B8860B", icon: Gift },
         ]}
       />
 
@@ -427,14 +348,14 @@ export default function RecompensasPage() {
 
       <DataTable
         columns={columns}
-        data={filteredItems}
+        data={items}
         loading={loading}
         searchPlaceholder="Buscar recompensa, categoría…"
         emptyTitle="Sin recompensas"
         emptyDescription='Crea la primera recompensa con el botón "Nueva recompensa".'
         defaultPageSize={20}
         showColumnToggle
-        toolbarEnd={filterButtons}
+        toolbarEnd={undefined}
       />
 
       {showModal && (

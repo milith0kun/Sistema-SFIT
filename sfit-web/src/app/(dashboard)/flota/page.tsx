@@ -119,7 +119,7 @@ export default function FlotaPage() {
   const handleConfirmExit = useCallback(async () => {
     if (!allCritOk) return;
     if (!exitForm.vehicleId.trim()) { setSubmitError("Selecciona o ingresa el ID del vehículo."); return; }
-    if (!exitForm.driverId.trim() && user?.role !== "conductor") { setSubmitError("Ingresa el ID del conductor."); return; }
+    if (!exitForm.driverId.trim()) { setSubmitError("Ingresa el ID del conductor."); return; }
     setSubmitting(true);
     setSubmitError(null);
     try {
@@ -157,10 +157,10 @@ export default function FlotaPage() {
     {
       id: "vehiculo",
       header: "Vehículo",
-      accessorFn: (row) => `${row.vehicle.plate} ${row.vehicle.brand} ${row.vehicle.model}`,
+      accessorFn: (row) => `${row.vehicle?.plate ?? ""} ${row.vehicle?.brand ?? ""} ${row.vehicle?.model ?? ""}`,
       cell: ({ row }) => (
         <span style={{ display: "inline-flex", padding: "4px 10px", borderRadius: 6, background: INK9, color: "#fff", fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.8125rem", letterSpacing: "0.05em" }}>
-          {row.original.vehicle.plate}
+          {row.original.vehicle?.plate ?? "—"}
         </span>
       ),
     },
@@ -182,8 +182,8 @@ export default function FlotaPage() {
     {
       id: "conductor",
       header: "Conductor",
-      accessorFn: (row) => row.driver.name,
-      cell: ({ getValue }) => <span style={{ fontSize: "0.875rem" }}>{getValue() as string}</span>,
+      accessorFn: (row) => row.driver?.name ?? "",
+      cell: ({ getValue }) => <span style={{ fontSize: "0.875rem" }}>{(getValue() as string) || "—"}</span>,
     },
     {
       id: "salida",
@@ -234,7 +234,7 @@ export default function FlotaPage() {
   return (
     <div className="flex flex-col gap-3 animate-fade-in">
       <PageHeader kicker="Operación · RF-07" title="Flota del día"
-        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Reporte diario</button><button style={btnInk} onClick={() => setShowChecklist(true)}><Plus size={16} />Registrar salida</button></div>} />
+        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Reporte diario</button>{user.role === "operador" && (<button style={btnInk} onClick={() => setShowChecklist(true)}><Plus size={16} />Registrar salida</button>)}</div>} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 14 }}>
         {[

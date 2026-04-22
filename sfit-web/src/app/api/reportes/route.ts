@@ -3,6 +3,7 @@ import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { CitizenReport } from "@/models/CitizenReport";
+import { AuditLog } from "@/models/AuditLog";
 import { User } from "@/models/User";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
@@ -39,6 +40,9 @@ const CreateSchema = z.object({
     .max(2000, "La descripción no puede superar los 2000 caracteres"),
   evidenceUrl: z.string().url().optional(),
   fraudScore: z.number().min(0).max(100).optional(),
+  // Validación geográfica capa 2 — opcionales; no rechazan el reporte si están ausentes
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -172,6 +176,9 @@ export async function POST(request: NextRequest) {
       { layer: "Corroboración", passed: false, detail: "Sin corroboración aún" },
     ];
 
+    const { latitude, longitude } = parsed.data;
+    const hasCoords = latitude !== undefined && longitude !== undefined;
+
     const doc = await CitizenReport.create({
       municipalityId,
       vehicleId: parsed.data.vehicleId,
@@ -183,7 +190,21 @@ export async function POST(request: NextRequest) {
       fraudScore: parsed.data.fraudScore ?? 60,
       fraudLayers,
       status: "pendiente",
+      ...(hasCoords && { latitude, longitude }),
     });
+
+    // Capa 2 anti-fraude — registrar en AuditLog si el reporte incluye coordenadas
+    if (hasCoords) {
+      void AuditLog.create({
+        actorId: auth.session.userId,
+        actorRole: auth.session.role,
+        action: "reporte_con_coordenadas",
+        resourceType: "CitizenReport",
+        resourceId: String(doc._id),
+        municipalityId: municipalityId as string,
+        metadata: { latitude, longitude },
+      }).catch((e) => console.error("[reportes POST] AuditLog coords error", e));
+    }
 
     // RF-15: Otorgar 5 SFITCoins al ciudadano por enviar un reporte
     if (auth.session.role === ROLES.CIUDADANO) {

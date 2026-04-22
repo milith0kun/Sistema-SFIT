@@ -19,6 +19,9 @@ export interface ICitizenReport extends Document {
   fraudScore: number;
   fraudLayers: IFraudLayer[];
   assignedFiscalId?: mongoose.Types.ObjectId;
+  /** Coordenadas opcionales del ciudadano al momento de enviar el reporte (capa 2 anti-fraude geográfico) */
+  latitude?: number;
+  longitude?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -50,6 +53,8 @@ const CitizenReportSchema = new Schema<ICitizenReport>(
     fraudScore: { type: Number, default: 50, min: 0, max: 100 },
     fraudLayers: { type: [FraudLayerSchema], default: [] },
     assignedFiscalId: { type: Schema.Types.ObjectId, ref: "User" },
+    latitude: { type: Number },
+    longitude: { type: Number },
   },
   { timestamps: true },
 );

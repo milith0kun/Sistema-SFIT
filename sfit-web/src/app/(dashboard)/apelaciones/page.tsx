@@ -289,7 +289,7 @@ export default function ApelacionesPage() {
             }}>
               {row.original.reason}
             </div>
-            {row.original.evidence.length > 0 && (
+            {(row.original.evidence?.length ?? 0) > 0 && (
               <div style={{ fontSize: "0.6875rem", color: "#71717a", marginTop: 3 }}>
                 {row.original.evidence.length} evidencia{row.original.evidence.length > 1 ? "s" : ""}
               </div>

@@ -49,6 +49,42 @@ class _NotifItem {
       );
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+String _groupLabel(DateTime dt) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final yesterday = today.subtract(const Duration(days: 1));
+  final weekAgo = today.subtract(const Duration(days: 7));
+  final itemDay = DateTime(dt.year, dt.month, dt.day);
+  if (itemDay == today) return 'Hoy';
+  if (itemDay == yesterday) return 'Ayer';
+  if (!itemDay.isBefore(weekAgo)) return 'Esta semana';
+  const months = ['', 'ene.', 'feb.', 'mar.', 'abr.', 'may.', 'jun.', 'jul.', 'ago.', 'sep.', 'oct.', 'nov.', 'dic.'];
+  return '${months[dt.month]} ${dt.year}';
+}
+
+IconData _typeIcon(String type) {
+  final t = type.toLowerCase();
+  if (t.contains('warn') || t.contains('alert')) return Icons.warning_amber_rounded;
+  if (t.contains('success') || t.contains('approved')) return Icons.check_circle_outline_rounded;
+  if (t.contains('error') || t.contains('rejected')) return Icons.cancel_outlined;
+  if (t.contains('action')) return Icons.notification_important_outlined;
+  return Icons.notifications_outlined;
+}
+
+String _timeLabel(DateTime dt) {
+  final diff = DateTime.now().difference(dt);
+  if (diff.inSeconds < 60) return 'ahora';
+  if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+  if (diff.inHours < 24) return '${diff.inHours}h';
+  if (diff.inDays == 1) return 'ayer';
+  if (diff.inDays < 7) return '${diff.inDays}d';
+  return '${dt.day}/${dt.month}';
+}
+
+// ── Página principal ──────────────────────────────────────────────────────────
+
 class NotificationsPage extends ConsumerStatefulWidget {
   const NotificationsPage({super.key});
 
@@ -69,10 +105,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() { _loading = true; _error = null; });
     try {
       final dio = ref.read(dioClientProvider).dio;
       final resp = await dio.get('/notificaciones');
@@ -80,19 +113,12 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       final rawItems = data['items'] as List;
       if (mounted) {
         setState(() {
-          _items = rawItems
-              .map((e) => _NotifItem.fromJson(e as Map<String, dynamic>))
-              .toList();
+          _items = rawItems.map((e) => _NotifItem.fromJson(e as Map<String, dynamic>)).toList();
           _loading = false;
         });
       }
     } catch (_) {
-      if (mounted) {
-        setState(() {
-          _error = 'No se pudieron cargar las notificaciones.';
-          _loading = false;
-        });
-      }
+      if (mounted) setState(() { _error = 'No se pudieron cargar las notificaciones.'; _loading = false; });
     }
   }
 
@@ -116,16 +142,11 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
     try {
       final dio = ref.read(dioClientProvider).dio;
       await dio.patch('/notificaciones', data: {'markAllRead': true});
-      if (mounted) {
-        setState(() => _items = _items.map((n) => n.copyWith(read: true)).toList());
-      }
+      if (mounted) setState(() => _items = _items.map((n) => n.copyWith(read: true)).toList());
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al marcar todas como leídas'),
-            behavior: SnackBarBehavior.floating,
-          ),
+          const SnackBar(content: Text('Error al marcar todas como leídas'), behavior: SnackBarBehavior.floating),
         );
       }
     } finally {
@@ -135,8 +156,25 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
 
   int get _unreadCount => _items.where((n) => !n.read).length;
 
+  // Construye la lista plana con separadores de grupo
+  List<Object> _buildRows() {
+    final rows = <Object>[];
+    String? lastLabel;
+    for (final item in _items) {
+      final label = _groupLabel(item.createdAt);
+      if (label != lastLabel) {
+        rows.add(label);
+        lastLabel = label;
+      }
+      rows.add(item);
+    }
+    return rows;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final rows = _buildRows();
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -151,27 +189,19 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
           children: [
             Text(
               'Notificaciones',
-              style: AppTheme.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.ink9,
-              ),
+              style: AppTheme.inter(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.ink9),
             ),
             if (_unreadCount > 0) ...[
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.noApto,
+                  color: AppColors.ink9,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   '$_unreadCount',
-                  style: AppTheme.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
+                  style: AppTheme.inter(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
                 ),
               ),
             ],
@@ -182,11 +212,11 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
             TextButton(
               onPressed: _markingAll ? null : _markAllRead,
               child: Text(
-                'Leídas',
+                _markingAll ? 'Marcando…' : 'Leídas',
                 style: AppTheme.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: _markingAll ? AppColors.ink4 : AppColors.gold,
+                  color: _markingAll ? AppColors.ink4 : AppColors.ink9,
                 ),
               ),
             ),
@@ -197,19 +227,23 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.ink9, strokeWidth: 2))
           : _error != null
               ? _ErrorState(message: _error!, onRetry: _load)
               : _items.isEmpty
                   ? const _EmptyState()
                   : RefreshIndicator(
                       onRefresh: _load,
-                      color: AppColors.gold,
+                      color: AppColors.ink9,
                       child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        itemCount: _items.length,
+                        padding: const EdgeInsets.only(bottom: 24),
+                        itemCount: rows.length,
                         itemBuilder: (_, i) {
-                          final item = _items[i];
+                          final row = rows[i];
+                          if (row is String) {
+                            return _GroupHeader(label: row);
+                          }
+                          final item = row as _NotifItem;
                           return _NotifTile(
                             item: item,
                             onTap: () => _markOneRead(item.id),
@@ -221,43 +255,41 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   }
 }
 
+// ── Group header ──────────────────────────────────────────────────────────────
+
+class _GroupHeader extends StatelessWidget {
+  final String label;
+  const _GroupHeader({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
+      child: Row(
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: AppTheme.inter(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.ink5, letterSpacing: 1.2),
+          ),
+          const SizedBox(width: 10),
+          const Expanded(child: Divider(color: AppColors.ink2, thickness: 1, height: 1)),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Notification tile ─────────────────────────────────────────────────────────
+
 class _NotifTile extends StatelessWidget {
   final _NotifItem item;
   final VoidCallback onTap;
 
   const _NotifTile({required this.item, required this.onTap});
 
-  static const _typeIcons = <String, IconData>{
-    'info': Icons.info_outline_rounded,
-    'success': Icons.check_circle_outline_rounded,
-    'warning': Icons.warning_amber_rounded,
-    'error': Icons.cancel_outlined,
-    'action_required': Icons.notification_important_outlined,
-  };
-
-  static const _typeColors = <String, Color>{
-    'info': AppColors.info,
-    'success': AppColors.apto,
-    'warning': AppColors.riesgo,
-    'error': AppColors.noApto,
-    'action_required': AppColors.riesgo,
-  };
-
-  String _timeLabel(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inSeconds < 60) return 'ahora';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
-    if (diff.inHours < 24) return '${diff.inHours}h';
-    if (diff.inDays == 1) return 'ayer';
-    if (diff.inDays < 7) return '${diff.inDays}d';
-    final d = dt.toLocal();
-    return '${d.day}/${d.month}';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final iconColor = _typeColors[item.type] ?? AppColors.info;
-    final icon = _typeIcons[item.type] ?? Icons.notifications_outlined;
+    final icon = _typeIcon(item.type);
 
     return InkWell(
       onTap: onTap,
@@ -266,25 +298,32 @@ class _NotifTile extends StatelessWidget {
           border: Border(
             left: item.read
                 ? BorderSide.none
-                : BorderSide(color: iconColor, width: 3),
+                : const BorderSide(color: AppColors.ink9, width: 3),
             bottom: const BorderSide(color: AppColors.ink2, width: 0.5),
           ),
-          color: item.read ? Colors.white : const Color(0xFFFAFAFA),
+          color: item.read ? Colors.white : const Color(0xFFF9F9F9),
         ),
         padding: EdgeInsets.only(
           left: item.read ? 16 : 13,
           right: 16,
-          top: 11,
-          bottom: 11,
+          top: 12,
+          bottom: 12,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 1),
-              child: Icon(icon, color: iconColor, size: 18),
+            // Icon chip
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.ink1,
+                border: Border.all(color: AppColors.ink2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: AppColors.ink5, size: 17),
             ),
-            const SizedBox(width: 11),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,12 +332,23 @@ class _NotifTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.baseline,
                     textBaseline: TextBaseline.alphabetic,
                     children: [
+                      if (!item.read) ...[
+                        Container(
+                          width: 6,
+                          height: 6,
+                          margin: const EdgeInsets.only(right: 6, top: 2),
+                          decoration: const BoxDecoration(
+                            color: AppColors.ink9,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ],
                       Expanded(
                         child: Text(
                           item.title,
                           style: AppTheme.inter(
                             fontSize: 13,
-                            fontWeight: item.read ? FontWeight.w500 : FontWeight.w600,
+                            fontWeight: item.read ? FontWeight.w500 : FontWeight.w700,
                             color: AppColors.ink9,
                           ),
                           maxLines: 1,
@@ -312,17 +362,28 @@ class _NotifTile extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 3),
                   Text(
                     item.body,
-                    style: AppTheme.inter(
-                      fontSize: 12,
-                      color: AppColors.ink6,
-                      height: 1.4,
-                    ),
+                    style: AppTheme.inter(fontSize: 12, color: AppColors.ink6, height: 1.4),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (item.category.isNotEmpty && item.category != 'otro') ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.ink1,
+                        border: Border.all(color: AppColors.ink2),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        item.category,
+                        style: AppTheme.inter(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.ink6),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -332,6 +393,8 @@ class _NotifTile extends StatelessWidget {
     );
   }
 }
+
+// ── Empty / Error states ──────────────────────────────────────────────────────
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
@@ -344,19 +407,9 @@ class _EmptyState extends StatelessWidget {
         children: [
           const Icon(Icons.notifications_none_outlined, size: 44, color: AppColors.ink3),
           const SizedBox(height: 10),
-          Text(
-            'Sin notificaciones',
-            style: AppTheme.inter(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppColors.ink7,
-            ),
-          ),
+          Text('Sin notificaciones', style: AppTheme.inter(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.ink7)),
           const SizedBox(height: 4),
-          Text(
-            'Aquí aparecerán tus alertas del sistema',
-            style: AppTheme.inter(fontSize: 12, color: AppColors.ink4),
-          ),
+          Text('Aquí aparecerán tus alertas del sistema', style: AppTheme.inter(fontSize: 12, color: AppColors.ink4)),
         ],
       ),
     );
@@ -376,15 +429,14 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 36, color: AppColors.noApto),
+            const Icon(Icons.error_outline, size: 36, color: AppColors.ink5),
             const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: AppTheme.inter(fontSize: 13, color: AppColors.ink6),
-            ),
+            Text(message, textAlign: TextAlign.center, style: AppTheme.inter(fontSize: 13, color: AppColors.ink6)),
             const SizedBox(height: 12),
-            TextButton(onPressed: onRetry, child: const Text('Reintentar')),
+            TextButton(
+              onPressed: onRetry,
+              child: Text('Reintentar', style: AppTheme.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.ink9)),
+            ),
           ],
         ),
       ),

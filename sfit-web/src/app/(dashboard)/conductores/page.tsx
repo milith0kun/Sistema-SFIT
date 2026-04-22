@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, cloneElement } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Users, Check, Gauge, AlertTriangle, Download, Plus, Phone, Car, Eye, Pencil } from "lucide-react";
+import { Users, Check, Gauge, AlertTriangle, Download, Plus, Phone, Car, Eye } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 
@@ -171,16 +171,6 @@ export default function ConductoresPage() {
           </div>
         ),
       },
-      {
-        id: "acciones",
-        header: "",
-        enableSorting: false,
-        cell: ({ row: r }) => (
-          <Link href={`/conductores/${r.original.id}`}>
-            <button style={{ width: 32, height: 32, borderRadius: 7, border: `1px solid ${INK2}`, background: "#fff", color: INK6, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>⋯</button>
-          </Link>
-        ),
-      },
     ],
     [sel] // eslint-disable-line react-hooks/exhaustive-deps
   );
@@ -269,10 +259,9 @@ export default function ConductoresPage() {
                   <span style={{ display: "block", height: "100%", borderRadius: 999, background: sel.reputationScore >= 80 ? APTO : sel.reputationScore >= 60 ? RIESGO : NO, width: `${sel.reputationScore}%` }} />
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <Link href={`/conductores/${sel.id}`} style={{ flex: 1 }}><button style={{ ...btnOut, width: "100%", height: 32, fontSize: "0.8125rem" }}><Eye size={14} />Ver perfil</button></Link>
-                <Link href={`/conductores/${sel.id}`} style={{ flex: 1 }}><button style={{ ...btnInk, width: "100%", height: 32, fontSize: "0.8125rem" }}><Pencil size={14} />Editar</button></Link>
-              </div>
+              <Link href={`/conductores/${sel.id}`}>
+                <button style={{ ...btnOut, width: "100%", height: 32, fontSize: "0.8125rem" }}><Eye size={14}/>Ver perfil completo</button>
+              </Link>
             </div>
           </div>
         ) : (

@@ -48,6 +48,7 @@ interface DataTableProps<TData> {
   defaultPageSize?: number;
   showColumnToggle?: boolean;
   toolbarEnd?: React.ReactNode;
+  onRowClick?: (row: TData) => void;
 }
 
 const PAGE_SIZES = [10, 20, 50, 100];
@@ -68,6 +69,7 @@ export function DataTable<TData>({
   defaultPageSize = 20,
   showColumnToggle = false,
   toolbarEnd,
+  onRowClick,
 }: DataTableProps<TData>) {
   const [sorting, setSorting]         = useState<SortingState>([]);
   const [visibility, setVisibility]   = useState<VisibilityState>({});
@@ -258,8 +260,13 @@ export function DataTable<TData>({
               table.getRowModel().rows.map((row) => (
                 <tr
                   key={row.id}
-                  style={{ borderBottom: `1px solid ${C.border1}`, transition: "background 0.1s" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = C.hover; }}
+                  onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                  style={{
+                    borderBottom: `1px solid ${C.border1}`,
+                    transition: "background 0.1s",
+                    cursor: onRowClick ? "pointer" : "default",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = onRowClick ? C.goldBg : C.hover; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 >
                   {row.getVisibleCells().map((cell) => (

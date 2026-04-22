@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_disclaimer_banner.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 /// Perfil del usuario autenticado — todos los roles.
@@ -150,6 +151,12 @@ class ProfilePage extends ConsumerWidget {
             ]),
             const SizedBox(height: 16),
 
+            // ── Acerca de ─────────────────────────────────────────
+            const _SectionLabel(label: 'Acerca de'),
+            const SizedBox(height: 8),
+            const SfitDisclaimerBanner(),
+            const SizedBox(height: 16),
+
             // ── Sesión ────────────────────────────────────────────
             const _SectionLabel(label: 'Sesión'),
             const SizedBox(height: 8),
@@ -283,3 +290,4 @@ class _ActionRow extends StatelessWidget {
         ),
       );
 }
+

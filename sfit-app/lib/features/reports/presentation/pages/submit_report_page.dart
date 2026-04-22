@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -26,6 +29,11 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
   final _descCtrl = TextEditingController();
   bool _submitting = false;
 
+  // ── Geolocalización (RF-12-03) ──────────────────────────────────
+  Position? _userPosition;
+  bool _locationLoading = false;
+  String? _locationError;
+
   // ── Éxito ───────────────────────────────────────────────────────
   bool _success = false;
 
@@ -34,6 +42,53 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
     _plateCtrl.dispose();
     _descCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _captureLocation() async {
+    setState(() { _locationLoading = true; _locationError = null; });
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          setState(() {
+            _locationError = 'Permiso de ubicación denegado';
+            _locationLoading = false;
+          });
+          return;
+        }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        setState(() {
+          _locationError = 'Permiso permanentemente denegado. Habilítalo en ajustes.';
+          _locationLoading = false;
+        });
+        return;
+      }
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+      if (mounted) {
+        setState(() { _userPosition = position; _locationLoading = false; });
+      }
+    } on TimeoutException catch (_) {
+      if (mounted) {
+        setState(() {
+          _locationError = 'Tiempo de espera agotado. Intenta de nuevo.';
+          _locationLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _locationError = 'No se pudo obtener ubicación: $e';
+          _locationLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _searchVehicle() async {
@@ -59,7 +114,10 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
           setState(() {
             _foundVehicle = data;
             _searching = false;
+            _userPosition = null;
+            _locationError = null;
           });
+          _captureLocation(); // RF-12-03: capture location in background
         }
       } else {
         final msg = (body['error'] as String?) ?? 'Vehículo no encontrado';
@@ -103,6 +161,8 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
         category: _selectedCategory!,
         description: desc,
         vehicleTypeKey: _foundVehicle!['vehicleTypeKey'] as String?,
+        latitude: _userPosition?.latitude,
+        longitude: _userPosition?.longitude,
       );
       if (mounted) setState(() { _submitting = false; _success = true; });
     } catch (_) {
@@ -230,6 +290,13 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
               if (_foundVehicle != null) ...[
                 const SizedBox(height: 14),
                 _VehicleMiniCard(vehicle: _foundVehicle!),
+                const SizedBox(height: 8),
+                _LocationStatusRow(
+                  loading: _locationLoading,
+                  position: _userPosition,
+                  error: _locationError,
+                  onRetry: _captureLocation,
+                ),
               ],
 
               // ── Step 2: Formulario (solo si hay vehículo) ───────
@@ -453,6 +520,118 @@ class _VehicleMiniCard extends StatelessWidget {
         'maquinaria'         => 'Maquinaria',
         _                    => 'Municipal',
       };
+}
+
+// ── Widget de estado de geolocalización (RF-12-03) ──────────────────
+class _LocationStatusRow extends StatelessWidget {
+  final bool loading;
+  final Position? position;
+  final String? error;
+  final VoidCallback onRetry;
+
+  const _LocationStatusRow({
+    required this.loading,
+    required this.position,
+    required this.error,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return Container(
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: AppColors.infoBg,
+          border: Border.all(color: AppColors.infoBorder),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 13,
+              height: 13,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.8,
+                color: AppColors.info,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Obteniendo ubicación...',
+              style: AppTheme.inter(fontSize: 12.5, color: AppColors.info),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (error != null) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.riesgoBg,
+          border: Border.all(color: AppColors.riesgoBorder),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.location_off_rounded, size: 15, color: AppColors.riesgo),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
+                '$error — el reporte se enviará sin ubicación.',
+                style: AppTheme.inter(fontSize: 12, color: AppColors.riesgo),
+              ),
+            ),
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: onRetry,
+              child: Text(
+                'Reintentar',
+                style: AppTheme.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.riesgo,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (position != null) {
+      return Container(
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: AppColors.aptoBg,
+          border: Border.all(color: AppColors.aptoBorder),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.location_on_rounded, size: 15, color: AppColors.apto),
+            const SizedBox(width: 7),
+            Text(
+              'Ubicación capturada',
+              style: AppTheme.inter(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.apto,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
 }
 
 // ── Error inline ────────────────────────────────────────────────────

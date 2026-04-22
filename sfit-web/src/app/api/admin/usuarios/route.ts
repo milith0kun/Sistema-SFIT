@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 
     const [items, total] = await Promise.all([
       User.find(filter)
-        .select("name email role status municipalityId provinceId createdAt image")
+        .select("name email role status municipalityId provinceId phone dni createdAt image")
         .populate("municipalityId", "name")
         .populate("provinceId", "name")
         .sort({ createdAt: -1 })
@@ -82,6 +82,8 @@ export async function GET(request: NextRequest) {
         email: u.email,
         role: u.role,
         status: u.status,
+        phone: u.phone ?? null,
+        dni: u.dni ?? null,
         municipality: u.municipalityId as unknown as { _id: string; name: string } | null,
         province: u.provinceId as unknown as { _id: string; name: string } | null,
         createdAt: u.createdAt,

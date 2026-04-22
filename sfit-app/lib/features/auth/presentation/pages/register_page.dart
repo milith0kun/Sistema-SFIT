@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/sfit_mark.dart';
+import '../../../../shared/widgets/sfit_disclaimer_banner.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../providers/auth_provider.dart';
 
@@ -360,6 +361,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         ],
                       ),
                     ),
+
+                    const SizedBox(height: 28),
+                    const SfitDisclaimerBanner(),
                   ],
                 ),
               ),

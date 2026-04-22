@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_disclaimer_banner.dart';
 
 /// Onboarding de primera apertura — 3 slides con PageView.
 /// Al completar guarda `onboarding_done: true` en SharedPreferences y navega a /login.
@@ -131,9 +132,15 @@ class _OnboardingPageState extends State<OnboardingPage> {
               ),
             ),
 
+            // ── Disclaimer ────────────────────────────────────────────────
+            const Padding(
+              padding: EdgeInsets.fromLTRB(24, 16, 24, 0),
+              child: SfitDisclaimerBanner(compact: true),
+            ),
+
             // ── Botón acción ───────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
               child: FilledButton(
                 onPressed: _nextPage,
                 style: FilledButton.styleFrom(

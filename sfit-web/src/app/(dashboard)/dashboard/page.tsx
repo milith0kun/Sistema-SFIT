@@ -28,6 +28,8 @@ import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { KPIStrip, type KPIItem } from "@/components/dashboard/KPIStrip";
 import { FeatureCard } from "@/components/dashboard/FeatureCard";
 
+type NotifItem = { id: string; title: string; body?: string; type?: string; category?: string; read?: boolean; createdAt: string; link?: string };
+
 type User = { name: string; email: string; role: string };
 
 type ApiResponse<T> = { success: boolean; data?: T; error?: string };
@@ -121,6 +123,7 @@ export default function DashboardPage() {
   const [fiscalStats, setFiscalStats] = useState<FiscalStats | null>(null);
   const [conductorStats, setConductorStats] = useState<ConductorStats | null>(null);
   const [actividad, setActividad] = useState<ActivityItem[]>([]);
+  const [notifs, setNotifs] = useState<NotifItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -189,10 +192,21 @@ export default function DashboardPage() {
     } catch { /* Silencioso */ }
   }, []);
 
+  const loadNotifs = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch("/api/notificaciones?limit=6", { headers: { Authorization: `Bearer ${token ?? ""}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setNotifs(data.data?.items ?? []);
+      }
+    } catch { /* silent */ }
+  }, []);
+
   useEffect(() => {
     if (!user) return;
     if (["super_admin", "admin_provincial", "admin_municipal"].includes(user.role)) {
-      void loadSuperAdmin(); void loadActividad();
+      void loadSuperAdmin(); void loadActividad(); void loadNotifs();
     } else if (user.role === "operador") {
       void loadOperador();
     } else if (user.role === "fiscal") {
@@ -200,7 +214,7 @@ export default function DashboardPage() {
     } else if (user.role === "conductor") {
       void loadConductor();
     }
-  }, [user, loadSuperAdmin, loadOperador, loadFiscal, loadConductor, loadActividad]);
+  }, [user, loadSuperAdmin, loadOperador, loadFiscal, loadConductor, loadActividad, loadNotifs]);
 
   if (!user) return null;
 
@@ -253,7 +267,7 @@ export default function DashboardPage() {
 
         {/* Columna derecha: todos los módulos agrupados */}
         <div className="lg:col-span-4 min-w-0">
-          <AllModulesPanel role={role} stats={stats} />
+          <AllModulesPanel role={role} stats={stats} notifs={notifs} />
         </div>
       </div>
     </div>
@@ -419,30 +433,117 @@ function PlaceholderContent({ role, conductorStats }: { role: string; conductorS
 type TabConfig = { key: string; label: string; items: FeatureItem[] };
 type FeatureItem = { title: string; subtitle: string; href: string; icon: typeof Users; badge?: string };
 
-function AllModulesPanel({ role, stats }: { role: string; stats: GlobalStats | null }) {
+function AllModulesPanel({ role, stats, notifs }: { role: string; stats: GlobalStats | null; notifs: NotifItem[] }) {
   const groups = useMemo(() => buildTabsFor(role, stats), [role, stats]);
 
   if (groups.length === 0) return null;
 
   return (
-    <div style={{ background: "#ffffff", border: "1px solid #e4e4e7", borderRadius: 12, overflow: "hidden" }}>
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid #e4e4e7" }}>
-        <div style={{ fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "#71717a", marginBottom: 1 }}>Navegación</div>
-        <h3 style={{ fontSize: "0.875rem", fontWeight: 700, color: "#09090b", margin: 0, fontFamily: "var(--font-inter)" }}>Módulos disponibles</h3>
-      </div>
-      <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 14 }}>
-        {groups.map((group) => (
-          <div key={group.key}>
-            <div style={{ fontSize: "0.5625rem", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "#a1a1aa", marginBottom: 6, paddingLeft: 2 }}>
-              {group.label}
+    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+      {/* Widget notificaciones */}
+      {notifs.length > 0 && (() => {
+        const unread = notifs.filter(n => !n.read).length;
+        const recent = notifs.slice(0, 4);
+
+        function notifTypeColor(type?: string) {
+          const t = type ?? "";
+          if (t.includes("warn") || t.includes("alert")) return { color: "#b45309", bg: "#FFFBEB", dot: "#b45309" };
+          if (t.includes("success") || t.includes("approved")) return { color: "#15803d", bg: "#F0FDF4", dot: "#15803d" };
+          if (t.includes("error") || t.includes("rejected")) return { color: "#b91c1c", bg: "#FFF5F5", dot: "#b91c1c" };
+          return { color: "#B8860B", bg: "#FDF8EC", dot: "#B8860B" };
+        }
+
+        return (
+          <div style={{ background: "#fff", border: "1.5px solid #e4e4e7", borderRadius: 14, overflow: "hidden", marginBottom: 14 }}>
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #f4f4f5" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 24, height: 24, borderRadius: 6, background: "#0A1628", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Bell size={12} color="#fff" strokeWidth={2.2} />
+                </div>
+                <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#18181b" }}>Notificaciones recientes</span>
+              </div>
+              {unread > 0 && (
+                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 22, height: 18, borderRadius: 999, background: "#B8860B", color: "#fff", fontSize: "0.6875rem", fontWeight: 800, padding: "0 6px" }}>
+                  {unread}
+                </span>
+              )}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6 }}>
-              {group.items.map((it) => (
-                <FeatureCard key={it.href + it.title} icon={it.icon} title={it.title} subtitle={it.subtitle} href={it.href} badge={it.badge} />
-              ))}
+
+            {/* Items */}
+            <div>
+              {recent.map((n, i) => {
+                const tc = notifTypeColor(n.type);
+                const timeAgoStr = (() => {
+                  const diff = Date.now() - new Date(n.createdAt).getTime();
+                  const min = Math.floor(diff / 60000);
+                  if (min < 60) return `${min}m`;
+                  const hr = Math.floor(min / 60);
+                  if (hr < 24) return `${hr}h`;
+                  return `${Math.floor(hr / 24)}d`;
+                })();
+                const inner = (
+                  <div
+                    style={{
+                      display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 16px",
+                      borderBottom: i < recent.length - 1 ? "1px solid #f4f4f5" : "none",
+                      background: n.read ? "#fff" : "#FDFAF2",
+                      transition: "background 120ms",
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "#fafafa"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = n.read ? "#fff" : "#FDFAF2"; }}
+                  >
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: tc.dot, marginTop: 5, flexShrink: 0, opacity: n.read ? 0.3 : 1 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "0.8125rem", fontWeight: n.read ? 500 : 700, color: "#18181b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.4 }}>
+                        {n.title}
+                      </div>
+                      {n.body && (
+                        <div style={{ fontSize: "0.75rem", color: "#71717a", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.body}</div>
+                      )}
+                    </div>
+                    <span style={{ fontSize: "0.6875rem", color: "#a1a1aa", flexShrink: 0, paddingTop: 1, fontVariantNumeric: "tabular-nums" }}>{timeAgoStr}</span>
+                  </div>
+                );
+                return (
+                  <div key={n.id}>
+                    {n.link ? <Link href={n.link} style={{ textDecoration: "none", color: "inherit", display: "block" }}>{inner}</Link> : inner}
+                  </div>
+                );
+              })}
             </div>
+
+            {/* Footer */}
+            <Link href="/notificaciones" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px", borderTop: "1px solid #f4f4f5", fontSize: "0.8125rem", fontWeight: 600, color: "#B8860B", textDecoration: "none" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = "#FDF8EC"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = "transparent"; }}
+            >
+              Ver todas las notificaciones <ArrowUpRight size={13} />
+            </Link>
           </div>
-        ))}
+        );
+      })()}
+
+      {/* Módulos */}
+      <div style={{ background: "#ffffff", border: "1px solid #e4e4e7", borderRadius: 12, overflow: "hidden" }}>
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid #e4e4e7" }}>
+          <div style={{ fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "#71717a", marginBottom: 1 }}>Navegación</div>
+          <h3 style={{ fontSize: "0.875rem", fontWeight: 700, color: "#09090b", margin: 0, fontFamily: "var(--font-inter)" }}>Módulos disponibles</h3>
+        </div>
+        <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 14 }}>
+          {groups.map((group) => (
+            <div key={group.key}>
+              <div style={{ fontSize: "0.5625rem", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "#a1a1aa", marginBottom: 6, paddingLeft: 2 }}>
+                {group.label}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6 }}>
+                {group.items.map((it) => (
+                  <FeatureCard key={it.href + it.title} icon={it.icon} title={it.title} subtitle={it.subtitle} href={it.href} badge={it.badge} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -472,55 +573,59 @@ function buildKpiItemsFor(
   loading: boolean,
 ): KPIItem[] {
   const val = (n: number | undefined) => (typeof n === "number" ? n : loading ? "…" : 0);
+  // accent solo se asigna cuando el valor tiene significado semántico de estado/alerta
+  const warn  = (n: number | undefined) => n && n > 0 ? "#B45309" : undefined;
+  const alert = (n: number | undefined) => n && n > 0 ? "#b91c1c" : undefined;
 
   if (role === "super_admin") return [
-    { label: "PROVINCIAS",    value: val(stats?.provincesCount),       subtitle: "registradas",                                          accent: "#B8860B", icon: MapPin    },
-    { label: "MUNICIPIOS",    value: stats ? stats.activeMunicipalities : loading ? "…" : 0, subtitle: stats ? `activas de ${stats.municipalitiesCount}` : "sin datos", accent: "#15803d", icon: Building2 },
-    { label: "PENDIENTES",    value: val(stats?.usersPendingApproval), subtitle: "por aprobar",                                          accent: "#B45309", icon: UserPlus  },
-    { label: "EMPRESAS",      value: val(stats?.companiesCount),       subtitle: "registradas",                                          accent: "#0A1628", icon: Truck     },
+    { label: "PROVINCIAS",  value: val(stats?.provincesCount),       subtitle: "registradas",                                                        icon: MapPin    },
+    { label: "MUNICIPIOS",  value: stats ? stats.activeMunicipalities : loading ? "…" : 0, subtitle: stats ? `activas de ${stats.municipalitiesCount}` : "sin datos", icon: Building2 },
+    { label: "PENDIENTES",  value: val(stats?.usersPendingApproval), subtitle: "por aprobar",  accent: warn(stats?.usersPendingApproval),              icon: UserPlus  },
+    { label: "EMPRESAS",    value: val(stats?.companiesCount),       subtitle: "registradas",                                                         icon: Truck     },
   ];
   if (role === "admin_provincial") return [
-    { label: "MUNICIPIOS",    value: stats ? stats.activeMunicipalities : loading ? "…" : 0, subtitle: stats ? `activas de ${stats.municipalitiesCount}` : "sin datos", accent: "#15803d", icon: Building2 },
-    { label: "APROBACIONES",  value: val(stats?.usersPendingApproval), subtitle: "pendientes",  accent: "#B45309", icon: UserCheck      },
-    { label: "SANCIONES",     value: val(stats?.sanctionsThisMonth),   subtitle: "este mes",    accent: "#b91c1c", icon: TriangleAlert  },
-    { label: "REPORTES",      value: val(stats?.reportsPending),       subtitle: "ciudadanos",  accent: "#B8860B", icon: Flag           },
+    { label: "MUNICIPIOS",  value: stats ? stats.activeMunicipalities : loading ? "…" : 0, subtitle: stats ? `activas de ${stats.municipalitiesCount}` : "sin datos", icon: Building2 },
+    { label: "APROBACIONES",value: val(stats?.usersPendingApproval), subtitle: "pendientes",   accent: warn(stats?.usersPendingApproval),              icon: UserCheck },
+    { label: "SANCIONES",   value: val(stats?.sanctionsThisMonth),   subtitle: "este mes",     accent: alert(stats?.sanctionsThisMonth),               icon: TriangleAlert },
+    { label: "REPORTES",    value: val(stats?.reportsPending),       subtitle: "ciudadanos",   accent: warn(stats?.reportsPending),                    icon: Flag      },
   ];
   if (role === "admin_municipal") return [
-    { label: "EMPRESAS",      value: val(stats?.companiesCount),       subtitle: "registradas", accent: "#B8860B", icon: Truck          },
-    { label: "INSPECCIONES",  value: "—",                              subtitle: "próximamente",accent: "#15803d", icon: Shield         },
-    { label: "REPORTES",      value: val(stats?.reportsPending),       subtitle: "pendientes",  accent: "#B45309", icon: Flag           },
-    { label: "SANCIONES",     value: val(stats?.sanctionsThisMonth),   subtitle: "este mes",    accent: "#b91c1c", icon: TriangleAlert  },
+    { label: "EMPRESAS",    value: val(stats?.companiesCount),       subtitle: "registradas",                                                          icon: Truck     },
+    { label: "INSPECCIONES",value: "—",                              subtitle: "próximamente",                                                         icon: Shield    },
+    { label: "REPORTES",    value: val(stats?.reportsPending),       subtitle: "pendientes",   accent: warn(stats?.reportsPending),                    icon: Flag      },
+    { label: "SANCIONES",   value: val(stats?.sanctionsThisMonth),   subtitle: "este mes",     accent: alert(stats?.sanctionsThisMonth),               icon: TriangleAlert },
   ];
   if (role === "operador") {
     const ov = (n: number | undefined) => (typeof n === "number" ? n : loading ? "…" : "—");
     return [
-      { label: "VEHÍCULOS",   value: ov(operadorStats?.totalVehicles),   subtitle: operadorStats ? `${operadorStats.activeVehicles} activos` : "de la municipalidad", accent: "#B8860B", icon: Car        },
-      { label: "EN RUTA",     value: ov(operadorStats?.vehiclesEnRuta),  subtitle: "en circulación",  accent: "#0A1628", icon: Route       },
-      { label: "CONDUCTORES", value: ov(operadorStats?.activeDrivers),   subtitle: "aptos hoy",       accent: "#15803d", icon: Users       },
-      { label: "FLOTA ACTIVA",value: ov(operadorStats?.activeVehicles),  subtitle: "disponibles",     accent: "#B45309", icon: CalendarDays},
+      { label: "VEHÍCULOS",   value: ov(operadorStats?.totalVehicles),  subtitle: operadorStats ? `${operadorStats.activeVehicles} activos` : "total", icon: Car        },
+      { label: "EN RUTA",     value: ov(operadorStats?.vehiclesEnRuta), subtitle: "en circulación",                                                     icon: Route      },
+      { label: "CONDUCTORES", value: ov(operadorStats?.activeDrivers),  subtitle: "aptos hoy",     accent: operadorStats?.activeDrivers === 0 ? "#b91c1c" : undefined,   icon: Users      },
+      { label: "FLOTA ACTIVA",value: ov(operadorStats?.activeVehicles), subtitle: "disponibles",                                                         icon: CalendarDays },
     ];
   }
   if (role === "fiscal") {
     const fv = (n: number | undefined) => (typeof n === "number" ? n : loading ? "…" : "—");
     return [
-      { label: "INSPECCIONES",value: fv(fiscalStats?.inspectionsThisMonth), subtitle: "este mes",          accent: "#15803d", icon: Shield      },
-      { label: "OBSERVADAS",  value: fv(fiscalStats?.inspectionsPending),   subtitle: "con observaciones", accent: "#B8860B", icon: Car         },
-      { label: "REPORTES",    value: fv(fiscalStats?.reportsPending),       subtitle: "activos",           accent: "#B45309", icon: Flag        },
-      { label: "NUEVOS",      value: fv(fiscalStats?.reportsNewThisMonth),  subtitle: "reportes mes",      accent: "#b91c1c", icon: TriangleAlert},
+      { label: "INSPECCIONES",value: fv(fiscalStats?.inspectionsThisMonth), subtitle: "este mes",                                                       icon: Shield        },
+      { label: "OBSERVADAS",  value: fv(fiscalStats?.inspectionsPending),   subtitle: "con observaciones", accent: warn(fiscalStats?.inspectionsPending), icon: Car           },
+      { label: "REPORTES",    value: fv(fiscalStats?.reportsPending),       subtitle: "activos",           accent: warn(fiscalStats?.reportsPending),      icon: Flag          },
+      { label: "NUEVOS",      value: fv(fiscalStats?.reportsNewThisMonth),  subtitle: "este mes",                                                         icon: TriangleAlert },
     ];
   }
   if (role === "conductor") {
     const cv = (n: number | undefined) => (typeof n === "number" ? n : loading ? "…" : "—");
+    const statusAccent = conductorStats?.status === "apto" ? "#15803d" : conductorStats?.status === "riesgo" ? "#B45309" : conductorStats?.status === "no_apto" ? "#b91c1c" : undefined;
     return [
-      { label: "ESTADO",      value: conductorStats ? (FATIGUE_LABELS[conductorStats.status] ?? conductorStats.status) : loading ? "…" : "—", subtitle: conductorStats ? `${conductorStats.continuousHours}h continuas` : "fatiga", accent: conductorStats?.status === "apto" ? "#15803d" : conductorStats?.status === "riesgo" ? "#B45309" : "#b91c1c", icon: Shield },
-      { label: "DESCANSO",    value: conductorStats ? `${conductorStats.restHours}h` : loading ? "…" : "—", subtitle: "horas de descanso", accent: "#0A1628", icon: CalendarDays },
-      { label: "VIAJES HOY",  value: cv(conductorStats?.tripsToday),     subtitle: "realizados",       accent: "#B8860B", icon: Route       },
-      { label: "REPUTACIÓN",  value: cv(conductorStats?.reputationScore),subtitle: "puntos",           accent: "#B8860B", icon: ChartColumn },
+      { label: "ESTADO",     value: conductorStats ? (FATIGUE_LABELS[conductorStats.status] ?? conductorStats.status) : loading ? "…" : "—", subtitle: conductorStats ? `${conductorStats.continuousHours}h continuas` : "fatiga", accent: statusAccent, icon: Shield },
+      { label: "DESCANSO",   value: conductorStats ? `${conductorStats.restHours}h` : loading ? "…" : "—", subtitle: "horas de descanso",                                    icon: CalendarDays },
+      { label: "VIAJES HOY", value: cv(conductorStats?.tripsToday),     subtitle: "realizados",                                                                               icon: Route        },
+      { label: "REPUTACIÓN", value: cv(conductorStats?.reputationScore),subtitle: "puntos",                                                                                    icon: ChartColumn  },
     ];
   }
   return [
-    { label: "NOTIFICACIONES", value: "—", subtitle: "sin leer", accent: "#B8860B", icon: Bell     },
-    { label: "HISTORIAL",      value: "—", subtitle: "registros", accent: "#0A1628", icon: FileText },
+    { label: "NOTIFICACIONES", value: "—", subtitle: "sin leer", icon: Bell     },
+    { label: "HISTORIAL",      value: "—", subtitle: "registros", icon: FileText },
   ];
 }
 

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
+import 'core/services/notification_service.dart';
+import 'core/services/update_service.dart';
 import 'core/theme/app_theme.dart';
 
 class SfitApp extends ConsumerWidget {
@@ -10,6 +12,10 @@ class SfitApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
 
+    // RF-18: Inyectar el GoRouter en NotificationService para que pueda
+    // navegar desde los handlers de notificaciones push.
+    NotificationService.setRouter(router);
+
     return MaterialApp.router(
       title: 'SFIT',
       debugShowCheckedModeBanner: false,
@@ -17,6 +23,32 @@ class SfitApp extends ConsumerWidget {
       darkTheme: AppTheme.lightTheme,
       themeMode: ThemeMode.light,
       routerConfig: router,
+      // El builder se ejecuta en cada ruta; _UpdateWrapper garantiza
+      // que el check se dispare una sola vez al primer frame.
+      builder: (context, child) => _UpdateWrapper(child: child ?? const SizedBox()),
     );
   }
+}
+
+/// Wrapper que dispara el chequeo de actualización una sola vez,
+/// en el primer frame después de que MaterialApp tiene su Navigator listo.
+class _UpdateWrapper extends StatefulWidget {
+  final Widget child;
+  const _UpdateWrapper({required this.child});
+
+  @override
+  State<_UpdateWrapper> createState() => _UpdateWrapperState();
+}
+
+class _UpdateWrapperState extends State<_UpdateWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) UpdateService.checkAndPrompt(context);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

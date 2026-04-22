@@ -6,9 +6,8 @@ import { FileText, Shield, Users, TriangleAlert } from "lucide-react";
 import { type ColumnDef, DataTable } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/Card";
-import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 type ApiResponse<T> = { success: boolean; data?: T; error?: string };
 
@@ -325,11 +324,8 @@ export default function AuditoriaPage() {
 
   if (forbidden) {
     return (
-      <div className="animate-fade-in">
-        <Card>
-          <h3 style={{ fontFamily: "var(--font-inter)", marginBottom: 8 }}>Acceso denegado</h3>
-          <p style={{ color: "#52525b" }}>No tienes permisos para ver esta sección.</p>
-        </Card>
+      <div style={{ padding: 24, background: "#fff", borderRadius: 14, border: "1px solid #e4e4e7" }}>
+        <p style={{ color: "#52525b" }}>No tienes permisos para ver esta sección.</p>
       </div>
     );
   }
@@ -337,16 +333,8 @@ export default function AuditoriaPage() {
   if (!user) return null;
 
   return (
-    <div className="flex flex-col gap-3 animate-fade-in">
-      <DashboardHero
-        kicker="Trazabilidad"
-        rfCode="RNF-16"
-        title="Auditoría"
-        pills={[
-          { label: "Eventos", value: total },
-          { label: "Sensibles", value: sensitiveCount, warn: sensitiveCount > 0 },
-        ]}
-      />
+    <div className="flex flex-col gap-4 animate-fade-in">
+      <PageHeader kicker="Trazabilidad · RNF-16" title="Auditoría" />
 
       <KPIStrip
         cols={4}

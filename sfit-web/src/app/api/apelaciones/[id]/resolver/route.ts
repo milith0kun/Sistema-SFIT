@@ -46,6 +46,11 @@ export async function PATCH(
     const apelacion = await Apelacion.findById(id);
     if (!apelacion) return apiNotFound("Apelación no encontrada");
 
+    // Scope: admin_municipal y fiscal solo resuelven de su municipio
+    if (auth.session.role === ROLES.ADMIN_MUNICIPAL || auth.session.role === ROLES.FISCAL) {
+      if (String(apelacion.municipalityId) !== String(auth.session.municipalityId)) return apiForbidden();
+    }
+
     if (apelacion.status !== "pendiente") {
       return apiError("Solo se pueden resolver apelaciones en estado pendiente", 422);
     }

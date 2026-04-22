@@ -1,8 +1,10 @@
 /// RF-18 — Firebase Cloud Messaging service.
 ///
-/// Solicita permisos, obtiene el token FCM y lo registra en el backend.
-/// Todo el código está envuelto en try/catch — si Firebase no está configurado
-/// (falta google-services.json) la app continúa sin errores.
+/// Responsabilidad acotada: obtener y registrar el token FCM en el backend.
+///
+/// El handler de background, los permisos y los listeners de foreground/tap
+/// son gestionados por [NotificationService] (inicializado en main.dart).
+/// Esto evita duplicar listeners y mantiene cada clase con una sola responsabilidad.
 library;
 
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -14,37 +16,19 @@ import '../network/dio_client.dart';
 
 part 'fcm_service.g.dart';
 
-/// Handler de mensajes en background — debe ser una función de nivel superior.
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // El mensaje llega en background o cuando la app está cerrada.
-  // No se puede usar providers ni contexto aquí.
-  debugPrint('[FCM-BG] Mensaje recibido: ${message.messageId}');
-}
-
 class FcmService {
   const FcmService();
 
-  /// Inicializa FCM: permisos → token → registro en backend → handlers.
+  /// Obtiene el token FCM y lo registra en el backend.
   /// Llamar después de que el usuario se autentique exitosamente.
+  ///
+  /// Permisos y listeners ya configurados por [NotificationService.initialize]
+  /// en main.dart; aquí solo nos ocupamos del token.
   static Future<void> initialize(Ref ref) async {
     try {
       final instance = FirebaseMessaging.instance;
 
-      // 1. Solicitar permisos (iOS requiere diálogo; Android 13+ también)
-      final settings = await instance.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-        provisional: false,
-      );
-
-      if (settings.authorizationStatus == AuthorizationStatus.denied) {
-        debugPrint('[FCM] Permisos de notificación denegados por el usuario');
-        return;
-      }
-
-      // 2. Obtener token FCM del dispositivo
+      // 1. Obtener token FCM del dispositivo
       final token = await instance.getToken();
       if (token == null) {
         debugPrint('[FCM] No se pudo obtener el token FCM (Firebase no configurado?)');
@@ -53,33 +37,16 @@ class FcmService {
 
       debugPrint('[FCM] Token obtenido: ${token.substring(0, 20)}...');
 
-      // 3. Registrar token en el backend
+      // 2. Registrar token en el backend
       await _registerTokenOnBackend(ref, token);
 
-      // 4. Escuchar actualizaciones del token (se renueva automáticamente)
+      // 3. Escuchar actualizaciones del token (se renueva automáticamente)
       instance.onTokenRefresh.listen((newToken) async {
         debugPrint('[FCM] Token renovado');
         await _registerTokenOnBackend(ref, newToken);
       });
 
-      // 5. Configurar handler de background (debe registrarse antes de runApp,
-      //    pero lo hacemos aquí también para cubrir el caso de inicialización tardía)
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-      // 6. Handler foreground — app en primer plano
-      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        debugPrint('[FCM] Mensaje en foreground: ${message.notification?.title}');
-        // TODO: mostrar notificación local con flutter_local_notifications
-        // cuando se implemente la UI de notificaciones en-app
-      });
-
-      // 7. Handler cuando el usuario toca la notificación (app en background → abre)
-      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        debugPrint('[FCM] App abierta desde notificación: ${message.data}');
-        // TODO: navegar a la pantalla correspondiente según message.data['type']
-      });
-
-      debugPrint('[FCM] Inicialización completada correctamente');
+      debugPrint('[FCM] Token registrado correctamente');
     } catch (e) {
       // Si Firebase no está configurado (sin google-services.json), continuar sin error
       debugPrint('[FCM] Error en inicialización (no fatal): $e');

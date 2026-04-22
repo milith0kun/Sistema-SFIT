@@ -42,11 +42,19 @@ export function NotificationsBell() {
   const getToken = () =>
     typeof window === "undefined" ? "" : localStorage.getItem("sfit_access_token") ?? "";
 
+  const stopPolling = useRef<(() => void) | null>(null);
+
   const fetchUnread = useCallback(async () => {
+    const token = getToken();
+    if (!token) return;
     try {
       const res = await fetch("/api/notifications/unread-count", {
-        headers: { Authorization: `Bearer ${getToken()}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 401) {
+        stopPolling.current?.();
+        return;
+      }
       if (!res.ok) return;
       const data: ApiResponse<{ count: number }> = await res.json();
       if (data.success && data.data) setUnread(data.data.count);
@@ -79,6 +87,7 @@ export function NotificationsBell() {
   useEffect(() => {
     void fetchUnread();
     const id = window.setInterval(fetchUnread, 30_000);
+    stopPolling.current = () => window.clearInterval(id);
     return () => window.clearInterval(id);
   }, [fetchUnread]);
 

@@ -3,6 +3,7 @@ import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/db/mongoose";
 import { AuditLog } from "@/models/AuditLog";
 import { Municipality } from "@/models/Municipality";
+import { User } from "@/models/User";
 import {
   apiResponse,
   apiError,
@@ -40,6 +41,7 @@ export async function GET(request: NextRequest) {
     );
 
     const actorIdParam = url.searchParams.get("actorId");
+    const actorEmailParam = url.searchParams.get("actorEmail");
     const actionParam = url.searchParams.get("action");
     const resourceTypeParam = url.searchParams.get("resourceType");
     const municipalityIdParam = url.searchParams.get("municipalityId");
@@ -47,6 +49,13 @@ export async function GET(request: NextRequest) {
     const toParam = url.searchParams.get("to");
 
     const filter: Record<string, unknown> = {};
+
+    // Resolver actorEmail → actorId
+    if (actorEmailParam?.trim()) {
+      const actor = await User.findOne({ email: actorEmailParam.trim().toLowerCase() }).select("_id").lean();
+      if (actor) filter.actorId = actor._id;
+      else filter.actorId = null; // sin resultados
+    }
 
     // Scope por rol
     if (auth.session.role === ROLES.ADMIN_MUNICIPAL) {
@@ -70,7 +79,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (actorIdParam && isValidObjectId(actorIdParam)) {
+    if (actorIdParam && isValidObjectId(actorIdParam) && !actorEmailParam?.trim()) {
       filter.actorId = actorIdParam;
     }
     if (actionParam) filter.action = actionParam;
@@ -91,6 +100,7 @@ export async function GET(request: NextRequest) {
 
     const [items, total] = await Promise.all([
       AuditLog.find(filter)
+        .populate("actorId", "name email")
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
@@ -99,20 +109,25 @@ export async function GET(request: NextRequest) {
     ]);
 
     return apiResponse({
-      items: items.map((l) => ({
-        id: String(l._id),
-        actorId: String(l.actorId),
-        actorRole: l.actorRole,
-        action: l.action,
-        resourceType: l.resourceType,
-        resourceId: l.resourceId,
-        municipalityId: l.municipalityId?.toString(),
-        provinceId: l.provinceId?.toString(),
-        metadata: l.metadata,
-        ipAddress: l.ipAddress,
-        userAgent: l.userAgent,
-        createdAt: l.createdAt,
-      })),
+      items: items.map((l) => {
+        const actor = l.actorId as unknown as { _id: unknown; name?: string; email?: string } | null;
+        return {
+          id: String(l._id),
+          actorId: actor ? String(actor._id) : String(l.actorId),
+          actorName: actor?.name ?? null,
+          actorEmail: actor?.email ?? null,
+          actorRole: l.actorRole,
+          action: l.action,
+          resourceType: l.resourceType,
+          resourceId: l.resourceId,
+          municipalityId: l.municipalityId?.toString(),
+          provinceId: l.provinceId?.toString(),
+          metadata: l.metadata,
+          ipAddress: l.ipAddress,
+          userAgent: l.userAgent,
+          createdAt: l.createdAt,
+        };
+      }),
       total,
       page,
       limit,

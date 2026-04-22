@@ -204,15 +204,15 @@ export default function SancionesPage() {
     {
       id: "sancion",
       header: "Sanción",
-      accessorFn: (row) => `S-${row.id.slice(-10).toUpperCase()} ${row.vehicle.plate}`,
+      accessorFn: (row) => `S-${(row.id ?? "").slice(-10).toUpperCase()} ${row.vehicle?.plate ?? ""}`,
       cell: ({ row }) => (
         <div>
           <div style={{ fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.75rem" }}>
-            S-{row.original.id.slice(-10).toUpperCase()}
+            S-{(row.original.id ?? "").slice(-10).toUpperCase()}
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
             <span style={{ display: "inline-flex", padding: "2px 7px", borderRadius: 5, background: INK9, color: "#fff", fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.6875rem" }}>
-              {row.original.vehicle.plate}
+              {row.original.vehicle?.plate ?? "—"}
             </span>
             <span style={{ fontSize: "0.75rem", color: INK5 }}>
               {new Date(row.original.createdAt).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}

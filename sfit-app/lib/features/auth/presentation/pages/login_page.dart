@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/constants/api_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/sfit_mark.dart';
@@ -71,6 +73,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     );
   }
 
+  Future<void> _openForgotPassword() async {
+    final webBase = ApiConstants.baseUrl.replaceFirst('/api', '');
+    final uri = Uri.parse('$webBase/reset-password');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -136,7 +146,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       children: [
                         const _FieldLabel('Contraseña'),
                         TextButton(
-                          onPressed: () {},
+                          onPressed: _openForgotPassword,
                           style: TextButton.styleFrom(
                             padding: EdgeInsets.zero,
                             minimumSize: Size.zero,
@@ -258,6 +268,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ],
                 ),
               ),
+
+              const SizedBox(height: 28),
+              const SfitDisclaimerBanner(),
             ],
           ),
         ),

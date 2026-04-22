@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
   Legend,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -20,101 +20,70 @@ import { MapPin, Building2, Truck, Car, Download, FileCheck, AlertCircle, Users,
 import { type ColumnDef, DataTable } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/Card";
 import { ComingSoon } from "@/components/ui/ComingSoon";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 
+// ── Paleta SFIT ────────────────────────────────────────────────────────────────
+const G = "#B8860B"; const GD = "#926A09"; const GBG = "#FDF8EC"; const GBR = "#E8D090";
+const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
+const APTO = "#15803d";
+const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
+const INFO = "#1D4ED8";
+const WARN = "#b45309";
+
+// ── Types ──────────────────────────────────────────────────────────────────────
 type ApiResponse<T> = { success: boolean; data?: T; error?: string };
-
 type GlobalStats = {
-  provincesCount: number;
-  municipalitiesCount: number;
-  activeMunicipalities: number;
-  usersByRole: Record<string, number>;
-  usersPendingApproval: number;
-  companiesCount: number;
-  vehicleTypesCount: number;
-  sanctionsThisMonth: number;
-  reportsPending: number;
+  provincesCount: number; municipalitiesCount: number; activeMunicipalities: number;
+  usersByRole: Record<string, number>; usersPendingApproval: number;
+  companiesCount: number; vehicleTypesCount: number;
+  sanctionsThisMonth: number; reportsPending: number;
 };
-
 type Province = { id: string; name: string; active?: boolean };
 type Municipality = { id: string; name: string; provinceId: string; active: boolean };
-
 type AuditEntry = { id: string; createdAt: string; action: string };
-
-type MunicipioRow = {
-  municipioId: string;
-  municipioNombre: string;
-  inspecciones: number;
-  aprobadas: number;
-  aprobadasPct: number;
-  reportes: number;
-  sanciones: number;
-};
-
-// ── Tipos para el dashboard municipal (RF-19-01) ──────────────────────────────
-type MunicipalKpis = {
-  activeVehicles: number;
-  activeDrivers: number;
-  inspectionsThisMonth: number;
-  reportsPending: number;
-};
-
+type MunicipioRow = { municipioId: string; municipioNombre: string; inspecciones: number; aprobadas: number; aprobadasPct: number; reportes: number; sanciones: number };
+type MunicipalKpis = { activeVehicles: number; activeDrivers: number; inspectionsThisMonth: number; reportsPending: number };
 type InspeccionResultado = { result: string; count: number };
-
-type LowRepVehicle = {
-  _id: string;
-  plate: string;
-  brand: string;
-  model: string;
-  reputationScore: number;
-  lastInspectionStatus: string;
-  status: string;
-};
-
-type SancionItem = {
-  _id: string;
-  faultType: string;
-  amountSoles: number;
-  status: string;
-  createdAt: string;
-  vehicleId?: { plate?: string; brand?: string; model?: string };
-};
-
-type MunicipalStats = {
-  kpis: MunicipalKpis;
-  inspeccionesPorResultado: InspeccionResultado[];
-  top5VehiculosBajaReputacion: LowRepVehicle[];
-  ultimasSanciones: SancionItem[];
-};
-
+type LowRepVehicle = { _id: string; plate: string; brand: string; model: string; reputationScore: number; lastInspectionStatus: string; status: string };
+type SancionItem = { _id: string; faultType: string; amountSoles: number; status: string; createdAt: string; vehicleId?: { plate?: string; brand?: string; model?: string } };
+type MunicipalStats = { kpis: MunicipalKpis; inspeccionesPorResultado: InspeccionResultado[]; top5VehiculosBajaReputacion: LowRepVehicle[]; ultimasSanciones: SancionItem[] };
 type StoredUser = { role: string; provinceId?: string; municipalityId?: string };
 
-const ROLE_LABELS: Record<string, string> = {
-  super_admin: "Super Admin",
-  admin_provincial: "Admin Provincial",
-  admin_municipal: "Admin Municipal",
-  fiscal: "Fiscal / Inspector",
-  operador: "Operador",
-  conductor: "Conductor",
-  ciudadano: "Ciudadano",
-};
+const ROLE_LABELS: Record<string, string> = { super_admin: "Super Admin", admin_provincial: "Admin Provincial", admin_municipal: "Admin Municipal", fiscal: "Fiscal / Inspector", operador: "Operador", conductor: "Conductor", ciudadano: "Ciudadano" };
+const ROLE_COLORS: Record<string, string> = { super_admin: G, admin_provincial: INK9, admin_municipal: INFO, fiscal: APTO, operador: WARN, conductor: INK6, ciudadano: "#a1a1aa" };
 
-const ROLE_COLORS: Record<string, string> = {
-  super_admin: "#B8860B",
-  admin_provincial: "#0A1628",
-  admin_municipal: "#1D4ED8",
-  fiscal: "#15803d",
-  operador: "#b45309",
-  conductor: "#52525b",
-  ciudadano: "#a1a1aa",
-};
+function getToken(): string { return typeof window === "undefined" ? "" : localStorage.getItem("sfit_access_token") ?? ""; }
 
-function getToken(): string {
-  return typeof window === "undefined" ? "" : localStorage.getItem("sfit_access_token") ?? "";
+// ── Custom Tooltip ─────────────────────────────────────────────────────────────
+function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{ background: INK9, border: "none", borderRadius: 10, padding: "10px 14px", boxShadow: "0 8px 24px rgba(0,0,0,.22)" }}>
+      {label && <div style={{ fontSize: "0.6875rem", color: INK5, marginBottom: 6, fontWeight: 600, letterSpacing: "0.08em" }}>{label}</div>}
+      {payload.map((p, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: p.color, display: "inline-block" }} />
+          <span style={{ fontSize: "0.8125rem", color: "#e4e4e7", fontWeight: 600 }}>{p.name}:</span>
+          <span style={{ fontSize: "0.8125rem", color: "#fff", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{p.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Section header util ────────────────────────────────────────────────────────
+function SectionTitle({ title, sub, right }: { title: string; sub?: string; right?: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 14, gap: 12 }}>
+      <div>
+        <div style={{ fontSize: "1rem", fontWeight: 700, color: INK9, letterSpacing: "-0.01em" }}>{title}</div>
+        {sub && <div style={{ fontSize: "0.8125rem", color: INK5, marginTop: 2 }}>{sub}</div>}
+      </div>
+      {right}
+    </div>
+  );
 }
 
 export default function EstadisticasPage() {
@@ -124,11 +93,9 @@ export default function EstadisticasPage() {
   const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [municipiosRows, setMunicipiosRows] = useState<MunicipioRow[]>([]);
-  const [days, setDays] = useState<7 | 30 | 90>(7);
+  const [days, setDays] = useState<7 | 30 | 90>(30);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // ── Estado municipal ──────────────────────────────────────────────────────
   const [municipalStats, setMunicipalStats] = useState<MunicipalStats | null>(null);
 
   useEffect(() => {
@@ -137,519 +104,262 @@ export default function EstadisticasPage() {
   }, []);
 
   const load = useCallback(async (currentUser: StoredUser, range: 7 | 30 | 90) => {
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     try {
       const headers = { Authorization: `Bearer ${getToken()}` };
       const [sres, pres, mres, ares, munires] = await Promise.all([
         fetch("/api/admin/stats/global", { headers }),
         fetch("/api/provincias", { headers }),
         fetch("/api/municipalidades", { headers }),
-        fetch(
-          `/api/admin/audit-log?limit=500&from=${new Date(
-            Date.now() - range * 24 * 60 * 60 * 1000
-          ).toISOString()}`,
-          { headers }
-        ),
+        fetch(`/api/admin/audit-log?limit=500&from=${new Date(Date.now() - range * 86400000).toISOString()}`, { headers }),
         fetch("/api/admin/stats/municipios", { headers }),
       ]);
-
-      if (sres.ok) {
-        const sdata: ApiResponse<GlobalStats> = await sres.json();
-        if (sdata.success && sdata.data) setStats(sdata.data);
-      }
-      if (pres.ok) {
-        const pdata: ApiResponse<{ items: Province[] }> = await pres.json();
-        if (pdata.success && pdata.data) {
-          const items = pdata.data.items ?? [];
-          const scoped =
-            currentUser.role === "admin_provincial" && currentUser.provinceId
-              ? items.filter((p) => p.id === currentUser.provinceId)
-              : items;
-          setProvinces(scoped);
-        }
-      }
-      if (mres.ok) {
-        const mdata: ApiResponse<{ items: Municipality[] }> = await mres.json();
-        if (mdata.success && mdata.data) {
-          const items = mdata.data.items ?? [];
-          const scoped =
-            currentUser.role === "admin_provincial" && currentUser.provinceId
-              ? items.filter((m) => m.provinceId === currentUser.provinceId)
-              : items;
-          setMunicipalities(scoped);
-        }
-      }
-      if (ares.ok) {
-        const adata: ApiResponse<{ items: AuditEntry[] }> = await ares.json();
-        if (adata.success && adata.data) setAudit(adata.data.items ?? []);
-      }
-      if (munires.ok) {
-        const mdata: ApiResponse<{ rows: MunicipioRow[] }> = await munires.json();
-        if (mdata.success && mdata.data) setMunicipiosRows(mdata.data.rows ?? []);
-      }
-    } catch {
-      setError("Error de conexión al cargar estadísticas.");
-    } finally {
-      setLoading(false);
-    }
+      if (sres.ok) { const d: ApiResponse<GlobalStats> = await sres.json(); if (d.success && d.data) setStats(d.data); }
+      if (pres.ok) { const d: ApiResponse<{ items: Province[] }> = await pres.json(); if (d.success && d.data) { const items = d.data.items ?? []; setProvinces(currentUser.role === "admin_provincial" && currentUser.provinceId ? items.filter(p => p.id === currentUser.provinceId) : items); } }
+      if (mres.ok) { const d: ApiResponse<{ items: Municipality[] }> = await mres.json(); if (d.success && d.data) { const items = d.data.items ?? []; setMunicipalities(currentUser.role === "admin_provincial" && currentUser.provinceId ? items.filter(m => m.provinceId === currentUser.provinceId) : items); } }
+      if (ares.ok) { const d: ApiResponse<{ items: AuditEntry[] }> = await ares.json(); if (d.success && d.data) setAudit(d.data.items ?? []); }
+      if (munires.ok) { const d: ApiResponse<{ rows: MunicipioRow[] }> = await munires.json(); if (d.success && d.data) setMunicipiosRows(d.data.rows ?? []); }
+    } catch { setError("Error de conexión."); }
+    finally { setLoading(false); }
   }, []);
 
   const loadMunicipal = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     try {
-      const headers = { Authorization: `Bearer ${getToken()}` };
-      const res = await fetch("/api/admin/stats/municipal", { headers });
-      if (res.ok) {
-        const data: ApiResponse<MunicipalStats> = await res.json();
-        if (data.success && data.data) setMunicipalStats(data.data);
-      } else {
-        const data: ApiResponse<null> = await res.json();
-        setError(data.error ?? "Error al cargar estadísticas municipales.");
-      }
-    } catch {
-      setError("Error de conexión al cargar estadísticas municipales.");
-    } finally {
-      setLoading(false);
-    }
+      const res = await fetch("/api/admin/stats/municipal", { headers: { Authorization: `Bearer ${getToken()}` } });
+      const data: ApiResponse<MunicipalStats> = await res.json();
+      if (res.ok && data.success && data.data) setMunicipalStats(data.data);
+      else setError(data.error ?? "Error al cargar estadísticas.");
+    } catch { setError("Error de conexión."); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => {
     if (!user) return;
-    if (user.role === "super_admin" || user.role === "admin_provincial") {
-      void load(user, days);
-    } else if (user.role === "admin_municipal") {
-      void loadMunicipal();
-    } else {
-      setLoading(false);
-    }
+    if (user.role === "super_admin" || user.role === "admin_provincial") void load(user, days);
+    else if (user.role === "admin_municipal") void loadMunicipal();
+    else setLoading(false);
   }, [user, days, load, loadMunicipal]);
 
   const pieData = useMemo(() => {
     if (!stats) return [];
-    return Object.entries(stats.usersByRole ?? {})
-      .filter(([, v]) => v > 0)
-      .map(([role, count]) => ({
-        name: ROLE_LABELS[role] ?? role,
-        value: count,
-        color: ROLE_COLORS[role] ?? "#71717a",
-      }));
+    return Object.entries(stats.usersByRole ?? {}).filter(([, v]) => v > 0).map(([role, count]) => ({ name: ROLE_LABELS[role] ?? role, value: count, color: ROLE_COLORS[role] ?? INK5 }));
   }, [stats]);
 
   const barData = useMemo(() => {
-    const byProvince = new Map<string, { name: string; activas: number; inactivas: number }>();
-    provinces.forEach((p) => byProvince.set(p.id, { name: p.name, activas: 0, inactivas: 0 }));
-    municipalities.forEach((m) => {
-      const entry = byProvince.get(m.provinceId);
-      if (!entry) return;
-      if (m.active) entry.activas += 1;
-      else entry.inactivas += 1;
-    });
-    return Array.from(byProvince.values()).sort((a, b) => a.name.localeCompare(b.name));
+    const map = new Map<string, { name: string; activas: number; inactivas: number }>();
+    provinces.forEach(p => map.set(p.id, { name: p.name, activas: 0, inactivas: 0 }));
+    municipalities.forEach(m => { const e = map.get(m.provinceId); if (!e) return; if (m.active) e.activas++; else e.inactivas++; });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [provinces, municipalities]);
 
   const lineData = useMemo(() => {
     const map = new Map<string, number>();
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
-      const key = d.toISOString().slice(0, 10);
-      map.set(key, 0);
-    }
-    audit.forEach((a) => {
-      const key = new Date(a.createdAt).toISOString().slice(0, 10);
-      if (map.has(key)) map.set(key, (map.get(key) ?? 0) + 1);
-    });
-    return Array.from(map.entries()).map(([date, count]) => ({
-      date: date.slice(5),
-      count,
-    }));
+    for (let i = days - 1; i >= 0; i--) { const key = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10); map.set(key, 0); }
+    audit.forEach(a => { const key = new Date(a.createdAt).toISOString().slice(0, 10); if (map.has(key)) map.set(key, (map.get(key) ?? 0) + 1); });
+    return Array.from(map.entries()).map(([date, count]) => ({ date: date.slice(5), count }));
   }, [audit, days]);
 
-  const municipiosColumns = useMemo<ColumnDef<MunicipioRow, unknown>[]>(
-    () => [
-      {
-        accessorKey: "municipioNombre",
-        header: "Municipio",
-        cell: ({ getValue }) => (
-          <span style={{ fontWeight: 600, color: "#09090b" }}>{getValue() as string}</span>
-        ),
-      },
-      {
-        accessorKey: "inspecciones",
-        header: "Inspecciones",
-        cell: ({ getValue }) => (
-          <span style={{ fontVariantNumeric: "tabular-nums" }}>{getValue() as number}</span>
-        ),
-      },
-      {
-        accessorKey: "aprobadasPct",
-        header: "Aprobadas %",
-        cell: ({ getValue }) => {
-          const pct = getValue() as number;
-          const color = pct >= 70 ? "#15803d" : pct >= 40 ? "#b45309" : "#b91c1c";
-          return (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 64, height: 6, background: "#e4e4e7", borderRadius: 999, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 999 }} />
-              </div>
-              <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 600, color }}>{pct}%</span>
+  const municipiosColumns = useMemo<ColumnDef<MunicipioRow, unknown>[]>(() => [
+    { accessorKey: "municipioNombre", header: "Municipio", cell: ({ getValue }) => <span style={{ fontWeight: 600, color: INK9 }}>{getValue() as string}</span> },
+    { accessorKey: "inspecciones", header: "Inspecciones", cell: ({ getValue }) => <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>{getValue() as number}</span> },
+    {
+      accessorKey: "aprobadasPct", header: "Aprobadas %",
+      cell: ({ getValue }) => {
+        const pct = getValue() as number;
+        const color = pct >= 70 ? APTO : pct >= 40 ? WARN : NO;
+        return (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 64, height: 5, background: INK2, borderRadius: 999, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 999 }} />
             </div>
-          );
-        },
+            <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700, color, fontSize: "0.8125rem" }}>{pct}%</span>
+          </div>
+        );
       },
-      {
-        accessorKey: "reportes",
-        header: "Reportes",
-        cell: ({ getValue }) => (
-          <span style={{ fontVariantNumeric: "tabular-nums" }}>{getValue() as number}</span>
-        ),
-      },
-      {
-        accessorKey: "sanciones",
-        header: "Sanciones",
-        cell: ({ getValue }) => {
-          const v = getValue() as number;
-          return (
-            <Badge variant={v > 0 ? "suspendido" : "inactivo"}>{v}</Badge>
-          );
-        },
-      },
-    ],
-    []
-  );
+    },
+    { accessorKey: "reportes", header: "Reportes", cell: ({ getValue }) => <span style={{ fontVariantNumeric: "tabular-nums" }}>{getValue() as number}</span> },
+    { accessorKey: "sanciones", header: "Sanciones", cell: ({ getValue }) => { const v = getValue() as number; return <Badge variant={v > 0 ? "suspendido" : "inactivo"}>{v}</Badge>; } },
+  ], []);
 
   function exportUsersCsv() {
     if (!stats) return;
-    const rows: string[] = ["Rol,Cantidad"];
-    Object.entries(stats.usersByRole ?? {}).forEach(([role, count]) => {
-      rows.push(`${ROLE_LABELS[role] ?? role},${count}`);
-    });
-    const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `sfit-usuarios-por-rol-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const rows = ["Rol,Cantidad", ...Object.entries(stats.usersByRole ?? {}).map(([r, c]) => `${ROLE_LABELS[r] ?? r},${c}`)];
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" }));
+    a.download = `sfit-usuarios-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
   }
 
-  if (!user) {
-    return (
-      <div className="flex flex-col gap-3 animate-fade-in">
-        <PageHeader kicker="Cargando" title="Estadísticas" />
-        <Card>
-          <div style={{ color: "#71717a" }}>Cargando…</div>
-        </Card>
-      </div>
-    );
-  }
+  if (!user) return (
+    <div className="flex flex-col gap-3 animate-fade-in">
+      <PageHeader kicker="Cargando" title="Estadísticas" />
+      <div style={{ padding: 24, color: INK5 }}>Cargando…</div>
+    </div>
+  );
 
-  if (
-    user.role !== "super_admin" &&
-    user.role !== "admin_provincial" &&
-    user.role !== "admin_municipal"
-  ) {
-    return <ComingSoon title="Estadísticas" rf="RF-19" />;
-  }
-
-  // ── Vista municipal ────────────────────────────────────────────────────────
-  if (user.role === "admin_municipal") {
-    return <MunicipalDashboard loading={loading} error={error} data={municipalStats} />;
-  }
+  if (user.role !== "super_admin" && user.role !== "admin_provincial" && user.role !== "admin_municipal") return <ComingSoon title="Estadísticas" rf="RF-19" />;
+  if (user.role === "admin_municipal") return <MunicipalDashboard loading={loading} error={error} data={municipalStats} />;
 
   const totalUsers = stats ? Object.values(stats.usersByRole ?? {}).reduce((a, b) => a + b, 0) : 0;
 
   return (
     <div className="flex flex-col gap-3 animate-fade-in">
-      <DashboardHero
-        kicker={user.role === "super_admin" ? "Panel global" : "Panel provincial"}
-        rfCode="RF-19"
-        title="Estadísticas"
-        pills={
-          stats
-            ? [
-                { label: "Usuarios", value: totalUsers },
-                { label: "Provincias", value: provinces.length },
-                { label: "Municipios", value: municipalities.filter((m) => m.active).length },
-              ]
-            : undefined
-        }
-      />
-
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <Button variant="outline" size="md" onClick={exportUsersCsv}>
-          <Download size={16} strokeWidth={1.8} />
-          Exportar CSV
-        </Button>
+      {/* Header */}
+      <div style={{ background: `linear-gradient(135deg, ${INK9} 0%, #2a2a2e 100%)`, borderRadius: 16, padding: "24px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+        <div>
+          <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: G, marginBottom: 6 }}>
+            {user.role === "super_admin" ? "Panel global · RF-19" : "Panel provincial · RF-19"}
+          </div>
+          <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "#fff", margin: 0, letterSpacing: "-0.03em" }}>Estadísticas</h1>
+          <p style={{ fontSize: "0.875rem", color: "#a1a1aa", marginTop: 6, margin: 0 }}>
+            {loading ? "Cargando datos…" : `${provinces.length} provincias · ${municipalities.filter(m => m.active).length} municipios activos · ${totalUsers} usuarios`}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          <Button variant="outline" size="md" onClick={exportUsersCsv} style={{ background: "rgba(255,255,255,.08)", border: "1.5px solid rgba(255,255,255,.15)", color: "#fff" }}>
+            <Download size={15} strokeWidth={1.8} />Exportar CSV
+          </Button>
+        </div>
       </div>
 
-      {error && (
-        <div
-          role="alert"
-          style={{
-            background: "#FFF5F5",
-            border: "1.5px solid #FCA5A5",
-            borderRadius: 12,
-            padding: 16,
-            color: "#b91c1c",
-            fontSize: "0.9375rem",
-            fontWeight: 500,
-          }}
-        >
-          {error}
-        </div>
-      )}
+      {error && <div role="alert" style={{ background: NOBG, border: `1.5px solid ${NOBD}`, borderRadius: 12, padding: 14, color: NO, fontSize: "0.9rem", fontWeight: 500 }}>{error}</div>}
 
       {loading ? (
-        <Card>
-          <div style={{ color: "#71717a" }}>Cargando…</div>
-        </Card>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
+          {[0, 1, 2, 3].map(i => <div key={i} className="skeleton-shimmer" style={{ height: 96, borderRadius: 12 }} />)}
+        </div>
       ) : !stats ? (
-        <Card>
-          <div style={{ color: "#71717a" }}>No hay datos disponibles todavía.</div>
-        </Card>
+        <div style={{ padding: "40px 24px", textAlign: "center", color: INK5, background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14 }}>No hay datos disponibles todavía.</div>
       ) : (
         <>
-          {/* KPI bar */}
-          <KPIStrip
-            cols={4}
-            items={[
-              { label: "PROVINCIAS", value: provinces.length, subtitle: "en jurisdicción", accent: "#B8860B", icon: MapPin },
-              { label: "MUNICIPIOS", value: municipalities.length, subtitle: `${municipalities.filter((m) => m.active).length} activas`, accent: "#15803d", icon: Building2 },
-              { label: "EMPRESAS", value: stats.companiesCount, subtitle: "registradas", accent: "#0A1628", icon: Truck },
-              { label: "TIPOS VEHÍC.", value: stats.vehicleTypesCount, subtitle: "configurados", accent: "#B45309", icon: Car },
-            ]}
-          />
+          {/* KPI Strip */}
+          <KPIStrip cols={4} items={[
+            { label: "PROVINCIAS", value: provinces.length, subtitle: "en jurisdicción", accent: G, icon: MapPin },
+            { label: "MUNICIPIOS", value: municipalities.length, subtitle: `${municipalities.filter(m => m.active).length} activas`, accent: APTO, icon: Building2 },
+            { label: "EMPRESAS", value: stats.companiesCount, subtitle: "registradas", accent: INK9, icon: Truck },
+            { label: "TIPOS VEHÍC.", value: stats.vehicleTypesCount, subtitle: "configurados", accent: WARN, icon: Car },
+          ]} />
 
-          {/* Pie + Bar */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-fade-up delay-100">
-            <Card>
-              <h3
-                style={{
-                  fontFamily: "var(--font-inter)",
-                  fontSize: "1rem",
-                  fontWeight: 700,
-                  color: "#09090b",
-                  letterSpacing: "-0.01em",
-                  margin: 0,
-                  marginBottom: 8,
-                }}
-              >
-                Usuarios por rol
-              </h3>
-              <p style={{ color: "#71717a", fontSize: "0.8125rem", marginBottom: 12 }}>
-                Distribución total de cuentas en la plataforma.
-              </p>
-              <div style={{ width: "100%", height: 260 }}>
-                {pieData.length === 0 ? (
-                  <div style={{ color: "#71717a", fontSize: "0.875rem" }}>Sin datos.</div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={pieData} dataKey="value" nameKey="name" outerRadius={90} innerRadius={50}>
-                        {pieData.map((entry, i) => (
-                          <Cell key={i} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend wrapperStyle={{ fontSize: "0.75rem" }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
+          {/* Charts row */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            {/* Donut — usuarios por rol */}
+            <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, padding: "20px 22px" }}>
+              <SectionTitle title="Usuarios por rol" sub="Distribución total de cuentas en la plataforma" />
+              <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+                <div style={{ width: "55%", height: 220 }}>
+                  {pieData.length === 0 ? <div style={{ color: INK5, fontSize: "0.875rem", paddingTop: 60 }}>Sin datos.</div> : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={pieData} dataKey="value" nameKey="name" outerRadius={90} innerRadius={56} paddingAngle={2} startAngle={90} endAngle={450}>
+                          {pieData.map((e, i) => <Cell key={i} fill={e.color} stroke="none" />)}
+                        </Pie>
+                        <Tooltip content={<ChartTooltip />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                  {pieData.map((e, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: "50%", background: e.color, flexShrink: 0 }} />
+                      <span style={{ fontSize: "0.75rem", color: INK6, flex: 1, lineHeight: 1.3 }}>{e.name}</span>
+                      <span style={{ fontSize: "0.8125rem", fontWeight: 700, fontVariantNumeric: "tabular-nums", color: INK9 }}>{e.value}</span>
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 8, padding: "8px 10px", background: GBG, border: `1px solid ${GBR}`, borderRadius: 8 }}>
+                    <span style={{ fontSize: "0.75rem", color: GD, fontWeight: 600 }}>Total: </span>
+                    <span style={{ fontSize: "0.875rem", fontWeight: 800, color: G }}>{totalUsers}</span>
+                  </div>
+                </div>
               </div>
-            </Card>
+            </div>
 
-            <Card>
-              <h3
-                style={{
-                  fontFamily: "var(--font-inter)",
-                  fontSize: "1rem",
-                  fontWeight: 700,
-                  color: "#09090b",
-                  letterSpacing: "-0.01em",
-                  margin: 0,
-                  marginBottom: 8,
-                }}
-              >
-                Municipalidades por provincia
-              </h3>
-              <p style={{ color: "#71717a", fontSize: "0.8125rem", marginBottom: 12 }}>
-                Activas vs. inactivas.
-              </p>
-              <div style={{ width: "100%", height: 260 }}>
-                {barData.length === 0 ? (
-                  <div style={{ color: "#71717a", fontSize: "0.875rem" }}>Sin datos.</div>
-                ) : (
+            {/* Bar — municipios por provincia */}
+            <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, padding: "20px 22px" }}>
+              <SectionTitle title="Municipalidades por provincia" sub="Activas vs. inactivas" />
+              <div style={{ width: "100%", height: 220 }}>
+                {barData.length === 0 ? <div style={{ color: INK5, fontSize: "0.875rem" }}>Sin datos.</div> : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={barData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-                      <XAxis
-                        dataKey="name"
-                        tick={{ fontSize: 11, fill: "#52525b" }}
-                        angle={-20}
-                        textAnchor="end"
-                        height={50}
-                      />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#52525b" }} />
-                      <Tooltip />
-                      <Legend wrapperStyle={{ fontSize: "0.75rem" }} />
-                      <Bar dataKey="activas" stackId="a" fill="#15803d" name="Activas" />
-                      <Bar dataKey="inactivas" stackId="a" fill="#b91c1c" name="Inactivas" />
+                    <BarChart data={barData} margin={{ top: 4, right: 4, left: -16, bottom: 24 }} barCategoryGap="35%">
+                      <CartesianGrid strokeDasharray="3 3" stroke={INK2} vertical={false} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: INK5 }} angle={-18} textAnchor="end" height={44} axisLine={false} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: INK5 }} axisLine={false} tickLine={false} />
+                      <Tooltip content={<ChartTooltip />} cursor={{ fill: INK1 }} />
+                      <Legend wrapperStyle={{ fontSize: "0.75rem", paddingTop: 4 }} />
+                      <Bar dataKey="activas" stackId="a" fill={APTO} name="Activas" radius={[0, 0, 0, 0]} />
+                      <Bar dataKey="inactivas" stackId="a" fill={NO} name="Inactivas" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
               </div>
-            </Card>
+            </div>
           </div>
 
-          {/* Line chart */}
-          <Card>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-                gap: 12,
-                marginBottom: 12,
-              }}
-            >
-              <div>
-                <h3
-                  style={{
-                    fontFamily: "var(--font-inter)",
-                    fontSize: "1rem",
-                    fontWeight: 700,
-                    color: "#09090b",
-                    letterSpacing: "-0.01em",
-                    margin: 0,
-                  }}
-                >
-                  Actividad reciente
-                </h3>
-                <p style={{ color: "#71717a", fontSize: "0.8125rem", marginTop: 4 }}>
-                  Acciones registradas en el audit-log agrupadas por día.
-                </p>
-              </div>
-              <div style={{ display: "inline-flex", gap: 6 }}>
-                {[7, 30, 90].map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => setDays(d as 7 | 30 | 90)}
-                    style={{
-                      padding: "6px 12px",
-                      borderRadius: 8,
-                      border: "1.5px solid " + (days === d ? "#0A1628" : "#e4e4e7"),
-                      background: days === d ? "#0A1628" : "#ffffff",
-                      color: days === d ? "#ffffff" : "#27272a",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Últimos {d} días
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div style={{ width: "100%", height: 260 }}>
+          {/* Area chart — actividad */}
+          <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, padding: "20px 22px" }}>
+            <SectionTitle
+              title="Actividad del sistema"
+              sub="Acciones del audit-log agrupadas por día"
+              right={
+                <div style={{ display: "inline-flex", gap: 6 }}>
+                  {([7, 30, 90] as const).map(d => (
+                    <button key={d} type="button" onClick={() => setDays(d)} style={{ padding: "5px 11px", borderRadius: 7, border: `1.5px solid ${days === d ? INK9 : INK2}`, background: days === d ? INK9 : "#fff", color: days === d ? "#fff" : INK6, fontSize: "0.75rem", fontWeight: 600, cursor: "pointer" }}>
+                      {d}d
+                    </button>
+                  ))}
+                </div>
+              }
+            />
+            <div style={{ width: "100%", height: 220 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={lineData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#52525b" }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#52525b" }} />
-                  <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="count"
-                    stroke="#B8860B"
-                    strokeWidth={2}
-                    dot={{ r: 3, fill: "#B8860B" }}
-                    name="Acciones"
-                  />
-                </LineChart>
+                <AreaChart data={lineData} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gradGold" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={G} stopOpacity={0.18} />
+                      <stop offset="95%" stopColor={G} stopOpacity={0.01} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={INK2} vertical={false} />
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: INK5 }} axisLine={false} tickLine={false} interval={days === 7 ? 0 : days === 30 ? 4 : 13} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: INK5 }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<ChartTooltip />} cursor={{ stroke: INK2, strokeWidth: 1 }} />
+                  <Area type="monotone" dataKey="count" stroke={G} strokeWidth={2.5} fill="url(#gradGold)" dot={false} name="Acciones" activeDot={{ r: 4, fill: G, stroke: "#fff", strokeWidth: 2 }} />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
-          </Card>
+          </div>
 
-          {/* Tabla usuarios por rol (para CSV — informativa) */}
-          <Card>
-            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
-              <h3
-                style={{
-                  fontFamily: "var(--font-inter)",
-                  fontSize: "1rem",
-                  fontWeight: 700,
-                  color: "#09090b",
-                  letterSpacing: "-0.01em",
-                  margin: 0,
-                }}
-              >
-                Detalle por rol
-              </h3>
-              <span style={{ color: "#71717a", fontSize: "0.75rem" }}>
-                {Object.values(stats.usersByRole ?? {}).reduce((a, b) => a + b, 0)} usuarios
-              </span>
+          {/* Detalle por rol */}
+          <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, padding: "20px 22px" }}>
+            <SectionTitle title="Detalle por rol" sub={`${totalUsers} usuarios totales en la plataforma`} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 10 }}>
+              {Object.entries(stats.usersByRole ?? {}).map(([role, count]) => {
+                const color = ROLE_COLORS[role] ?? INK6;
+                const pct = totalUsers ? Math.round((count / totalUsers) * 100) : 0;
+                return (
+                  <div key={role} style={{ background: INK1, border: `1px solid ${INK2}`, borderRadius: 10, padding: "12px 14px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                      <span style={{ fontSize: "0.75rem", fontWeight: 700, color, letterSpacing: "0.03em" }}>{ROLE_LABELS[role] ?? role}</span>
+                      <span style={{ fontSize: "1.25rem", fontWeight: 800, color: INK9, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>{count}</span>
+                    </div>
+                    <div style={{ height: 4, background: INK2, borderRadius: 999, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 999, transition: "width 0.6s ease" }} />
+                    </div>
+                    <div style={{ fontSize: "0.6875rem", color: INK5, marginTop: 5, fontVariantNumeric: "tabular-nums" }}>{pct}% del total</div>
+                  </div>
+                );
+              })}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
-              {Object.entries(stats.usersByRole ?? {}).map(([role, count]) => (
-                <div
-                  key={role}
-                  style={{
-                    background: "#fafafa",
-                    border: "1px solid #e4e4e7",
-                    borderRadius: 10,
-                    padding: "10px 12px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 10,
-                  }}
-                >
-                  <Badge variant={role === "super_admin" ? "gold" : "info"}>
-                    {ROLE_LABELS[role] ?? role}
-                  </Badge>
-                  <span
-                    className="num"
-                    style={{
-                      fontFamily: "var(--font-inter)",
-                      fontSize: "1.125rem",
-                      fontWeight: 700,
-                      color: "#09090b",
-                      letterSpacing: "-0.015em",
-                    }}
-                  >
-                    {count}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </Card>
+          </div>
 
-          {/* ── Tabla por municipio ─────────────────────────────── */}
+          {/* Tabla por municipio */}
           {municipiosRows.length > 0 && (
-            <div>
-              <div style={{ marginBottom: 8 }}>
-                <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, color: "#09090b", letterSpacing: "-0.01em", margin: 0 }}>
-                  Estadísticas por municipio
-                </h3>
-                <p style={{ color: "#71717a", fontSize: "0.8125rem", marginTop: 4 }}>
-                  {municipiosRows.length} municipios — haz clic en las columnas para ordenar.
-                </p>
-              </div>
-              <DataTable
-                columns={municipiosColumns}
-                data={municipiosRows}
-                loading={loading}
-                searchPlaceholder="Buscar municipio…"
-                emptyTitle="Sin datos"
-                emptyDescription="No hay estadísticas por municipio disponibles."
-                defaultPageSize={10}
+            <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, padding: "20px 22px" }}>
+              <SectionTitle
+                title="Estadísticas por municipio"
+                sub={`${municipiosRows.length} municipios — haz clic en columna para ordenar`}
               />
+              <DataTable columns={municipiosColumns} data={municipiosRows} loading={loading} searchPlaceholder="Buscar municipio…" emptyTitle="Sin datos" emptyDescription="No hay estadísticas por municipio disponibles." defaultPageSize={10} />
             </div>
           )}
         </>
@@ -658,428 +368,142 @@ export default function EstadisticasPage() {
   );
 }
 
-// ── Dashboard Municipal (RF-19-01) ─────────────────────────────────────────────
-const INSPECCION_COLORS: Record<string, string> = {
-  aprobada: "#15803d",
-  observada: "#b45309",
-  rechazada: "#b91c1c",
-};
+// ── Dashboard Municipal ────────────────────────────────────────────────────────
+const INSP_COLORS: Record<string, string> = { aprobada: APTO, observada: WARN, rechazada: NO };
+const INSP_LABELS: Record<string, string> = { aprobada: "Aprobada", observada: "Observada", rechazada: "Rechazada" };
+const SANC_LABELS: Record<string, string> = { emitida: "Emitida", notificada: "Notificada", apelada: "Apelada", confirmada: "Confirmada", anulada: "Anulada" };
 
-const INSPECCION_LABELS: Record<string, string> = {
-  aprobada: "Aprobada",
-  observada: "Observada",
-  rechazada: "Rechazada",
-};
-
-const SANCION_STATUS_LABELS: Record<string, string> = {
-  emitida: "Emitida",
-  notificada: "Notificada",
-  apelada: "Apelada",
-  confirmada: "Confirmada",
-  anulada: "Anulada",
-};
-
-const INSPECCION_STATUS_COLORS: Record<string, string> = {
-  aprobada: "#15803d",
-  observada: "#b45309",
-  rechazada: "#b91c1c",
-  pendiente: "#71717a",
-};
-
-function MunicipalDashboard({
-  loading,
-  error,
-  data,
-}: {
-  loading: boolean;
-  error: string | null;
-  data: MunicipalStats | null;
-}) {
+function MunicipalDashboard({ loading, error, data }: { loading: boolean; error: string | null; data: MunicipalStats | null }) {
   const pieData = useMemo(() => {
     if (!data) return [];
-    return data.inspeccionesPorResultado
-      .filter((r) => r.count > 0)
-      .map((r) => ({
-        name: INSPECCION_LABELS[r.result] ?? r.result,
-        value: r.count,
-        color: INSPECCION_COLORS[r.result] ?? "#71717a",
-      }));
+    return data.inspeccionesPorResultado.filter(r => r.count > 0).map(r => ({ name: INSP_LABELS[r.result] ?? r.result, value: r.count, color: INSP_COLORS[r.result] ?? INK5 }));
   }, [data]);
 
-  const totalInspecciones = useMemo(
-    () => pieData.reduce((s, r) => s + r.value, 0),
-    [pieData],
-  );
+  const totalInsp = useMemo(() => pieData.reduce((s, r) => s + r.value, 0), [pieData]);
+  const aprobadasPct = totalInsp ? Math.round(((pieData.find(p => p.name === "Aprobada")?.value ?? 0) / totalInsp) * 100) : 0;
 
   return (
     <div className="flex flex-col gap-3 animate-fade-in">
-      <DashboardHero
-        kicker="Panel municipal"
-        rfCode="RF-19-01"
-        title="Estadísticas"
-        pills={
-          data
-            ? [
-                { label: "Vehículos activos", value: data.kpis.activeVehicles },
-                { label: "Conductores", value: data.kpis.activeDrivers },
-                { label: "Inspecciones del mes", value: data.kpis.inspectionsThisMonth },
-              ]
-            : undefined
-        }
-      />
+      {/* Header */}
+      <div style={{ background: `linear-gradient(135deg, ${INK9} 0%, #2a2a2e 100%)`, borderRadius: 16, padding: "24px 28px" }}>
+        <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: G, marginBottom: 6 }}>Panel municipal · RF-19-01</div>
+        <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "#fff", margin: 0, letterSpacing: "-0.03em" }}>Estadísticas</h1>
+        {data && <p style={{ fontSize: "0.875rem", color: "#a1a1aa", marginTop: 6, margin: 0 }}>{data.kpis.activeVehicles} vehículos · {data.kpis.activeDrivers} conductores · {data.kpis.inspectionsThisMonth} inspecciones este mes</p>}
+      </div>
 
-      {error && (
-        <div
-          role="alert"
-          style={{
-            background: "#FFF5F5",
-            border: "1.5px solid #FCA5A5",
-            borderRadius: 12,
-            padding: 16,
-            color: "#b91c1c",
-            fontSize: "0.9375rem",
-            fontWeight: 500,
-          }}
-        >
-          {error}
-        </div>
-      )}
+      {error && <div role="alert" style={{ background: NOBG, border: `1.5px solid ${NOBD}`, borderRadius: 12, padding: 14, color: NO, fontWeight: 500 }}>{error}</div>}
 
       {loading ? (
-        <Card>
-          <div style={{ color: "#71717a" }}>Cargando…</div>
-        </Card>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
+          {[0, 1, 2, 3].map(i => <div key={i} className="skeleton-shimmer" style={{ height: 96, borderRadius: 12 }} />)}
+        </div>
       ) : !data ? (
-        <Card>
-          <div style={{ color: "#71717a" }}>No hay datos disponibles todavía.</div>
-        </Card>
+        <div style={{ padding: "40px 24px", textAlign: "center", color: INK5, background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14 }}>No hay datos disponibles.</div>
       ) : (
         <>
-          {/* KPIs */}
-          <KPIStrip
-            cols={4}
-            items={[
-              {
-                label: "VEHÍCULOS ACTIVOS",
-                value: data.kpis.activeVehicles,
-                subtitle: "en la municipalidad",
-                accent: "#0A1628",
-                icon: Truck,
-              },
-              {
-                label: "CONDUCTORES",
-                value: data.kpis.activeDrivers,
-                subtitle: "activos",
-                accent: "#1D4ED8",
-                icon: Users,
-              },
-              {
-                label: "INSPECCIONES",
-                value: data.kpis.inspectionsThisMonth,
-                subtitle: "este mes",
-                accent: "#15803d",
-                icon: FileCheck,
-              },
-              {
-                label: "REPORTES PEND.",
-                value: data.kpis.reportsPending,
-                subtitle: "ciudadanos pendientes",
-                accent: data.kpis.reportsPending > 0 ? "#b91c1c" : "#71717a",
-                icon: AlertCircle,
-              },
-            ]}
-          />
+          <KPIStrip cols={4} items={[
+            { label: "VEHÍCULOS ACTIVOS", value: data.kpis.activeVehicles, subtitle: "en la municipalidad", accent: INK9, icon: Truck },
+            { label: "CONDUCTORES", value: data.kpis.activeDrivers, subtitle: "activos", accent: INFO, icon: Users },
+            { label: "INSPECCIONES", value: data.kpis.inspectionsThisMonth, subtitle: "este mes", accent: APTO, icon: FileCheck },
+            { label: "REPORTES PEND.", value: data.kpis.reportsPending, subtitle: "ciudadanos", accent: data.kpis.reportsPending > 0 ? NO : INK5, icon: AlertCircle },
+          ]} />
 
-          {/* Pie de inspecciones + tabla de baja reputación */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-fade-up delay-100">
-            {/* Gráfico pie */}
-            <Card>
-              <h3
-                style={{
-                  fontFamily: "var(--font-inter)",
-                  fontSize: "1rem",
-                  fontWeight: 700,
-                  color: "#09090b",
-                  letterSpacing: "-0.01em",
-                  margin: 0,
-                  marginBottom: 4,
-                }}
-              >
-                Inspecciones por resultado
-              </h3>
-              <p style={{ color: "#71717a", fontSize: "0.8125rem", marginBottom: 12 }}>
-                {totalInspecciones > 0
-                  ? `${totalInspecciones} inspecciones registradas este mes.`
-                  : "Sin inspecciones registradas este mes."}
-              </p>
-              <div style={{ width: "100%", height: 240 }}>
-                {pieData.length === 0 ? (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      height: "100%",
-                      color: "#71717a",
-                      fontSize: "0.875rem",
-                    }}
-                  >
-                    Sin datos este mes.
-                  </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        dataKey="value"
-                        nameKey="name"
-                        outerRadius={90}
-                        innerRadius={52}
-                        paddingAngle={2}
-                      >
-                        {pieData.map((entry, i) => (
-                          <Cell key={i} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        formatter={(value, name) => [Number(value), String(name)]}
-                      />
-                      <Legend wrapperStyle={{ fontSize: "0.75rem" }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </Card>
-
-            {/* Top 5 baja reputación */}
-            <Card>
-              <h3
-                style={{
-                  fontFamily: "var(--font-inter)",
-                  fontSize: "1rem",
-                  fontWeight: 700,
-                  color: "#09090b",
-                  letterSpacing: "-0.01em",
-                  margin: 0,
-                  marginBottom: 4,
-                }}
-              >
-                Vehículos con menor reputación
-              </h3>
-              <p style={{ color: "#71717a", fontSize: "0.8125rem", marginBottom: 12 }}>
-                Top 5 que requieren atención prioritaria.
-              </p>
-              {data.top5VehiculosBajaReputacion.length === 0 ? (
-                <div style={{ color: "#71717a", fontSize: "0.875rem" }}>Sin vehículos activos.</div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {data.top5VehiculosBajaReputacion.map((v, i) => (
-                    <div
-                      key={v._id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        padding: "10px 12px",
-                        background: "#fafafa",
-                        border: "1px solid #e4e4e7",
-                        borderRadius: 10,
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: 22,
-                          height: 22,
-                          borderRadius: "50%",
-                          background: i === 0 ? "#b91c1c" : "#e4e4e7",
-                          color: i === 0 ? "#fff" : "#52525b",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "0.6875rem",
-                          fontWeight: 700,
-                          flexShrink: 0,
-                        }}
-                      >
-                        {i + 1}
-                      </span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontWeight: 700,
-                            fontSize: "0.875rem",
-                            color: "#09090b",
-                          }}
-                        >
-                          {v.plate}
-                        </div>
-                        <div style={{ fontSize: "0.75rem", color: "#71717a" }}>
-                          {[v.brand, v.model].filter(Boolean).join(" ")}
-                        </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            {/* Donut inspecciones */}
+            <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, padding: "20px 22px" }}>
+              <SectionTitle title="Inspecciones por resultado" sub={totalInsp > 0 ? `${totalInsp} inspecciones este mes` : "Sin inspecciones este mes"} />
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <div style={{ width: "55%", height: 200, position: "relative" }}>
+                  {pieData.length === 0 ? (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: INK5, fontSize: "0.875rem" }}>Sin datos.</div>
+                  ) : (
+                    <>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={pieData} dataKey="value" nameKey="name" outerRadius={84} innerRadius={52} paddingAngle={2} startAngle={90} endAngle={450}>
+                            {pieData.map((e, i) => <Cell key={i} fill={e.color} stroke="none" />)}
+                          </Pie>
+                          <Tooltip content={<ChartTooltip />} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+                        <div style={{ fontSize: "1.5rem", fontWeight: 800, color: INK9, letterSpacing: "-0.03em" }}>{aprobadasPct}%</div>
+                        <div style={{ fontSize: "0.6875rem", color: INK5, fontWeight: 600 }}>aprobadas</div>
                       </div>
-                      {/* Barra de reputación */}
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3, minWidth: 72 }}>
-                        <span
-                          style={{
-                            fontSize: "0.8125rem",
-                            fontWeight: 700,
-                            fontVariantNumeric: "tabular-nums",
-                            color:
-                              v.reputationScore >= 70
-                                ? "#15803d"
-                                : v.reputationScore >= 40
-                                ? "#b45309"
-                                : "#b91c1c",
-                          }}
-                        >
-                          {v.reputationScore}
-                          <span style={{ fontWeight: 400, color: "#a1a1aa", fontSize: "0.6875rem" }}>/100</span>
-                        </span>
-                        <div
-                          style={{
-                            width: 64,
-                            height: 5,
-                            background: "#e4e4e7",
-                            borderRadius: 999,
-                            overflow: "hidden",
-                          }}
-                        >
-                          <div
-                            style={{
-                              height: "100%",
-                              width: `${v.reputationScore}%`,
-                              background:
-                                v.reputationScore >= 70
-                                  ? "#15803d"
-                                  : v.reputationScore >= 40
-                                  ? "#b45309"
-                                  : "#b91c1c",
-                              borderRadius: 999,
-                            }}
-                          />
-                        </div>
-                      </div>
-                      <span
-                        style={{
-                          fontSize: "0.6875rem",
-                          fontWeight: 600,
-                          padding: "2px 7px",
-                          borderRadius: 999,
-                          background:
-                            INSPECCION_STATUS_COLORS[v.lastInspectionStatus] + "1a",
-                          color: INSPECCION_STATUS_COLORS[v.lastInspectionStatus],
-                          border: `1px solid ${INSPECCION_STATUS_COLORS[v.lastInspectionStatus]}33`,
-                          textTransform: "capitalize",
-                        }}
-                      >
-                        {v.lastInspectionStatus}
-                      </span>
+                    </>
+                  )}
+                </div>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {pieData.map((e, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: INK1, borderRadius: 8 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: "50%", background: e.color, flexShrink: 0 }} />
+                      <span style={{ fontSize: "0.75rem", color: INK6, flex: 1 }}>{e.name}</span>
+                      <span style={{ fontSize: "0.875rem", fontWeight: 700, fontVariantNumeric: "tabular-nums", color: INK9 }}>{e.value}</span>
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+
+            {/* Top 5 baja reputación */}
+            <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, padding: "20px 22px" }}>
+              <SectionTitle title="Vehículos con menor reputación" sub="Top 5 que requieren atención prioritaria" />
+              {data.top5VehiculosBajaReputacion.length === 0 ? (
+                <div style={{ color: INK5, fontSize: "0.875rem" }}>Sin vehículos activos.</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {data.top5VehiculosBajaReputacion.map((v, i) => {
+                    const sc = v.reputationScore;
+                    const color = sc >= 70 ? APTO : sc >= 40 ? WARN : NO;
+                    return (
+                      <div key={v._id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: i === 0 ? NOBG : INK1, border: `1px solid ${i === 0 ? NOBD : INK2}`, borderRadius: 10 }}>
+                        <span style={{ width: 22, height: 22, borderRadius: "50%", background: i === 0 ? NO : INK2, color: i === 0 ? "#fff" : INK6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6875rem", fontWeight: 700, flexShrink: 0 }}>{i + 1}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9 }}>{v.plate}</div>
+                          <div style={{ fontSize: "0.6875rem", color: INK5 }}>{[v.brand, v.model].filter(Boolean).join(" ")}</div>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3, minWidth: 64 }}>
+                          <span style={{ fontSize: "0.8125rem", fontWeight: 700, color, fontVariantNumeric: "tabular-nums" }}>{sc}<span style={{ fontWeight: 400, color: "#a1a1aa", fontSize: "0.6875rem" }}>/100</span></span>
+                          <div style={{ width: 56, height: 4, background: INK2, borderRadius: 999, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${sc}%`, background: color, borderRadius: 999 }} />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
-            </Card>
+            </div>
           </div>
 
           {/* Últimas sanciones */}
-          <Card>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                justifyContent: "space-between",
-                marginBottom: 12,
-              }}
-            >
-              <h3
-                style={{
-                  fontFamily: "var(--font-inter)",
-                  fontSize: "1rem",
-                  fontWeight: 700,
-                  color: "#09090b",
-                  letterSpacing: "-0.01em",
-                  margin: 0,
-                }}
-              >
-                Últimas infracciones / sanciones
-              </h3>
-              <span style={{ fontSize: "0.75rem", color: "#71717a" }}>últimas 5</span>
-            </div>
+          <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, padding: "20px 22px" }}>
+            <SectionTitle title="Últimas infracciones / sanciones" sub="últimas 5 registradas" />
             {data.ultimasSanciones.length === 0 ? (
-              <div style={{ color: "#71717a", fontSize: "0.875rem" }}>
-                No hay sanciones registradas.
-              </div>
+              <div style={{ color: INK5, fontSize: "0.875rem" }}>No hay sanciones registradas.</div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              <div style={{ display: "flex", flexDirection: "column" }}>
                 {data.ultimasSanciones.map((s, i) => {
-                  const plate =
-                    typeof s.vehicleId === "object" && s.vehicleId
-                      ? s.vehicleId.plate ?? "—"
-                      : "—";
+                  const plate = typeof s.vehicleId === "object" && s.vehicleId ? s.vehicleId.plate ?? "—" : "—";
                   return (
-                    <div
-                      key={s._id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 14,
-                        padding: "12px 2px",
-                        borderBottom:
-                          i < data.ultimasSanciones.length - 1
-                            ? "1px solid #f4f4f5"
-                            : "none",
-                      }}
-                    >
-                      <ClipboardList
-                        size={16}
-                        strokeWidth={1.8}
-                        style={{ color: "#a1a1aa", flexShrink: 0 }}
-                      />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontWeight: 600,
-                            fontSize: "0.875rem",
-                            color: "#09090b",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {s.faultType}
-                        </div>
-                        <div style={{ fontSize: "0.75rem", color: "#71717a" }}>
-                          Vehículo{" "}
-                          <strong style={{ color: "#52525b" }}>{plate}</strong>
-                          {" · "}
-                          {new Date(s.createdAt).toLocaleDateString("es-PE", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })}
-                        </div>
+                    <div key={s._id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 2px", borderBottom: i < data.ultimasSanciones.length - 1 ? `1px solid ${INK1}` : "none" }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 9, background: NOBG, border: `1px solid ${NOBD}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <ClipboardList size={16} strokeWidth={1.8} color={NO} />
                       </div>
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }}>
-                        <span
-                          style={{
-                            fontWeight: 700,
-                            fontSize: "0.875rem",
-                            fontVariantNumeric: "tabular-nums",
-                            color: "#09090b",
-                          }}
-                        >
-                          S/{s.amountSoles.toLocaleString("es-PE")}
-                        </span>
-                        <Badge variant={s.status === "anulada" ? "inactivo" : s.status === "confirmada" ? "activo" : "pendiente"}>
-                          {SANCION_STATUS_LABELS[s.status] ?? s.status}
-                        </Badge>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: "0.875rem", color: INK9, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.faultType}</div>
+                        <div style={{ fontSize: "0.75rem", color: INK5 }}>Vehículo <strong style={{ color: INK6 }}>{plate}</strong> · {new Date(s.createdAt).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}</div>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                        <span style={{ fontWeight: 800, fontSize: "0.9375rem", fontVariantNumeric: "tabular-nums", color: INK9 }}>S/{s.amountSoles.toLocaleString("es-PE")}</span>
+                        <Badge variant={s.status === "anulada" ? "inactivo" : s.status === "confirmada" ? "activo" : "pendiente"}>{SANC_LABELS[s.status] ?? s.status}</Badge>
                       </div>
                     </div>
                   );
                 })}
               </div>
             )}
-          </Card>
+          </div>
         </>
       )}
     </div>

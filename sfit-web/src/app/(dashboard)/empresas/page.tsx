@@ -3,13 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Eye, Truck, CircleCheck, Pause, Star } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/Card";
+import { Plus, Truck, Star, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
-import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 type Company = {
   id: string;
@@ -50,7 +48,6 @@ export default function EmpresasPage() {
   const [user, setUser] = useState<StoredUser | null>(null);
   const [items, setItems] = useState<Company[]>([]);
   const [types, setTypes] = useState<VehicleType[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +73,7 @@ export default function EmpresasPage() {
     if (!user) return;
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, statusFilter, typeFilter]);
+  }, [user, typeFilter]);
 
   async function loadTypes() {
     try {
@@ -97,7 +94,6 @@ export default function EmpresasPage() {
     try {
       const token = localStorage.getItem("sfit_access_token");
       const qs = new URLSearchParams();
-      if (statusFilter) qs.set("status", statusFilter);
       if (typeFilter) qs.set("vehicleTypeKey", typeFilter);
       const url = "/api/empresas" + (qs.toString() ? `?${qs.toString()}` : "");
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token ?? ""}` } });
@@ -204,34 +200,10 @@ export default function EmpresasPage() {
         },
       },
       {
-        id: "estado",
-        header: "Estado",
-        accessorFn: (c) =>
-          c.status === "suspendido" || !c.active
-            ? "Suspendida"
-            : c.status === "pendiente"
-            ? "Pendiente"
-            : "Activa",
-        cell: ({ row: r }) => {
-          if (r.original.status === "suspendido" || !r.original.active)
-            return <Badge variant="suspendido">Suspendida</Badge>;
-          if (r.original.status === "pendiente")
-            return <Badge variant="pendiente">Pendiente</Badge>;
-          return <Badge variant="activo">Activa</Badge>;
-        },
-      },
-      {
-        id: "acciones",
+        id: "_nav",
         header: "",
         enableSorting: false,
-        cell: ({ row: r }) => (
-          <Link href={`/empresas/${r.original.id}`}>
-            <Button variant="outline" size="sm">
-              <Eye size={14} strokeWidth={1.8} />
-              Ver
-            </Button>
-          </Link>
-        ),
+        cell: () => <ChevronRight size={15} color="#a1a1aa"/>,
       },
     ],
     [typeMap]
@@ -239,19 +211,15 @@ export default function EmpresasPage() {
 
   if (forbidden) {
     return (
-      <Card>
-        <h3 style={{ fontFamily: "var(--font-inter)", marginBottom: 8 }}>Acceso denegado</h3>
+      <div style={{ padding: 24, background: "#fff", borderRadius: 14, border: "1px solid #e4e4e7" }}>
         <p style={{ color: "#52525b" }}>No tienes permisos para ver esta sección.</p>
-      </Card>
+      </div>
     );
   }
 
   if (!user) return null;
   const canCreate = user.role === "admin_municipal";
 
-  const activas = items.filter((c) => c.active && c.status !== "suspendido").length;
-  const suspendidas = items.filter((c) => !c.active || c.status === "suspendido").length;
-  const pendientes = items.filter((c) => c.status === "pendiente").length;
   const repAvg =
     items.length > 0
       ? Math.round(items.reduce((a, c) => a + c.reputationScore, 0) / items.length)
@@ -259,12 +227,6 @@ export default function EmpresasPage() {
 
   const toolbarEnd = (
     <>
-      <select style={selectStyle} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-        <option value="">Todos los estados</option>
-        <option value="activo">Activa</option>
-        <option value="suspendido">Suspendida</option>
-        <option value="pendiente">Pendiente</option>
-      </select>
       <select style={selectStyle} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
         <option value="">Todas las flotas</option>
         {types.filter((t) => t.active).map((t) => (
@@ -273,35 +235,23 @@ export default function EmpresasPage() {
       </select>
       {canCreate && (
         <Link href="/empresas/nueva">
-          <Button variant="primary" size="sm">
-            <Plus size={14} strokeWidth={2} />
-            Nueva empresa
-          </Button>
+          <button style={{ display:"inline-flex", alignItems:"center", gap:6, height:34, padding:"0 14px", borderRadius:8, border:"1.5px solid #B8860B", background:"#B8860B", color:"#fff", fontSize:"0.8125rem", fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+            <Plus size={13}/>Nueva empresa
+          </button>
         </Link>
       )}
     </>
   );
 
   return (
-    <div className="flex flex-col gap-3 animate-fade-in">
-      <DashboardHero
-        kicker="Panel municipal"
-        rfCode="RF-03-04"
-        title="Empresas de transporte"
-        pills={[
-          { label: "Total", value: items.length },
-          { label: "Activas", value: activas },
-          { label: "Suspendidas", value: suspendidas, warn: suspendidas > 0 },
-        ]}
-      />
+    <div className="flex flex-col gap-4 animate-fade-in">
+      <PageHeader kicker="Panel municipal · RF-04" title="Empresas de transporte" />
 
       <KPIStrip
-        cols={4}
+        cols={2}
         items={[
-          { label: "EMPRESAS", value: items.length, subtitle: "registradas", accent: "#0A1628", icon: Truck },
-          { label: "ACTIVAS", value: activas, subtitle: "operando", accent: "#15803d", icon: CircleCheck },
-          { label: "SUSPENDIDAS", value: suspendidas + pendientes, subtitle: `${pendientes} pendientes`, accent: "#b91c1c", icon: Pause },
-          { label: "REPUTACIÓN", value: repAvg, subtitle: "promedio flota", accent: "#B8860B", icon: Star },
+          { label: "EMPRESAS", value: items.length, subtitle: "registradas", icon: Truck },
+          { label: "REPUTACIÓN", value: repAvg, subtitle: "promedio flota", icon: Star },
         ]}
       />
 
@@ -322,23 +272,22 @@ export default function EmpresasPage() {
         </div>
       )}
 
-      <div className="animate-fade-up delay-100">
-        <DataTable<Company>
-          columns={columns}
-          data={items}
-          loading={loading}
-          searchPlaceholder="Buscar empresa, RUC o representante…"
-          emptyTitle="Sin empresas"
-          emptyDescription={
-            canCreate
-              ? "Registra la primera empresa para comenzar a gestionar su flota."
-              : "Aún no hay empresas registradas o ninguna coincide con los filtros."
-          }
-          defaultPageSize={20}
-          showColumnToggle
-          toolbarEnd={toolbarEnd}
-        />
-      </div>
+      <DataTable<Company>
+        columns={columns}
+        data={items}
+        loading={loading}
+        searchPlaceholder="Buscar empresa, RUC o representante…"
+        emptyTitle="Sin empresas"
+        emptyDescription={
+          canCreate
+            ? "Registra la primera empresa para comenzar a gestionar su flota."
+            : "Aún no hay empresas registradas o ninguna coincide con los filtros."
+        }
+        defaultPageSize={20}
+        showColumnToggle
+        toolbarEnd={toolbarEnd}
+        onRowClick={row => router.push(`/empresas/${row.id}`)}
+      />
     </div>
   );
 }

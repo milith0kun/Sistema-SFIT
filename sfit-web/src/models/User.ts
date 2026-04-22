@@ -33,6 +33,8 @@ export interface IUser extends Document {
   // Tokens
   refreshToken?: string;
   refreshTokenExpiry?: Date;
+  passwordResetToken?: string;
+  passwordResetExpiry?: Date;
 
   // Timestamps
   createdAt: Date;
@@ -111,6 +113,8 @@ const UserSchema = new Schema<IUser>(
     // Tokens
     refreshToken: { type: String, select: false },
     refreshTokenExpiry: { type: Date, select: false },
+    passwordResetToken: { type: String, select: false },
+    passwordResetExpiry: { type: Date },
 
     // Timestamps
     lastLoginAt: { type: Date },

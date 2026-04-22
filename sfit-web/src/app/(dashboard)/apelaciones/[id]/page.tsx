@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 type ApelacionStatus = "pendiente" | "aprobada" | "rechazada";
 type Apelacion = {
   id: string;
-  inspection: { id: string; date: string; result: string; score: number; vehicle?: { plate: string } };
+  inspection: { id: string; date: string; result: string; score: number; vehicle?: { plate: string } } | null;
   submittedBy: { name: string; role: string };
   reason: string;
   evidence: string[];
@@ -38,7 +38,7 @@ function StatusBadge({ s }: { s: ApelacionStatus }) {
     aprobada:  { bg: APTOBG, color: APTO, border: APTOBD, label: "APROBADA" },
     rechazada: { bg: NOBG, color: NO, border: NOBD, label: "RECHAZADA" },
   };
-  const st = map[s];
+  const st = map[s] ?? { bg: INK1, color: INK5, border: INK2, label: String(s ?? "—").toUpperCase() };
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 999, fontSize: "0.6875rem", fontWeight: 700, textTransform: "uppercase", background: st.bg, color: st.color, border: `1px solid ${st.border}` }}>
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block" }} />
@@ -126,7 +126,7 @@ export default function ApelacionDetailPage({ params }: { params: Promise<{ id: 
                   <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: INK5, marginBottom: 4 }}>Estado de apelación</div>
                   <StatusBadge s={apel.status} />
                 </div>
-                {apel.inspection.vehicle && (
+                {apel.inspection?.vehicle && (
                   <span style={{ display: "inline-flex", padding: "4px 12px", borderRadius: 6, background: INK9, color: "#fff", fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.9375rem" }}>{apel.inspection.vehicle.plate}</span>
                 )}
               </div>
@@ -134,7 +134,7 @@ export default function ApelacionDetailPage({ params }: { params: Promise<{ id: 
                 {[
                   ["Presentada por", apel.submittedBy.name],
                   ["Fecha", new Date(apel.createdAt).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })],
-                  ["Acta relacionada", `A-${apel.inspection.id.slice(-10).toUpperCase()}`],
+                  ["Acta relacionada", apel.inspection ? `A-${apel.inspection.id.slice(-10).toUpperCase()}` : "—"],
                 ].map(([lbl, val]) => (
                   <div key={lbl} style={{ padding: 12, background: INK1, borderRadius: 10 }}>
                     <div style={{ fontSize: "0.75rem", color: INK5 }}>{lbl}</div>
@@ -182,26 +182,34 @@ export default function ApelacionDetailPage({ params }: { params: Promise<{ id: 
             {/* Inspección relacionada */}
             <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, padding: "20px 24px" }}>
               <div style={{ fontWeight: 700, fontSize: "0.9375rem", marginBottom: 14 }}>Acta de inspección</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ padding: 12, background: INK1, borderRadius: 10 }}>
-                  <div style={{ fontSize: "0.75rem", color: INK5 }}>Código</div>
-                  <div style={{ fontFamily: "ui-monospace,monospace", fontWeight: 700, marginTop: 4 }}>A-{apel.inspection.id.slice(-10).toUpperCase()}</div>
+              {apel.inspection ? (
+                <>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div style={{ padding: 12, background: INK1, borderRadius: 10 }}>
+                      <div style={{ fontSize: "0.75rem", color: INK5 }}>Código</div>
+                      <div style={{ fontFamily: "ui-monospace,monospace", fontWeight: 700, marginTop: 4 }}>A-{apel.inspection.id.slice(-10).toUpperCase()}</div>
+                    </div>
+                    <div style={{ padding: 12, background: INK1, borderRadius: 10 }}>
+                      <div style={{ fontSize: "0.75rem", color: INK5 }}>Score</div>
+                      <div style={{ fontWeight: 700, marginTop: 4 }}>{apel.inspection.score}/100</div>
+                    </div>
+                    <div style={{ padding: 12, background: INK1, borderRadius: 10 }}>
+                      <div style={{ fontSize: "0.75rem", color: INK5 }}>Resultado</div>
+                      <div style={{ fontWeight: 700, marginTop: 4, textTransform: "capitalize" }}>{apel.inspection.result}</div>
+                    </div>
+                  </div>
+                  <Link
+                    href={`/inspecciones/${apel.inspection.id}`}
+                    style={{ display: "block", marginTop: 14, textAlign: "center", padding: "9px", borderRadius: 9, border: `1.5px solid ${INK2}`, fontSize: "0.8125rem", fontWeight: 600, color: INK6, textDecoration: "none", background: "#fff" }}
+                  >
+                    Ver acta completa
+                  </Link>
+                </>
+              ) : (
+                <div style={{ padding: 14, background: INK1, borderRadius: 10, color: INK5, fontSize: "0.875rem" }}>
+                  No se encontró el acta de inspección vinculada.
                 </div>
-                <div style={{ padding: 12, background: INK1, borderRadius: 10 }}>
-                  <div style={{ fontSize: "0.75rem", color: INK5 }}>Score</div>
-                  <div style={{ fontWeight: 700, marginTop: 4 }}>{apel.inspection.score}/100</div>
-                </div>
-                <div style={{ padding: 12, background: INK1, borderRadius: 10 }}>
-                  <div style={{ fontSize: "0.75rem", color: INK5 }}>Resultado</div>
-                  <div style={{ fontWeight: 700, marginTop: 4, textTransform: "capitalize" }}>{apel.inspection.result}</div>
-                </div>
-              </div>
-              <Link
-                href={`/inspecciones/${apel.inspection.id}`}
-                style={{ display: "block", marginTop: 14, textAlign: "center", padding: "9px", borderRadius: 9, border: `1.5px solid ${INK2}`, fontSize: "0.8125rem", fontWeight: 600, color: INK6, textDecoration: "none", background: "#fff" }}
-              >
-                Ver acta completa
-              </Link>
+              )}
             </div>
 
             {/* Panel de resolución */}
