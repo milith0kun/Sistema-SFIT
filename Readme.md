@@ -818,7 +818,7 @@ flutter build apk --release
 # → sfit-app/build/app/outputs/flutter-apk/app-release.apk
 ```
 
-### 11.9 Estado consolidado y pendientes (auditado 19/04/2026)
+### 11.9 Estado consolidado y pendientes (auditado 22/04/2026)
 
 #### Completados desde última versión del README
 - ✅ RF-01–RF-13: toda la UI web conectada a APIs reales (sin mock data)
@@ -832,17 +832,19 @@ flutter build apk --release
 - ✅ RF-13 apelaciones web: flujo completo presentar + resolver
 - ✅ RF-18 FCM push: Firebase Admin SDK con degradación segura
 - ✅ Firebase.initializeApp en main.dart
+- ✅ **RF-17 OCR documentos** — `DocumentOcrPage` en `ai_ocr` feature: DNI/licencia/SOAT/tarjeta circulación con indicadores de confianza por campo; ruta `/ocr-documento` registrada
+- ✅ **RF-18 push listeners** — `NotificationService` + `FcmBackgroundHandler`: canal Android `sfit_alerts`, listeners foreground/background/terminated, routing por payload
+- ✅ **RF-12 anti-fraude capa 2** — geolocalización en `SubmitReportPage`: captura GPS automática al encontrar vehículo, envío opcional de `latitude/longitude` con el reporte
 
 #### Pendientes reales (en orden de impacto)
 
 | # | Bloque | RF | Impacto |
 |---|---|---|---|
-| 1 | **RF-17 OCR/IA** — Google Vision o Tesseract para DNI/licencia/tarjeta circulación | RF-17 | Alto — formularios auto-relleno |
-| 2 | **RF-12 anti-fraude capas 2/4/5** — radio geográfico, HMAC QR en reporte, corroboración | RF-12 | Medio — fraude en producción |
-| 3 | **RF-18 push listeners background** — FCM en primer plano y en background en Flutter | RF-18 | Medio — alertas críticas |
-| 4 | **Google Sign In SHA-1** — registrar en GCP Console para habilitar login Google en app | RF-01-01 | Medio |
-| 5 | **RF-18 WhatsApp + SMTP** — sanciones y alertas por canal externo | RF-18 | Bajo |
-| 6 | **RF-10 auto-cierre programado** — cron job externo (Dokploy scheduler) | RF-10 | Bajo |
+| 1 | **Google Sign In SHA-1** — registrar en GCP Console para habilitar login Google en app | RF-01-01 | Medio |
+| 2 | **RF-12 anti-fraude capas 4/5** — HMAC QR en reporte (capa 4), corroboración por historial ciudadano (capa 5) | RF-12 | Medio |
+| 3 | **RF-18 WhatsApp + SMTP** — sanciones y alertas por canal externo | RF-18 | Bajo |
+| 4 | **RF-10 auto-cierre programado** — cron job externo (Dokploy scheduler) | RF-10 | Bajo |
+| 5 | **RF-17 OCR integrado en formularios** — botón "Escanear documento" dentro de los formularios de alta de conductor/vehículo del Operador | RF-17 | Bajo |
 
 ---
 
