@@ -1,7 +1,7 @@
 name: sfit_app
 description: "SFIT — Sistema de Fiscalización Inteligente de Transporte. App móvil para fiscalización y gestión de flota vehicular municipal."
 publish_to: 'none'
-version: 1.1.0+5
+version: 1.2.0+6
 
 environment:
   sdk: ^3.7.0
