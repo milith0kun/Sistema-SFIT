@@ -290,6 +290,15 @@ async function main() {
       companyId: comp1._id, municipalityId: MUNIC_ID,
       vehicleTypeKey: "omnibus", stops: 12, length: "8.5 km",
       vehicleCount: 3, status: "activa", frequencies: ["10 min"],
+      waypoints: [
+        { order: 0, lat: -13.5165, lng: -71.9782, label: "Plaza de Armas" },
+        { order: 1, lat: -13.5188, lng: -71.9757, label: "Av. El Sol" },
+        { order: 2, lat: -13.5218, lng: -71.9694, label: "Estadio Universitario" },
+        { order: 3, lat: -13.5248, lng: -71.9619, label: "Av. La Cultura - UNSAAC" },
+        { order: 4, lat: -13.5279, lng: -71.9553, label: "Ttio" },
+        { order: 5, lat: -13.5305, lng: -71.9513, label: "Vía de Evitamiento" },
+        { order: 6, lat: -13.5330, lng: -71.9478, label: "San Sebastián Plaza" },
+      ],
     });
 
   const rt2 = await upsert(RouteModel,
@@ -299,6 +308,13 @@ async function main() {
       companyId: comp2._id, municipalityId: MUNIC_ID,
       vehicleTypeKey: "minibus", stops: 9, length: "6.2 km",
       vehicleCount: 2, status: "activa", frequencies: ["15 min"],
+      waypoints: [
+        { order: 0, lat: -13.5165, lng: -71.9782, label: "Plaza de Armas" },
+        { order: 1, lat: -13.5185, lng: -71.9748, label: "Av. El Sol - Correos" },
+        { order: 2, lat: -13.5210, lng: -71.9640, label: "Av. La Cultura" },
+        { order: 3, lat: -13.5240, lng: -71.9560, label: "Larapa" },
+        { order: 4, lat: -13.5298, lng: -71.9490, label: "San Jerónimo Plaza" },
+      ],
     });
 
   const rt3 = await upsert(RouteModel,
@@ -308,6 +324,15 @@ async function main() {
       companyId: comp1._id, municipalityId: MUNIC_ID,
       vehicleTypeKey: "omnibus", stops: 15, length: "12.0 km",
       vehicleCount: 2, status: "activa", frequencies: ["20 min"],
+      waypoints: [
+        { order: 0, lat: -13.5219, lng: -71.9603, label: "Wanchaq" },
+        { order: 1, lat: -13.5181, lng: -71.9719, label: "Limacpampa" },
+        { order: 2, lat: -13.5165, lng: -71.9782, label: "Plaza de Armas" },
+        { order: 3, lat: -13.5148, lng: -71.9812, label: "Saphy" },
+        { order: 4, lat: -13.5102, lng: -71.9852, label: "Santa Ana" },
+        { order: 5, lat: -13.4982, lng: -72.0082, label: "Cachimayo" },
+        { order: 6, lat: -13.4861, lng: -72.0282, label: "Poroy" },
+      ],
     });
   console.log("✅ Rutas creadas");
 

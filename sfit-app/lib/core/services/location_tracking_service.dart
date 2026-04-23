@@ -7,27 +7,35 @@ import '../../features/trips/data/datasources/trips_api_service.dart';
 
 class TrackingState {
   final String? entryId;
+  final String? routeId;
   final bool isTracking;
   final List<LatLng> localTrack;
+  final List<LatLng> routeWaypoints;
   final LatLng? currentPosition;
 
   const TrackingState({
     this.entryId,
+    this.routeId,
     this.isTracking = false,
     this.localTrack = const [],
+    this.routeWaypoints = const [],
     this.currentPosition,
   });
 
   TrackingState copyWith({
     String? entryId,
+    String? routeId,
     bool? isTracking,
     List<LatLng>? localTrack,
+    List<LatLng>? routeWaypoints,
     LatLng? currentPosition,
   }) =>
       TrackingState(
         entryId: entryId ?? this.entryId,
+        routeId: routeId ?? this.routeId,
         isTracking: isTracking ?? this.isTracking,
         localTrack: localTrack ?? this.localTrack,
+        routeWaypoints: routeWaypoints ?? this.routeWaypoints,
         currentPosition: currentPosition ?? this.currentPosition,
       );
 }
@@ -45,8 +53,9 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
   }
 
   /// Inicia tracking para un FleetEntry. Llamar desde TripCheckinPage.
-  Future<void> startTracking(String entryId) async {
+  Future<void> startTracking(String entryId, {String? routeId}) async {
     _timer?.cancel();
+    final waypoints = await _loadRouteWaypoints(routeId);
     final pos = await _safeGetPosition();
     final track = <LatLng>[];
     if (pos != null) {
@@ -55,18 +64,25 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
       _sendSilent(entryId: entryId, lat: pos.latitude, lng: pos.longitude, action: 'update');
       state = TrackingState(
         entryId: entryId,
+        routeId: routeId,
         isTracking: true,
         localTrack: track,
+        routeWaypoints: waypoints,
         currentPosition: ll,
       );
     } else {
-      state = TrackingState(entryId: entryId, isTracking: true);
+      state = TrackingState(
+        entryId: entryId,
+        routeId: routeId,
+        isTracking: true,
+        routeWaypoints: waypoints,
+      );
     }
     _timer = Timer.periodic(const Duration(seconds: 15), (_) => _tick());
   }
 
   /// Carga puntos existentes del backend y reanuda tracking (app reopened).
-  Future<void> resumeTracking(String entryId) async {
+  Future<void> resumeTracking(String entryId, {String? routeId}) async {
     if (state.isTracking && state.entryId == entryId) return;
     _timer?.cancel();
     List<LatLng> existing = [];
@@ -75,17 +91,30 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
       existing = raw.map((p) => LatLng(p['lat']!, p['lng']!)).toList();
     } catch (_) {}
 
+    final waypoints = await _loadRouteWaypoints(routeId);
     final pos = await _safeGetPosition();
     final ll = pos != null ? LatLng(pos.latitude, pos.longitude) : null;
     if (ll != null) existing.add(ll);
 
     state = TrackingState(
       entryId: entryId,
+      routeId: routeId,
       isTracking: true,
       localTrack: existing,
+      routeWaypoints: waypoints,
       currentPosition: ll,
     );
     _timer = Timer.periodic(const Duration(seconds: 15), (_) => _tick());
+  }
+
+  Future<List<LatLng>> _loadRouteWaypoints(String? routeId) async {
+    if (routeId == null) return const [];
+    try {
+      final raw = await _svc.getRouteWaypoints(routeId);
+      return raw.map((p) => LatLng(p['lat']!, p['lng']!)).toList();
+    } catch (_) {
+      return const [];
+    }
   }
 
   /// Detiene tracking. Llamar desde TripCheckoutPage.

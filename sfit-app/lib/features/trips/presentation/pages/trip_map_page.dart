@@ -37,8 +37,15 @@ class _TripMapPageState extends ConsumerState<TripMapPage> {
       final entries = await svc.getMyFleetEntries();
       final active = entries.where((e) => e['status'] == 'en_ruta').toList();
       if (active.isNotEmpty && mounted) {
-        final entryId = active.first['id'] as String? ?? active.first['_id'] as String? ?? '';
-        await ref.read(locationTrackingProvider.notifier).resumeTracking(entryId);
+        final entry = active.first;
+        final entryId = entry['id'] as String? ?? entry['_id'] as String? ?? '';
+        // Extraer routeId del objeto route poblado (si existe)
+        final routeObj = entry['route'] as Map<String, dynamic>?;
+        final routeId = routeObj?['_id'] as String? ?? routeObj?['id'] as String?;
+        await ref.read(locationTrackingProvider.notifier).resumeTracking(
+          entryId,
+          routeId: routeId,
+        );
       }
     } catch (_) {}
   }
@@ -85,6 +92,18 @@ class _TripMapPageState extends ConsumerState<TripMapPage> {
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
               userAgentPackageName: 'com.sfit.sfit_app',
             ),
+            // Ruta predefinida (trazado oficial de la línea)
+            if (tracking.routeWaypoints.length >= 2)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: tracking.routeWaypoints,
+                    color: const Color(0x993B82F6), // blue-500 semitransparente
+                    strokeWidth: 3.5,
+                  ),
+                ],
+              ),
+            // Track GPS real del conductor
             if (tracking.localTrack.length >= 2)
               PolylineLayer(
                 polylines: [
@@ -159,9 +178,34 @@ class _TripMapPageState extends ConsumerState<TripMapPage> {
                   ),
                 ),
                 const Spacer(),
+                if (tracking.routeWaypoints.isNotEmpty) ...[
+                  Container(
+                    width: 10,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3B82F6),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Ruta',
+                    style: AppTheme.inter(fontSize: 10, color: Colors.white60),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Container(
+                  width: 10,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: AppColors.gold,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 4),
                 Text(
-                  '${tracking.localTrack.length} puntos',
-                  style: AppTheme.inter(fontSize: 11, color: Colors.white54),
+                  '${tracking.localTrack.length} pts',
+                  style: AppTheme.inter(fontSize: 10, color: Colors.white60),
                 ),
               ],
             ),

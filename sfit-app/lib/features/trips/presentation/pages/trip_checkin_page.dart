@@ -140,9 +140,13 @@ class _TripCheckinPageState extends ConsumerState<TripCheckinPage> {
         vehicleId: _selectedVehicleId!,
         departureTime: _departureTime,
         checklistComplete: true,
+        routeId: widget.preRouteId,
       );
-      // Arranca el tracker GPS con el id de la FleetEntry creada
-      await ref.read(locationTrackingProvider.notifier).startTracking(entryId);
+      // Arranca el tracker GPS con el id de la FleetEntry y la ruta seleccionada
+      await ref.read(locationTrackingProvider.notifier).startTracking(
+        entryId,
+        routeId: widget.preRouteId,
+      );
       if (mounted) {
         context.go('/home');
       }

@@ -57,6 +57,7 @@ class TripsApiService {
     required String vehicleId,
     required DateTime departureTime,
     bool checklistComplete = true,
+    String? routeId,
   }) async {
     final hhmm = '${departureTime.hour.toString().padLeft(2, '0')}:${departureTime.minute.toString().padLeft(2, '0')}';
     final resp = await _dio.post('/flota', data: {
@@ -64,11 +65,26 @@ class TripsApiService {
       'departureTime': hhmm,
       'checklistComplete': checklistComplete,
       'status': 'en_ruta',
+      if (routeId != null) 'routeId': routeId,
     });
     final body = resp.data as Map<String, dynamic>;
-    // El backend devuelve { success: true, data: { id: '...' } }
     final data = body['data'] as Map<String, dynamic>;
     return data['id'] as String;
+  }
+
+  /// GET /rutas/:id — waypoints de una ruta para dibujar en el mapa.
+  Future<List<Map<String, double>>> getRouteWaypoints(String routeId) async {
+    final resp = await _dio.get('/rutas/$routeId');
+    final body = resp.data as Map<String, dynamic>;
+    final data = body['data'] as Map<String, dynamic>;
+    final wps = data['waypoints'] as List? ?? [];
+    return wps.map((p) {
+      final m = p as Map<String, dynamic>;
+      return {
+        'lat': (m['lat'] as num).toDouble(),
+        'lng': (m['lng'] as num).toDouble(),
+      };
+    }).toList();
   }
 
   /// GET /flota — viajes activos del conductor autenticado.
