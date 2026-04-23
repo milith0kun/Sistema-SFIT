@@ -657,7 +657,8 @@ class _LocationStatusRow extends StatelessWidget {
       );
     }
 
-    if (position != null) {
+    final pos = position;
+    if (pos != null) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
@@ -682,7 +683,7 @@ class _LocationStatusRow extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}',
+                    '${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}',
                     style: AppTheme.inter(fontSize: 11, color: AppColors.apto),
                   ),
                 ],
@@ -691,7 +692,7 @@ class _LocationStatusRow extends StatelessWidget {
             GestureDetector(
               onTap: () async {
                 final url = Uri.parse(
-                  'https://www.google.com/maps?q=${position.latitude},${position.longitude}',
+                  'https://www.google.com/maps?q=${pos.latitude},${pos.longitude}',
                 );
                 if (await canLaunchUrl(url)) {
                   await launchUrl(url, mode: LaunchMode.externalApplication);
