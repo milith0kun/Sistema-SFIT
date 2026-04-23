@@ -10,8 +10,13 @@ import '../../data/datasources/reports_api_service.dart';
 import '../../data/models/report_model.dart';
 
 /// Formulario de envío de reporte ciudadano — RF-Ciudadano.
+///
+/// [vehiclePlate] y [vehicleData] son opcionales: cuando se navega desde
+/// VehiclePublicPage el vehículo ya está identificado y se salta el paso 1.
 class SubmitReportPage extends ConsumerStatefulWidget {
-  const SubmitReportPage({super.key});
+  final String? vehiclePlate;
+  final Map<String, dynamic>? vehicleData;
+  const SubmitReportPage({super.key, this.vehiclePlate, this.vehicleData});
 
   @override
   ConsumerState<SubmitReportPage> createState() => _SubmitReportPageState();
@@ -37,6 +42,16 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
 
   // ── Éxito ───────────────────────────────────────────────────────
   bool _success = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.vehicleData != null) {
+      _foundVehicle = widget.vehicleData;
+      if (widget.vehiclePlate != null) _plateCtrl.text = widget.vehiclePlate!;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _captureLocation());
+    }
+  }
 
   @override
   void dispose() {
@@ -238,13 +253,16 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Busca el vehículo por placa y completa el formulario.',
+                widget.vehicleData != null
+                    ? 'El vehículo ya está identificado. Completa el detalle del reporte.'
+                    : 'Busca el vehículo por placa y completa el formulario.',
                 style: AppTheme.inter(fontSize: 14, color: AppColors.ink6, height: 1.4),
               ),
 
               const SizedBox(height: 28),
 
-              // ── Step 1: Buscar vehículo ─────────────────────────
+              // ── Step 1: Buscar vehículo (oculto si viene pre-llenado) ──
+              if (widget.vehicleData == null) ...[
               const _SectionLabel('Paso 1 — Buscar vehículo'),
               const SizedBox(height: 10),
               Row(
@@ -307,6 +325,7 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
                 const SizedBox(height: 10),
                 _InlineError(_searchError!),
               ],
+              ], // fin if widget.vehicleData == null
 
               // Vehículo encontrado
               if (_foundVehicle != null) ...[

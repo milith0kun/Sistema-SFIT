@@ -24,7 +24,7 @@ class PublicApiService {
   Future<PublicVehicleModel> getVehicleByQr(String qrJson) async {
     final resp = await _dio.get(
       '/public/vehiculo',
-      queryParameters: {'qr': Uri.encodeComponent(qrJson)},
+      queryParameters: {'qr': qrJson},
     );
     final data = (resp.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
     return PublicVehicleModel.fromJson(data);

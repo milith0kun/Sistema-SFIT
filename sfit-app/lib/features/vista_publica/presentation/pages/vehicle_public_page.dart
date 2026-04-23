@@ -162,7 +162,7 @@ class _DataView extends StatelessWidget {
           // ── Botón Reportar anomalía (solo ciudadano) ─────────
           if (isCiudadano) ...[
             const SizedBox(height: 20),
-            _ReportarButton(vehicleId: v.id),
+            _ReportarButton(vehicle: v),
           ],
           const SizedBox(height: 12),
         ],
@@ -320,13 +320,19 @@ class _InspectionCard extends StatelessWidget {
 
 // ── Botón reportar anomalía ────────────────────────────────────────────────────
 class _ReportarButton extends StatelessWidget {
-  final String vehicleId;
-  const _ReportarButton({required this.vehicleId});
+  final PublicVehicle vehicle;
+  const _ReportarButton({required this.vehicle});
 
   @override
   Widget build(BuildContext context) {
     return OutlinedButton.icon(
-      onPressed: () => context.push('/reportar?vehicleId=$vehicleId'),
+      onPressed: () => context.push('/reportar', extra: {
+        'plate': vehicle.plate,
+        'vehicleTypeKey': vehicle.vehicleTypeKey,
+        'brand': vehicle.brand,
+        'model': vehicle.model,
+        'status': vehicle.status,
+      }),
       icon: const Icon(Icons.campaign_outlined, size: 18),
       label: const Text('Reportar anomalía'),
       style: OutlinedButton.styleFrom(

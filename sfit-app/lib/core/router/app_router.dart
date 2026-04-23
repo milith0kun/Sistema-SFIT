@@ -28,6 +28,7 @@ import '../../features/operator/presentation/pages/nuevo_vehiculo_page.dart';
 import '../../features/vista_publica/presentation/pages/vehicle_public_page.dart';
 import '../../features/trips/presentation/pages/route_detail_page.dart';
 import '../../features/rewards/presentation/pages/ranking_page.dart';
+import '../../features/reports/presentation/pages/submit_report_page.dart';
 
 part 'app_router.g.dart';
 
@@ -213,6 +214,18 @@ GoRouter router(Ref ref) {
 
       // ── RF-16: Ranking de ciudadanos ──────────────────────────
       GoRoute(path: '/ranking', builder: (_, __) => const RankingPage()),
+
+      // ── RF-12: Formulario de reporte desde vista pública ─────
+      GoRoute(
+        path: '/reportar',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return SubmitReportPage(
+            vehiclePlate: extra?['plate'] as String?,
+            vehicleData: extra,
+          );
+        },
+      ),
 
       // ── Rutas públicas (accesibles sin auth) ───────────────────
       GoRoute(

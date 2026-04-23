@@ -93,6 +93,7 @@ export default function VehiculosPage() {
   const [sel, setSel] = useState<Vehicle | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
   const [qrError, setQrError] = useState<string | null>(null);
+  const [qrPng, setQrPng] = useState<string | null>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
@@ -134,10 +135,22 @@ export default function VehiculosPage() {
     finally { setQrLoading(false); }
   }, [router]);
 
+  // Auto-carga el QR real al seleccionar un vehículo
+  useEffect(() => {
+    if (!sel) { setQrPng(null); return; }
+    let cancelled = false;
+    void (async () => {
+      const result = await fetchQr(sel.id);
+      if (!cancelled && result) setQrPng(result.pngDataUrl);
+    })();
+    return () => { cancelled = true; };
+  }, [sel?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleReemitirQr = useCallback(async () => {
     if (!sel) return;
     const result = await fetchQr(sel.id);
     if (!result) return;
+    setQrPng(result.pngDataUrl);
     const newHmac = result.payload.sig;
     setSel(prev => prev ? { ...prev, qrHmac: newHmac } : prev);
     setItems(prev => prev.map(v => v.id === sel.id ? { ...v, qrHmac: newHmac } : v));
@@ -147,6 +160,7 @@ export default function VehiculosPage() {
     if (!sel) return;
     const result = await fetchQr(sel.id);
     if (!result) return;
+    setQrPng(result.pngDataUrl);
     const link = document.createElement("a");
     link.href = result.pngDataUrl;
     link.download = `QR_SFIT_${sel.plate.replace(/-/g, "")}.png`;
@@ -282,9 +296,21 @@ export default function VehiculosPage() {
             <div style={{ padding: 22 }}>
               <p className="kicker" style={{ marginBottom: 12 }}>QR firmado HMAC-SHA256</p>
               <div style={{ maxWidth: 220, margin: "0 auto" }}>
-                <QrGrid seed={sel.plate} />
+                {qrPng ? (
+                  <img
+                    src={qrPng}
+                    alt={`QR ${sel.plate}`}
+                    style={{ width: "100%", borderRadius: 12, border: `2px solid ${INK9}` }}
+                  />
+                ) : (
+                  <div style={{ aspectRatio: "1/1", border: `2px solid ${INK2}`, borderRadius: 12,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    background: INK1, color: INK5, fontSize: "0.8rem" }}>
+                    {qrLoading ? "Generando…" : "—"}
+                  </div>
+                )}
                 <div style={{ textAlign: "center", marginTop: 10, fontSize: "0.75rem", color: INK5, fontFamily: "ui-monospace,monospace" }}>
-                  sha256:{sel.qrHmac ? sel.qrHmac.slice(0, 12) + "…" : "a9f3…" + sel.plate.replace("-", "").toLowerCase()}
+                  sha256:{sel.qrHmac ? sel.qrHmac.slice(0, 12) + "…" : "pendiente…"}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
