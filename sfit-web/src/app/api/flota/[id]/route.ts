@@ -3,6 +3,7 @@ import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { FleetEntry } from "@/models/FleetEntry";
+import { Driver } from "@/models/Driver";
 import { apiResponse, apiError, apiForbidden, apiNotFound, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
@@ -65,8 +66,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!entry) return apiNotFound("Entrada de flota no encontrada");
 
   if (auth.session.role === ROLES.CONDUCTOR) {
-    // El conductor sólo puede cerrar sus propias entradas
-    if (String(entry.driverId) !== auth.session.userId) return apiForbidden();
+    const driver = await Driver.findOne({ userId: auth.session.userId }).select("_id").lean();
+    if (!driver || String(entry.driverId) !== String(driver._id)) return apiForbidden();
   } else {
     if (!(await canAccessMunicipality(auth.session, String(entry.municipalityId)))) return apiForbidden();
   }

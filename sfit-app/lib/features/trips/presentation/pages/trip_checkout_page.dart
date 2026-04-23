@@ -42,15 +42,16 @@ class _TripCheckoutPageState extends ConsumerState<TripCheckoutPage> {
   }
 
   String _formatDepartureTime() {
+    final raw = widget.departureTime;
+    // "HH:MM" format stored by FleetEntry
+    if (RegExp(r'^\d{2}:\d{2}').hasMatch(raw)) return raw.substring(0, 5);
     try {
-      final dt = DateTime.parse(widget.departureTime).toLocal();
+      final dt = DateTime.parse(raw).toLocal();
       final h = dt.hour.toString().padLeft(2, '0');
       final m = dt.minute.toString().padLeft(2, '0');
-      final day = dt.day.toString().padLeft(2, '0');
-      final month = dt.month.toString().padLeft(2, '0');
-      return '$day/$month  $h:$m';
+      return '$h:$m';
     } catch (_) {
-      return widget.departureTime;
+      return raw;
     }
   }
 

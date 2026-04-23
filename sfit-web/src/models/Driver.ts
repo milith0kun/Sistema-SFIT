@@ -3,6 +3,7 @@ import { DRIVER_STATUS } from "@/lib/constants";
 
 export interface IDriver extends Document {
   municipalityId: mongoose.Types.ObjectId;
+  userId?: mongoose.Types.ObjectId;
   companyId?: mongoose.Types.ObjectId;
   name: string;
   dni: string;
@@ -22,6 +23,7 @@ export interface IDriver extends Document {
 const DriverSchema = new Schema<IDriver>(
   {
     municipalityId: { type: Schema.Types.ObjectId, ref: "Municipality", required: true, index: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User", index: true, sparse: true },
     companyId: { type: Schema.Types.ObjectId, ref: "Company", index: true },
     name: { type: String, required: true, trim: true },
     dni: { type: String, required: true, trim: true },

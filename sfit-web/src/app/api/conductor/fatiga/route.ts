@@ -8,7 +8,6 @@ import {
   apiError,
   apiUnauthorized,
   apiForbidden,
-  apiNotFound,
 } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
@@ -43,20 +42,31 @@ export async function GET(request: NextRequest) {
     const user = await User.findById(auth.session.userId).lean();
     if (!user) return apiUnauthorized("Usuario no encontrado");
 
-    // ── 2. Resolver el registro Driver por DNI + municipalidad ────────────
+    // ── 2. Resolver el registro Driver — intenta userId primero, luego DNI ──
     const municipalityId =
       user.municipalityId?.toString() ?? auth.session.municipalityId;
 
-    let driver = null;
-    if (user.dni && municipalityId) {
+    let driver = await Driver.findOne({
+      userId: auth.session.userId,
+      active: true,
+    }).lean();
+
+    if (!driver && user.dni && municipalityId) {
       driver = await Driver.findOne({
         municipalityId,
         dni: user.dni,
         active: true,
       }).lean();
     }
+
+    // Sin registro de conductor → devuelve estado base (0 horas, apto)
     if (!driver) {
-      return apiNotFound("Registro de conductor no encontrado");
+      return apiResponse({
+        horasConduccion: 0,
+        horasDescanso: 0,
+        estado: "apto",
+        ultimaActualizacion: new Date().toISOString(),
+      });
     }
 
     // ── 3. Entradas de flota del conductor HOY ────────────────────────────

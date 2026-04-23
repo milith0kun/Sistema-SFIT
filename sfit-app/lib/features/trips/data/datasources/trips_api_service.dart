@@ -58,9 +58,10 @@ class TripsApiService {
     required DateTime departureTime,
     bool checklistComplete = true,
   }) async {
+    final hhmm = '${departureTime.hour.toString().padLeft(2, '0')}:${departureTime.minute.toString().padLeft(2, '0')}';
     final resp = await _dio.post('/flota', data: {
       'vehicleId': vehicleId,
-      'departureTime': departureTime.toIso8601String(),
+      'departureTime': hhmm,
       'checklistComplete': checklistComplete,
       'status': 'en_ruta',
     });
@@ -86,9 +87,11 @@ class TripsApiService {
     DateTime? returnTime,
     String? observations,
   }) async {
+    final rt = returnTime ?? DateTime.now();
+    final hhmm = '${rt.hour.toString().padLeft(2, '0')}:${rt.minute.toString().padLeft(2, '0')}';
     await _dio.patch('/flota/$entryId', data: {
       'status': 'cerrado',
-      'returnTime': (returnTime ?? DateTime.now()).toIso8601String(),
+      'returnTime': hhmm,
       'km': km,
       if (observations != null && observations.isNotEmpty)
         'observations': observations,

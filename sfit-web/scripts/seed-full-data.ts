@@ -192,6 +192,29 @@ async function main() {
       phone: "984111005", status: "no_apto",
       continuousHours: 0, restHours: 8, reputationScore: 45, active: false,
     });
+
+  // Conductor de prueba vinculado al usuario conductor@sfit.test
+  await upsert(DriverModel,
+    { municipalityId: MUNIC_ID, dni: "29511099" },
+    {
+      name: "Conductor SFIT", dni: "29511099",
+      userId: conductorId,
+      licenseNumber: "Q15009900", licenseCategory: "A-IIb",
+      companyId: comp1._id, municipalityId: MUNIC_ID,
+      phone: "984111099", status: "apto",
+      continuousHours: 0, restHours: 8, reputationScore: 100, active: true,
+    });
+  // Actualizar el User conductor con su DNI y municipalityId correcto
+  await UserModel.findByIdAndUpdate(conductorId, {
+    $set: { dni: "29511099", municipalityId: MUNIC_ID, provinceId: PROVINCE_ID },
+  });
+  // Asegurar que fiscal y operador también apunten al municipio de prueba
+  await UserModel.findByIdAndUpdate(fiscalId, {
+    $set: { municipalityId: MUNIC_ID, provinceId: PROVINCE_ID },
+  });
+  await UserModel.findByIdAndUpdate(operadorId, {
+    $set: { municipalityId: MUNIC_ID, provinceId: PROVINCE_ID },
+  });
   console.log("✅ Conductores creados");
 
   // ── Vehicles ──────────────────────────────────────────────────────────────

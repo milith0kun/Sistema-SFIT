@@ -104,18 +104,16 @@ class _RouteDetailPageState extends ConsumerState<RouteDetailPage> {
     }
 
     final route = _route!;
-    final name        = route['name']        as String? ?? widget.routeName;
-    final origin      = route['origin']      as String? ?? '—';
-    final destination = route['destination'] as String? ?? '—';
-    final statusRaw   = route['status']      as String?;
-    final schedule    = route['schedule']    as String? ?? '—';
-    final rawStops    = route['stops'];
-    final stops = rawStops is List
-        ? rawStops.cast<dynamic>().map((s) => s.toString()).toList()
-        : <String>[];
+    final name           = route['name']           as String? ?? widget.routeName;
+    final code           = route['code']           as String? ?? '';
+    final statusRaw      = route['status']         as String? ?? 'activa';
+    final length         = route['length']         as String?;
+    final stopsCount     = route['stops']          as int?;
+    final vehicleTypeKey = route['vehicleTypeKey'] as String?;
+    final rawFreqs       = route['frequencies']    as List?;
+    final frequencies    = rawFreqs?.cast<String>() ?? <String>[];
 
     final sfitStatus = _parseStatus(statusRaw);
-    final statusLabel = statusRaw ?? 'activa';
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -132,128 +130,45 @@ class _RouteDetailPageState extends ConsumerState<RouteDetailPage> {
               title: name,
               rfCode: 'RF-09',
               pills: [
-                SfitHeroPill(label: 'Estado', value: statusLabel),
-                SfitHeroPill(label: 'Horario', value: schedule),
+                if (code.isNotEmpty) SfitHeroPill(label: 'Código', value: code),
+                SfitHeroPill(label: 'Estado', value: statusRaw),
               ],
             ),
             const SizedBox(height: 20),
 
-            // ── Origen → Destino ──────────────────────────────────
+            // ── Info de la ruta ───────────────────────────────────
             _SectionCard(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Row(
+                child: Wrap(
+                  spacing: 20,
+                  runSpacing: 14,
                   children: [
-                    // Origen
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'ORIGEN',
-                            style: AppTheme.inter(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.ink4,
-                              letterSpacing: 1.4,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.radio_button_checked,
-                                size: 16,
-                                color: AppColors.apto,
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  origin,
-                                  style: AppTheme.inter(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.ink9,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                    if (length != null)
+                      _InfoItem(
+                        icon: Icons.straighten,
+                        label: 'Longitud',
+                        value: length,
                       ),
-                    ),
-
-                    // Flecha central
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Column(
-                        children: [
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: AppColors.goldBg,
-                              border: Border.all(color: AppColors.goldBorder),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.arrow_forward,
-                              size: 14,
-                              color: AppColors.goldDark,
-                            ),
-                          ),
-                        ],
+                    if (stopsCount != null)
+                      _InfoItem(
+                        icon: Icons.place_outlined,
+                        label: 'Paradas',
+                        value: '$stopsCount',
                       ),
-                    ),
-
-                    // Destino
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'DESTINO',
-                            style: AppTheme.inter(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.ink4,
-                              letterSpacing: 1.4,
-                            ),
-                            textAlign: TextAlign.end,
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  destination,
-                                  textAlign: TextAlign.end,
-                                  style: AppTheme.inter(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.ink9,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              const Icon(
-                                Icons.location_on,
-                                size: 16,
-                                color: AppColors.noApto,
-                              ),
-                            ],
-                          ),
-                        ],
+                    if (vehicleTypeKey != null)
+                      _InfoItem(
+                        icon: Icons.directions_bus_outlined,
+                        label: 'Tipo vehículo',
+                        value: vehicleTypeKey,
                       ),
-                    ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 16),
 
-            // ── Estado y horario ──────────────────────────────────
+            // ── Estado ────────────────────────────────────────────
             _SectionCard(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -275,107 +190,72 @@ class _RouteDetailPageState extends ConsumerState<RouteDetailPage> {
                           const SizedBox(height: 8),
                           SfitStatusPill(
                             status: sfitStatus,
-                            label: statusLabel,
+                            label: statusRaw,
                           ),
                         ],
                       ),
                     ),
-                    Container(
-                      width: 1,
-                      height: 44,
-                      color: AppColors.ink2,
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'HORARIO',
-                            style: AppTheme.inter(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.ink4,
-                              letterSpacing: 1.4,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.schedule,
-                                size: 15,
-                                color: AppColors.gold,
+                    if (frequencies.isNotEmpty) ...[
+                      Container(width: 1, height: 44, color: AppColors.ink2),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'FRECUENCIA',
+                              style: AppTheme.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.ink4,
+                                letterSpacing: 1.4,
                               ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  schedule,
-                                  style: AppTheme.inter(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.ink9,
-                                    tabular: true,
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const Icon(Icons.schedule, size: 15, color: AppColors.gold),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    frequencies.join(', '),
+                                    style: AppTheme.inter(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.ink9,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 16),
 
-            // ── Paradas intermedias ───────────────────────────────
-            if (stops.isNotEmpty) ...[
-              Text(
-                'Paradas intermedias',
-                style: AppTheme.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink9,
-                ),
-              ),
-              const SizedBox(height: 8),
-              _SectionCard(
-                child: Column(
+            // ── Paradas intermedias (placeholder) ────────────────
+            _SectionCard(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
                   children: [
-                    for (int i = 0; i < stops.length; i++) ...[
-                      if (i > 0)
-                        const Divider(height: 1, color: AppColors.ink1),
-                      _StopTile(index: i + 1, name: stops[i]),
-                    ],
+                    const Icon(Icons.info_outline, size: 18, color: AppColors.ink4),
+                    const SizedBox(width: 10),
+                    Text(
+                      stopsCount != null && stopsCount > 0
+                          ? '$stopsCount paradas en esta ruta'
+                          : 'Sin paradas intermedias registradas',
+                      style: AppTheme.inter(fontSize: 13, color: AppColors.ink5),
+                    ),
                   ],
                 ),
               ),
-            ] else ...[
-              _SectionCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.info_outline,
-                        size: 18,
-                        color: AppColors.ink4,
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        'Sin paradas intermedias registradas',
-                        style: AppTheme.inter(
-                          fontSize: 13,
-                          color: AppColors.ink5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+            ),
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: () => context.push(
@@ -405,6 +285,47 @@ class _RouteDetailPageState extends ConsumerState<RouteDetailPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── Item de información ────────────────────────────────────────────────────────
+class _InfoItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _InfoItem({required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 15, color: AppColors.gold),
+        const SizedBox(width: 6),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: AppTheme.inter(
+                fontSize: 10,
+                color: AppColors.ink4,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.6,
+              ),
+            ),
+            Text(
+              value,
+              style: AppTheme.inter(
+                fontSize: 13,
+                color: AppColors.ink9,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

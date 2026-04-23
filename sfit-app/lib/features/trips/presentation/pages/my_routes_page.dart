@@ -80,17 +80,28 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
 
   double get _totalHours {
     double total = 0.0;
+    final today = DateTime.now();
     for (final e in _allEntries) {
       final dep = e['departureTime'] as String?;
       final ret = e['returnTime'] as String?;
       if (dep == null) continue;
       try {
-        final d = DateTime.parse(dep);
-        final end = ret != null ? DateTime.parse(ret) : DateTime.now();
-        total += end.difference(d).inMinutes / 60.0;
+        final d = _parseTimeString(dep, today);
+        final end = ret != null ? _parseTimeString(ret, today) : today;
+        final mins = end.difference(d).inMinutes;
+        if (mins > 0) total += mins / 60.0;
       } catch (_) {}
     }
     return total;
+  }
+
+  static DateTime _parseTimeString(String s, DateTime base) {
+    if (RegExp(r'^\d{2}:\d{2}').hasMatch(s)) {
+      final parts = s.split(':');
+      return DateTime(base.year, base.month, base.day,
+          int.parse(parts[0]), int.parse(parts[1]));
+    }
+    return DateTime.parse(s);
   }
 
   int get _completedTrips => _allEntries
@@ -344,13 +355,15 @@ class _ActiveTripBanner extends StatelessWidget {
 
   const _ActiveTripBanner({required this.entry, required this.onClose});
 
-  String _formatTime(String? iso) {
-    if (iso == null) return '—';
+  String _formatTime(String? raw) {
+    if (raw == null) return '—';
+    // Si ya es "HH:MM" lo devolvemos directo
+    if (RegExp(r'^\d{2}:\d{2}').hasMatch(raw)) return raw.substring(0, 5);
     try {
-      final dt = DateTime.parse(iso).toLocal();
+      final dt = DateTime.parse(raw).toLocal();
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     } catch (_) {
-      return iso;
+      return raw;
     }
   }
 
@@ -441,24 +454,17 @@ class _RouteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = data['name'] as String? ?? '—';
-    final active = (data['active'] as bool?) ?? true;
-    final origin = data['origin'] as String?;
-    final destination = data['destination'] as String?;
-    final zone = data['zone'] as String?;
+    final name     = data['name']   as String? ?? '—';
+    final code     = data['code']   as String? ?? '';
+    final type     = data['type']   as String? ?? 'ruta';
+    final status   = data['status'] as String? ?? 'activa';
+    final isActive = status == 'activa';
 
-    String subLabel = '';
-    if (origin != null && destination != null) {
-      subLabel = '$origin → $destination';
-    } else if (origin != null) {
-      subLabel = origin;
-    } else if (zone != null) {
-      subLabel = zone;
-    }
+    final typeLabel = type == 'zona' ? 'Zona' : 'Ruta';
 
-    final (badgeColor, badgeBg, badgeBorder, badgeLabel) = active
+    final (badgeColor, badgeBg, badgeBorder, badgeLabel) = isActive
         ? (AppColors.gold, AppColors.goldBg, AppColors.goldBorder, 'Activa')
-        : (AppColors.ink4, AppColors.ink1, AppColors.ink3, 'Inactiva');
+        : (AppColors.ink4, AppColors.ink1, AppColors.ink3, 'Suspendida');
 
     return Material(
       color: Colors.transparent,
@@ -478,7 +484,7 @@ class _RouteCard extends StatelessWidget {
                 width: 4,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: active ? AppColors.gold : AppColors.ink3,
+                  color: isActive ? AppColors.gold : AppColors.ink3,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -495,10 +501,10 @@ class _RouteCard extends StatelessWidget {
                         color: AppColors.ink9,
                       ),
                     ),
-                    if (subLabel.isNotEmpty) ...[
+                    if (code.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(
-                        subLabel,
+                        '$typeLabel · $code',
                         style: AppTheme.inter(fontSize: 12, color: AppColors.ink5),
                       ),
                     ],

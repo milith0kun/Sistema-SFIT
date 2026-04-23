@@ -66,16 +66,19 @@ class TripModel {
             ? TripRoute.fromJson(j['route'] as Map<String, dynamic>)
             : null,
         status: j['status'] as String? ?? 'pendiente',
-        startedAt: j['startedAt'] != null
-            ? DateTime.tryParse(j['startedAt'] as String)
-            : null,
-        endedAt: j['endedAt'] != null
-            ? DateTime.tryParse(j['endedAt'] as String)
-            : null,
-        kmRecorridos: (j['kmRecorridos'] as num?)?.toDouble(),
+        startedAt: _tryParseDate(j['startTime'] ?? j['startedAt']),
+        endedAt:   _tryParseDate(j['endTime']   ?? j['endedAt']),
+        kmRecorridos: (j['km'] as num?)?.toDouble()
+            ?? (j['kmRecorridos'] as num?)?.toDouble(),
         observations: j['observations'] as String?,
         createdAt: DateTime.parse(
           j['createdAt'] as String? ?? DateTime.now().toIso8601String(),
         ),
       );
+
+  static DateTime? _tryParseDate(dynamic v) {
+    if (v == null) return null;
+    if (v is DateTime) return v;
+    return DateTime.tryParse(v.toString());
+  }
 }

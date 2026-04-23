@@ -3,6 +3,7 @@ import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { FleetEntry } from "@/models/FleetEntry";
+import { Driver } from "@/models/Driver";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
@@ -39,9 +40,10 @@ export async function GET(request: NextRequest) {
     const filter: Record<string, unknown> = {};
 
     if (auth.session.role === ROLES.CONDUCTOR) {
-      // El conductor sólo ve sus propias entradas activas del día
-      filter.driverId = auth.session.userId;
-      // No filtramos por municipio — el conductor sólo ve sus propios registros
+      // El conductor sólo ve sus propias entradas — busca su Driver record
+      const driver = await Driver.findOne({ userId: auth.session.userId }).select("_id").lean();
+      if (!driver) return apiResponse({ items: [], total: 0 });
+      filter.driverId = driver._id;
     } else if (auth.session.role === ROLES.SUPER_ADMIN) {
       if (municipalityIdParam) {
         if (!isValidObjectId(municipalityIdParam)) return apiError("municipalityId inválido", 400);
@@ -123,11 +125,12 @@ export async function POST(request: NextRequest) {
     }
     if (!municipalityId) return apiError("municipalityId requerido", 400);
 
-    // El conductor sólo puede registrar entradas donde él mismo es el driverId.
-    // Otros roles deben proveer driverId explícitamente.
+    // El conductor registra entradas con su propio Driver._id como driverId.
     let driverId = parsed.data.driverId;
     if (auth.session.role === ROLES.CONDUCTOR) {
-      driverId = auth.session.userId;
+      const driver = await Driver.findOne({ userId: auth.session.userId }).select("_id").lean();
+      if (!driver) return apiError("No tienes un registro de conductor activo", 422);
+      driverId = String(driver._id);
     } else if (!driverId) {
       return apiError("driverId requerido", 400);
     }

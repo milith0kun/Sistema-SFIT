@@ -4,6 +4,7 @@ import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { Trip } from "@/models/Trip";
 import { Driver } from "@/models/Driver";
+import { User } from "@/models/User";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
@@ -39,9 +40,17 @@ export async function GET(request: NextRequest) {
     const filter: Record<string, unknown> = {};
 
     if (auth.session.role === ROLES.CONDUCTOR) {
-      // Conductor ve solo sus propios viajes — busca su Driver record por userId
-      const driver = await Driver.findOne({ userId: auth.session.userId }).select("_id municipalityId").lean();
-      if (!driver) return apiForbidden();
+      // Conductor ve solo sus propios viajes — busca su Driver record
+      let driver = await Driver.findOne({ userId: auth.session.userId }).select("_id municipalityId").lean();
+      if (!driver && auth.session.municipalityId) {
+        const user = await User.findById(auth.session.userId).select("dni municipalityId").lean();
+        if (user?.dni) {
+          driver = await Driver.findOne({ dni: user.dni, municipalityId: auth.session.municipalityId })
+            .select("_id municipalityId").lean();
+        }
+      }
+      // Sin registro de conductor aún → lista vacía (no es error de autorización)
+      if (!driver) return apiResponse({ items: [], total: 0, page, limit });
       filter.driverId = driver._id;
       filter.municipalityId = driver.municipalityId;
     } else if (auth.session.role === ROLES.SUPER_ADMIN) {
