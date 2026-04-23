@@ -40,10 +40,10 @@ function loadMapsApi(key: string): Promise<void> {
 }
 
 const MARKER_COLORS: Record<string, string> = {
-  gold: "http://maps.google.com/mapfiles/ms/icons/yellow-dot.png",
-  red: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
-  green: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
-  blue: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+  gold: "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png",
+  red: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
+  green: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
+  blue: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
 };
 
 export function GoogleMapView({
