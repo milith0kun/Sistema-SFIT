@@ -183,7 +183,7 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
     const _kw = {
       'Conducción peligrosa': ['peligros', 'velocidad', 'rápido', 'rapido', 'acelerado', 'frenaz', 'semáforo', 'semaforo', 'maniobra', 'adelant'],
       'Cobro indebido':       ['cobro', 'cobró', 'precio', 'tarifa', 'excesivo', 'caro', 'pagó de más', 'cobró de más'],
-      'Mal estado del vehículo': ['mal estado', 'roto', 'falla', 'humo', 'ruido', 'llanta', 'freno', 'avería', 'averia', 'descompuesto'],
+      'Vehículo en mal estado': ['mal estado', 'roto', 'falla', 'humo', 'ruido', 'llanta', 'freno', 'avería', 'averia', 'descompuesto'],
     };
     String? best;
     int bestCount = 0;

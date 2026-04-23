@@ -6,6 +6,7 @@ import { CitizenReport } from "@/models/CitizenReport";
 import { SfitCoin } from "@/models/SfitCoin";
 import { AuditLog } from "@/models/AuditLog";
 import { User } from "@/models/User";
+import { Vehicle } from "@/models/Vehicle";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
@@ -144,14 +145,37 @@ export async function POST(request: NextRequest) {
       return apiValidationError(errors);
     }
 
+    await connectDB();
+
+    // Resolver vehículo por placa (ciudadano siempre envía vehiclePlate, no vehicleId)
+    let vehicleId = parsed.data.vehicleId;
     let municipalityId = parsed.data.municipalityId;
-    if (auth.session.role !== ROLES.SUPER_ADMIN) {
+
+    if (parsed.data.vehiclePlate) {
+      const vehicle = await Vehicle.findOne({
+        plate: parsed.data.vehiclePlate.toUpperCase(),
+        active: true,
+      }).select("_id municipalityId").lean();
+
+      if (vehicle) {
+        vehicleId = vehicleId ?? String(vehicle._id);
+        if (!municipalityId) municipalityId = String(vehicle.municipalityId);
+      }
+    }
+
+    // Asignar municipalityId según rol
+    if (auth.session.role === ROLES.CIUDADANO) {
+      // Ciudadano no tiene municipalityId en sesión — usa el del vehículo reportado
+      if (!municipalityId) {
+        return apiError("No se encontró el vehículo indicado o no está habilitado", 404);
+      }
+    } else if (auth.session.role !== ROLES.SUPER_ADMIN) {
+      // Roles operativos: siempre usan su municipalidad de sesión
       if (!auth.session.municipalityId) return apiForbidden();
       municipalityId = auth.session.municipalityId;
     }
-    if (!municipalityId) return apiError("municipalityId requerido", 400);
 
-    await connectDB();
+    if (!municipalityId) return apiError("municipalityId requerido", 400);
 
     // Capa 1: Verificar que el ciudadano no esté suspendido
     // (el campo status puede ser "suspendido" tras 3 rechazos consecutivos u otras causas)
@@ -218,7 +242,7 @@ export async function POST(request: NextRequest) {
 
     const doc = await CitizenReport.create({
       municipalityId,
-      vehicleId: parsed.data.vehicleId,
+      vehicleId: vehicleId,
       citizenId: auth.session.userId,
       category: parsed.data.category,
       vehicleTypeKey: parsed.data.vehicleTypeKey,

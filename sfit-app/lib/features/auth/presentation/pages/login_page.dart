@@ -110,7 +110,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Credenciales institucionales requeridas',
+                'Ingresa con tu correo y contraseña',
                 style: AppTheme.inter(
                   fontSize: 14,
                   color: AppColors.ink6,
