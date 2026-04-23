@@ -85,17 +85,18 @@ class _HomePageState extends ConsumerState<HomePage> {
     return Scaffold(
       backgroundColor: AppColors.paper,
       appBar: AppBar(
+        toolbarHeight: 60,
         title: Row(
           children: [
-            const SfitMark(size: 22),
+            const SfitMark(size: 36),
             const SizedBox(width: 10),
             Text(
               'SFIT',
               style: AppTheme.inter(
-                fontSize: 15,
+                fontSize: 17,
                 fontWeight: FontWeight.w800,
                 color: AppColors.ink9,
-                letterSpacing: 2.4,
+                letterSpacing: 2.8,
               ),
             ),
           ],
@@ -181,6 +182,10 @@ class _HomePageState extends ConsumerState<HomePage> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: safeIndex,
         onDestinationSelected: (i) => setState(() => _index = i),
+        labelBehavior: tabs.length > 4
+            ? NavigationDestinationLabelBehavior.onlyShowSelected
+            : NavigationDestinationLabelBehavior.alwaysShow,
+        height: tabs.length > 4 ? 68 : 72,
         destinations: tabs
             .map((t) => NavigationDestination(
                   icon: Icon(t.icon),
@@ -300,7 +305,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             page: MisReportesPage(),
           ),
           _Tab(
-            label: 'Recompensas',
+            label: 'Premios',
             icon: Icons.emoji_events_outlined,
             iconFilled: Icons.emoji_events,
             page: RewardsPage(),

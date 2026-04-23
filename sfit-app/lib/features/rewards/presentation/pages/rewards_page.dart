@@ -121,12 +121,13 @@ class _RewardsPageState extends ConsumerState<RewardsPage> {
     final status = _status!;
 
     return SafeArea(
+      bottom: false,
       child: RefreshIndicator(
         onRefresh: _load,
         color: AppColors.gold,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -136,20 +137,13 @@ class _RewardsPageState extends ConsumerState<RewardsPage> {
 
               // ── Acceso al ranking ──────────────────────────────
               _RankingAccessCard(onTap: () => context.push('/ranking')),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // ── Catálogo de recompensas ────────────────────────
-              Text(
-                'Recompensas disponibles',
-                style: AppTheme.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink9,
-                ),
-              ),
-              const SizedBox(height: 10),
+              const _SectionHeader(label: 'Catálogo de premios'),
+              const SizedBox(height: 8),
               if (_rewards.isEmpty)
-                _EmptyRewardsCard()
+                const _EmptyRewardsCard()
               else
                 ..._rewards.map((r) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
@@ -161,20 +155,13 @@ class _RewardsPageState extends ConsumerState<RewardsPage> {
                       ),
                     )),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // ── Historial de transacciones ─────────────────────
-              Text(
-                'Historial de transacciones',
-                style: AppTheme.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink9,
-                ),
-              ),
-              const SizedBox(height: 10),
+              const _SectionHeader(label: 'Mis transacciones'),
+              const SizedBox(height: 8),
               if (status.transactions.isEmpty)
-                _EmptyTransactionsCard()
+                const _EmptyTransactionsCard()
               else
                 Container(
                   decoration: BoxDecoration(
@@ -577,8 +564,38 @@ class _TransactionTile extends StatelessWidget {
   String _twoDigits(int n) => n.toString().padLeft(2, '0');
 }
 
+// ── Section header ────────────────────────────────────────────────────────────
+class _SectionHeader extends StatelessWidget {
+  final String label;
+  const _SectionHeader({required this.label});
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Container(
+            width: 3,
+            height: 14,
+            decoration: BoxDecoration(
+              color: AppColors.gold,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: AppTheme.inter(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.ink9,
+            ),
+          ),
+        ],
+      );
+}
+
 // ── Empty / Error states ──────────────────────────────────────────────────────
 class _EmptyRewardsCard extends StatelessWidget {
+  const _EmptyRewardsCard();
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(24),
@@ -612,6 +629,7 @@ class _EmptyRewardsCard extends StatelessWidget {
 }
 
 class _EmptyTransactionsCard extends StatelessWidget {
+  const _EmptyTransactionsCard();
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(20),
