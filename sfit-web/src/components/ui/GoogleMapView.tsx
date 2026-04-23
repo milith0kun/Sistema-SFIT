@@ -14,6 +14,7 @@ interface Props {
   style?: React.CSSProperties;
   className?: string;
   apiKey?: string;
+  onMapClick?: (lat: number, lng: number) => void;
 }
 
 const DEFAULT_CENTER: LatLng = { lat: -13.5178, lng: -71.9785 }; // Cusco
@@ -54,11 +55,15 @@ export function GoogleMapView({
   style,
   className,
   apiKey,
+  onMapClick,
 }: Props) {
   const divRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
   const polylineRef = useRef<google.maps.Polyline | null>(null);
+  const clickListenerRef = useRef<google.maps.MapsEventListener | null>(null);
+  const onMapClickRef = useRef(onMapClick);
+  onMapClickRef.current = onMapClick;
   const key = apiKey ?? process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? "";
   const noKey = !key;
 
@@ -78,14 +83,26 @@ export function GoogleMapView({
           streetViewControl: false,
           fullscreenControl: false,
           zoomControl: true,
+          draggableCursor: onMapClickRef.current ? "crosshair" : undefined,
           styles: [
             { featureType: "poi", stylers: [{ visibility: "off" }] },
             { featureType: "transit", stylers: [{ visibility: "off" }] },
           ],
         });
+
+        // Click listener — uses ref so always calls latest handler
+        clickListenerRef.current = mapRef.current.addListener(
+          "click",
+          (e: google.maps.MapMouseEvent) => {
+            if (e.latLng && onMapClickRef.current) {
+              onMapClickRef.current(e.latLng.lat(), e.latLng.lng());
+            }
+          },
+        );
       } else {
         mapRef.current.setCenter(center);
         mapRef.current.setZoom(zoom);
+        mapRef.current.setOptions({ draggableCursor: onMapClickRef.current ? "crosshair" : undefined });
       }
 
       // Clear existing markers

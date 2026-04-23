@@ -8,6 +8,13 @@ import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 
+const WaypointInputSchema = z.object({
+  order: z.number().int().min(0),
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  label: z.string().max(100).optional(),
+});
+
 const CreateSchema = z.object({
   municipalityId: z.string().refine(isValidObjectId).optional(),
   code: z.string().min(1).max(20),
@@ -21,6 +28,7 @@ const CreateSchema = z.object({
   vehicleCount: z.number().min(0).optional(),
   status: z.enum(["activa", "suspendida"]).optional(),
   frequencies: z.array(z.string().max(80)).optional(),
+  waypoints: z.array(WaypointInputSchema).max(200).optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -74,6 +82,7 @@ export async function GET(request: NextRequest) {
         vehicleCount: r.vehicleCount,
         status: r.status,
         frequencies: r.frequencies,
+        waypoints: r.waypoints ?? [],
         createdAt: r.createdAt,
         updatedAt: r.updatedAt,
       })),

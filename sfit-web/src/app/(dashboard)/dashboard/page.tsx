@@ -320,6 +320,11 @@ function ActiveFleetMap({
   loading: boolean;
   onRefresh: () => void;
 }) {
+  // Auto-refresca cada 30 s para mantener posiciones actualizadas
+  useEffect(() => {
+    const id = setInterval(onRefresh, 30_000);
+    return () => clearInterval(id);
+  }, [onRefresh]);
   const center = locations.length > 0
     ? {
         lat: locations.reduce((s, l) => s + l.lat, 0) / locations.length,

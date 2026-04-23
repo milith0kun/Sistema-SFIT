@@ -228,9 +228,9 @@ export default function EmpresasPage() {
   const toolbarEnd = (
     <>
       <select style={selectStyle} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-        <option key="all" value="">Todas las flotas</option>
+        <option value="">Todas las flotas</option>
         {types.filter((t) => t.active).map((t) => (
-          <option key={t.key} value={t.key}>{t.name}</option>
+          <option key={t.id} value={t.key}>{t.name}</option>
         ))}
       </select>
       {canCreate && (

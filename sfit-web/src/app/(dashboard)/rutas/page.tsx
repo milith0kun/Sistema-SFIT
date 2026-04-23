@@ -10,10 +10,12 @@ import { Badge } from "@/components/ui/Badge";
 import { GoogleMapView } from "@/components/ui/GoogleMapView";
 
 type RouteType = "ruta" | "zona";
+type Waypoint = { order: number; lat: number; lng: number; label?: string };
 type RouteItem = {
   id: string; code: string; name: string; type: RouteType; stops?: number; length?: string;
   area?: string; vehicleTypeKey?: string; companyName?: string; vehicleCount: number;
   status: "activa" | "suspendida"; frequencies?: string[];
+  waypoints?: Waypoint[];
 };
 
 const G = "#B8860B"; const GD = "#926A09"; const GBG = "#FDF8EC";
@@ -144,6 +146,7 @@ export default function RutasPage() {
           searchPlaceholder="Buscar por código, nombre, empresa…"
           emptyTitle={`Sin ${tab === "ruta" ? "rutas" : "zonas"} registradas`}
           emptyDescription="No se encontraron registros."
+          onRowClick={(row) => setSel(row)}
         />
 
         {sel ? (
@@ -154,15 +157,34 @@ export default function RutasPage() {
             </div>
             <div style={{ padding: 18 }}>
               <GoogleMapView
-                center={{ lat: -13.5178, lng: -71.9785 }}
-                zoom={13}
+                center={
+                  sel.waypoints && sel.waypoints.length > 0
+                    ? {
+                        lat: sel.waypoints.reduce((s, w) => s + w.lat, 0) / sel.waypoints.length,
+                        lng: sel.waypoints.reduce((s, w) => s + w.lng, 0) / sel.waypoints.length,
+                      }
+                    : { lat: -13.5178, lng: -71.9785 }
+                }
+                zoom={sel.waypoints && sel.waypoints.length > 0 ? 13 : 12}
                 height={260}
-                markers={[
-                  { lat: -13.5178, lng: -71.9785, title: "Origen", color: "green" },
-                  { lat: -13.5050, lng: -71.9650, title: sel.name, color: "gold" },
-                ]}
-                style={{ borderRadius: 14 }}
+                markers={
+                  sel.waypoints && sel.waypoints.length > 0
+                    ? sel.waypoints.map((w, i) => ({
+                        lat: w.lat, lng: w.lng,
+                        title: w.label ?? `Parada ${i + 1}`,
+                        label: String(i + 1),
+                        color: (i === 0 ? "green" : i === sel.waypoints!.length - 1 ? "red" : "gold") as "green" | "red" | "gold",
+                      }))
+                    : [{ lat: -13.5178, lng: -71.9785, title: sel.name, color: "gold" as const }]
+                }
+                polyline={sel.waypoints && sel.waypoints.length > 0 ? sel.waypoints.map(w => ({ lat: w.lat, lng: w.lng })) : []}
+                style={{ borderRadius: 10 }}
               />
+              {(!sel.waypoints || sel.waypoints.length === 0) && (
+                <div style={{ marginTop: 8, textAlign: "center", fontSize: "0.75rem", color: "#a1a1aa" }}>
+                  Sin trazado definido — edita la ruta para agregar paradas en el mapa
+                </div>
+              )}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginTop: 16 }}>
                 {[["Vehículos", sel.vehicleCount], ["Tipo", tab === "ruta" ? "Ruta fija" : "Zona"], ["Estado", sel.status === "activa" ? "Activa" : "Suspendida"]].map(([lbl, val]) => (
                   <div key={lbl as string} style={{ padding: 12, background: INK1, borderRadius: 10 }}>

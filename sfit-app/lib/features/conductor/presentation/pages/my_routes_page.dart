@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -20,11 +21,34 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
   String? _error;
   String? _actionLoadingId;
   String? _actionError;
+  Timer? _locationTimer;
+  String? _activeEntryId;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _locationTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startLocationTimer(String entryId) {
+    _locationTimer?.cancel();
+    _activeEntryId = entryId;
+    // Envía posición GPS cada 60 segundos mientras el recorrido está activo
+    _locationTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      _updateLocation(entryId);
+    });
+  }
+
+  void _stopLocationTimer() {
+    _locationTimer?.cancel();
+    _locationTimer = null;
+    _activeEntryId = null;
   }
 
   Future<void> _load() async {
@@ -34,10 +58,14 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
       final resp = await dio.get('/flota', queryParameters: {'limit': 20});
       final data = (resp.data as Map)['data'] as Map;
       if (mounted) {
-        setState(() {
-          _entries = List<Map<String, dynamic>>.from(data['items'] as List);
-          _loading = false;
-        });
+        final items = List<Map<String, dynamic>>.from(data['items'] as List);
+        setState(() { _entries = items; _loading = false; });
+
+        // Restaurar timer si hay un recorrido activo y no había timer corriendo
+        if (_locationTimer == null) {
+          final active = items.where((e) => e['status'] == 'en_ruta').firstOrNull;
+          if (active != null) _startLocationTimer(active['id'] as String);
+        }
       }
     } catch (e) {
       if (mounted) setState(() { _loading = false; _error = e.toString(); });
@@ -93,6 +121,7 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
         'lng': position.longitude,
         'action': 'start',
       });
+      _startLocationTimer(entryId);
       await _load();
     } catch (e) {
       if (mounted) setState(() { _actionError = 'Error al iniciar recorrido: ${e.toString()}'; });
@@ -115,6 +144,7 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
         'lng': position.longitude,
         'action': 'end',
       });
+      _stopLocationTimer();
       await _load();
     } catch (e) {
       if (mounted) setState(() { _actionError = 'Error al finalizar recorrido: ${e.toString()}'; });

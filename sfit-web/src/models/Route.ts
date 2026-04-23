@@ -1,5 +1,12 @@
 import mongoose, { Schema, type Document, type Model } from "mongoose";
 
+export interface IWaypoint {
+  order: number;
+  lat: number;
+  lng: number;
+  label?: string;
+}
+
 export interface IRoute extends Document {
   municipalityId: mongoose.Types.ObjectId;
   code: string;
@@ -13,9 +20,20 @@ export interface IRoute extends Document {
   vehicleCount: number;
   status: "activa" | "suspendida";
   frequencies?: string[];
+  waypoints: IWaypoint[];
   createdAt: Date;
   updatedAt: Date;
 }
+
+const WaypointSchema = new Schema<IWaypoint>(
+  {
+    order: { type: Number, required: true },
+    lat:   { type: Number, required: true },
+    lng:   { type: Number, required: true },
+    label: { type: String },
+  },
+  { _id: false },
+);
 
 const RouteSchema = new Schema<IRoute>(
   {
@@ -31,6 +49,7 @@ const RouteSchema = new Schema<IRoute>(
     vehicleCount: { type: Number, default: 0 },
     status: { type: String, enum: ["activa", "suspendida"], default: "activa" },
     frequencies: { type: [String], default: [] },
+    waypoints: { type: [WaypointSchema], default: [] },
   },
   { timestamps: true },
 );
