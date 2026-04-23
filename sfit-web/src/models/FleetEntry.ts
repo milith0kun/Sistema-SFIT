@@ -25,6 +25,7 @@ export interface IFleetEntry extends Document {
   currentLocation?: ICurrentLocation;
   startLocation?: IGpsPoint;
   endLocation?: IGpsPoint;
+  trackPoints?: Array<{ lat: number; lng: number; ts: Date }>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -60,6 +61,12 @@ const FleetEntrySchema = new Schema<IFleetEntry>(
       lat: { type: Number },
       lng: { type: Number },
     },
+    trackPoints: [{
+      lat: { type: Number },
+      lng: { type: Number },
+      ts: { type: Date },
+      _id: false,
+    }],
   },
   { timestamps: true },
 );

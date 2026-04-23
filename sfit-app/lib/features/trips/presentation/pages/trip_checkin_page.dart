@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/location_tracking_service.dart';
 import '../../data/datasources/trips_api_service.dart';
 import '../../../fleet/data/datasources/fleet_api_service.dart';
 
@@ -135,11 +136,13 @@ class _TripCheckinPageState extends ConsumerState<TripCheckinPage> {
     setState(() => _submitting = true);
     try {
       final svc = ref.read(tripsApiServiceProvider);
-      await svc.startTrip(
+      final entryId = await svc.startTrip(
         vehicleId: _selectedVehicleId!,
         departureTime: _departureTime,
         checklistComplete: true,
       );
+      // Arranca el tracker GPS con el id de la FleetEntry creada
+      await ref.read(locationTrackingProvider.notifier).startTracking(entryId);
       if (mounted) {
         context.go('/home');
       }

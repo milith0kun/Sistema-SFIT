@@ -98,6 +98,35 @@ class TripsApiService {
     });
   }
 
+  /// PATCH /flota/:entryId/location — envía update de GPS al backend.
+  Future<void> sendLocation({
+    required String entryId,
+    required double lat,
+    required double lng,
+    String? action,
+  }) async {
+    await _dio.patch('/flota/$entryId/location', data: {
+      'lat': lat,
+      'lng': lng,
+      if (action != null) 'action': action,
+    });
+  }
+
+  /// GET /flota/:entryId/location — obtiene trayecto guardado.
+  /// Devuelve lista de {lat, lng} maps.
+  Future<List<Map<String, double>>> getTrackPoints(String entryId) async {
+    final resp = await _dio.get('/flota/$entryId/location');
+    final data = (resp.data as Map)['data'] as Map<String, dynamic>;
+    final points = data['trackPoints'] as List? ?? [];
+    return points.map((p) {
+      final m = p as Map<String, dynamic>;
+      return {
+        'lat': (m['lat'] as num).toDouble(),
+        'lng': (m['lng'] as num).toDouble(),
+      };
+    }).toList();
+  }
+
   /// GET /conductor/fatiga — estado de fatiga del conductor autenticado (RF-14).
   Future<FatigaStatus> getFatigaStatus() async {
     final resp = await _dio.get('/conductor/fatiga');

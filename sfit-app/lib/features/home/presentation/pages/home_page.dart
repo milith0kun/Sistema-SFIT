@@ -19,6 +19,7 @@ import '../../../reports/presentation/pages/submit_report_page.dart';
 import '../../../trips/presentation/pages/fatigue_page.dart';
 import '../../../trips/presentation/pages/my_routes_page.dart';
 import '../../../trips/presentation/pages/my_trips_page.dart';
+import '../../../trips/presentation/pages/trip_map_page.dart';
 import '../../../rewards/presentation/pages/rewards_page.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/widgets/connectivity_banner.dart';
@@ -259,26 +260,32 @@ class _HomePageState extends ConsumerState<HomePage> {
             page: ProfilePage(),
           ),
         ],
-      'conductor' => const [
-          _Tab(
+      'conductor' => [
+          const _Tab(
             label: 'Mis rutas',
             icon: Icons.route_outlined,
             iconFilled: Icons.route,
             page: MyRoutesPage(),
           ),
-          _Tab(
+          const _Tab(
+            label: 'Mapa',
+            icon: Icons.map_outlined,
+            iconFilled: Icons.map,
+            page: TripMapPage(),
+          ),
+          const _Tab(
             label: 'Fatiga',
             icon: Icons.monitor_heart_outlined,
             iconFilled: Icons.monitor_heart,
             page: FatiguePage(),
           ),
-          _Tab(
+          const _Tab(
             label: 'Viajes',
             icon: Icons.timeline_outlined,
             iconFilled: Icons.timeline,
             page: MyTripsPage(),
           ),
-          _Tab(
+          const _Tab(
             label: 'Perfil',
             icon: Icons.person_outline,
             iconFilled: Icons.person,

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/location_tracking_service.dart';
 import '../../data/datasources/trips_api_service.dart';
 
 /// Pantalla de cierre de turno del conductor (RF-conductor).
@@ -74,6 +75,8 @@ class _TripCheckoutPageState extends ConsumerState<TripCheckoutPage> {
         returnTime: DateTime.now(),
         observations: _obsCtrl.text.trim().isEmpty ? null : _obsCtrl.text.trim(),
       );
+      // Detener tracking GPS
+      ref.read(locationTrackingProvider.notifier).stopTracking();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
