@@ -42,6 +42,7 @@ const CreateSchema = z.object({
     .min(10, "La descripción debe tener al menos 10 caracteres")
     .max(2000, "La descripción no puede superar los 2000 caracteres"),
   evidenceUrl: z.string().url().optional(),
+  imageUrls: z.array(z.string().url()).max(5).optional(),
   fraudScore: z.number().min(0).max(100).optional(),
   // Validación geográfica capa 2 — opcionales; no rechazan el reporte si están ausentes
   latitude: z.number().min(-90).max(90).optional(),
@@ -248,6 +249,7 @@ export async function POST(request: NextRequest) {
       vehicleTypeKey: parsed.data.vehicleTypeKey,
       description: parsed.data.description,
       evidenceUrl: parsed.data.evidenceUrl,
+      imageUrls: parsed.data.imageUrls ?? [],
       qrVerified,
       citizenReputationLevel,
       fraudScore,

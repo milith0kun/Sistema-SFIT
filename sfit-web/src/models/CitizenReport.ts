@@ -16,6 +16,8 @@ export interface ICitizenReport extends Document {
   status: "pendiente" | "revision" | "validado" | "rechazado";
   description: string;
   evidenceUrl?: string;
+  /** URLs de imágenes de evidencia subidas por el ciudadano (máx. 5) */
+  imageUrls?: string[];
   fraudScore: number;
   fraudLayers: IFraudLayer[];
   assignedFiscalId?: mongoose.Types.ObjectId;
@@ -52,6 +54,7 @@ const CitizenReportSchema = new Schema<ICitizenReport>(
     },
     description: { type: String, required: true },
     evidenceUrl: { type: String },
+    imageUrls: { type: [String], default: [] },
     fraudScore: { type: Number, default: 50, min: 0, max: 100 },
     fraudLayers: { type: [FraudLayerSchema], default: [] },
     assignedFiscalId: { type: Schema.Types.ObjectId, ref: "User" },

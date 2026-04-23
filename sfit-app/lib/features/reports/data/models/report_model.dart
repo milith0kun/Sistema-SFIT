@@ -52,9 +52,16 @@ class ReportModel {
 }
 
 /// Categorías predefinidas de reporte ciudadano.
+/// Deben coincidir exactamente con el enum REPORT_CATEGORIES del backend.
 const kReportCategories = <String>[
   'Conducción peligrosa',
+  'Exceso de velocidad',
+  'Conductor agresivo',
+  'Vehículo en mal estado',
   'Cobro indebido',
-  'Mal estado del vehículo',
+  'Incumplimiento de ruta',
+  'Falta de mantenimiento',
+  'Contaminación ambiental',
+  'Falta de señalización',
   'Otro',
 ];

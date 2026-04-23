@@ -42,7 +42,8 @@ class ReportsApiService {
     String? vehicleTypeKey,
     double? latitude,
     double? longitude,
-    String? qrToken, // RF-12-04: payload JSON del QR escaneado
+    String? qrToken,
+    List<String>? imageUrls,
   }) async {
     final resp = await _dio.post('/reportes', data: {
       'vehiclePlate': vehiclePlate,
@@ -51,7 +52,8 @@ class ReportsApiService {
       if (vehicleTypeKey != null) 'vehicleTypeKey': vehicleTypeKey,
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
-      if (qrToken != null) 'qrToken': qrToken, // RF-12-04
+      if (qrToken != null) 'qrToken': qrToken,
+      if (imageUrls != null && imageUrls.isNotEmpty) 'imageUrls': imageUrls,
     });
     final data = (resp.data as Map)['data'] as Map;
     return data['id'] as String;

@@ -126,7 +126,7 @@ class _MisReportesPageState extends ConsumerState<MisReportesPage> {
       padding: const EdgeInsets.fromLTRB(20, 32, 20, 32),
       child: Column(
         children: [
-          Icon(
+          const Icon(
             Icons.assignment_outlined,
             size: 44,
             color: AppColors.ink4,
@@ -178,7 +178,7 @@ class _ReportCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
