@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -658,24 +659,65 @@ class _LocationStatusRow extends StatelessWidget {
 
     if (position != null) {
       return Container(
-        height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: AppColors.aptoBg,
           border: Border.all(color: AppColors.aptoBorder),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.location_on_rounded, size: 15, color: AppColors.apto),
             const SizedBox(width: 7),
-            Text(
-              'Ubicación capturada',
-              style: AppTheme.inter(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: AppColors.apto,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Ubicación capturada',
+                    style: AppTheme.inter(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.apto,
+                    ),
+                  ),
+                  Text(
+                    '${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}',
+                    style: AppTheme.inter(fontSize: 11, color: AppColors.apto),
+                  ),
+                ],
+              ),
+            ),
+            GestureDetector(
+              onTap: () async {
+                final url = Uri.parse(
+                  'https://www.google.com/maps?q=${position.latitude},${position.longitude}',
+                );
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.apto,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.map_outlined, size: 13, color: Colors.white),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Ver mapa',
+                      style: AppTheme.inter(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

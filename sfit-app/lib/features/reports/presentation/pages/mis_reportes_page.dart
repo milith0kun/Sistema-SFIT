@@ -164,6 +164,7 @@ class _ReportCard extends StatelessWidget {
     final category = item['category'] as String? ?? '';
     final status = item['status'] as String? ?? 'pendiente';
     final vehiclePlate = item['vehiclePlate'] as String?;
+    final description = item['description'] as String?;
     final createdAtRaw = item['createdAt'];
     DateTime? createdAt;
     if (createdAtRaw is String) {
@@ -175,56 +176,129 @@ class _ReportCard extends StatelessWidget {
         color: Colors.white,
         border: Border.all(color: AppColors.ink2, width: 1),
         borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      child: Column(
+      padding: const EdgeInsets.all(14),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  category,
-                  style: AppTheme.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink9,
-                  ),
-                ),
-              ),
-              _StatusBadge(status: status),
-            ],
+          // Ícono de categoría
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.riesgoBg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.riesgoBorder),
+            ),
+            child: Icon(
+              _categoryIcon(category),
+              size: 20,
+              color: AppColors.riesgo,
+            ),
           ),
-          if (vehiclePlate != null && vehiclePlate.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Row(
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.directions_car_outlined, size: 14, color: AppColors.ink5),
-                const SizedBox(width: 4),
-                Text(
-                  vehiclePlate,
-                  style: AppTheme.inter(fontSize: 12, color: AppColors.ink5),
+                // Fila: categoría + badge
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        category.isEmpty ? 'Sin categoría' : category,
+                        style: AppTheme.inter(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink9,
+                          height: 1.2,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _StatusBadge(status: status),
+                  ],
+                ),
+                // Descripción (preview)
+                if (description != null && description.isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.inter(fontSize: 12, color: AppColors.ink5, height: 1.4),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                // Metadatos
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  children: [
+                    if (vehiclePlate != null && vehiclePlate.isNotEmpty)
+                      _MetaChip(
+                        icon: Icons.directions_car_outlined,
+                        label: vehiclePlate,
+                      ),
+                    _MetaChip(
+                      icon: Icons.calendar_today_outlined,
+                      label: createdAt != null
+                          ? DateFormat('dd/MM/yyyy HH:mm').format(createdAt.toLocal())
+                          : '—',
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.ink5),
-              const SizedBox(width: 4),
-              Text(
-                createdAt != null
-                    ? DateFormat('dd/MM/yyyy HH:mm').format(createdAt.toLocal())
-                    : '—',
-                style: AppTheme.inter(fontSize: 12, color: AppColors.ink5),
-              ),
-            ],
           ),
         ],
       ),
     );
   }
+
+  IconData _categoryIcon(String category) {
+    final lower = category.toLowerCase();
+    if (lower.contains('conducción') || lower.contains('conduccion') || lower.contains('peligros')) {
+      return Icons.speed_rounded;
+    }
+    if (lower.contains('cobro') || lower.contains('precio') || lower.contains('tarifa')) {
+      return Icons.payments_outlined;
+    }
+    if (lower.contains('mal estado') || lower.contains('vehículo') || lower.contains('vehiculo')) {
+      return Icons.car_crash_outlined;
+    }
+    if (lower.contains('conducta')) {
+      return Icons.sentiment_dissatisfied_outlined;
+    }
+    return Icons.report_gmailerrorred_outlined;
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _MetaChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: AppColors.ink4),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: AppTheme.inter(fontSize: 11.5, color: AppColors.ink4, tabular: true),
+          ),
+        ],
+      );
 }
 
 class _StatusBadge extends StatelessWidget {

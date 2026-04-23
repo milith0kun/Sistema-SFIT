@@ -69,16 +69,28 @@ export async function GET(request: NextRequest) {
       .lean();
 
     if (dbItems.length > 0) {
+      const CAT_DEFAULTS: Record<string, { name: string; description: string; cost: number }> = {
+        descuento:   { name: "Cupón de descuento",          description: "Descuento en servicios municipales.",             cost: 50  },
+        bono:        { name: "Bono ciudadano",               description: "Bono de reconocimiento por participación.",       cost: 100 },
+        transporte:  { name: "Beneficio de transporte",      description: "Acceso a beneficios en transporte público.",      cost: 200 },
+        salud:       { name: "Beneficio de salud",           description: "Acceso a servicios de salud municipal.",          cost: 150 },
+        ocio:        { name: "Beneficio cultural",           description: "Acceso a eventos culturales municipales.",        cost: 80  },
+        certificado: { name: "Certificado ciudadano",        description: "Certificado de participación ciudadana.",         cost: 100 },
+        beneficio:   { name: "Beneficio especial",           description: "Beneficio exclusivo para ciudadanos activos.",    cost: 300 },
+      };
       return apiResponse({
-        items: dbItems.map((r) => ({
-          id: String(r._id),
-          name: r.name,
-          description: r.description,
-          cost: r.cost,
-          category: r.category,
-          stock: r.stock,
-          imageUrl: r.imageUrl ?? null,
-        })),
+        items: dbItems.map((r) => {
+          const def = CAT_DEFAULTS[r.category as string] ?? { name: "Recompensa", description: "Recompensa ciudadana.", cost: 100 };
+          return {
+            id:          String(r._id),
+            name:        (r.name        as string | undefined) ?? def.name,
+            description: (r.description as string | undefined) ?? def.description,
+            cost:        (r.cost        as number | undefined) ?? def.cost,
+            category:    (r.category    as string | undefined) ?? "beneficio",
+            stock:       (r.stock       as number | undefined) ?? -1,
+            imageUrl:    (r.imageUrl    as string | null | undefined) ?? null,
+          };
+        }),
         source: "db",
       });
     }

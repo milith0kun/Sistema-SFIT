@@ -52,14 +52,28 @@ class RewardItem {
     required this.stock,
   });
 
-  factory RewardItem.fromJson(Map<String, dynamic> j) => RewardItem(
-        id: j['id'] as String,
-        name: j['name'] as String,
-        description: j['description'] as String,
-        cost: (j['cost'] as num).toInt(),
-        category: j['category'] as String,
-        stock: (j['stock'] as num).toInt(),
-      );
+  factory RewardItem.fromJson(Map<String, dynamic> j) {
+    final cat = j['category'] as String? ?? '';
+    return RewardItem(
+      id:          j['id'] as String? ?? '',
+      name:        j['name'] as String? ?? _defaultName(cat),
+      description: j['description'] as String? ?? '',
+      cost:        (j['cost'] as num?)?.toInt() ?? 0,
+      category:    cat,
+      stock:       (j['stock'] as num?)?.toInt() ?? -1,
+    );
+  }
+
+  static String _defaultName(String category) => switch (category) {
+        'descuento'   => 'Cupón de descuento',
+        'bono'        => 'Bono ciudadano',
+        'transporte'  => 'Beneficio de transporte',
+        'salud'       => 'Beneficio de salud',
+        'ocio'        => 'Beneficio cultural',
+        'certificado' => 'Certificado ciudadano',
+        'beneficio'   => 'Beneficio especial',
+        _             => 'Recompensa',
+      };
 
   bool get hasStock => stock == -1 || stock > 0;
 
