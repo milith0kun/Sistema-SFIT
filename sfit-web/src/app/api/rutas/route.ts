@@ -33,7 +33,8 @@ const CreateSchema = z.object({
 
 export async function GET(request: NextRequest) {
   const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL, ROLES.OPERADOR,
+    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL,
+    ROLES.FISCAL, ROLES.OPERADOR, ROLES.CONDUCTOR,
   ]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
@@ -52,6 +53,7 @@ export async function GET(request: NextRequest) {
         filter.municipalityId = municipalityIdParam;
       }
     } else {
+      // Conductor usa su municipalityId del JWT (igual que otros roles operativos)
       const targetId = municipalityIdParam ?? auth.session.municipalityId;
       if (!targetId || !isValidObjectId(targetId)) return apiForbidden();
       if (!(await canAccessMunicipality(auth.session, targetId))) return apiForbidden();

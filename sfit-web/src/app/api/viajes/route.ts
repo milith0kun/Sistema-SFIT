@@ -3,6 +3,7 @@ import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { Trip } from "@/models/Trip";
+import { Driver } from "@/models/Driver";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
@@ -21,7 +22,8 @@ const CreateSchema = z.object({
 
 export async function GET(request: NextRequest) {
   const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL, ROLES.OPERADOR,
+    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL,
+    ROLES.FISCAL, ROLES.OPERADOR, ROLES.CONDUCTOR,
   ]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
@@ -36,7 +38,13 @@ export async function GET(request: NextRequest) {
 
     const filter: Record<string, unknown> = {};
 
-    if (auth.session.role === ROLES.SUPER_ADMIN) {
+    if (auth.session.role === ROLES.CONDUCTOR) {
+      // Conductor ve solo sus propios viajes — busca su Driver record por userId
+      const driver = await Driver.findOne({ userId: auth.session.userId }).select("_id municipalityId").lean();
+      if (!driver) return apiForbidden();
+      filter.driverId = driver._id;
+      filter.municipalityId = driver.municipalityId;
+    } else if (auth.session.role === ROLES.SUPER_ADMIN) {
       if (municipalityIdParam) {
         if (!isValidObjectId(municipalityIdParam)) return apiError("municipalityId inválido", 400);
         filter.municipalityId = municipalityIdParam;
