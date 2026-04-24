@@ -226,7 +226,7 @@ class AppTheme {
             return AppColors.ink9;
           }),
           foregroundColor: WidgetStateProperty.all(Colors.white),
-          minimumSize: WidgetStateProperty.all(const Size(double.infinity, 48)),
+          minimumSize: WidgetStateProperty.all(const Size(64, 48)),
           shape: WidgetStateProperty.all(
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(_radius)),
           ),
@@ -240,7 +240,7 @@ class AppTheme {
         style: ButtonStyle(
           foregroundColor: WidgetStateProperty.all(AppColors.ink8),
           side: WidgetStateProperty.all(const BorderSide(color: AppColors.ink2, width: 1.5)),
-          minimumSize: WidgetStateProperty.all(const Size(double.infinity, 48)),
+          minimumSize: WidgetStateProperty.all(const Size(64, 48)),
           shape: WidgetStateProperty.all(
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(_radius)),
           ),

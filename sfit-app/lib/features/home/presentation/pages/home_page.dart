@@ -42,6 +42,9 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage> {
   int _index = 0;
   int _unreadNotifCount = 0;
+  // Tabs que ya fueron visitados al menos una vez — se construyen de forma perezosa
+  // para evitar que animaciones de carga en tabs ocultos disparen el crash de semantics.
+  final Set<int> _visitedTabs = {0};
 
   @override
   void initState() {
@@ -176,13 +179,17 @@ class _HomePageState extends ConsumerState<HomePage> {
             child: Stack(
               fit: StackFit.expand,
               children: tabs.asMap().entries.map((e) {
-                final isActive = e.key == safeIndex;
+                final i = e.key;
+                final isActive = i == safeIndex;
+                // Solo construir el widget del tab si fue visitado al menos una vez.
+                // Los tabs no visitados se dejan como SizedBox vacío para no crear
+                // AnimationControllers ocultos que disparan el crash de semantics.
+                final built = _visitedTabs.contains(i);
                 return Offstage(
                   offstage: !isActive,
-                  child: TickerMode(
-                    enabled: isActive,
-                    child: e.value.page,
-                  ),
+                  child: built
+                      ? TickerMode(enabled: isActive, child: e.value.page)
+                      : const SizedBox.shrink(),
                 );
               }).toList(),
             ),
@@ -191,7 +198,10 @@ class _HomePageState extends ConsumerState<HomePage> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: safeIndex,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: (i) => setState(() {
+          _index = i;
+          _visitedTabs.add(i);
+        }),
         labelBehavior: tabs.length > 4
             ? NavigationDestinationLabelBehavior.onlyShowSelected
             : NavigationDestinationLabelBehavior.alwaysShow,
