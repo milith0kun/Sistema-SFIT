@@ -81,7 +81,10 @@ class _MisReportesPageState extends ConsumerState<MisReportesPage> {
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: _load,
-                style: FilledButton.styleFrom(backgroundColor: AppColors.panel),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.panel,
+                  minimumSize: const Size(double.infinity, 46),
+                ),
                 child: const Text('Reintentar'),
               ),
             ],

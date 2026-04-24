@@ -555,6 +555,7 @@ class _ErrorView extends StatelessWidget {
               label: const Text('Reintentar'),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.panel,
+                minimumSize: const Size(double.infinity, 46),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8)),
               ),

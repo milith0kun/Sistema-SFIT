@@ -515,6 +515,7 @@ class _EmptyState extends StatelessWidget {
               label: const Text('Escanear QR'),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.panel,
+                minimumSize: const Size(double.infinity, 46),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8)),
               ),
