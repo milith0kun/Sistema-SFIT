@@ -173,9 +173,18 @@ class _HomePageState extends ConsumerState<HomePage> {
         children: [
           const ConnectivityBanner(),
           Expanded(
-            child: IndexedStack(
-              index: safeIndex,
-              children: tabs.map((t) => t.page).toList(),
+            child: Stack(
+              fit: StackFit.expand,
+              children: tabs.asMap().entries.map((e) {
+                final isActive = e.key == safeIndex;
+                return Offstage(
+                  offstage: !isActive,
+                  child: TickerMode(
+                    enabled: isActive,
+                    child: e.value.page,
+                  ),
+                );
+              }).toList(),
             ),
           ),
         ],
