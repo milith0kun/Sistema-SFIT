@@ -31,7 +31,7 @@ class _ConductoresTabPageState extends ConsumerState<ConductoresTabPage> {
   @override
   void initState() {
     super.initState();
-    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _load(); });
   }
 
   Future<void> _load() async {
@@ -71,104 +71,115 @@ class _ConductoresTabPageState extends ConsumerState<ConductoresTabPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.paper,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final added = await context.push<bool>('/nuevo-conductor');
-          if (added == true && mounted) _load();
-        },
-        backgroundColor: AppColors.gold,
-        foregroundColor: Colors.white,
-        tooltip: 'Registrar conductor',
-        child: const Icon(Icons.person_add_outlined),
-      ),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return ColoredBox(
+      color: AppColors.paper,
+      child: SafeArea(
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-          // ── Header ───────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Conductores',
-                  style: AppTheme.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink9,
-                    letterSpacing: -0.015,
+                // ── Header ─────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Conductores',
+                        style: AppTheme.inter(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink9,
+                          letterSpacing: -0.015,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (!_loading && _error == null)
+                        _CountBadge(count: _all.length),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 8),
+
+                // ── Filtros ────────────────────────────────────────
                 if (!_loading && _error == null)
-                  _CountBadge(count: _all.length),
+                  SizedBox(
+                    height: 36,
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      scrollDirection: Axis.horizontal,
+                      children: _filters.map((f) {
+                        final (key, label) = f;
+                        final selected = _filter == key;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: FilterChip(
+                            label: Text(label),
+                            selected: selected,
+                            onSelected: (_) => _setFilter(key),
+                            showCheckmark: false,
+                            selectedColor: AppColors.panel,
+                            backgroundColor: Colors.white,
+                            side: BorderSide(
+                              color: selected ? AppColors.panel : AppColors.ink3,
+                            ),
+                            labelStyle: AppTheme.inter(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: selected ? Colors.white : AppColors.ink7,
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+
+                const SizedBox(height: 4),
+
+                // ── Contenido ──────────────────────────────────────
+                Expanded(
+                  child: _loading
+                      ? const Center(
+                          child: CircularProgressIndicator(color: AppColors.gold))
+                      : _error != null
+                          ? _ErrorState(message: _error!, onRetry: _load)
+                          : _filtered.isEmpty
+                              ? _EmptyState(filter: _filter)
+                              : RefreshIndicator(
+                                  onRefresh: _load,
+                                  color: AppColors.gold,
+                                  child: ListView.separated(
+                                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 88),
+                                    itemCount: _filtered.length,
+                                    separatorBuilder: (_, __) =>
+                                        const SizedBox(height: 8),
+                                    itemBuilder: (_, i) =>
+                                        _ConductorCard(item: _filtered[i]),
+                                  ),
+                                ),
+                ),
               ],
             ),
-          ),
 
-          // ── Filtros ───────────────────────────────────────────────
-          if (!_loading && _error == null)
-            SizedBox(
-              height: 36,
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                scrollDirection: Axis.horizontal,
-                children: _filters.map((f) {
-                  final (key, label) = f;
-                  final selected = _filter == key;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: Text(label),
-                      selected: selected,
-                      onSelected: (_) => _setFilter(key),
-                      showCheckmark: false,
-                      selectedColor: AppColors.panel,
-                      backgroundColor: Colors.white,
-                      side: BorderSide(
-                        color: selected ? AppColors.panel : AppColors.ink3,
-                      ),
-                      labelStyle: AppTheme.inter(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: selected ? Colors.white : AppColors.ink7,
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                    ),
-                  );
-                }).toList(),
+            // ── FAB ────────────────────────────────────────────────
+            Positioned(
+              right: 16,
+              bottom: 16,
+              child: FloatingActionButton(
+                heroTag: 'fab_conductores',
+                onPressed: () async {
+                  final added = await context.push<bool>('/nuevo-conductor');
+                  if (added == true && mounted) _load();
+                },
+                backgroundColor: AppColors.gold,
+                foregroundColor: Colors.white,
+                tooltip: 'Registrar conductor',
+                child: const Icon(Icons.person_add_outlined),
               ),
             ),
-
-          const SizedBox(height: 4),
-
-          // ── Contenido ────────────────────────────────────────────
-          Expanded(
-            child: _loading
-                ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.gold))
-                : _error != null
-                    ? _ErrorState(message: _error!, onRetry: _load)
-                    : _filtered.isEmpty
-                        ? _EmptyState(filter: _filter)
-                        : RefreshIndicator(
-                            onRefresh: _load,
-                            color: AppColors.gold,
-                            child: ListView.separated(
-                              padding:
-                                  const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                              itemCount: _filtered.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 8),
-                              itemBuilder: (_, i) =>
-                                  _ConductorCard(item: _filtered[i]),
-                            ),
-                          ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
