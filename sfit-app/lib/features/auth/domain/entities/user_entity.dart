@@ -42,6 +42,5 @@ class UserEntity {
   bool get isSuperAdmin       => role == 'super_admin';
 
   /// Roles que SOLO operan desde el panel web.
-  bool get isWebOnlyRole =>
-      isAdminMunicipal || isAdminProvincial || isSuperAdmin;
+  bool get isWebOnlyRole => isAdminProvincial || isSuperAdmin;
 }

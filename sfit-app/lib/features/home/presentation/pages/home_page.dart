@@ -21,6 +21,8 @@ import '../../../trips/presentation/pages/my_routes_page.dart';
 import '../../../trips/presentation/pages/my_trips_page.dart';
 import '../../../trips/presentation/pages/trip_map_page.dart';
 import '../../../rewards/presentation/pages/rewards_page.dart';
+import '../../../admin/presentation/pages/admin_dashboard_page.dart';
+import '../../../admin/presentation/pages/admin_usuarios_page.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/widgets/connectivity_banner.dart';
 import '../../../../core/widgets/sfit_loading.dart';
@@ -335,6 +337,26 @@ class _HomePageState extends ConsumerState<HomePage> {
             icon: Icons.emoji_events_outlined,
             iconFilled: Icons.emoji_events,
             page: RewardsPage(),
+          ),
+          _Tab(
+            label: 'Perfil',
+            icon: Icons.person_outline,
+            iconFilled: Icons.person,
+            page: ProfilePage(),
+          ),
+        ],
+      'admin_municipal' => const [
+          _Tab(
+            label: 'Tablero',
+            icon: Icons.dashboard_outlined,
+            iconFilled: Icons.dashboard,
+            page: AdminDashboardPage(),
+          ),
+          _Tab(
+            label: 'Usuarios',
+            icon: Icons.people_outline,
+            iconFilled: Icons.people,
+            page: AdminUsuariosPage(),
           ),
           _Tab(
             label: 'Perfil',
