@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/apiperu_service.dart';
 import '../../../../core/widgets/sfit_mark.dart';
 import '../../../../shared/widgets/sfit_disclaimer_banner.dart';
@@ -78,9 +77,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     if (dni.length != 8) return;
     setState(() => _verifyingDni = true);
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final svc = ApiPeruService(dio);
-      final result = await svc.consultarDniPublico(dni);
+      final result = await ref.read(apiPeruServiceProvider).consultarDniPublico(dni);
       if (!mounted) return;
       if (result.nombreCompleto.isNotEmpty) {
         _nameCtrl.text = result.nombreCompleto;

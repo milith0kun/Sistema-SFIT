@@ -23,6 +23,7 @@ import '../../../trips/presentation/pages/trip_map_page.dart';
 import '../../../rewards/presentation/pages/rewards_page.dart';
 import '../../../admin/presentation/pages/admin_dashboard_page.dart';
 import '../../../admin/presentation/pages/admin_usuarios_page.dart';
+import '../../../admin/presentation/pages/admin_empresas_page.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/widgets/connectivity_banner.dart';
 import '../../../../core/widgets/sfit_loading.dart';
@@ -357,6 +358,12 @@ class _HomePageState extends ConsumerState<HomePage> {
             icon: Icons.people_outline,
             iconFilled: Icons.people,
             page: AdminUsuariosPage(),
+          ),
+          _Tab(
+            label: 'Empresas',
+            icon: Icons.business_outlined,
+            iconFilled: Icons.business,
+            page: AdminEmpresasPage(),
           ),
           _Tab(
             label: 'Perfil',

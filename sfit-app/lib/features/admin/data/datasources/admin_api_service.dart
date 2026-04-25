@@ -60,4 +60,51 @@ class AdminApiService {
     final resp = await _dio.get('/admin/config');
     return (resp.data as Map)['data'] as Map<String, dynamic>;
   }
+
+  // ── RF-04-01: Empresas ────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getEmpresas({
+    int page = 1,
+    int limit = 30,
+    bool? active,
+  }) async {
+    final resp = await _dio.get('/empresas', queryParameters: {
+      'page': page,
+      'limit': limit,
+      if (active != null) 'active': active,
+    });
+    final data = (resp.data as Map)['data'] as Map<String, dynamic>;
+    return {
+      'items': (data['items'] as List)
+          .map((e) => e as Map<String, dynamic>)
+          .toList(),
+      'total': data['total'] ?? 0,
+    };
+  }
+
+  Future<Map<String, dynamic>> createEmpresa({
+    required String ruc,
+    required String razonSocial,
+    required String repNombre,
+    required String repDni,
+    String? repPhone,
+    List<String>? vehicleTypeKeys,
+  }) async {
+    final resp = await _dio.post('/empresas', data: {
+      'ruc': ruc,
+      'razonSocial': razonSocial,
+      'representanteLegal': {
+        'name': repNombre,
+        'dni': repDni,
+        if (repPhone != null && repPhone.isNotEmpty) 'phone': repPhone,
+      },
+      if (vehicleTypeKeys != null && vehicleTypeKeys.isNotEmpty)
+        'vehicleTypeKeys': vehicleTypeKeys,
+    });
+    return (resp.data as Map)['data'] as Map<String, dynamic>;
+  }
+
+  Future<void> toggleEmpresaStatus(String id, {required bool active}) async {
+    await _dio.patch('/empresas/$id', data: {'active': active});
+  }
 }
