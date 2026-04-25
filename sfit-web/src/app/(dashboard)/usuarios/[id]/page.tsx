@@ -77,7 +77,7 @@ function getToken() {
 }
 
 function assignableRoles(actorRole: string): string[] {
-  if (actorRole === "super_admin")      return ["admin_provincial", "admin_municipal", "fiscal", "operador", "conductor", "ciudadano"];
+  if (actorRole === "super_admin")      return ["super_admin", "admin_provincial", "admin_municipal", "fiscal", "operador", "conductor", "ciudadano"];
   if (actorRole === "admin_provincial") return ["admin_municipal", "fiscal", "operador", "conductor", "ciudadano"];
   if (actorRole === "admin_municipal")  return ["fiscal", "operador", "conductor", "ciudadano"];
   return [];
@@ -256,7 +256,7 @@ export default function UsuarioDetallePage() {
 
   const roles     = assignableRoles(actor.role);
   const isSA      = actor.role === "super_admin";
-  const canDelete = isSA && target?.role !== "super_admin" && target?.id !== actor.id;
+  const canDelete = isSA && target?.id !== actor.id;
   const canPass   = isSA;
 
   const backBtn = (

@@ -222,26 +222,27 @@ export default function UsuariosAdminPage() {
         <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
         Actualizar
       </button>
-      {user?.role === "super_admin" && (
-        <button
-          onClick={() => router.push("/usuarios/nuevo")}
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            height: 34, padding: "0 14px", borderRadius: 8, border: "none",
-            background: INK9, color: "#fff", fontSize: "0.8125rem",
-            fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-          }}
-        >
-          <UserPlus size={13} />
-          Nuevo usuario
-        </button>
-      )}
     </>
   );
 
+  const headerAction = user?.role === "super_admin" ? (
+    <button
+      onClick={() => router.push("/usuarios/nuevo")}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 6,
+        height: 34, padding: "0 14px", borderRadius: 8, border: "none",
+        background: INK9, color: "#fff", fontSize: "0.8125rem",
+        fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+      }}
+    >
+      <UserPlus size={13} />
+      Nuevo usuario
+    </button>
+  ) : undefined;
+
   return (
     <div className="flex flex-col gap-4 animate-fade-in">
-      <PageHeader kicker="Administración · RF-01" title="Gestión de usuarios" />
+      <PageHeader kicker="Administración · RF-01" title="Gestión de usuarios" action={headerAction} />
 
       <KPIStrip items={kpis} cols={kpis.length as 2 | 3 | 4} />
 

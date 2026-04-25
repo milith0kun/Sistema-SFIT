@@ -37,6 +37,7 @@ const BTN_PRIMARY: React.CSSProperties = {
 };
 
 const ROLE_META: Record<string, { label: string; desc: string; needsMuni: boolean; needsProv: boolean }> = {
+  super_admin:      { label: "Super Admin",      desc: "Acceso total al sistema — puede crear y gestionar todo", needsProv: false, needsMuni: false },
   admin_provincial: { label: "Admin Provincial", desc: "Supervisa todas las municipalidades de su provincia", needsProv: true,  needsMuni: false },
   admin_municipal:  { label: "Admin Municipal",  desc: "Gestiona una municipalidad específica",              needsProv: true,  needsMuni: true  },
   fiscal:           { label: "Fiscal / Inspector", desc: "Realiza inspecciones en campo",                   needsProv: true,  needsMuni: true  },

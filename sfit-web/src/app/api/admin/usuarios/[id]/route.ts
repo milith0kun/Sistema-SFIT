@@ -291,7 +291,13 @@ export async function DELETE(
     if (!target) return apiNotFound("Usuario no encontrado");
 
     if (target.role === "super_admin") {
-      return apiForbidden("No se puede eliminar un super_admin");
+      const remainingSuperAdmins = await User.countDocuments({
+        role: "super_admin",
+        _id: { $ne: id },
+      });
+      if (remainingSuperAdmins === 0) {
+        return apiForbidden("No se puede eliminar al último super_admin del sistema");
+      }
     }
 
     await User.findByIdAndDelete(id);

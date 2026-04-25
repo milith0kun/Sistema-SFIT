@@ -127,25 +127,28 @@ export default function MunicipalidadesPage() {
     fontSize:"0.8125rem", fontFamily:"inherit", background:"#fff", color:INK6, cursor:"pointer",
   };
 
-  const toolbarEnd = (
-    <>
-      {isSA && (
-        <select style={selectStyle} value={provinceFilter} onChange={e => setProvinceFilter(e.target.value)}>
-          <option value="">Todas las provincias</option>
-          {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-      )}
-      <Link href="/municipalidades/nueva">
-        <button style={{ display:"inline-flex", alignItems:"center", gap:6, height:34, padding:"0 14px", borderRadius:8, border:`1.5px solid ${G}`, background:G, color:"#fff", fontSize:"0.8125rem", fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-          <Plus size={13}/>Nueva municipalidad
-        </button>
-      </Link>
-    </>
+  const toolbarEnd = isSA ? (
+    <select style={selectStyle} value={provinceFilter} onChange={e => setProvinceFilter(e.target.value)}>
+      <option value="">Todas las provincias</option>
+      {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+    </select>
+  ) : undefined;
+
+  const headerAction = (
+    <Link href="/municipalidades/nueva">
+      <button style={{ display:"inline-flex", alignItems:"center", gap:6, height:34, padding:"0 14px", borderRadius:8, border:`1.5px solid ${G}`, background:G, color:"#fff", fontSize:"0.8125rem", fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+        <Plus size={13}/>Nueva municipalidad
+      </button>
+    </Link>
   );
 
   return (
     <div className="flex flex-col gap-4 animate-fade-in">
-      <PageHeader kicker={isSA ? "Panel global · RF-03" : "Panel provincial · RF-03"} title="Municipalidades" />
+      <PageHeader
+        kicker={isSA ? "Panel global · RF-03" : "Panel provincial · RF-03"}
+        title="Municipalidades"
+        action={headerAction}
+      />
 
       <KPIStrip cols={2} items={[
         { label:"MUNICIPIOS", value:items.length,    subtitle:"registrados", icon:Building2 },

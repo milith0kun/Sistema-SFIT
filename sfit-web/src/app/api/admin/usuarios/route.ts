@@ -109,7 +109,7 @@ const CreateSchema = z.object({
   email:          z.string().email("Correo inválido").toLowerCase(),
   password:       z.string().min(8, "Mínimo 8 caracteres").max(128),
   role: z.enum([
-    "admin_provincial", "admin_municipal",
+    "super_admin", "admin_provincial", "admin_municipal",
     "fiscal", "operador", "conductor", "ciudadano",
   ]),
   provinceId:     z.string().refine(v => !v || isValidObjectId(v), "provinceId inválido").optional(),

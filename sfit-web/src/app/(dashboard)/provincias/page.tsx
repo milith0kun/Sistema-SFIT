@@ -100,7 +100,7 @@ export default function ProvinciasPage() {
     },
   ], []);
 
-  const toolbarEnd = (
+  const headerAction = (
     <Link href="/provincias/nueva">
       <button style={{ display:"inline-flex", alignItems:"center", gap:6, height:34, padding:"0 14px", borderRadius:8, border:`1.5px solid ${G}`, background:G, color:"#fff", fontSize:"0.8125rem", fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
         <Plus size={13}/>Nueva provincia
@@ -110,7 +110,7 @@ export default function ProvinciasPage() {
 
   return (
     <div className="flex flex-col gap-4 animate-fade-in">
-      <PageHeader kicker="Panel global · RF-02" title="Provincias" />
+      <PageHeader kicker="Panel global · RF-02" title="Provincias" action={headerAction} />
 
       <KPIStrip cols={2} items={[
         { label: "PROVINCIAS", value: items.length, subtitle: "registradas", icon: MapPin },
@@ -132,7 +132,6 @@ export default function ProvinciasPage() {
         emptyDescription="Registra la primera provincia para comenzar."
         defaultPageSize={20}
         showColumnToggle
-        toolbarEnd={toolbarEnd}
         onRowClick={row => router.push(`/provincias/${row.id}`)}
       />
     </div>
