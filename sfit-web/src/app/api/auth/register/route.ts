@@ -144,6 +144,8 @@ export async function POST(request: NextRequest) {
           status: user.status,
           municipalityId: user.municipalityId?.toString(),
           provinceId: user.provinceId?.toString(),
+          phone: user.phone ?? null,
+          dni:   user.dni   ?? null,
         },
       },
       201,
