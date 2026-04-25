@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../../../core/services/apiperu_service.dart';
 import '../../../../core/widgets/sfit_mark.dart';
 import '../../../../shared/widgets/sfit_disclaimer_banner.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -33,6 +35,7 @@ class RegisterPage extends ConsumerStatefulWidget {
 
 class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _formKey       = GlobalKey<FormState>();
+  final _dniCtrl       = TextEditingController();
   final _nameCtrl      = TextEditingController();
   final _emailCtrl     = TextEditingController();
   final _passwordCtrl  = TextEditingController();
@@ -41,6 +44,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   bool _obscurePassword = true;
   bool _obscureConfirm  = true;
   bool _loading         = false;
+  bool _verifyingDni    = false;
 
   // Provincia / Municipio
   List<_Provincia> _provincias   = [];
@@ -59,11 +63,33 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   @override
   void dispose() {
+    _dniCtrl.dispose();
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
     super.dispose();
+  }
+
+  // ── API Perú — autocompletar nombre desde DNI ─────────────────
+
+  Future<void> _verificarDni() async {
+    final dni = _dniCtrl.text.trim();
+    if (dni.length != 8) return;
+    setState(() => _verifyingDni = true);
+    try {
+      final dio = ref.read(dioClientProvider).dio;
+      final svc = ApiPeruService(dio);
+      final result = await svc.consultarDniPublico(dni);
+      if (!mounted) return;
+      if (result.nombreCompleto.isNotEmpty) {
+        _nameCtrl.text = result.nombreCompleto;
+      }
+    } catch (_) {
+      // Error silencioso — el usuario puede escribir su nombre manualmente
+    } finally {
+      if (mounted) setState(() => _verifyingDni = false);
+    }
   }
 
   // ── Carga de datos geográficos ────────────────────────────────
@@ -189,6 +215,44 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // DNI (opcional — autocompleta nombre)
+                    const _FieldLabel('DNI (opcional)'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _dniCtrl,
+                      keyboardType: TextInputType.number,
+                      maxLength: 8,
+                      textInputAction: TextInputAction.next,
+                      onChanged: (v) {
+                        if (v.trim().length == 8) _verificarDni();
+                      },
+                      decoration: InputDecoration(
+                        hintText: '8 dígitos',
+                        counterText: '',
+                        prefixIcon: const Icon(Icons.badge_outlined, size: 20),
+                        suffixIcon: _verifyingDni
+                            ? const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.gold,
+                                  ),
+                                ),
+                              )
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Ingresa tu DNI para autocompletar tu nombre',
+                      style: AppTheme.inter(fontSize: 11.5, color: AppColors.ink4),
+                    ),
+
+                    const SizedBox(height: 16),
+
                     // Nombre completo
                     const _FieldLabel('Nombre completo'),
                     const SizedBox(height: 8),

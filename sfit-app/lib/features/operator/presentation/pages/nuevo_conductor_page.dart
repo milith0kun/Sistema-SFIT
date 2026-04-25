@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/apiperu_service.dart';
 import '../../../ai_ocr/presentation/pages/document_ocr_page.dart';
 import '../../data/datasources/operator_api_service.dart';
 
@@ -25,6 +26,7 @@ class _NuevoConductorPageState extends ConsumerState<NuevoConductorPage> {
 
   String? _licenseCategory;
   bool _saving = false;
+  bool _verifyingDni = false;
 
   static const _licenseCategories = [
     'A-I', 'A-IIa', 'A-IIb', 'A-IIIa', 'A-IIIb', 'A-IIIc',
@@ -109,6 +111,53 @@ class _NuevoConductorPageState extends ConsumerState<NuevoConductorPage> {
     }
   }
 
+  // ── API Perú — consulta DNI ────────────────────────────────────
+
+  Future<void> _verificarDni() async {
+    final dni = _dniCtrl.text.trim();
+    if (dni.length != 8) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ingresa los 8 dígitos del DNI primero.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    setState(() => _verifyingDni = true);
+    try {
+      final result = await ref.read(apiPeruServiceProvider).consultarDni(dni);
+      if (!mounted) return;
+      if (result.nombreCompleto.isNotEmpty) {
+        _nombreCtrl.text = result.nombreCompleto;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Nombre obtenido: ${result.nombreCompleto}'),
+            backgroundColor: AppColors.apto,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('DNI no encontrado en RENIEC.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo consultar el DNI. Ingresa el nombre manualmente.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _verifyingDni = false);
+    }
+  }
+
   // ── Submit ──────────────────────────────────────────────────────
 
   Future<void> _submit() async {
@@ -190,7 +239,7 @@ class _NuevoConductorPageState extends ConsumerState<NuevoConductorPage> {
               const SizedBox(height: 24),
 
               // ── Bloque OCR ─────────────────────────────────────
-              _SectionLabel(label: 'Escanear documentos'),
+              const _SectionLabel(label: 'Escanear documentos'),
               const SizedBox(height: 10),
               Row(
                 children: [
@@ -216,7 +265,7 @@ class _NuevoConductorPageState extends ConsumerState<NuevoConductorPage> {
               const SizedBox(height: 28),
 
               // ── Campos del formulario ──────────────────────────
-              _SectionLabel(label: 'Datos personales'),
+              const _SectionLabel(label: 'Datos personales'),
               const SizedBox(height: 10),
 
               _buildField(
@@ -228,11 +277,35 @@ class _NuevoConductorPageState extends ConsumerState<NuevoConductorPage> {
               ),
               const SizedBox(height: 14),
 
-              _buildField(
+              TextFormField(
                 controller: _dniCtrl,
-                label: 'DNI',
-                hint: '8 dígitos',
                 keyboardType: TextInputType.number,
+                enabled: !_saving,
+                maxLength: 8,
+                style: AppTheme.inter(fontSize: 14, color: AppColors.ink9),
+                decoration: _fieldDecoration('DNI', hint: '8 dígitos').copyWith(
+                  counterText: '',
+                  suffixIcon: _verifyingDni
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.gold,
+                            ),
+                          ),
+                        )
+                      : Tooltip(
+                          message: 'Verificar en RENIEC',
+                          child: IconButton(
+                            icon: const Icon(Icons.manage_search_outlined,
+                                size: 22, color: AppColors.panel),
+                            onPressed: _saving ? null : _verificarDni,
+                          ),
+                        ),
+                ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return 'Campo requerido';
                   if (v.trim().length != 8) return 'Debe tener 8 dígitos';
@@ -249,7 +322,7 @@ class _NuevoConductorPageState extends ConsumerState<NuevoConductorPage> {
               ),
               const SizedBox(height: 28),
 
-              _SectionLabel(label: 'Licencia de conducir'),
+              const _SectionLabel(label: 'Licencia de conducir'),
               const SizedBox(height: 10),
 
               _buildField(
