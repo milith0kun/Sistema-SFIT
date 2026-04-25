@@ -236,8 +236,20 @@ export default function ApelacionesPage() {
   useEffect(() => { void load(); }, [load]);
 
   function handleResolved(updated: Apelacion) {
-    setItems((prev) => prev.map((a) => (a.id === updated.id ? { ...a, ...updated } : a)));
+    // Hacer merge preservando referencias del row original (vehicle/submittedBy/inspection
+    // pueden venir reducidas desde el resolver) y luego recargar para datos completos.
+    setItems((prev) => prev.map((a) => {
+      if (a.id !== updated.id) return a;
+      return {
+        ...a,
+        ...updated,
+        vehicle:     updated.vehicle     ?? a.vehicle,
+        inspection:  updated.inspection  ?? a.inspection,
+        submittedBy: updated.submittedBy ?? a.submittedBy,
+      };
+    }));
     setResolving(null);
+    void load();
   }
 
   const pendientes = useMemo(() => items.filter((a) => a.status === "pendiente").length, [items]);

@@ -68,6 +68,8 @@ export async function PATCH(
       .populate("resolvedBy", "name")
       .lean();
 
+    if (!updated) return apiError("Error al recuperar apelación tras resolver", 500);
+
     // RF-18 — Notificar al operador que presentó la apelación (no-bloqueante)
     try {
       const statusLabel =
@@ -98,9 +100,37 @@ export async function PATCH(
       role: auth.session.role,
     });
 
+    type Pop<T> = T | null;
+    type PInsp   = Pop<{ _id: unknown; result?: string; date?: Date | string; score?: number }>;
+    type PVeh    = Pop<{ _id: unknown; plate?: string; vehicleTypeKey?: string; brand?: string; model?: string }>;
+    type PUser   = Pop<{ _id: unknown; name?: string; email?: string }>;
+    type PResolv = Pop<{ _id: unknown; name?: string }>;
+
+    const insp     = updated.inspectionId as unknown as PInsp;
+    const veh      = updated.vehicleId    as unknown as PVeh;
+    const submit   = updated.submittedBy  as unknown as PUser;
+    const resolver = updated.resolvedBy   as unknown as PResolv;
+
     return apiResponse({
-      id: String(updated!._id),
-      ...updated,
+      id: String(updated._id),
+      inspection: insp
+        ? { id: String(insp._id), result: insp.result, date: insp.date, score: insp.score ?? 0 }
+        : null,
+      vehicle: veh
+        ? { id: String(veh._id), plate: veh.plate, vehicleTypeKey: veh.vehicleTypeKey, brand: veh.brand, model: veh.model }
+        : null,
+      submittedBy: submit
+        ? { id: String(submit._id), name: submit.name, email: submit.email }
+        : null,
+      reason:     updated.reason,
+      evidence:   updated.evidence ?? [],
+      status:     updated.status,
+      resolution: updated.resolution,
+      resolvedAt: updated.resolvedAt,
+      resolvedBy: resolver
+        ? { id: String(resolver._id), name: resolver.name }
+        : null,
+      createdAt:  updated.createdAt,
     });
   } catch (error) {
     console.error("[apelaciones/resolver PATCH]", error);

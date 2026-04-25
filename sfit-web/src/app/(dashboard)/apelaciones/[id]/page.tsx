@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use as usePromise } from "react";
+import { useCallback, useEffect, useState, use as usePromise } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle, XCircle, Clock, FileText, Scale } from "lucide-react";
@@ -9,14 +9,15 @@ import { PageHeader } from "@/components/ui/PageHeader";
 type ApelacionStatus = "pendiente" | "aprobada" | "rechazada";
 type Apelacion = {
   id: string;
-  inspection: { id: string; date: string; result: string; score: number; vehicle?: { plate: string } } | null;
-  submittedBy: { name: string; role: string };
+  inspection: { id: string; date: string; result: string; score: number; vehicle?: { id: string; plate: string; brand?: string; model?: string } | null } | null;
+  vehicle?: { id: string; plate: string; brand?: string; model?: string } | null;
+  submittedBy: { id: string; name: string; email?: string; role?: string } | null;
   reason: string;
   evidence: string[];
   status: ApelacionStatus;
   resolution?: string;
   resolvedAt?: string;
-  resolvedBy?: { name: string };
+  resolvedBy?: { id: string; name: string } | null;
   createdAt: string;
 };
 
@@ -70,18 +71,25 @@ export default function ApelacionDetailPage({ params }: { params: Promise<{ id: 
     setUser(u);
   }, [router]);
 
-  useEffect(() => {
+  const fetchApel = useCallback(async () => {
     if (!user) return;
     const token = localStorage.getItem("sfit_access_token");
-    fetch(`/api/apelaciones/${id}`, { headers: { Authorization: `Bearer ${token ?? ""}` } })
-      .then(r => r.json())
-      .then(d => {
-        if (d.success) setApel(d.data);
-        else setError(d.error ?? "Error al cargar");
-      })
-      .catch(() => setError("Error de conexión"))
-      .finally(() => setLoading(false));
+    try {
+      const res = await fetch(`/api/apelaciones/${id}`, {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setApel(data.data as Apelacion);
+        setError(null);
+      } else {
+        setError(data.error ?? "Error al cargar");
+      }
+    } catch { setError("Error de conexión"); }
+    finally { setLoading(false); }
   }, [id, user]);
+
+  useEffect(() => { void fetchApel(); }, [fetchApel]);
 
   async function handleResolve(status: "aprobada" | "rechazada") {
     if (!resolution.trim() || resolution.length < 5) { setResolveError("La resolución debe tener al menos 5 caracteres"); return; }
@@ -95,7 +103,9 @@ export default function ApelacionDetailPage({ params }: { params: Promise<{ id: 
       });
       const data = await res.json();
       if (data.success) {
-        setApel(prev => prev ? { ...prev, status, resolution, resolvedAt: new Date().toISOString() } : prev);
+        // Refrescar para obtener resolvedBy.name actualizado desde el servidor
+        await fetchApel();
+        setResolution("");
       } else {
         setResolveError(data.error ?? "Error al resolver");
       }
@@ -132,7 +142,7 @@ export default function ApelacionDetailPage({ params }: { params: Promise<{ id: 
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                 {[
-                  ["Presentada por", apel.submittedBy.name],
+                  ["Presentada por", apel.submittedBy?.name ?? "—"],
                   ["Fecha", new Date(apel.createdAt).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })],
                   ["Acta relacionada", apel.inspection ? `A-${apel.inspection.id.slice(-10).toUpperCase()}` : "—"],
                 ].map(([lbl, val]) => (
