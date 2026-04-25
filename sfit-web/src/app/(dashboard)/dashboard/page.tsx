@@ -29,8 +29,6 @@ import { KPIStrip, type KPIItem } from "@/components/dashboard/KPIStrip";
 import { FeatureCard } from "@/components/dashboard/FeatureCard";
 import { GoogleMapView } from "@/components/ui/GoogleMapView";
 
-type NotifItem = { id: string; title: string; body?: string; type?: string; category?: string; read?: boolean; createdAt: string; link?: string };
-
 type User = { name: string; email: string; role: string };
 
 type ApiResponse<T> = { success: boolean; data?: T; error?: string };
@@ -137,7 +135,6 @@ export default function DashboardPage() {
   const [fiscalStats, setFiscalStats] = useState<FiscalStats | null>(null);
   const [conductorStats, setConductorStats] = useState<ConductorStats | null>(null);
   const [actividad, setActividad] = useState<ActivityItem[]>([]);
-  const [notifs, setNotifs] = useState<NotifItem[]>([]);
   const [fleetLocations, setFleetLocations] = useState<ActiveLocationItem[]>([]);
   const [locationsLoading, setLocationsLoading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -208,17 +205,6 @@ export default function DashboardPage() {
     } catch { /* Silencioso */ }
   }, []);
 
-  const loadNotifs = useCallback(async () => {
-    try {
-      const token = localStorage.getItem("sfit_access_token");
-      const res = await fetch("/api/notificaciones?limit=6", { headers: { Authorization: `Bearer ${token ?? ""}` } });
-      if (res.ok) {
-        const data = await res.json();
-        setNotifs(data.data?.items ?? []);
-      }
-    } catch { /* silent */ }
-  }, []);
-
   const loadFleetLocations = useCallback(async () => {
     setLocationsLoading(true);
     try {
@@ -235,7 +221,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user) return;
     if (["super_admin", "admin_provincial", "admin_municipal"].includes(user.role)) {
-      void loadSuperAdmin(); void loadActividad(); void loadNotifs();
+      void loadSuperAdmin(); void loadActividad();
       if (user.role === "admin_municipal") { void loadFiscal(); void loadFleetLocations(); }
     } else if (user.role === "operador") {
       void loadOperador();
@@ -244,7 +230,7 @@ export default function DashboardPage() {
     } else if (user.role === "conductor") {
       void loadConductor();
     }
-  }, [user, loadSuperAdmin, loadOperador, loadFiscal, loadConductor, loadActividad, loadNotifs, loadFleetLocations]);
+  }, [user, loadSuperAdmin, loadOperador, loadFiscal, loadConductor, loadActividad, loadFleetLocations]);
 
   if (!user) return null;
 
@@ -265,7 +251,7 @@ export default function DashboardPage() {
   const showActivity = ["super_admin", "admin_provincial", "admin_municipal", "fiscal"].includes(role);
 
   return (
-    <div className="flex flex-col gap-3 animate-fade-in h-full">
+    <div className="flex flex-col gap-4 animate-fade-in h-full">
       {/* ── Hero compacto ── */}
       <DashboardHero
         kicker={`${roleLabel} · SFIT`}
@@ -290,9 +276,9 @@ export default function DashboardPage() {
       )}
 
       {/* ── Contenido principal: izquierda + módulos derecha ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 min-h-0 animate-fade-up">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 animate-fade-up">
         {/* Columna izquierda: acción principal + actividad */}
-        <div className="lg:col-span-8 flex flex-col gap-3 min-w-0">
+        <div className="lg:col-span-8 flex flex-col gap-4 min-w-0">
           {quickAction && <QuickModuleLink {...quickAction} />}
           {showActivity
             ? <ActivityFeed items={actividad} />
@@ -302,7 +288,7 @@ export default function DashboardPage() {
 
         {/* Columna derecha: todos los módulos agrupados */}
         <div className="lg:col-span-4 min-w-0">
-          <AllModulesPanel role={role} stats={stats} notifs={notifs} />
+          <AllModulesPanel role={role} stats={stats} />
         </div>
       </div>
     </div>
@@ -340,7 +326,7 @@ function ActiveFleetMap({
   }));
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 12, overflow: "hidden" }}>
+    <div style={{ background: "#fff", border: "1.5px solid #e4e4e7", borderRadius: 12, overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #f4f4f5" }}>
         <div>
           <div style={{ fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "#71717a", marginBottom: 1 }}>Tiempo real</div>
@@ -415,37 +401,137 @@ function QuickModuleLink({ icon: Icon, title, subtitle, href }: QuickActionDef) 
   return (
     <Link
       href={href}
+      className="sfit-quick-action"
       style={{
-        position: "relative", overflow: "hidden",
-        display: "flex", alignItems: "center", gap: 12,
-        padding: "11px 14px", borderRadius: 10,
-        background: "#ffffff", border: "1px solid #e4e4e7",
+        position: "relative",
+        overflow: "hidden",
+        display: "flex",
+        alignItems: "center",
+        gap: 18,
+        padding: "20px 22px",
+        borderRadius: 14,
+        background: "linear-gradient(135deg, #ffffff 0%, #FDFAF2 60%, #F8F1DF 100%)",
+        border: "1.5px solid #E8D090",
+        boxShadow: "0 1px 3px rgba(184,134,11,0.06)",
         textDecoration: "none",
-        transition: "border-color 150ms ease, background 150ms ease, box-shadow 150ms ease",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLAnchorElement).style.borderColor = "#D4A827";
-        (e.currentTarget as HTMLAnchorElement).style.background = "#FDFAF2";
-        (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 2px 8px rgba(184,134,11,0.08)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLAnchorElement).style.borderColor = "#e4e4e7";
-        (e.currentTarget as HTMLAnchorElement).style.background = "#ffffff";
-        (e.currentTarget as HTMLAnchorElement).style.boxShadow = "none";
+        transition: "border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease",
+        minHeight: 92,
       }}
     >
-      {/* Ícono watermark — grande para llenar el card, overflow:hidden lo adapta */}
-      <div aria-hidden style={{ position: "absolute", right: -10, bottom: -10, color: "#B8860B", opacity: 0.16, pointerEvents: "none", lineHeight: 0 }}>
-        <Icon size={64} strokeWidth={1.2} />
+      {/* Banda lateral dorada — acento de jerarquía */}
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: 0, top: 0, bottom: 0,
+          width: 4,
+          background: "linear-gradient(180deg, #D4A827 0%, #B8860B 100%)",
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* Ícono watermark — grande, decorativo */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          right: -18,
+          bottom: -22,
+          color: "#B8860B",
+          opacity: 0.13,
+          pointerEvents: "none",
+          lineHeight: 0,
+        }}
+      >
+        <Icon size={130} strokeWidth={1.1} />
       </div>
-      <div style={{ width: 34, height: 34, borderRadius: 9, background: "#F4F0E6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, position: "relative", zIndex: 1 }}>
-        <Icon size={16} color="#926A09" strokeWidth={1.8} />
+
+      {/* Chip de ícono — más prominente */}
+      <div
+        style={{
+          width: 52, height: 52,
+          borderRadius: 13,
+          background: "#FDF8EC",
+          border: "1.5px solid #E8D090",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0,
+          position: "relative", zIndex: 1,
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.5)",
+        }}
+      >
+        <Icon size={24} color="#926A09" strokeWidth={1.9} />
       </div>
+
+      {/* Texto */}
       <div style={{ flex: 1, minWidth: 0, position: "relative", zIndex: 1 }}>
-        <div style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#09090b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
-        <div style={{ fontSize: "0.6875rem", color: "#71717a", marginTop: 1 }}>{subtitle}</div>
+        <div
+          style={{
+            fontSize: "0.625rem",
+            fontWeight: 800,
+            letterSpacing: "0.16em",
+            textTransform: "uppercase",
+            color: "#926A09",
+            marginBottom: 4,
+          }}
+        >
+          Acción principal
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--font-inter), Inter, system-ui, sans-serif",
+            fontSize: "1.0625rem",
+            fontWeight: 800,
+            color: "#09090b",
+            letterSpacing: "-0.015em",
+            lineHeight: 1.2,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {title}
+        </div>
+        <div
+          style={{
+            fontSize: "0.8125rem",
+            color: "#52525b",
+            marginTop: 3,
+            lineHeight: 1.4,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {subtitle}
+        </div>
       </div>
-      <ArrowUpRight size={14} color="#a1a1aa" strokeWidth={2} style={{ position: "relative", zIndex: 1, flexShrink: 0 }} />
+
+      {/* CTA — pill explícita con flecha */}
+      <span
+        className="sfit-quick-cta"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 7,
+          padding: "9px 14px",
+          borderRadius: 9,
+          background: "#0A1628",
+          color: "#fff",
+          fontFamily: "var(--font-inter), Inter, system-ui, sans-serif",
+          fontSize: "0.8125rem",
+          fontWeight: 700,
+          letterSpacing: "-0.005em",
+          flexShrink: 0,
+          position: "relative",
+          zIndex: 1,
+          boxShadow: "0 1px 2px rgba(9,22,40,0.25)",
+          transition: "background 160ms ease, transform 160ms ease",
+          whiteSpace: "nowrap",
+        }}
+      >
+        Acceder
+        <ArrowUpRight size={14} strokeWidth={2.2} />
+      </span>
     </Link>
   );
 }
@@ -476,7 +562,7 @@ function fmtRelative(dateStr: string): string {
 
 function ActivityFeed({ items }: { items: ActivityItem[] }) {
   return (
-    <div style={{ background: "#ffffff", border: "1px solid #e4e4e7", borderRadius: 12, overflow: "hidden", flex: 1 }}>
+    <div style={{ background: "#ffffff", border: "1.5px solid #e4e4e7", borderRadius: 12, overflow: "hidden", flex: 1 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #e4e4e7" }}>
         <div>
           <div style={{ fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "#71717a", marginBottom: 1 }}>Sistema</div>
@@ -561,99 +647,15 @@ function PlaceholderContent({ role, conductorStats }: { role: string; conductorS
 type TabConfig = { key: string; label: string; items: FeatureItem[] };
 type FeatureItem = { title: string; subtitle: string; href: string; icon: typeof Users; badge?: string };
 
-function AllModulesPanel({ role, stats, notifs }: { role: string; stats: GlobalStats | null; notifs: NotifItem[] }) {
+function AllModulesPanel({ role, stats }: { role: string; stats: GlobalStats | null }) {
   const groups = useMemo(() => buildTabsFor(role, stats), [role, stats]);
 
   if (groups.length === 0) return null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-      {/* Widget notificaciones */}
-      {notifs.length > 0 && (() => {
-        const unread = notifs.filter(n => !n.read).length;
-        const recent = notifs.slice(0, 4);
-
-        function notifTypeColor(type?: string) {
-          const t = type ?? "";
-          if (t.includes("warn") || t.includes("alert")) return { color: "#b45309", bg: "#FFFBEB", dot: "#b45309" };
-          if (t.includes("success") || t.includes("approved")) return { color: "#15803d", bg: "#F0FDF4", dot: "#15803d" };
-          if (t.includes("error") || t.includes("rejected")) return { color: "#b91c1c", bg: "#FFF5F5", dot: "#b91c1c" };
-          return { color: "#B8860B", bg: "#FDF8EC", dot: "#B8860B" };
-        }
-
-        return (
-          <div style={{ background: "#fff", border: "1.5px solid #e4e4e7", borderRadius: 14, overflow: "hidden", marginBottom: 14 }}>
-            {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #f4f4f5" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 24, height: 24, borderRadius: 6, background: "#0A1628", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Bell size={12} color="#fff" strokeWidth={2.2} />
-                </div>
-                <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#18181b" }}>Notificaciones recientes</span>
-              </div>
-              {unread > 0 && (
-                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 22, height: 18, borderRadius: 999, background: "#B8860B", color: "#fff", fontSize: "0.6875rem", fontWeight: 800, padding: "0 6px" }}>
-                  {unread}
-                </span>
-              )}
-            </div>
-
-            {/* Items */}
-            <div>
-              {recent.map((n, i) => {
-                const tc = notifTypeColor(n.type);
-                const timeAgoStr = (() => {
-                  const diff = Date.now() - new Date(n.createdAt).getTime();
-                  const min = Math.floor(diff / 60000);
-                  if (min < 60) return `${min}m`;
-                  const hr = Math.floor(min / 60);
-                  if (hr < 24) return `${hr}h`;
-                  return `${Math.floor(hr / 24)}d`;
-                })();
-                const inner = (
-                  <div
-                    style={{
-                      display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 16px",
-                      borderBottom: i < recent.length - 1 ? "1px solid #f4f4f5" : "none",
-                      background: n.read ? "#fff" : "#FDFAF2",
-                      transition: "background 120ms",
-                    }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "#fafafa"; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = n.read ? "#fff" : "#FDFAF2"; }}
-                  >
-                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: tc.dot, marginTop: 5, flexShrink: 0, opacity: n.read ? 0.3 : 1 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: "0.8125rem", fontWeight: n.read ? 500 : 700, color: "#18181b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.4 }}>
-                        {n.title}
-                      </div>
-                      {n.body && (
-                        <div style={{ fontSize: "0.75rem", color: "#71717a", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.body}</div>
-                      )}
-                    </div>
-                    <span style={{ fontSize: "0.6875rem", color: "#a1a1aa", flexShrink: 0, paddingTop: 1, fontVariantNumeric: "tabular-nums" }}>{timeAgoStr}</span>
-                  </div>
-                );
-                return (
-                  <div key={n.id}>
-                    {n.link ? <Link href={n.link} style={{ textDecoration: "none", color: "inherit", display: "block" }}>{inner}</Link> : inner}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Footer */}
-            <Link href="/notificaciones" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px", borderTop: "1px solid #f4f4f5", fontSize: "0.8125rem", fontWeight: 600, color: "#B8860B", textDecoration: "none" }}
-              onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = "#FDF8EC"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = "transparent"; }}
-            >
-              Ver todas las notificaciones <ArrowUpRight size={13} />
-            </Link>
-          </div>
-        );
-      })()}
-
       {/* Módulos */}
-      <div style={{ background: "#ffffff", border: "1px solid #e4e4e7", borderRadius: 12, overflow: "hidden" }}>
+      <div style={{ background: "#ffffff", border: "1.5px solid #e4e4e7", borderRadius: 12, overflow: "hidden" }}>
         <div style={{ padding: "12px 16px", borderBottom: "1px solid #e4e4e7" }}>
           <div style={{ fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "#71717a", marginBottom: 1 }}>Navegación</div>
           <h3 style={{ fontSize: "0.875rem", fontWeight: 700, color: "#09090b", margin: 0, fontFamily: "var(--font-inter)" }}>Módulos disponibles</h3>

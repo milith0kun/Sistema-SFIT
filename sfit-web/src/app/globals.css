@@ -378,6 +378,23 @@ body {
 
 .btn-primary, .btn-outline, .btn-ghost { text-decoration: none; }
 
+/* ── Dashboard Quick Action (acción principal del rol) ─────────────────────
+   Card de jerarquía superior en el dashboard. Hover acentúa borde dorado,
+   sombra dorada y eleva el CTA navy a hover gold.                          */
+.sfit-quick-action:hover {
+  border-color: #C8971A !important;
+  box-shadow: 0 6px 20px rgba(184, 134, 11, 0.14) !important;
+  transform: translateY(-1px);
+}
+.sfit-quick-action:hover .sfit-quick-cta {
+  background: #B8860B !important;
+  transform: translateX(2px);
+}
+.sfit-quick-action:focus-visible {
+  outline: 2px solid #B8860B;
+  outline-offset: 3px;
+}
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -421,12 +438,12 @@ body {
   text-transform: uppercase;
   font-size: 0.625rem;
   font-weight: 700;
-  letter-spacing: 0.2em;
-  color: rgba(255, 255, 255, 0.35);
-  margin: 16px 0 8px 16px;
+  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.40);
+  margin: 18px 0 6px 14px;
   font-family: var(--font-inter), "Inter", sans-serif;
 }
-.kicker-sidebar:first-child { margin-top: 4px; }
+.kicker-sidebar:first-child { margin-top: 6px; }
 
 @theme inline {
   --font-heading: var(--font-sans);

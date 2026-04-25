@@ -10,7 +10,7 @@ interface PageHeaderProps {
 export function PageHeader({ kicker, title, subtitle, action }: PageHeaderProps) {
   return (
     <div
-      className="animate-fade-up"
+      className="animate-fade-up sfit-page-header"
       style={{
         display: "flex",
         alignItems: "flex-end",
@@ -19,9 +19,10 @@ export function PageHeader({ kicker, title, subtitle, action }: PageHeaderProps)
         paddingBottom: 18,
         borderBottom: "1.5px solid #e4e4e7",
         marginBottom: 4,
+        flexWrap: "wrap",
       }}
     >
-      <div style={{ minWidth: 0, flex: 1 }}>
+      <div style={{ minWidth: 0, flex: "1 1 280px" }}>
         {kicker && (
           <div style={{
             fontSize: "0.6875rem",
@@ -58,7 +59,9 @@ export function PageHeader({ kicker, title, subtitle, action }: PageHeaderProps)
       </div>
 
       {action && (
-        <div style={{ flexShrink: 0, paddingBottom: 2 }}>{action}</div>
+        <div style={{ flexShrink: 0, paddingBottom: 2, display: "flex", alignItems: "center", gap: 8 }}>
+          {action}
+        </div>
       )}
     </div>
   );

@@ -24,22 +24,17 @@ export function DashboardHero({ kicker, title, subtitle, pills, children }: Dash
       style={{
         background: "linear-gradient(100deg, #0A1628 0%, #111F38 60%, #172440 100%)",
         borderRadius: 14,
-        padding: "18px 22px",
+        padding: "20px 24px",
         position: "relative",
         overflow: "hidden",
         color: "#fff",
+        border: "1px solid rgba(212, 168, 39, 0.10)",
       }}
     >
-      {/* Subtle dot grid */}
+      {/* Acento dorado tenue — esquina superior derecha */}
       <div aria-hidden style={{
-        position: "absolute", inset: 0, pointerEvents: "none",
-        backgroundImage: "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.035) 1px, transparent 0)",
-        backgroundSize: "24px 24px",
-      }} />
-      {/* Single gold glow — top-right only */}
-      <div aria-hidden style={{
-        position: "absolute", top: -50, right: -30, width: 200, height: 200,
-        background: "radial-gradient(circle, rgba(184,134,11,0.18) 0%, transparent 65%)",
+        position: "absolute", top: -40, right: -40, width: 180, height: 180,
+        background: "radial-gradient(circle, rgba(184,134,11,0.12) 0%, transparent 60%)",
         pointerEvents: "none",
       }} />
 
@@ -78,22 +73,37 @@ export function DashboardHero({ kicker, title, subtitle, pills, children }: Dash
 
 function QuickStatPill({ label, value, warn }: { label: string; value: ReactNode; warn?: boolean }) {
   return (
-    <div style={{
-      background: warn ? "rgba(239,68,68,0.10)" : "rgba(255,255,255,0.07)",
-      border: `1px solid ${warn ? "rgba(239,68,68,0.35)" : "rgba(255,255,255,0.10)"}`,
-      borderRadius: 8, padding: "7px 12px", minWidth: 72,
-    }}>
-      <div style={{
-        fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.13em",
-        textTransform: "uppercase", color: warn ? "#FCA5A5" : "rgba(255,255,255,0.5)",
-      }}>
+    <div
+      style={{
+        background: warn ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.05)",
+        borderLeft: `2px solid ${warn ? "#FCA5A5" : "rgba(212,168,39,0.45)"}`,
+        borderRadius: 0,
+        padding: "4px 14px",
+        minWidth: 78,
+      }}
+    >
+      <div
+        style={{
+          fontSize: "0.625rem",
+          fontWeight: 700,
+          letterSpacing: "0.13em",
+          textTransform: "uppercase",
+          color: warn ? "#FCA5A5" : "rgba(255,255,255,0.55)",
+        }}
+      >
         {label}
       </div>
-      <div style={{
-        fontSize: "1.0625rem", fontWeight: 800, color: "#fff",
-        letterSpacing: "-0.02em", marginTop: 2,
-        fontVariantNumeric: "tabular-nums",
-      }}>
+      <div
+        style={{
+          fontSize: "1.125rem",
+          fontWeight: 800,
+          color: "#fff",
+          letterSpacing: "-0.02em",
+          marginTop: 2,
+          fontVariantNumeric: "tabular-nums",
+          lineHeight: 1.1,
+        }}
+      >
         {value}
       </div>
     </div>
