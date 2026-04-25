@@ -17,7 +17,7 @@ import {
   apiValidationError,
 } from "@/lib/api/response";
 import { requireAuth } from "@/lib/auth/guard";
-import { logAction } from "@/lib/audit/logAction";
+import { logAudit } from "@/lib/audit/log";
 
 const PatchSchema = z
   .object({
@@ -93,14 +93,11 @@ export async function PATCH(request: NextRequest) {
 
     if (!updated) return apiNotFound("Usuario no encontrado");
 
-    await logAction({
-      actorId:      session.userId,
-      actorEmail:   session.email,
+    await logAudit(request, session, {
       action:       "user.update_perfil",
       resourceType: "user",
       resourceId:   session.userId,
       metadata:     { fields: Object.keys(update) },
-      request,
     });
 
     return apiResponse({
