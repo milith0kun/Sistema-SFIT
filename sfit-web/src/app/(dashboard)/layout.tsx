@@ -6,10 +6,11 @@ import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
   House, UserCheck, Users, MapPin, Building2, Car, ClipboardList,
-  Route, Shield, Flag, TriangleAlert, ChartColumn, LogOut,
+  Route, Shield, Flag, TriangleAlert, ChartColumn, LogOut, Bell,
   ChevronDown, CalendarDays, MessageSquareWarning, Gift, Settings, Menu, X,
 } from "lucide-react";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
+import { useUnreadCount } from "@/hooks/useUnreadCount";
 
 type StoredUser = { id: string; name: string; email: string; role: string; image?: string; status?: string };
 type NavSection = "PANEL" | "GESTIÓN" | "TERRITORIO" | "OPERACIÓN" | "CIUDADANÍA" | "ANÁLISIS" | "ADMINISTRACIÓN";
@@ -18,6 +19,7 @@ type NavItem = { href: string; label: string; icon: LucideIcon; roles: string[];
 const NAV: NavItem[] = [
   // PANEL — todos los roles con acceso web
   { href: "/dashboard",       label: "Dashboard",           icon: House,                 section: "PANEL",          roles: ["super_admin","admin_provincial","admin_municipal","fiscal","operador"] },
+  { href: "/notificaciones",  label: "Notificaciones",      icon: Bell,                  section: "PANEL",          roles: ["super_admin","admin_provincial","admin_municipal","fiscal","operador"] },
   // GESTIÓN — administración de cuentas
   { href: "/usuarios",        label: "Usuarios",            icon: Users,                 section: "GESTIÓN",        roles: ["super_admin","admin_provincial","admin_municipal"] },
   { href: "/admin/users",     label: "Aprobaciones",        icon: UserCheck,             section: "GESTIÓN",        roles: ["super_admin","admin_provincial","admin_municipal"] },
@@ -44,9 +46,8 @@ const NAV: NavItem[] = [
   // ANÁLISIS — estadísticas e inteligencia
   { href: "/estadisticas",    label: "Estadísticas",        icon: ChartColumn,           section: "ANÁLISIS",       roles: ["super_admin","admin_provincial","admin_municipal"] },
 
-  // ADMINISTRACIÓN — auditoría y configuración
+  // ADMINISTRACIÓN — auditoría
   { href: "/auditoria",       label: "Auditoría",           icon: Shield,                section: "ADMINISTRACIÓN", roles: ["super_admin","admin_provincial","admin_municipal"] },
-  { href: "/configuracion",   label: "Configuración",       icon: Settings,              section: "ADMINISTRACIÓN", roles: ["super_admin","admin_municipal"] },
 ];
 
 const SECTION_ORDER: NavSection[] = ["PANEL","GESTIÓN","TERRITORIO","OPERACIÓN","CIUDADANÍA","ANÁLISIS","ADMINISTRACIÓN"];
@@ -57,20 +58,22 @@ const ROLE_LABELS: Record<string, string> = {
   operador: "Operador", conductor: "Conductor", ciudadano: "Ciudadano",
 };
 
-function titleFromPath(path: string | null): string {
-  if (!path) return "";
-  const seg = path.split("/").filter(Boolean)[0];
-  if (!seg) return "";
-  const map: Record<string, string> = {
-    dashboard: "Dashboard", admin: "Administración", usuarios: "Usuarios",
-    provincias: "Provincias", municipalidades: "Municipalidades",
-    "tipos-vehiculo": "Tipos de vehículo", empresas: "Empresas", conductores: "Conductores",
-    vehiculos: "Vehículos", flota: "Flota del día", rutas: "Rutas y zonas", viajes: "Viajes",
-    inspecciones: "Inspecciones", apelaciones: "Apelaciones", reportes: "Reportes ciudadanos",
-    sanciones: "Sanciones", estadisticas: "Estadísticas", auditoria: "Auditoría",
-    configuracion: "Configuración", notificaciones: "Notificaciones", recompensas: "Recompensas",
-  };
-  return map[seg] ?? seg.charAt(0).toUpperCase() + seg.slice(1);
+const SEG_LABELS: Record<string, string> = {
+  dashboard: "Dashboard", admin: "Administración", usuarios: "Usuarios",
+  provincias: "Provincias", municipalidades: "Municipalidades",
+  "tipos-vehiculo": "Tipos de vehículo", empresas: "Empresas", conductores: "Conductores",
+  vehiculos: "Vehículos", flota: "Flota del día", rutas: "Rutas y zonas", viajes: "Viajes",
+  inspecciones: "Inspecciones", apelaciones: "Apelaciones", reportes: "Reportes ciudadanos",
+  sanciones: "Sanciones", estadisticas: "Estadísticas", auditoria: "Auditoría",
+  notificaciones: "Notificaciones", recompensas: "Recompensas",
+  perfil: "Mi perfil", users: "Aprobaciones",
+};
+
+function prettySegment(seg: string): string {
+  if (SEG_LABELS[seg]) return SEG_LABELS[seg];
+  // IDs/UUIDs/números → no embellecer
+  if (/^[0-9a-f]{8,}$/i.test(seg) || /^\d+$/.test(seg)) return seg;
+  return seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, " ");
 }
 
 function subscribeUser(onChange: () => void): () => void {
@@ -96,6 +99,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const user = useSyncExternalStore(subscribeUser, getClientUser, getServerUser);
+  const unread = useUnreadCount();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Auto-close sidebar on navigation
@@ -133,7 +137,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return acc;
   }, [visible]);
 
-  const crumb = titleFromPath(pathname);
   if (!user) return null;
 
   const sidebarContent = (
@@ -153,7 +156,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, padding: "12px 8px", overflowY: "auto" }}>
+      <nav className="sfit-sidebar-nav" style={{ flex: 1, padding: "10px 10px 14px", overflowY: "auto", minHeight: 0 }}>
         {SECTION_ORDER.map(section => {
           const items = groupedBySection.get(section);
           if (!items?.length) return null;
@@ -166,6 +169,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     key={item.href}
                     item={item}
                     active={pathname === item.href || (pathname?.startsWith(item.href + "/") ?? false)}
+                    badge={item.href === "/notificaciones" ? unread : 0}
                   />
                 ))}
               </div>
@@ -174,28 +178,115 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         })}
       </nav>
 
-      {/* User + Logout */}
-      <div style={{ padding: "12px 12px 14px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 10, background: "rgba(255,255,255,0.04)", marginBottom: 6 }}>
-          <div style={{ width: 34, height: 34, borderRadius: "50%", background: "rgba(184,134,11,0.22)", color: "#D4A827", fontSize: "0.875rem", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontFamily: "var(--font-inter)" }}>
+      {/* User + Logout + Versión */}
+      <div style={{ padding: "10px 10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+        {/* Tarjeta de usuario — más jerárquica */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 11,
+            padding: "10px 11px",
+            borderRadius: 10,
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            marginBottom: 6,
+          }}
+        >
+          <div
+            style={{
+              width: 36, height: 36, borderRadius: "50%",
+              background: "rgba(184,134,11,0.22)",
+              color: "#D4A827",
+              fontSize: "0.875rem", fontWeight: 800,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+              fontFamily: "var(--font-inter)",
+              border: "1.5px solid rgba(212,168,39,0.30)",
+            }}
+          >
             {user.name.charAt(0).toUpperCase()}
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ color: "#fff", fontSize: "0.8125rem", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</div>
-            <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.6875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ROLE_LABELS[user.role] ?? user.role}</div>
+            <div
+              style={{
+                color: "#fff",
+                fontSize: "0.8125rem",
+                fontWeight: 700,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                lineHeight: 1.25,
+              }}
+            >
+              {user.name}
+            </div>
+            <div
+              style={{
+                color: "rgba(255,255,255,0.50)",
+                fontSize: "0.6875rem",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                marginTop: 2,
+                fontWeight: 500,
+              }}
+              title={user.email}
+            >
+              {user.email}
+            </div>
           </div>
         </div>
+
+        {/* Pill de rol — debajo de la tarjeta */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 4px", marginBottom: 8 }}>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "3px 9px",
+              borderRadius: 999,
+              background: "rgba(184,134,11,0.14)",
+              color: "#F0C75A",
+              border: "1px solid rgba(212,168,39,0.28)",
+              fontSize: "0.625rem",
+              fontWeight: 700,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+            }}
+          >
+            <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#D4A827" }} />
+            {ROLE_LABELS[user.role] ?? user.role}
+          </span>
+        </div>
+
+        {/* Logout — limpio, sin chip de fondo */}
         <button
           onClick={logout}
-          style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, width: "100%", border: "none", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: "0.8125rem", fontWeight: 500, cursor: "pointer", transition: "all 150ms" }}
-          onMouseEnter={e => { e.currentTarget.style.color = "#fff"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
-          onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.5)"; e.currentTarget.style.background = "transparent"; }}
+          className="sfit-sidebar-logout"
+          aria-label="Cerrar sesión"
         >
-          <span style={{ width: 26, height: 26, borderRadius: 7, background: "rgba(255,255,255,0.05)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-            <LogOut size={13} strokeWidth={1.8} />
-          </span>
+          <LogOut size={15} strokeWidth={1.85} style={{ flexShrink: 0 }} />
           Cerrar sesión
         </button>
+
+        {/* Versión SFIT — pie sutil */}
+        <div
+          style={{
+            marginTop: 10,
+            paddingTop: 10,
+            borderTop: "1px solid rgba(255,255,255,0.05)",
+            textAlign: "center",
+            fontSize: "0.625rem",
+            color: "rgba(255,255,255,0.30)",
+            fontWeight: 500,
+            letterSpacing: "0.08em",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          SFIT · v1.0.0
+        </div>
       </div>
     </>
   );
@@ -206,25 +297,219 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* ── CSS for responsive sidebar ── */}
       <style>{`
         .sfit-sidebar {
+          /* Mobile: pegado al borde, slide-in completo, sin redondeo */
           position: fixed; top: 0; left: 0; bottom: 0;
-          width: 224px; z-index: 50;
+          width: 282px; z-index: 50;
           transform: translateX(-100%);
           transition: transform 280ms cubic-bezier(0.4,0,0.2,1);
-          flex-direction: column; background: #0A1628;
+          flex-direction: column;
+          background: #0A1628;
         }
         .sfit-sidebar.open { transform: translateX(0); }
         @media (min-width: 1024px) {
           .sfit-sidebar {
-            position: sticky !important; top: 0 !important;
-            height: 100svh !important; transform: translateX(0) !important;
+            /* Desktop: tarjeta flotante con margen, redondeo y elevación */
+            position: sticky !important; top: 12px !important;
+            margin: 12px !important;
+            height: calc(100svh - 24px) !important;
+            transform: translateX(0) !important;
             display: flex !important; flex-shrink: 0;
+            border-radius: 18px;
+            overflow: hidden;
+            border: 1px solid rgba(212, 168, 39, 0.14);
+            box-shadow:
+              inset 0 1px 0 rgba(255, 255, 255, 0.04),
+              0 4px 12px rgba(9, 22, 40, 0.10),
+              0 14px 32px rgba(9, 22, 40, 0.10);
           }
           .sfit-sidebar-backdrop { display: none !important; }
           .sfit-hamburger { display: none !important; }
         }
+
+        /* ── Main shell — tarjeta flotante (mismo lenguaje del sidebar) ── */
+        .sfit-main-shell {
+          /* Mobile: pegado al borde, sin redondeo */
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          min-width: 0;
+          position: relative;
+          background: #FAFAFA;
+        }
+        @media (min-width: 1024px) {
+          .sfit-main-shell {
+            margin: 12px 12px 12px 0;
+            border-radius: 18px;
+            border: 1px solid #e4e4e7;
+            box-shadow:
+              inset 0 1px 0 rgba(255, 255, 255, 0.6),
+              0 4px 12px rgba(9, 22, 40, 0.05),
+              0 14px 32px rgba(9, 22, 40, 0.06);
+            height: calc(100svh - 24px);
+          }
+        }
+
+        /* ── Content scroll — mismo lenguaje que el sidebar nav, en gris cálido ── */
+        .sfit-content-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(184, 134, 11, 0.22) transparent;
+          scrollbar-gutter: stable;
+          scroll-behavior: smooth;
+        }
+        .sfit-content-scroll::-webkit-scrollbar { width: 8px; }
+        .sfit-content-scroll::-webkit-scrollbar-track { background: transparent; }
+        .sfit-content-scroll::-webkit-scrollbar-thumb {
+          background: rgba(184, 134, 11, 0.22);
+          border-radius: 999px;
+          border: 2px solid transparent;
+          background-clip: padding-box;
+          transition: background-color 160ms ease;
+        }
+        .sfit-content-scroll::-webkit-scrollbar-thumb:hover {
+          background: rgba(184, 134, 11, 0.42);
+          background-clip: padding-box;
+        }
+
+        /* ── Sidebar nav scroll — sutil, dorado tenue ── */
+        .sfit-sidebar-nav {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(212, 168, 39, 0.18) transparent;
+          scrollbar-gutter: stable;
+        }
+        .sfit-sidebar-nav::-webkit-scrollbar { width: 6px; }
+        .sfit-sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+        .sfit-sidebar-nav::-webkit-scrollbar-thumb {
+          background: rgba(212, 168, 39, 0.18);
+          border-radius: 999px;
+          transition: background 160ms ease;
+        }
+        .sfit-sidebar-nav::-webkit-scrollbar-thumb:hover {
+          background: rgba(212, 168, 39, 0.38);
+        }
+        /* Sombras superior/inferior cuando hay overflow — pista visual del scroll */
+        .sfit-sidebar-nav {
+          background:
+            linear-gradient(#0A1628 30%, transparent),
+            linear-gradient(transparent, #0A1628 70%) bottom,
+            radial-gradient(farthest-side at 50% 0, rgba(212, 168, 39, 0.10), transparent),
+            radial-gradient(farthest-side at 50% 100%, rgba(212, 168, 39, 0.10), transparent) bottom;
+          background-repeat: no-repeat;
+          background-size: 100% 16px, 100% 16px, 100% 6px, 100% 6px;
+          background-attachment: local, local, scroll, scroll;
+        }
         .hidden-mobile { display: flex; }
         @media (max-width: 640px) {
           .hidden-mobile { display: none !important; }
+        }
+
+        /* ── Breadcrumb del topbar ── */
+        .sfit-breadcrumb-mobile { display: none; }
+        @media (max-width: 640px) {
+          .sfit-breadcrumb-mobile { display: inline-block; }
+        }
+
+        .sfit-crumb-root {
+          font-family: var(--font-syne, var(--font-inter, system-ui));
+          font-size: 0.6875rem;
+          font-weight: 800;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: #71717a;
+          text-decoration: none;
+          padding: 4px 6px;
+          border-radius: 6px;
+          transition: color 140ms ease, background 140ms ease;
+          flex-shrink: 0;
+        }
+        .sfit-crumb-root:hover { color: #09090b; background: #f4f4f5; }
+        .sfit-crumb-root:focus-visible {
+          outline: 2px solid #B8860B; outline-offset: 2px;
+        }
+
+        .sfit-crumb-sep {
+          color: #d4d4d8;
+          font-weight: 400;
+          font-size: 0.875rem;
+          user-select: none;
+          flex-shrink: 0;
+        }
+
+        .sfit-crumb-link {
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: #71717a;
+          text-decoration: none;
+          padding: 4px 8px;
+          border-radius: 6px;
+          transition: color 140ms ease, background 140ms ease;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          max-width: 200px;
+        }
+        .sfit-crumb-link:hover { color: #09090b; background: #f4f4f5; }
+        .sfit-crumb-link:focus-visible {
+          outline: 2px solid #B8860B; outline-offset: 2px;
+        }
+
+        .sfit-crumb-mute {
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: #a1a1aa;
+          padding: 4px 8px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          max-width: 200px;
+        }
+
+        .sfit-crumb-current {
+          font-size: 0.9375rem;
+          font-weight: 700;
+          color: #09090b;
+          padding: 4px 8px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          max-width: 280px;
+        }
+
+        /* ── Sidebar nav links — pill style (estructura sin border-left) ── */
+        .sfit-sidebar-link:hover:not([data-active]) {
+          background: rgba(255, 255, 255, 0.05) !important;
+          color: rgba(255, 255, 255, 0.92) !important;
+        }
+        .sfit-sidebar-link:focus-visible {
+          outline: 2px solid #D4A827;
+          outline-offset: -2px;
+        }
+
+        /* ── Sidebar logout button ── */
+        .sfit-sidebar-logout {
+          display: flex;
+          align-items: center;
+          gap: 11px;
+          padding: 9px 12px;
+          border-radius: 8px;
+          width: 100%;
+          border: none;
+          background: transparent;
+          color: rgba(255, 255, 255, 0.55);
+          font-family: inherit;
+          font-size: 0.8125rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background 120ms ease, color 120ms ease;
+          text-align: left;
+        }
+        .sfit-sidebar-logout:hover {
+          background: rgba(239, 68, 68, 0.10);
+          color: #FCA5A5;
+        }
+        .sfit-sidebar-logout:focus-visible {
+          outline: 2px solid #FCA5A5;
+          outline-offset: -2px;
         }
       `}</style>
 
@@ -243,18 +528,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {sidebarContent}
       </aside>
 
-      {/* ── Main ── */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "relative" }}>
+      {/* ── Main — shell flotante, mismo lenguaje del sidebar ── */}
+      <main className="sfit-main-shell">
         {/* Topbar */}
         <Topbar
           user={user}
-          crumb={crumb}
           pathname={pathname}
           onOpenSidebar={() => setSidebarOpen(true)}
           onLogout={logout}
         />
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px", maxWidth: "100%" }}>
+        <div className="sfit-content-scroll" style={{ flex: 1, overflowY: "auto", padding: "20px 24px 28px", maxWidth: "100%", background: "#FAFAFA" }}>
           <div style={{ maxWidth: 1400, margin: "0 auto" }}>
             {children}
           </div>
@@ -286,12 +570,30 @@ const ROLE_BADGE: Record<string, { bg: string; color: string; border: string }> 
   ciudadano:        { bg: "#F4F4F5", color: "#52525b", border: "#E4E4E7" },
 };
 
-const CONFIG_ROLES = new Set(["super_admin", "admin_municipal"]);
+type Crumb = { label: string; href: string; isLink: boolean };
+
+function buildCrumbs(pathname: string | null): Crumb[] {
+  if (!pathname) return [];
+  const parts = pathname.split("/").filter(Boolean);
+  if (!parts.length) return [];
+  const crumbs: Crumb[] = [];
+  let acc = "";
+  parts.forEach((part, idx) => {
+    acc += `/${part}`;
+    const navItem = NAV_ITEM_MAP.get(acc);
+    const label = navItem?.label ?? prettySegment(part);
+    const isLast = idx === parts.length - 1;
+    // Sólo intermedios y reales (con label conocido o página de NAV) son navegables.
+    const isLink = !isLast && (Boolean(navItem) || Boolean(SEG_LABELS[part]));
+    crumbs.push({ label, href: acc, isLink });
+  });
+  return crumbs;
+}
 
 function Topbar({
-  user, crumb, pathname, onOpenSidebar, onLogout,
+  user, pathname, onOpenSidebar, onLogout,
 }: {
-  user: StoredUser; crumb: string; pathname: string | null;
+  user: StoredUser; pathname: string | null;
   onOpenSidebar: () => void; onLogout: () => void;
 }) {
   const now = useNow();
@@ -311,16 +613,14 @@ function Topbar({
   // Cerrar dropdown en navegación
   useEffect(() => { setOpen(false); }, [pathname]);
 
-  const seg      = pathname?.split("/").filter(Boolean)[0] ?? "";
-  const navMatch = NAV_ITEM_MAP.get(`/${seg}`);
-  const PageIcon = navMatch?.icon;
+  const crumbs   = useMemo(() => buildCrumbs(pathname), [pathname]);
+  const lastCrumb = crumbs[crumbs.length - 1]?.label ?? "Dashboard";
 
   const dateStr  = now.toLocaleDateString("es-PE", { weekday: "short", day: "numeric", month: "short" });
   const timeStr  = now.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
 
   const initials = user.name.split(" ").map((w: string) => w[0] ?? "").slice(0, 2).join("").toUpperCase() || "?";
   const badge    = ROLE_BADGE[user.role] ?? ROLE_BADGE.ciudadano;
-  const canConfig = CONFIG_ROLES.has(user.role);
 
   // Estilos del dropdown item
   const dropItem: React.CSSProperties = {
@@ -335,9 +635,9 @@ function Topbar({
   return (
     <div style={{
       display: "flex", alignItems: "center", justifyContent: "space-between",
-      gap: 12, padding: "0 20px",
-      background: "#fff", borderBottom: "1.5px solid #e4e4e7",
-      minHeight: 60, flexShrink: 0,
+      gap: 12, padding: "0 22px",
+      background: "#fff", borderBottom: "1px solid #f0f0f1",
+      minHeight: 62, flexShrink: 0,
     }}>
 
       {/* ── Left ── */}
@@ -358,29 +658,47 @@ function Topbar({
 
         <div style={{ width: 1, height: 26, background: "#e4e4e7", flexShrink: 0 }} className="hidden-mobile" />
 
-        {/* Page context */}
-        <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
-          {PageIcon && (
-            <span style={{
-              width: 32, height: 32, borderRadius: 8, background: "#F4F4F5",
-              border: "1.5px solid #E4E4E7", display: "inline-flex",
-              alignItems: "center", justifyContent: "center", flexShrink: 0,
-            }}>
-              <PageIcon size={15} color="#52525b" strokeWidth={1.9} />
-            </span>
-          )}
-          <div style={{ minWidth: 0 }} className="hidden-mobile">
-            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#a1a1aa" }}>
-                SFIT
+        {/* Breadcrumb navegable — desktop */}
+        <nav
+          aria-label="Migas de pan"
+          className="sfit-breadcrumb hidden-mobile"
+          style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, lineHeight: 1 }}
+        >
+          <Link href="/dashboard" className="sfit-crumb-root" aria-label="Inicio SFIT">
+            SFIT
+          </Link>
+          {crumbs.map((c, i) => {
+            const isLast = i === crumbs.length - 1;
+            return (
+              <span key={c.href} style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                <span className="sfit-crumb-sep" aria-hidden>/</span>
+                {isLast ? (
+                  <span className="sfit-crumb-current" aria-current="page" title={c.label}>
+                    {c.label}
+                  </span>
+                ) : c.isLink ? (
+                  <Link href={c.href} className="sfit-crumb-link" title={c.label}>
+                    {c.label}
+                  </Link>
+                ) : (
+                  <span className="sfit-crumb-mute" title={c.label}>{c.label}</span>
+                )}
               </span>
-              <span style={{ color: "#d4d4d8" }}>/</span>
-              <span style={{ fontSize: "0.9375rem", fontWeight: 700, color: "#09090b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {crumb || "Dashboard"}
-              </span>
-            </div>
-          </div>
-        </div>
+            );
+          })}
+        </nav>
+
+        {/* Página actual — mobile (sin navegación intermedia) */}
+        <span
+          className="sfit-breadcrumb-mobile"
+          aria-current="page"
+          style={{
+            fontSize: "0.9375rem", fontWeight: 700, color: "#09090b",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0,
+          }}
+        >
+          {lastCrumb}
+        </span>
       </div>
 
       {/* ── Right ── */}
@@ -505,20 +823,18 @@ function Topbar({
 
               {/* Acciones */}
               <div style={{ padding: "6px" }}>
-                {canConfig && (
-                  <Link
-                    href="/configuracion"
-                    role="menuitem"
-                    style={dropItem}
-                    onMouseEnter={e => { e.currentTarget.style.background = "#f4f4f5"; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-                  >
-                    <span style={{ width: 28, height: 28, borderRadius: 7, background: "#f4f4f5", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <Settings size={14} color="#52525b" />
-                    </span>
-                    Configuración
-                  </Link>
-                )}
+                <Link
+                  href="/perfil"
+                  role="menuitem"
+                  style={dropItem}
+                  onMouseEnter={e => { e.currentTarget.style.background = "#f4f4f5"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+                >
+                  <span style={{ width: 28, height: 28, borderRadius: 7, background: "#f4f4f5", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Settings size={14} color="#52525b" />
+                  </span>
+                  Mi perfil
+                </Link>
 
                 <div style={{ height: 1, background: "#f4f4f5", margin: "4px 0" }} />
 
@@ -543,26 +859,58 @@ function Topbar({
   );
 }
 
-function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
+function SidebarLink({ item, active, badge = 0 }: { item: NavItem; active: boolean; badge?: number }) {
   const { icon: Icon } = item;
+  const showBadge = badge > 0;
   return (
     <Link
       href={item.href}
+      aria-current={active ? "page" : undefined}
+      className="sfit-sidebar-link"
+      data-active={active || undefined}
       style={{
-        display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 8,
-        background: active ? "rgba(184,134,11,0.12)" : "transparent",
-        color: active ? "#D4A827" : "rgba(255,255,255,0.62)",
-        fontSize: "0.8125rem", fontWeight: active ? 600 : 500,
-        borderLeft: `2px solid ${active ? "#D4A827" : "transparent"}`,
-        textDecoration: "none", marginBottom: 1, transition: "all 120ms",
+        display: "flex",
+        alignItems: "center",
+        gap: 11,
+        padding: "8px 11px",
+        borderRadius: 8,
+        background: active ? "rgba(184,134,11,0.14)" : "transparent",
+        color: active ? "#D4A827" : "rgba(255,255,255,0.65)",
+        fontSize: "0.8125rem",
+        fontWeight: active ? 600 : 500,
+        textDecoration: "none",
+        marginBottom: 2,
+        transition: "background 120ms ease, color 120ms ease",
+        position: "relative",
       }}
-      onMouseEnter={e => { if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
-      onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
     >
-      <span style={{ width: 28, height: 28, borderRadius: 7, display: "inline-flex", alignItems: "center", justifyContent: "center", background: active ? "rgba(184,134,11,0.2)" : "transparent", color: "currentColor", flexShrink: 0 }}>
-        <Icon size={15} strokeWidth={1.9} />
+      <Icon size={16} strokeWidth={active ? 2 : 1.75} style={{ flexShrink: 0 }} />
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+        {item.label}
       </span>
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
+      {showBadge && (
+        <span
+          aria-label={`${badge} sin leer`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minWidth: 20,
+            height: 18,
+            padding: "0 6px",
+            borderRadius: 999,
+            background: active ? "rgba(212,168,39,0.22)" : "rgba(255,255,255,0.10)",
+            color: active ? "#F0C75A" : "rgba(255,255,255,0.85)",
+            fontSize: "0.6875rem",
+            fontWeight: 700,
+            fontVariantNumeric: "tabular-nums",
+            lineHeight: 1,
+            flexShrink: 0,
+          }}
+        >
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
     </Link>
   );
 }

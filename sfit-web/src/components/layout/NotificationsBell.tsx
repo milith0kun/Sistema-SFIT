@@ -2,6 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import {
+  useUnreadCount,
+  decrementUnreadCount,
+  setUnreadCountValue,
+  refreshUnreadCount,
+} from "@/hooks/useUnreadCount";
+
+// Altura del topbar del dashboard (debe coincidir con minHeight del Topbar en (dashboard)/layout.tsx)
+const TOPBAR_HEIGHT = 60;
 
 type NotificationItem = {
   id: string;
@@ -33,34 +42,13 @@ function timeAgo(iso: string): string {
 
 export function NotificationsBell() {
   const [open, setOpen] = useState(false);
-  const [unread, setUnread] = useState<number>(0);
+  const unread = useUnreadCount();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const getToken = () =>
     typeof window === "undefined" ? "" : localStorage.getItem("sfit_access_token") ?? "";
-
-  const stopPolling = useRef<(() => void) | null>(null);
-
-  const fetchUnread = useCallback(async () => {
-    const token = getToken();
-    if (!token) return;
-    try {
-      const res = await fetch("/api/notifications/unread-count", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status === 401) {
-        stopPolling.current?.();
-        return;
-      }
-      if (!res.ok) return;
-      const data: ApiResponse<{ count: number }> = await res.json();
-      if (data.success && data.data) setUnread(data.data.count);
-    } catch {
-      // silent
-    }
-  }, []);
 
   const fetchRecent = useCallback(async () => {
     setLoading(true);
@@ -84,14 +72,10 @@ export function NotificationsBell() {
   }, []);
 
   useEffect(() => {
-    void fetchUnread();
-    const id = window.setInterval(fetchUnread, 30_000);
-    stopPolling.current = () => window.clearInterval(id);
-    return () => window.clearInterval(id);
-  }, [fetchUnread]);
-
-  useEffect(() => {
-    if (open) void fetchRecent();
+    if (open) {
+      void fetchRecent();
+      refreshUnreadCount();
+    }
   }, [open, fetchRecent]);
 
   // Close panel on Escape key
@@ -104,11 +88,20 @@ export function NotificationsBell() {
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
-  // Lock body scroll when panel is open
+  // Click-outside para cerrar (sin backdrop oscuro: la página detrás sigue visible e interactiva)
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
-    if (typeof document === "undefined") return;
-    document.body.style.overflow = open ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
+    if (!open) return;
+    function onPointerDown(e: MouseEvent) {
+      const target = e.target as Node | null;
+      if (!target) return;
+      if (panelRef.current?.contains(target)) return;
+      if (buttonRef.current?.contains(target)) return;
+      setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
   }, [open]);
 
   async function markAllRead() {
@@ -119,7 +112,7 @@ export function NotificationsBell() {
       });
       if (res.ok) {
         setItems((prev) => prev.map((n) => ({ ...n, read: true })));
-        setUnread(0);
+        setUnreadCountValue(0);
       }
     } catch {
       // silent
@@ -134,7 +127,7 @@ export function NotificationsBell() {
       });
       if (res.ok) {
         setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-        setUnread((c) => Math.max(0, c - 1));
+        decrementUnreadCount(1);
       }
     } catch {
       // silent
@@ -145,8 +138,11 @@ export function NotificationsBell() {
     <>
       {/* Bell button */}
       <button
+        ref={buttonRef}
         type="button"
         aria-label="Notificaciones"
+        aria-expanded={open}
+        aria-haspopup="dialog"
         onClick={() => setOpen((v) => !v)}
         style={{
           position: "relative",
@@ -156,11 +152,11 @@ export function NotificationsBell() {
           alignItems: "center",
           justifyContent: "center",
           background: open ? "#f4f4f5" : "transparent",
-          border: "1.5px solid #e4e4e7",
+          border: `1.5px solid ${open ? "#d4d4d8" : "#e4e4e7"}`,
           borderRadius: 10,
           cursor: "pointer",
           color: "#27272a",
-          transition: "background 0.15s ease",
+          transition: "background 0.15s ease, border-color 0.15s ease",
         }}
       >
         <svg
@@ -182,21 +178,25 @@ export function NotificationsBell() {
             aria-hidden
             style={{
               position: "absolute",
-              top: -4,
-              right: -4,
+              top: -5,
+              right: -5,
               minWidth: 18,
               height: 18,
               padding: "0 5px",
               borderRadius: 999,
               background: "#b91c1c",
               color: "#ffffff",
-              fontSize: "0.6875rem",
+              fontSize: "0.625rem",
               fontWeight: 700,
+              fontVariantNumeric: "tabular-nums",
+              fontFeatureSettings: "\"tnum\"",
+              letterSpacing: 0,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              border: "2px solid #ffffff",
+              boxShadow: "0 0 0 2px #ffffff, 0 1px 2px rgba(9,9,11,0.18)",
               lineHeight: 1,
+              transform: "translateZ(0)",
             }}
           >
             {unread > 99 ? "99+" : unread}
@@ -204,92 +204,64 @@ export function NotificationsBell() {
         )}
       </button>
 
-      {/* Backdrop */}
+      {/* Slide-in panel — minimalista, debajo del header, sin tapar contenido */}
       {open && (
         <div
-          aria-hidden
-          onClick={() => setOpen(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(9,9,11,0.45)",
-            backdropFilter: "blur(2px)",
-            WebkitBackdropFilter: "blur(2px)",
-            zIndex: 999,
-          }}
-        />
-      )}
-
-      {/* Slide-in panel */}
-      {open && (
-        <div
+          ref={panelRef}
           role="dialog"
           aria-label="Panel de notificaciones"
           className="notif-panel-in"
           style={{
             position: "fixed",
-            top: 0,
+            top: TOPBAR_HEIGHT,
             right: 0,
             bottom: 0,
-            width: 420,
+            width: 380,
             maxWidth: "100vw",
-            background: "#fff",
-            borderLeft: "1.5px solid #e4e4e7",
-            boxShadow: "-8px 0 40px rgba(9,9,11,0.14)",
-            zIndex: 1000,
+            background: "#ffffff",
+            borderLeft: "1px solid #e4e4e7",
+            borderTop: "1px solid #e4e4e7",
+            borderTopLeftRadius: 14,
+            boxShadow: "-16px 0 48px -8px rgba(9,9,11,0.10), -2px 0 6px rgba(9,9,11,0.04)",
+            zIndex: 60,
             display: "flex",
             flexDirection: "column",
+            overflow: "hidden",
           }}
         >
-          {/* Header */}
+          {/* Header — minimalista */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              padding: "16px 20px",
-              borderBottom: "1px solid #e4e4e7",
+              padding: "12px 16px 12px 18px",
+              borderBottom: "1px solid #f4f4f5",
               flexShrink: 0,
             }}
           >
-            {/* Left: icon + title */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#18181b"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-              <span style={{ fontWeight: 700, fontSize: "1rem", color: "#09090b" }}>Notificaciones</span>
-              {unread > 0 && (
-                <span style={{
-                  minWidth: 20,
-                  height: 20,
-                  padding: "0 6px",
-                  borderRadius: 999,
-                  background: "#b91c1c",
-                  color: "#fff",
-                  fontSize: "0.6875rem",
-                  fontWeight: 700,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}>
-                  {unread > 99 ? "99+" : unread}
-                </span>
-              )}
+            {/* Left: title + count */}
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8, minWidth: 0 }}>
+              <span style={{
+                fontWeight: 700,
+                fontSize: "0.9375rem",
+                color: "#09090b",
+                letterSpacing: "-0.01em",
+              }}>
+                Notificaciones
+              </span>
+              <span style={{
+                fontSize: "0.75rem",
+                color: "#a1a1aa",
+                fontWeight: 500,
+                fontVariantNumeric: "tabular-nums",
+              }}>
+                {unread > 0 ? `${unread > 99 ? "99+" : unread} sin leer` : "al día"}
+              </span>
             </div>
 
             {/* Right: mark all + close */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
               <button
                 type="button"
                 onClick={markAllRead}
@@ -297,36 +269,42 @@ export function NotificationsBell() {
                 style={{
                   background: "transparent",
                   border: "none",
-                  color: unread === 0 ? "#a1a1aa" : "#52525b",
+                  color: unread === 0 ? "#d4d4d8" : "#52525b",
                   cursor: unread === 0 ? "default" : "pointer",
                   fontSize: "0.75rem",
-                  fontWeight: 600,
-                  padding: "4px 8px",
-                  borderRadius: 6,
+                  fontWeight: 500,
+                  padding: "5px 9px",
+                  borderRadius: 7,
                   fontFamily: "inherit",
+                  transition: "color 120ms, background 120ms",
                 }}
+                onMouseEnter={(e) => { if (unread > 0) { e.currentTarget.style.color = "#09090b"; e.currentTarget.style.background = "#f4f4f5"; } }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = unread === 0 ? "#d4d4d8" : "#52525b"; e.currentTarget.style.background = "transparent"; }}
               >
-                Marcar todo
+                Marcar todas
               </button>
               <button
                 type="button"
                 aria-label="Cerrar panel"
                 onClick={() => setOpen(false)}
                 style={{
-                  width: 32,
-                  height: 32,
+                  width: 28,
+                  height: 28,
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  background: "#f4f4f5",
+                  background: "transparent",
                   border: "none",
-                  borderRadius: 8,
+                  borderRadius: 7,
                   cursor: "pointer",
-                  color: "#52525b",
+                  color: "#71717a",
                   flexShrink: 0,
+                  transition: "background 120ms, color 120ms",
                 }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#f4f4f5"; e.currentTarget.style.color = "#09090b"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#71717a"; }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
@@ -365,25 +343,28 @@ export function NotificationsBell() {
                   const itemContent = (
                     <div
                       style={{
-                        padding: "14px 20px",
+                        padding: "12px 18px",
                         borderBottom: "1px solid #f4f4f5",
-                        background: n.read ? "#ffffff" : "#FDFAF2",
+                        background: "#ffffff",
+                        borderLeft: `3px solid ${n.read ? "transparent" : "#B8860B"}`,
                         cursor: "pointer",
                         transition: "background 0.12s ease",
                         display: "flex",
                         alignItems: "flex-start",
                         gap: 10,
                       }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "#fafafa"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "#ffffff"; }}
                     >
                       {/* Unread dot */}
                       <span style={{
-                        width: 7,
-                        height: 7,
+                        width: 6,
+                        height: 6,
                         borderRadius: "50%",
-                        background: "#18181b",
-                        opacity: n.read ? 0.25 : 1,
+                        background: "#B8860B",
+                        opacity: n.read ? 0 : 1,
                         flexShrink: 0,
-                        marginTop: 6,
+                        marginTop: 7,
                       }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
@@ -439,8 +420,9 @@ export function NotificationsBell() {
 
           {/* Footer */}
           <div style={{
-            padding: "14px 20px",
-            borderTop: "1px solid #e4e4e7",
+            padding: "10px 18px",
+            borderTop: "1px solid #f4f4f5",
+            background: "#fafafa",
             textAlign: "center",
             flexShrink: 0,
           }}>
@@ -448,13 +430,22 @@ export function NotificationsBell() {
               href="/notificaciones"
               onClick={() => setOpen(false)}
               style={{
-                fontSize: "0.875rem",
+                fontSize: "0.8125rem",
                 fontWeight: 600,
-                color: "#0A1628",
+                color: "#52525b",
                 textDecoration: "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "4px 8px",
+                borderRadius: 6,
+                transition: "color 120ms",
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "#09090b"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "#52525b"; }}
             >
-              Ver todas las notificaciones →
+              Ver todas
+              <span aria-hidden style={{ fontSize: "0.875rem", lineHeight: 1 }}>→</span>
             </Link>
           </div>
         </div>

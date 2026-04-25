@@ -1,16 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
   Bell, Check, TriangleAlert, CircleX, Info, BellOff, BellRing,
   Search, CheckCheck, RefreshCw, Inbox,
 } from "lucide-react";
+import {
+  setUnreadCountValue,
+  refreshUnreadCount,
+} from "@/hooks/useUnreadCount";
 
-// ── Paleta zinc ────────────────────────────────────────────────────────────────
+// ── Paleta zinc + gold institucional SFIT ─────────────────────────────────────
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK3 = "#d4d4d8";
 const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 const ERR = "#b91c1c"; const ERRBG = "#FFF5F5"; const ERRBD = "#FCA5A5";
+// Gold (acento institucional, design system SFIT)
+const GOLD = "#B8860B"; const GOLD_LIGHT = "#D4A827"; const GOLD_DARK = "#926A09";
+const GOLD_BG = "#FDF8EC"; const GOLD_BORDER = "#E8D090";
 
 type Notification = {
   id: string; type?: string; category?: string;
@@ -79,43 +85,120 @@ function DetailPanel({ notif, onClose, onMarkRead }: {
     new Date(iso).toLocaleString("es-PE", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
   return (
-    <div style={{ background: "#fff", border: `1.5px solid ${INK2}`, borderRadius: 14, position: "sticky", top: 16 }}>
-      {/* Header */}
-      <div style={{ padding: "14px 18px", borderBottom: `1px solid ${INK2}`, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <span style={{ display: "inline-flex", padding: "3px 9px", borderRadius: 6, fontSize: "0.6875rem", fontWeight: 800, letterSpacing: "0.08em", background: prio.bg, color: prio.color, border: `1px solid ${prio.border}` }}>
-            {prio.label}
-          </span>
-          {notif.category && (
-            <span style={{ display: "inline-flex", padding: "3px 9px", borderRadius: 6, fontSize: "0.6875rem", fontWeight: 700, background: INK1, color: INK6, border: `1px solid ${INK2}` }}>
-              {notif.category}
+    <div style={{
+      background: "#fff",
+      border: `1.5px solid ${GOLD_BORDER}`,
+      borderRadius: 14,
+      position: "sticky",
+      top: 16,
+      overflow: "hidden",
+      boxShadow: "0 1px 3px rgba(184,134,11,0.06), 0 8px 24px -8px rgba(184,134,11,0.10)",
+    }}>
+      {/* ── Header en banda gold suave ─────────────────────────────────── */}
+      <div style={{
+        background: `linear-gradient(180deg, ${GOLD_BG} 0%, #ffffff 100%)`,
+        borderBottom: `1px solid ${GOLD_BORDER}`,
+        padding: "16px 18px 14px",
+        position: "relative",
+      }}>
+        {/* Fila superior: pills + cerrar */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
+            <span style={{
+              display: "inline-flex", padding: "3px 9px", borderRadius: 6,
+              fontSize: "0.6875rem", fontWeight: 800, letterSpacing: "0.08em",
+              background: prio.bg, color: prio.color, border: `1px solid ${prio.border}`,
+            }}>
+              {prio.label}
             </span>
-          )}
+            {notif.category && (
+              <span style={{
+                display: "inline-flex", padding: "3px 9px", borderRadius: 6,
+                fontSize: "0.6875rem", fontWeight: 700,
+                background: "#ffffff", color: GOLD_DARK,
+                border: `1px solid ${GOLD_BORDER}`,
+                textTransform: "uppercase", letterSpacing: "0.04em",
+              }}>
+                {notif.category}
+              </span>
+            )}
+            {notif.type && (
+              <span style={{
+                display: "inline-flex", padding: "3px 9px", borderRadius: 6,
+                fontSize: "0.6875rem", fontWeight: 600,
+                background: INK1, color: INK6, border: `1px solid ${INK2}`,
+              }}>
+                {notif.type}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Cerrar detalle"
+            style={{
+              width: 28, height: 28, borderRadius: 7,
+              border: `1px solid ${INK2}`, background: "#fff",
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              color: INK5, fontSize: 16, flexShrink: 0, fontFamily: "inherit",
+              transition: "background 120ms, color 120ms, border-color 120ms",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = INK1; e.currentTarget.style.color = INK9; e.currentTarget.style.borderColor = INK3; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = INK5; e.currentTarget.style.borderColor = INK2; }}
+          >×</button>
         </div>
-        <button
-          onClick={onClose}
-          style={{ width: 28, height: 28, borderRadius: 7, border: `1px solid ${INK2}`, background: INK1, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: INK5, fontSize: 16, flexShrink: 0, fontFamily: "inherit" }}
-        >×</button>
+
+        {/* Título principal con icono */}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: 12,
+            background: "#ffffff", border: `1px solid ${GOLD_BORDER}`,
+            color: GOLD_DARK,
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            boxShadow: "0 1px 2px rgba(184,134,11,0.08)",
+          }}>
+            <TypeIcon type={notif.type} size={20} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontWeight: 800, fontSize: "1.0625rem",
+              color: INK9, lineHeight: 1.3, letterSpacing: "-0.01em",
+              wordBreak: "break-word",
+            }}>
+              {notif.title}
+            </div>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8, marginTop: 6,
+              fontSize: "0.75rem", color: INK6,
+            }}>
+              <span style={{ fontWeight: 600 }}>{timeAgo(notif.createdAt)}</span>
+              <span style={{ color: INK3 }}>·</span>
+              <span style={{ fontVariantNumeric: "tabular-nums" }}>{formatDate(notif.createdAt)}</span>
+            </div>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 5, marginTop: 8,
+              fontSize: "0.6875rem", color: notif.read ? INK5 : GOLD_DARK,
+              fontWeight: 600, letterSpacing: "0.04em",
+            }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: "50%",
+                background: notif.read ? INK3 : GOLD,
+                display: "inline-block",
+              }} />
+              {notif.read ? "LEÍDA" : "SIN LEER"}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Body */}
       <div style={{ padding: "18px 18px 20px" }}>
-        {/* Icon + title */}
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 16 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 11, background: INK1, border: `1px solid ${INK2}`, color: INK6, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <TypeIcon type={notif.type} size={18} />
-          </div>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: "0.9375rem", color: INK9, lineHeight: 1.35, letterSpacing: "-0.01em" }}>{notif.title}</div>
-            {notif.type && (
-              <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 3 }}>Sistema · {notif.type}</div>
-            )}
-          </div>
-        </div>
-
         {/* Description */}
         {notif.body && (
-          <div style={{ fontSize: "0.875rem", color: INK6, lineHeight: 1.65, marginBottom: 20, padding: "12px 14px", background: INK1, borderRadius: 10 }}>
+          <div style={{
+            fontSize: "0.875rem", color: INK6, lineHeight: 1.65, marginBottom: 20,
+            padding: "12px 14px", background: INK1, borderRadius: 10,
+            whiteSpace: "pre-wrap", wordBreak: "break-word",
+          }}>
             {notif.body}
           </div>
         )}
@@ -144,7 +227,17 @@ function DetailPanel({ notif, onClose, onMarkRead }: {
           {!notif.read && (
             <button
               onClick={() => onMarkRead(notif.id)}
-              style={{ flex: 1, height: 38, borderRadius: 9, border: "none", background: INK9, color: "#fff", fontFamily: "inherit", fontWeight: 700, fontSize: "0.875rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+              style={{
+                flex: 1, height: 38, borderRadius: 9, border: "none",
+                background: GOLD, color: "#fff",
+                fontFamily: "inherit", fontWeight: 700, fontSize: "0.875rem",
+                cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                transition: "background 120ms",
+                boxShadow: "0 1px 2px rgba(184,134,11,0.20)",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = GOLD_DARK; }}
+              onMouseLeave={e => { e.currentTarget.style.background = GOLD; }}
             >
               <Check size={14} strokeWidth={2.5} /> Marcar leída
             </button>
@@ -152,7 +245,18 @@ function DetailPanel({ notif, onClose, onMarkRead }: {
           {notif.link && (
             <a
               href={notif.link}
-              style={{ flex: 1, height: 38, borderRadius: 9, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontFamily: "inherit", fontWeight: 600, fontSize: "0.875rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, textDecoration: "none" }}
+              style={{
+                flex: 1, height: 38, borderRadius: 9,
+                border: `1.5px solid ${notif.read ? GOLD_BORDER : INK2}`,
+                background: "#fff", color: notif.read ? GOLD_DARK : INK6,
+                fontFamily: "inherit", fontWeight: 600, fontSize: "0.875rem",
+                cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                textDecoration: "none",
+                transition: "background 120ms, border-color 120ms",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = GOLD_BG; e.currentTarget.style.borderColor = GOLD; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = notif.read ? GOLD_BORDER : INK2; }}
             >
               Ver detalle →
             </a>
@@ -192,6 +296,14 @@ export default function NotificacionesPage() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  // Resincroniza el badge global cada vez que cambia el conjunto de items.
+  useEffect(() => {
+    setUnreadCountValue(items.filter(n => !n.read).length);
+  }, [items]);
+
+  // Refresca el conteo global al montar la página por primera vez.
+  useEffect(() => { refreshUnreadCount(); }, []);
 
   const unread = useMemo(() => items.filter(n => !n.read).length, [items]);
   const categories = useMemo(() => {
@@ -300,8 +412,24 @@ export default function NotificacionesPage() {
         {/* Columna izquierda: toolbar + lista */}
         <div style={{ minWidth: 0 }}>
 
-          {/* ── Toolbar ─────────────────────────────────────────────────── */}
-          <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, padding: "14px 16px", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          {/* ── Toolbar (sticky para no perderse al hacer scroll) ────────── */}
+          <div style={{
+            background: "rgba(255,255,255,0.92)",
+            backdropFilter: "saturate(140%) blur(8px)",
+            WebkitBackdropFilter: "saturate(140%) blur(8px)",
+            border: `1px solid ${INK2}`,
+            borderRadius: 14,
+            padding: "14px 16px",
+            marginBottom: 14,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+            position: "sticky",
+            top: 8,
+            zIndex: 10,
+          }}>
             <div style={{ display: "flex", gap: 4, background: INK1, borderRadius: 10, padding: 4 }}>
               {([
                 { id: "all" as Tab, label: "Todas", count: items.length },
@@ -431,20 +559,33 @@ export default function NotificacionesPage() {
                           style={{
                             display: "flex", alignItems: "flex-start", gap: 14,
                             padding: "14px 18px",
-                            background: n.read ? "#fff" : "#FAFAFA",
-                            border: `1.5px solid ${isSelected ? INK9 : INK2}`,
-                            borderLeft: `3px solid ${isSelected ? INK9 : n.read ? INK2 : INK9}`,
+                            background: isSelected ? GOLD_BG : (n.read ? "#fff" : "#FAFAFA"),
+                            borderTop:    `1.5px solid ${isSelected ? GOLD : INK2}`,
+                            borderRight:  `1.5px solid ${isSelected ? GOLD : INK2}`,
+                            borderBottom: `1.5px solid ${isSelected ? GOLD : INK2}`,
+                            borderLeft:   `4px solid ${isSelected ? GOLD : n.read ? INK2 : GOLD_LIGHT}`,
                             borderRadius: 13,
                             cursor: "pointer",
                             transition: "all 200ms ease",
                             opacity: isExiting ? 0.4 : 1,
                             transform: isExiting ? "translateX(8px)" : "none",
+                            boxShadow: isSelected ? `0 0 0 3px rgba(184,134,11,0.10)` : "none",
                           }}
-                          onMouseEnter={e => { if (!isExiting) { const el = e.currentTarget as HTMLElement; el.style.boxShadow = "0 4px 16px rgba(0,0,0,.06)"; el.style.transform = "translateY(-1px)"; } }}
-                          onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = "none"; el.style.transform = "none"; }}
+                          onMouseEnter={e => { if (!isExiting && !isSelected) { const el = e.currentTarget as HTMLElement; el.style.boxShadow = "0 4px 16px rgba(0,0,0,.06)"; el.style.transform = "translateY(-1px)"; } }}
+                          onMouseLeave={e => {
+                            const el = e.currentTarget as HTMLElement;
+                            el.style.boxShadow = isSelected ? `0 0 0 3px rgba(184,134,11,0.10)` : "none";
+                            el.style.transform = "none";
+                          }}
                         >
-                          {/* Icon chip — neutral */}
-                          <div style={{ width: 40, height: 40, borderRadius: 11, background: INK1, border: `1px solid ${INK2}`, color: INK6, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          {/* Icon chip — gold cuando seleccionado */}
+                          <div style={{
+                            width: 40, height: 40, borderRadius: 11,
+                            background: isSelected ? "#FFFFFF" : INK1,
+                            border: `1px solid ${isSelected ? GOLD_BORDER : INK2}`,
+                            color: isSelected ? GOLD_DARK : INK6,
+                            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                          }}>
                             <TypeIcon type={n.type} />
                           </div>
 
@@ -452,8 +593,13 @@ export default function NotificacionesPage() {
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: n.body ? 4 : 0 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                {!n.read && <span style={{ width: 6, height: 6, borderRadius: "50%", background: INK9, display: "inline-block", flexShrink: 0 }} />}
-                                <span style={{ fontSize: "0.9375rem", fontWeight: n.read ? 500 : 700, color: INK9, lineHeight: 1.35 }}>{n.title}</span>
+                                {!n.read && <span style={{ width: 6, height: 6, borderRadius: "50%", background: GOLD, display: "inline-block", flexShrink: 0 }} />}
+                                <span style={{
+                                  fontSize: "0.9375rem",
+                                  fontWeight: n.read ? 500 : 700,
+                                  color: isSelected ? GOLD_DARK : INK9,
+                                  lineHeight: 1.35,
+                                }}>{n.title}</span>
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                                 {n.category && (
@@ -463,7 +609,11 @@ export default function NotificacionesPage() {
                               </div>
                             </div>
                             {n.body && (
-                              <div style={{ fontSize: "0.8125rem", color: INK6, lineHeight: 1.55, marginTop: 3 }}>{n.body}</div>
+                              <div style={{
+                                fontSize: "0.8125rem", color: INK6, lineHeight: 1.55, marginTop: 3,
+                                display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                                overflow: "hidden", wordBreak: "break-word",
+                              }}>{n.body}</div>
                             )}
                             {!n.read && (
                               <button
@@ -481,8 +631,21 @@ export default function NotificacionesPage() {
                       );
 
                       return (
-                        <div key={n.id} onClick={() => { setSelected(n); if (!n.read) void markRead(n.id); }} style={{ cursor: "pointer" }}>
-                          {n.link ? <Link href={n.link} style={{ textDecoration: "none", color: "inherit" }}>{card}</Link> : card}
+                        <div
+                          key={n.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => { setSelected(n); if (!n.read) void markRead(n.id); }}
+                          onKeyDown={e => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSelected(n);
+                              if (!n.read) void markRead(n.id);
+                            }
+                          }}
+                          style={{ cursor: "pointer" }}
+                        >
+                          {card}
                         </div>
                       );
                     })}
