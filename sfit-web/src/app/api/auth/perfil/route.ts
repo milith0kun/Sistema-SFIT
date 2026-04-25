@@ -37,23 +37,31 @@ export async function GET(request: NextRequest) {
   try {
     await connectDB();
     const user = await User.findById(session.userId)
-      .select("name email role status phone dni image municipalityId provinceId createdAt")
+      .select("name email role status provider phone dni image municipalityId provinceId createdAt")
+      .populate("municipalityId", "name")
+      .populate("provinceId", "name")
       .lean();
 
     if (!user) return apiNotFound("Usuario no encontrado");
 
+    const muni = user.municipalityId as unknown as { _id: string; name: string } | null;
+    const prov = user.provinceId     as unknown as { _id: string; name: string } | null;
+
     return apiResponse({
-      id:             String(user._id),
-      name:           user.name,
-      email:          user.email,
-      role:           user.role,
-      status:         user.status,
-      phone:          user.phone ?? null,
-      dni:            user.dni   ?? null,
-      image:          user.image ?? null,
-      municipalityId: user.municipalityId ? String(user.municipalityId) : null,
-      provinceId:     user.provinceId     ? String(user.provinceId)     : null,
-      createdAt:      user.createdAt,
+      id:               String(user._id),
+      name:             user.name,
+      email:            user.email,
+      role:             user.role,
+      status:           user.status,
+      provider:         user.provider,
+      phone:            user.phone ?? null,
+      dni:              user.dni   ?? null,
+      image:            user.image ?? null,
+      municipalityId:   muni ? String(muni._id) : null,
+      municipalityName: muni?.name ?? null,
+      provinceId:       prov ? String(prov._id) : null,
+      provinceName:     prov?.name ?? null,
+      createdAt:        user.createdAt,
     });
   } catch (err) {
     console.error("[auth/perfil GET]", err);
