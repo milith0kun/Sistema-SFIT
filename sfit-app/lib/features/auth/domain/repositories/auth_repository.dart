@@ -1,4 +1,5 @@
 import '../../data/repositories/auth_repository_impl.dart';
+import '../entities/user_entity.dart';
 
 /// Contrato de la capa de dominio para autenticación (RF-01).
 abstract class AuthRepository {
@@ -34,6 +35,9 @@ abstract class AuthRepository {
 
   /// RF-01-10: Cierre de sesión — revoca refresh y limpia almacenamiento.
   Future<void> logout();
+
+  /// Actualiza nombre, teléfono y/o DNI del usuario autenticado.
+  Future<UserEntity> updatePerfil({String? name, String? phone, String? dni});
 
   /// Público — lista provincias activas para el formulario de registro.
   Future<List<Map<String, dynamic>>> fetchProvincias();

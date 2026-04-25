@@ -242,6 +242,22 @@ class Auth extends _$Auth {
     return 'Error: $s';
   }
 
+  // ── Actualizar perfil propio ──────────────────────────────────
+  /// Devuelve `null` si tuvo éxito, o el mensaje de error.
+  Future<String?> updatePerfil({String? name, String? phone, String? dni}) async {
+    try {
+      final updated = await ref.read(authRepositoryProvider).updatePerfil(
+            name: name,
+            phone: phone,
+            dni: dni,
+          );
+      state = state.copyWith(user: updated);
+      return null;
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
   // ── RF-01-10: Logout ──────────────────────────────────────────
   Future<void> logout() async {
     // RF-18 — Eliminar token FCM del backend antes de cerrar sesión

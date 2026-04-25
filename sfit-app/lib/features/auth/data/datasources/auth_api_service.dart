@@ -25,4 +25,7 @@ abstract class AuthApiService {
 
   @POST('/auth/logout')
   Future<HttpResponse<dynamic>> logout();
+
+  @PATCH('/auth/perfil')
+  Future<HttpResponse<dynamic>> updatePerfil(@Body() JsonMap body);
 }

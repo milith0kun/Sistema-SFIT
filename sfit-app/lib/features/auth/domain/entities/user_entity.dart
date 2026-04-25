@@ -13,6 +13,7 @@ class UserEntity {
   final String? municipalityId;
   final String? provinceId;
   final String? phone;
+  final String? dni;
 
   const UserEntity({
     required this.id,
@@ -24,6 +25,7 @@ class UserEntity {
     this.municipalityId,
     this.provinceId,
     this.phone,
+    this.dni,
   });
 
   // ── Status helpers ────────────────────────────────────────────

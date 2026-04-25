@@ -162,7 +162,43 @@ class AuthRepositoryImpl implements AuthRepository {
         municipalityId: model.municipalityId,
         provinceId: model.provinceId,
         phone: model.phone,
+        dni: model.dni,
       );
+
+  @override
+  Future<UserEntity> updatePerfil({
+    String? name,
+    String? phone,
+    String? dni,
+  }) async {
+    final res = await _api.updatePerfil({
+      if (name  != null) 'name':  name.trim(),
+      if (phone != null) 'phone': phone.trim().isEmpty ? null : phone.trim(),
+      if (dni   != null) 'dni':   dni.trim().isEmpty   ? null : dni.trim(),
+    });
+    final body = res.data as Map<String, dynamic>;
+    if (body['success'] != true) {
+      throw AuthException(body['error'] ?? 'Error al actualizar perfil');
+    }
+    final data = body['data'] as Map<String, dynamic>;
+    final currentJson = await _storage.read(key: ApiConstants.userJsonKey);
+    final base = currentJson != null
+        ? jsonDecode(currentJson) as Map<String, dynamic>
+        : <String, dynamic>{};
+    // Merge: solo sobrescribir los campos actualizados
+    final merged = {
+      ...base,
+      if (data['name']  != null) 'name':  data['name'],
+      if (data['phone'] != null) 'phone': data['phone'],
+      if (data['dni']   != null) 'dni':   data['dni'],
+    };
+    final userModel = UserModel.fromJson(merged);
+    await _storage.write(
+      key: ApiConstants.userJsonKey,
+      value: jsonEncode(userModel.toJson()),
+    );
+    return _mapUser(userModel);
+  }
 
   @override
   Future<void> refreshTokens() async {
