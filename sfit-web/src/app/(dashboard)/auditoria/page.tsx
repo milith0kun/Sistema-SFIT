@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Shield, Users, TriangleAlert } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Shield, TriangleAlert, Users } from "lucide-react";
 import { type ColumnDef, DataTable } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,25 @@ type Municipality = { id: string; name: string };
 type StoredUser = { role: string; provinceId?: string; municipalityId?: string };
 
 const ALLOWED_ROLES = ["super_admin", "admin_provincial", "admin_municipal"];
-const PAGE_SIZE = 200;
+// Alineado con cap del endpoint /api/admin/audit-log (Math.min(100, ...))
+const PAGE_SIZE = 50;
+
+/**
+ * Convierte el `value` de un <input type="date"> (formato "YYYY-MM-DD") a ISO
+ * usando la zona horaria local del navegador y al inicio o fin del día.
+ * Evita el bug clásico de `new Date("2026-04-25")` → 00:00 UTC, que en horario
+ * de Lima (UTC-5) cae el día anterior.
+ */
+function dateInputToIso(value: string, edge: "start" | "end"): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!m) return null;
+  const [, ys, ms, ds] = m;
+  const y = Number(ys); const mo = Number(ms) - 1; const d = Number(ds);
+  const dt = edge === "start"
+    ? new Date(y, mo, d, 0, 0, 0, 0)
+    : new Date(y, mo, d, 23, 59, 59, 999);
+  return dt.toISOString();
+}
 
 const ACTION_OPTIONS = [
   "",
@@ -104,6 +122,7 @@ export default function AuditoriaPage() {
 
   const [items, setItems] = useState<AuditEntry[]>([]);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -128,12 +147,13 @@ export default function AuditoriaPage() {
   }, [router]);
 
   const load = useCallback(
-    async (opts?: { email?: string; act?: string; muniId?: string; fr?: string; t?: string }) => {
+    async (opts?: { email?: string; act?: string; muniId?: string; fr?: string; t?: string; pg?: number }) => {
       setLoading(true);
       setError(null);
       try {
         const qs = new URLSearchParams();
-        qs.set("page", "1");
+        const pg = opts?.pg ?? page;
+        qs.set("page", String(pg));
         qs.set("limit", String(PAGE_SIZE));
         const em = opts?.email ?? actorEmail;
         const ac = opts?.act ?? action;
@@ -143,8 +163,14 @@ export default function AuditoriaPage() {
         if (em.trim()) qs.set("actorEmail", em.trim());
         if (ac) qs.set("action", ac);
         if (mi) qs.set("municipalityId", mi);
-        if (fr) qs.set("from", new Date(fr).toISOString());
-        if (tt) qs.set("to", new Date(tt).toISOString());
+        if (fr) {
+          const iso = dateInputToIso(fr, "start");
+          if (iso) qs.set("from", iso);
+        }
+        if (tt) {
+          const iso = dateInputToIso(tt, "end");
+          if (iso) qs.set("to", iso);
+        }
 
         const res = await fetch(`/api/admin/audit-log?${qs.toString()}`, {
           headers: { Authorization: `Bearer ${getToken()}` },
@@ -161,7 +187,7 @@ export default function AuditoriaPage() {
         setLoading(false);
       }
     },
-    [actorEmail, action, municipalityId, from, to, router]
+    [actorEmail, action, municipalityId, from, to, page, router]
   );
 
   const loadMunis = useCallback(async () => {
@@ -178,9 +204,16 @@ export default function AuditoriaPage() {
   useEffect(() => {
     if (!user) return;
     void loadMunis();
+  }, [user, loadMunis]);
+
+  // Recarga al cambiar usuario o página activa.
+  useEffect(() => {
+    if (!user) return;
     void load();
+    // load depende de los filtros pero solo queremos refetchear cuando cambia
+    // la página o el usuario; los filtros recargan vía botón "Aplicar".
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, page]);
 
   const sensitiveCount = useMemo(
     () => items.filter((e) => e.action.includes("suspended") || e.action.includes("deleted") || e.action.includes("rejected")).length,
@@ -308,17 +341,72 @@ export default function AuditoriaPage() {
         onChange={(e) => setTo(e.target.value)}
         style={{ height: 34, fontSize: "0.8125rem", borderRadius: 8 }}
       />
-      <Button variant="outline" size="sm" onClick={() => void load()}>Aplicar</Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          if (page !== 1) setPage(1); // useEffect dispara load
+          else void load({ pg: 1 });
+        }}
+      >
+        Aplicar
+      </Button>
       <Button
         variant="ghost"
         size="sm"
         onClick={() => {
           setActorEmail(""); setAction(""); setMunicipalityId(""); setFrom(""); setTo("");
-          void load({ email: "", act: "", muniId: "", fr: "", t: "" });
+          if (page !== 1) setPage(1); // useEffect dispara load con filtros vacíos
+          else void load({ email: "", act: "", muniId: "", fr: "", t: "", pg: 1 });
         }}
       >
         Limpiar
       </Button>
+    </div>
+  );
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(page * PAGE_SIZE, total);
+
+  const pagination = (
+    <div
+      style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        gap: 12, padding: "12px 16px",
+        background: "#fff", border: "1px solid #e4e4e7", borderRadius: 12,
+        flexWrap: "wrap",
+      }}
+    >
+      <span style={{ fontSize: "0.8125rem", color: "#52525b", fontVariantNumeric: "tabular-nums" }}>
+        {total === 0
+          ? "Sin resultados"
+          : <>Mostrando <b style={{ color: "#09090b" }}>{rangeStart}–{rangeEnd}</b> de <b style={{ color: "#09090b" }}>{total.toLocaleString("es-PE")}</b></>}
+      </span>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={page <= 1 || loading}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+        >
+          <ChevronLeft size={14} /> Anterior
+        </Button>
+        <span style={{
+          fontSize: "0.8125rem", color: "#52525b", padding: "0 10px",
+          fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap",
+        }}>
+          Página <b style={{ color: "#09090b" }}>{page}</b> de <b style={{ color: "#09090b" }}>{totalPages}</b>
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={page >= totalPages || loading}
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+        >
+          Siguiente <ChevronRight size={14} />
+        </Button>
+      </div>
     </div>
   );
 
@@ -339,10 +427,10 @@ export default function AuditoriaPage() {
       <KPIStrip
         cols={4}
         items={[
-          { label: "EVENTOS", value: total, subtitle: "en período", accent: "#0A1628", icon: FileText },
-          { label: "APROBACIONES", value: approvalsCount, subtitle: "confirmadas", accent: "#15803d", icon: Shield },
-          { label: "USUARIOS", value: userActionsCount, subtitle: "acciones", accent: "#B8860B", icon: Users },
-          { label: "SENSIBLES", value: sensitiveCount, subtitle: "rechazos / supresiones", accent: "#b91c1c", icon: TriangleAlert },
+          { label: "EVENTOS", value: total, subtitle: "total en período", accent: "#0A1628", icon: FileText },
+          { label: "APROBACIONES", value: approvalsCount, subtitle: "en esta página", accent: "#15803d", icon: Shield },
+          { label: "USUARIOS", value: userActionsCount, subtitle: "en esta página", accent: "#B8860B", icon: Users },
+          { label: "SENSIBLES", value: sensitiveCount, subtitle: "en esta página", accent: "#b91c1c", icon: TriangleAlert },
         ]}
       />
 
@@ -366,10 +454,12 @@ export default function AuditoriaPage() {
         searchPlaceholder="Buscar actor, acción, recurso…"
         emptyTitle="Sin registros"
         emptyDescription="Aún no hay entradas en el audit-log con los filtros seleccionados."
-        defaultPageSize={25}
+        defaultPageSize={PAGE_SIZE}
         showColumnToggle
         toolbarEnd={toolbarFilters}
       />
+
+      {pagination}
     </div>
   );
 }
