@@ -39,4 +39,10 @@ class ApiConstants {
   static const String accessTokenKey  = 'access_token';
   static const String refreshTokenKey = 'refresh_token';
   static const String userJsonKey     = 'sfit_user';
+
+  /// Header y token compartido con la WAF de Cloudflare.
+  /// La regla "Skip Bot Fight Mode" en Cloudflare exige que la request a /api/*
+  /// traiga este header con este valor; cualquier otra fuente recibe challenge.
+  static const String clientHeader = 'X-Sfit-Client';
+  static const String clientToken  = 'sfit-mob-7f3a9b2c4d6e8f1a3b5c7d9e0f2a4b6c';
 }

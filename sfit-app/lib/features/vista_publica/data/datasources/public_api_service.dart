@@ -10,6 +10,9 @@ class PublicApiService {
     baseUrl: ApiConstants.baseUrl,
     connectTimeout: const Duration(milliseconds: ApiConstants.connectTimeout),
     receiveTimeout: const Duration(milliseconds: ApiConstants.receiveTimeout),
+    headers: {
+      ApiConstants.clientHeader: ApiConstants.clientToken,
+    },
   ));
 
   Future<PublicVehicleModel> getVehicleByPlate(String plate) async {

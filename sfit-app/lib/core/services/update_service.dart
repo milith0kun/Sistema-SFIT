@@ -39,6 +39,9 @@ class UpdateService {
           baseUrl: ApiConstants.baseUrl,
           connectTimeout: const Duration(seconds: 6),
           receiveTimeout: const Duration(seconds: 6),
+          headers: {
+            ApiConstants.clientHeader: ApiConstants.clientToken,
+          },
         ));
         final response = await dio.get<Map<String, dynamic>>('/version');
         final body = response.data;

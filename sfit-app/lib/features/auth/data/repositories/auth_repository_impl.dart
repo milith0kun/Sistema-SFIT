@@ -20,14 +20,14 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<AuthResult> login(String email, String password) async {
     final res = await _api.login({'email': email, 'password': password});
-    return _handleAuthResponse(res.data as Map<String, dynamic>);
+    return _handleAuthResponse(_asJsonBody(res.data, res.response.statusCode));
   }
 
   // ── RF-01-01: Login Google ────────────────────────────────────
   @override
   Future<AuthResult> loginWithGoogle(String idToken) async {
     final res = await _api.loginWithGoogle({'idToken': idToken});
-    return _handleAuthResponse(res.data as Map<String, dynamic>);
+    return _handleAuthResponse(_asJsonBody(res.data, res.response.statusCode));
   }
 
   // ── RF-01-02 / RF-01-03: Registro (roles operativos → pendiente) ────────
@@ -46,7 +46,7 @@ class AuthRepositoryImpl implements AuthRepository {
       'requestedRole': requestedRole,
       if (municipalityId != null) 'municipalityId': municipalityId,
     });
-    final body = res.data as Map<String, dynamic>;
+    final body = _asJsonBody(res.data, res.response.statusCode);
     if (body['success'] != true) {
       throw AuthException(body['error'] ?? 'Error al registrarse');
     }
@@ -67,7 +67,7 @@ class AuthRepositoryImpl implements AuthRepository {
       'requestedRole': 'ciudadano',
       if (municipalityId != null) 'municipalityId': municipalityId,
     });
-    final body = res.data as Map<String, dynamic>;
+    final body = _asJsonBody(res.data, res.response.statusCode);
     if (body['success'] != true) {
       throw AuthException(body['error'] ?? 'Error al registrarse');
     }
@@ -86,7 +86,7 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       final res =
           await _api.refreshToken({'refreshToken': storedRefreshToken});
-      final body = res.data as Map<String, dynamic>;
+      final body = _asJsonBody(res.data, res.response.statusCode);
       if (body['success'] != true) return null;
 
       final data = body['data'] as Map<String, dynamic>;
@@ -126,6 +126,28 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   // ── Helpers ───────────────────────────────────────────────────
+
+  /// Valida que la respuesta del servidor sea JSON con shape `{success, ...}`.
+  /// Si llega String/HTML (Cloudflare challenge, 502 de proxy, etc.) lanza un
+  /// AuthException con mensaje claro en lugar de un cast error opaco.
+  Map<String, dynamic> _asJsonBody(dynamic data, int? statusCode) {
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    if (data is String) {
+      // Si una API JSON devolvió String, suele ser HTML (Cloudflare/proxy).
+      try {
+        final decoded = jsonDecode(data);
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      } catch (_) {}
+      final isHtml = data.trimLeft().toLowerCase().startsWith('<');
+      throw AuthException(
+        isHtml
+            ? 'El servidor está bloqueando la solicitud. Inténtalo más tarde.'
+            : 'Respuesta inválida del servidor (HTTP ${statusCode ?? '?'}).',
+      );
+    }
+    throw AuthException('Respuesta inválida del servidor (HTTP ${statusCode ?? '?'}).');
+  }
 
   Future<AuthResult> _handleAuthResponse(Map<String, dynamic> body) async {
     if (body['success'] != true) {
@@ -176,7 +198,7 @@ class AuthRepositoryImpl implements AuthRepository {
       if (phone != null) 'phone': phone.trim().isEmpty ? null : phone.trim(),
       if (dni   != null) 'dni':   dni.trim().isEmpty   ? null : dni.trim(),
     });
-    final body = res.data as Map<String, dynamic>;
+    final body = _asJsonBody(res.data, res.response.statusCode);
     if (body['success'] != true) {
       throw AuthException(body['error'] ?? 'Error al actualizar perfil');
     }
@@ -207,7 +229,7 @@ class AuthRepositoryImpl implements AuthRepository {
       throw AuthException('No hay refresh token almacenado');
     }
     final res = await _api.refreshToken({'refreshToken': refreshToken});
-    final body = res.data as Map<String, dynamic>;
+    final body = _asJsonBody(res.data, res.response.statusCode);
     if (body['success'] != true) {
       throw AuthException(body['error'] ?? 'Error al refrescar token');
     }
@@ -224,7 +246,7 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<List<Map<String, dynamic>>> fetchProvincias() async {
     final dio = _publicDio ?? _buildPublicDio();
     final res = await dio.get('/public/provincias');
-    final body = res.data as Map<String, dynamic>;
+    final body = _asJsonBody(res.data, res.statusCode);
     if (body['success'] != true) {
       throw AuthException(body['error'] ?? 'Error al obtener provincias');
     }
@@ -238,7 +260,7 @@ class AuthRepositoryImpl implements AuthRepository {
       '/public/municipalidades',
       queryParameters: {'provinceId': provinceId},
     );
-    final body = res.data as Map<String, dynamic>;
+    final body = _asJsonBody(res.data, res.statusCode);
     if (body['success'] != true) {
       throw AuthException(body['error'] ?? 'Error al obtener municipalidades');
     }
@@ -253,6 +275,7 @@ class AuthRepositoryImpl implements AuthRepository {
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
+            ApiConstants.clientHeader: ApiConstants.clientToken,
           },
           validateStatus: (s) => s != null && s < 500,
         ),

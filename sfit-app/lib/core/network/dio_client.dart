@@ -25,6 +25,7 @@ class DioClient {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          ApiConstants.clientHeader: ApiConstants.clientToken,
         },
         // Aceptar 2xx y 4xx sin tirar excepción — nuestro backend devuelve
         // errores con { success:false, error } en 400/401/403/409/422.
@@ -101,6 +102,7 @@ class _AuthInterceptor extends Interceptor {
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
+            ApiConstants.clientHeader: ApiConstants.clientToken,
           },
         ));
         final res = await refreshDio.post(
