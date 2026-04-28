@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { apiResponse, apiError } from "@/lib/api/response";
-import { consultarDni } from "@/lib/apiperu/client";
+import { consultarDni, ApiPeruError } from "@/lib/apiperu/client";
 
 const Schema = z.object({
   dni: z.string().regex(/^\d{8}$/, "DNI debe tener exactamente 8 dígitos"),
@@ -26,8 +26,18 @@ export async function POST(request: NextRequest) {
       nombre_completo: data.nombre_completo,
     });
   } catch (err) {
+    if (err instanceof ApiPeruError) {
+      console.error(`[public/validar-dni] ${err.kind}: ${err.message}`, err.code ?? "");
+      switch (err.kind) {
+        case "config":  return apiError("RENIEC no está configurado en el servidor.", 500);
+        case "origin":  return apiError("El servicio de RENIEC rechazó la solicitud: este dominio/IP no está autorizado en apiperu.dev.", 502);
+        case "auth":    return apiError("El token de apiperu.dev es inválido o expiró.", 502);
+        case "notfound": return apiError(err.message || "No se encontraron datos para ese DNI", 404);
+        default:        return apiError("No se pudo conectar con RENIEC.", 503);
+      }
+    }
     const msg = err instanceof Error ? err.message : "Error al consultar DNI";
-    console.error("[public/validar-dni]", msg);
+    console.error("[public/validar-dni] inesperado:", msg);
     return apiError("No se pudo verificar el DNI.", 503);
   }
 }

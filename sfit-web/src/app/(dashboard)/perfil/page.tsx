@@ -162,7 +162,8 @@ export default function PerfilPage() {
       const data = await res.json() as { success: boolean; data?: { nombre_completo?: string }; error?: string };
 
       if (!res.ok || !data.success || !data.data) {
-        setDniStatus(res.status === 503 ? "error" : "notfound");
+        // 404 = DNI no existe en RENIEC; 500/502/503 = problema del servicio.
+        setDniStatus(res.status === 404 ? "notfound" : "error");
         setDniMessage(data.error ?? "No se encontró información para ese DNI");
         return;
       }
