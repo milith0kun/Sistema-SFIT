@@ -44,8 +44,10 @@ const VehicleSchema = new Schema<IVehicle>(
   { timestamps: true },
 );
 
-VehicleSchema.index({ municipalityId: 1, plate: 1 }, { unique: true });
+// Placa única nacional (SUNARP).
+VehicleSchema.index({ plate: 1 }, { unique: true });
 VehicleSchema.index({ municipalityId: 1, status: 1 });
+VehicleSchema.index({ companyId: 1, status: 1 });
 
 export const Vehicle: Model<IVehicle> =
   (mongoose.models.Vehicle as Model<IVehicle> | undefined) ||

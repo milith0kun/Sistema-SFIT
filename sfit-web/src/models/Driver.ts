@@ -40,8 +40,10 @@ const DriverSchema = new Schema<IDriver>(
   { timestamps: true },
 );
 
-DriverSchema.index({ municipalityId: 1, dni: 1 }, { unique: true });
+// DNI único nacional (RENIEC).
+DriverSchema.index({ dni: 1 }, { unique: true });
 DriverSchema.index({ municipalityId: 1, status: 1 });
+DriverSchema.index({ companyId: 1, status: 1 });
 
 export const Driver: Model<IDriver> =
   (mongoose.models.Driver as Model<IDriver> | undefined) ||

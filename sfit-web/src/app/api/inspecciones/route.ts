@@ -9,6 +9,9 @@ import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { sendPushToTokens } from "@/lib/notifications/fcm";
 import { User } from "@/models/User";
+import { Vehicle } from "@/models/Vehicle";
+import { Company } from "@/models/Company";
+import { Municipality } from "@/models/Municipality";
 import { logAction } from "@/lib/audit/logAction";
 import { triggerWebhook } from "@/lib/webhooks/triggerWebhook";
 import { adjustVehicleReputation } from "@/lib/reputation/updateReputation";
@@ -125,6 +128,66 @@ export async function POST(request: NextRequest) {
     if (!municipalityId) return apiError("municipalityId requerido", 400);
 
     await connectDB();
+
+    // Política de inspecciones (Etapa 2/3 — RF derivado del marco legal):
+    //   El fiscal municipal solo puede inspeccionar vehículos cuya empresa
+    //   tiene cobertura sobre su distrito (urbano_distrital), o su provincia
+    //   (urbano_provincial). Las empresas interprovinciales/nacionales son
+    //   inspeccionables por cualquier fiscal en su jurisdicción.
+    //   super_admin queda exento de la validación.
+    if (auth.session.role !== ROLES.SUPER_ADMIN) {
+      const vehicle = await Vehicle.findById(parsed.data.vehicleId)
+        .select("companyId plate")
+        .lean<{ companyId?: unknown; plate?: string } | null>();
+      if (!vehicle) return apiError("Vehículo no encontrado", 404);
+
+      if (vehicle.companyId) {
+        const company = await Company.findById(vehicle.companyId)
+          .select("serviceScope coverage razonSocial")
+          .lean<{
+            serviceScope?: string;
+            coverage?: {
+              districtCodes?: string[];
+              provinceCodes?: string[];
+              departmentCodes?: string[];
+            };
+            razonSocial?: string;
+          } | null>();
+
+        const fiscalMuni = await Municipality.findById(municipalityId)
+          .select("ubigeoCode provinceCode departmentCode")
+          .lean<{
+            ubigeoCode?: string;
+            provinceCode?: string;
+            departmentCode?: string;
+          } | null>();
+
+        if (company && fiscalMuni) {
+          const scope = company.serviceScope ?? "urbano_distrital";
+          const cov = company.coverage ?? {};
+
+          let allowed = false;
+          if (scope === "urbano_distrital") {
+            allowed = !!fiscalMuni.ubigeoCode &&
+              (cov.districtCodes ?? []).includes(fiscalMuni.ubigeoCode);
+          } else if (scope === "urbano_provincial") {
+            allowed = !!fiscalMuni.provinceCode &&
+              (cov.provinceCodes ?? []).includes(fiscalMuni.provinceCode);
+          } else {
+            // interprovincial_regional / interregional_nacional
+            allowed = true;
+          }
+
+          if (!allowed) {
+            return apiError(
+              `El vehículo ${vehicle.plate ?? ""} pertenece a "${company.razonSocial}" ` +
+              `(${scope}) y no opera en su jurisdicción. No puede inspeccionarse aquí.`,
+              422,
+            );
+          }
+        }
+      }
+    }
 
     const created = await Inspection.create({
       municipalityId,

@@ -13,6 +13,7 @@ import {
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
+import { Municipality } from "@/models/Municipality";
 
 const RepresentanteLegalSchema = z.object({
   name: z.string().min(2).max(160),
@@ -114,6 +115,9 @@ export async function GET(request: NextRequest) {
         active: c.active,
         suspendedAt: c.suspendedAt,
         reputationScore: c.reputationScore,
+        serviceScope: c.serviceScope,
+        coverage: c.coverage,
+        authorizations: c.authorizations,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
       })),
@@ -169,16 +173,26 @@ export async function POST(request: NextRequest) {
       return apiForbidden();
     }
 
-    const duplicate = await Company.findOne({
-      municipalityId,
-      ruc: parsed.data.ruc,
-    });
+    // RUC único nacional (SUNAT).
+    const duplicate = await Company.findOne({ ruc: parsed.data.ruc });
     if (duplicate) {
       return apiError(
-        "Ya existe una empresa con ese RUC en la municipalidad",
+        "Ya existe una empresa nacional con ese RUC",
         409,
       );
     }
+
+    // Para empresas creadas por este endpoint (admin_municipal o super_admin
+    // operando sobre una municipalidad concreta), inferimos serviceScope =
+    // urbano_distrital y poblamos coverage desde el ubigeoCode de la sede.
+    const muniDoc = await Municipality.findById(municipalityId)
+      .select("ubigeoCode provinceCode departmentCode name")
+      .lean<{
+        ubigeoCode?: string;
+        provinceCode?: string;
+        departmentCode?: string;
+        name?: string;
+      } | null>();
 
     const created = await Company.create({
       municipalityId,
@@ -188,6 +202,19 @@ export async function POST(request: NextRequest) {
       vehicleTypeKeys: parsed.data.vehicleTypeKeys ?? [],
       documents: parsed.data.documents ?? [],
       active: parsed.data.active ?? true,
+      serviceScope: "urbano_distrital",
+      coverage: {
+        districtCodes:   muniDoc?.ubigeoCode    ? [muniDoc.ubigeoCode]    : [],
+        provinceCodes:   muniDoc?.provinceCode  ? [muniDoc.provinceCode]  : [],
+        departmentCodes: muniDoc?.departmentCode ? [muniDoc.departmentCode] : [],
+      },
+      authorizations: [
+        {
+          level: "municipal_distrital",
+          scope: "urbano_distrital",
+          issuedBy: muniDoc?.name ? `Municipalidad de ${muniDoc.name}` : undefined,
+        },
+      ],
     });
 
     return apiResponse(
@@ -202,6 +229,9 @@ export async function POST(request: NextRequest) {
         active: created.active,
         suspendedAt: created.suspendedAt,
         reputationScore: created.reputationScore,
+        serviceScope: created.serviceScope,
+        coverage: created.coverage,
+        authorizations: created.authorizations,
         createdAt: created.createdAt,
         updatedAt: created.updatedAt,
       },
