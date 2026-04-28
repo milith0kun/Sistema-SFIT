@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     return apiResponse({
       accessToken,
       refreshToken,
-      expiresIn: 15 * 60,
+      expiresIn: 2 * 60 * 60,
       user: {
         id: user._id.toString(),
         name: user.name,
@@ -120,6 +120,8 @@ export async function POST(request: NextRequest) {
         provinceId: user.provinceId?.toString(),
         phone: user.phone ?? null,
         dni:   user.dni   ?? null,
+        profileCompleted:   user.profileCompleted   ?? true,
+        mustChangePassword: user.mustChangePassword ?? false,
       },
     });
   } catch (error) {

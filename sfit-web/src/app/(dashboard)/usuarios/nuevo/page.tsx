@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, UserPlus, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { ArrowLeft, UserPlus, Eye, EyeOff, RefreshCw, Loader2, CheckCircle, AlertTriangle, Search } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+
+type DniLookup =
+  | { state: "idle" }
+  | { state: "loading" }
+  | { state: "ok"; nombreCompleto: string }
+  | { state: "not_found" }
+  | { state: "error"; message: string };
 
 type Province     = { id: string; name: string };
 type Municipality = { id: string; name: string; provinceId: string };
@@ -79,6 +86,14 @@ export default function NuevoUsuarioPage() {
   const [selProv,  setSelProv]  = useState("");
   const [selMuni,  setSelMuni]  = useState("");
   const [selStatus, setSelStatus] = useState<"activo" | "pendiente">("activo");
+  // Flujo híbrido: por default el super_admin solo carga lo institucional;
+  // el usuario completa DNI/teléfono y cambia password al primer login.
+  // Si el admin ya tiene los datos a mano, puede marcar "Completar perfil ahora".
+  const [completeNow, setCompleteNow] = useState(false);
+  const [dni,   setDni]   = useState("");
+  const [phone, setPhone] = useState("");
+  const [dniLookup, setDniLookup] = useState<DniLookup>({ state: "idle" });
+  const lookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
@@ -94,6 +109,35 @@ export default function NuevoUsuarioPage() {
     void loadRefs();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-lookup RENIEC al tipear los 8 dígitos del DNI (solo si "completar ahora" está activo)
+  useEffect(() => {
+    if (lookupTimer.current) clearTimeout(lookupTimer.current);
+    if (!completeNow || !/^\d{8}$/.test(dni)) {
+      if (dniLookup.state !== "idle") setDniLookup({ state: "idle" });
+      return;
+    }
+    setDniLookup({ state: "loading" });
+    lookupTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/validar/dni", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+          body: JSON.stringify({ dni }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          setDniLookup({ state: "not_found" });
+          return;
+        }
+        setDniLookup({ state: "ok", nombreCompleto: data.data.nombre_completo });
+      } catch {
+        setDniLookup({ state: "error", message: "No se pudo verificar el DNI." });
+      }
+    }, 350);
+    return () => { if (lookupTimer.current) clearTimeout(lookupTimer.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dni, completeNow]);
 
   async function loadRefs() {
     try {
@@ -127,6 +171,10 @@ export default function NuevoUsuarioPage() {
     if (password.length < 8) errs.password = "Mínimo 8 caracteres";
     if (meta.needsProv && !selProv)  errs.provinceId     = "Selecciona la provincia";
     if (meta.needsMuni && !selMuni)  errs.municipalityId = "Selecciona la municipalidad";
+    if (completeNow) {
+      if (!/^\d{6,12}$/.test(dni.trim()))   errs.dni   = "DNI debe tener entre 6 y 12 dígitos";
+      if (phone.trim().length < 7)          errs.phone = "Teléfono requerido";
+    }
 
     if (Object.keys(errs).length > 0) { setFieldErrors(errs); return; }
 
@@ -143,6 +191,10 @@ export default function NuevoUsuarioPage() {
           status:         selStatus,
           provinceId:     meta.needsProv ? (selProv || undefined) : undefined,
           municipalityId: meta.needsMuni ? (selMuni || undefined) : undefined,
+          // Flujo híbrido: password siempre temporal (el usuario la cambia al primer login).
+          passwordIsTemporary: true,
+          completeProfileNow:  completeNow,
+          ...(completeNow ? { dni: dni.trim(), phone: phone.trim() } : {}),
         }),
       });
       const data = await res.json() as {
@@ -276,7 +328,7 @@ export default function NuevoUsuarioPage() {
                     </div>
                     <FieldErr k="password" />
                     <p style={{ fontSize: "0.75rem", color: INK5, marginTop: 6 }}>
-                      Comparte esta contraseña con el usuario. Podrá cambiarla desde su perfil.
+                      Es una contraseña <strong>temporal</strong> — el usuario deberá cambiarla en su primer ingreso. Compártesela por canal seguro.
                     </p>
                   </div>
                 </div>
@@ -339,6 +391,129 @@ export default function NuevoUsuarioPage() {
                           </svg>
                         </div>
                         <FieldErr k="municipalityId" />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Onboarding — completar perfil ahora (opcional) */}
+            <div style={card}>
+              <div style={cardHead}>Datos personales del usuario</div>
+              <div style={cardBody}>
+                <label style={{
+                  display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer",
+                  padding: "10px 12px", borderRadius: 9,
+                  border: `1.5px solid ${completeNow ? INK9 : INK2}`,
+                  background: completeNow ? INK1 : "#fff",
+                  transition: "all 0.15s",
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={completeNow}
+                    onChange={(e) => setCompleteNow(e.target.checked)}
+                    style={{ marginTop: 2, accentColor: INK9, cursor: "pointer" }}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9 }}>
+                      Completar perfil del usuario ahora
+                    </div>
+                    <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 2, lineHeight: 1.4 }}>
+                      Si dejás esto desmarcado, el usuario completará DNI y teléfono en su primer ingreso.
+                      Marcalo solo si vos ya tenés esos datos a mano.
+                    </div>
+                  </div>
+                </label>
+
+                {completeNow && (
+                  <div style={{ marginTop: 16 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                      <div>
+                        <label style={LABEL}>
+                          DNI <span style={{ color: RED }}>*</span>
+                          <span style={{ color: INK5, fontWeight: 500, textTransform: "none", letterSpacing: 0, marginLeft: 6 }}>
+                            (verificación RENIEC)
+                          </span>
+                        </label>
+                        <div style={{ position: "relative" }}>
+                          <input
+                            value={dni}
+                            onChange={(e) => setDni(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                            placeholder="12345678"
+                            inputMode="numeric"
+                            style={{ ...FIELD,
+                                     fontFamily: "ui-monospace,monospace",
+                                     paddingRight: 40,
+                                     borderColor: fieldErrors.dni ? RED
+                                                : dniLookup.state === "ok" ? GRN : INK2 }}
+                          />
+                          <div style={{
+                            position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+                            pointerEvents: "none",
+                          }}>
+                            {dniLookup.state === "loading" && <Loader2 size={16} color={INK5} style={{ animation: "spin 0.7s linear infinite" }} />}
+                            {dniLookup.state === "ok"      && <CheckCircle size={16} color={GRN} />}
+                            {dniLookup.state === "not_found" && <Search size={16} color={INK5} />}
+                            {dniLookup.state === "error"   && <AlertTriangle size={16} color={RED} />}
+                          </div>
+                        </div>
+                        <FieldErr k="dni" />
+                      </div>
+                      <div>
+                        <label style={LABEL}>Teléfono <span style={{ color: RED }}>*</span></label>
+                        <input
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="+51 999 999 999"
+                          style={{ ...FIELD, borderColor: fieldErrors.phone ? RED : INK2 }}
+                        />
+                        <FieldErr k="phone" />
+                      </div>
+                    </div>
+
+                    {dniLookup.state === "ok" && (
+                      <div style={{
+                        marginTop: 10, padding: "10px 14px",
+                        background: GRN_BG, border: `1.5px solid ${GRN_BD}`, borderRadius: 9,
+                        display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between",
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                          <CheckCircle size={14} color={GRN} style={{ flexShrink: 0 }} />
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: "0.6875rem", fontWeight: 700, color: GRN, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                              RENIEC
+                            </div>
+                            <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9 }}>
+                              {dniLookup.nombreCompleto}
+                            </div>
+                          </div>
+                        </div>
+                        {name.trim().toLowerCase() !== dniLookup.nombreCompleto.toLowerCase() && (
+                          <button
+                            type="button"
+                            onClick={() => setName(dniLookup.nombreCompleto)}
+                            style={{
+                              height: 30, padding: "0 12px", borderRadius: 8,
+                              border: `1.5px solid ${GRN}`, background: "#fff", color: GRN,
+                              fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                              flexShrink: 0,
+                            }}
+                          >
+                            Usar este nombre
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {dniLookup.state === "not_found" && (
+                      <div style={{
+                        marginTop: 10, padding: "10px 14px",
+                        background: "#FFFBEB", border: "1.5px solid #FDE68A", borderRadius: 9,
+                        fontSize: "0.75rem", color: "#92400E",
+                        display: "flex", alignItems: "center", gap: 8,
+                      }}>
+                        <AlertTriangle size={13} />
+                        DNI no encontrado en RENIEC. Verificar antes de guardar.
                       </div>
                     )}
                   </div>

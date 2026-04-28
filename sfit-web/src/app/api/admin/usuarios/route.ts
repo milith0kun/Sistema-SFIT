@@ -115,6 +115,13 @@ const CreateSchema = z.object({
   provinceId:     z.string().refine(v => !v || isValidObjectId(v), "provinceId inválido").optional(),
   municipalityId: z.string().refine(v => !v || isValidObjectId(v), "municipalityId inválido").optional(),
   status:         z.enum(["activo", "pendiente"]).default("activo"),
+
+  // Datos opcionales — si super_admin elige "completar perfil ahora"
+  dni:                z.string().regex(/^\d{6,12}$/, "DNI inválido").optional(),
+  phone:              z.string().min(7).max(30).optional(),
+  // Flags de onboarding (se calculan: por default, password temporal + perfil incompleto)
+  completeProfileNow: z.boolean().default(false),
+  passwordIsTemporary: z.boolean().default(true),
 });
 
 export async function POST(request: NextRequest) {
@@ -135,7 +142,10 @@ export async function POST(request: NextRequest) {
     return apiValidationError(errors);
   }
 
-  const { name, email, password, role, provinceId, municipalityId, status } = parsed.data;
+  const {
+    name, email, password, role, provinceId, municipalityId, status,
+    dni, phone, completeProfileNow, passwordIsTemporary,
+  } = parsed.data;
 
   try {
     await connectDB();
@@ -143,7 +153,16 @@ export async function POST(request: NextRequest) {
     const existing = await User.findOne({ email });
     if (existing) return apiError("El correo ya está registrado", 409);
 
+    if (dni) {
+      const dupDni = await User.findOne({ dni });
+      if (dupDni) return apiError("El DNI ya está registrado en otra cuenta", 409);
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Si el super_admin marcó "completar perfil ahora" Y aportó DNI → perfil completo.
+    // Si no, queda incompleto y el usuario lo cierra al primer login.
+    const profileCompleted = completeProfileNow && !!dni;
 
     const user = await User.create({
       name,
@@ -155,6 +174,10 @@ export async function POST(request: NextRequest) {
       status,
       provinceId:     provinceId     || undefined,
       municipalityId: municipalityId || undefined,
+      dni:            dni            || undefined,
+      phone:          phone          || undefined,
+      profileCompleted,
+      mustChangePassword: passwordIsTemporary,
     });
 
     // Generar tokens para que el admin pueda ver el ID y el usuario pueda hacer login inmediato

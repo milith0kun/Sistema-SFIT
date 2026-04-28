@@ -11,9 +11,9 @@ export interface JwtPayload {
   provinceId?: string;
 }
 
-/** Access token: 15 minutos (RF-01-08) */
+/** Access token: 2 horas (RF-01-08) */
 export function signAccessToken(payload: JwtPayload): string {
-  return jwt.sign(payload, ACCESS_SECRET, { expiresIn: "15m" });
+  return jwt.sign(payload, ACCESS_SECRET, { expiresIn: "2h" });
 }
 
 /** Refresh token: 7 días (RF-01-08) */

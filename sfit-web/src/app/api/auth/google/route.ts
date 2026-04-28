@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
     return apiResponse({
       accessToken,
       refreshToken,
-      expiresIn: 15 * 60,
+      expiresIn: 2 * 60 * 60,
       user: {
         id: user._id.toString(),
         name: user.name,

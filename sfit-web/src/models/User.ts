@@ -27,6 +27,10 @@ export interface IUser extends Document {
   phone?: string;
   dni?: string;
 
+  // Onboarding (RF-01-13)
+  profileCompleted: boolean;     // false hasta que el usuario complete DNI/teléfono al primer login
+  mustChangePassword: boolean;   // true cuando super_admin asignó password temporal
+
   // FCM Push Tokens (RF-18)
   fcmTokens: string[];
 
@@ -106,6 +110,10 @@ const UserSchema = new Schema<IUser>(
     // Perfil
     phone: { type: String },
     dni: { type: String },
+
+    // Onboarding
+    profileCompleted: { type: Boolean, default: false },
+    mustChangePassword: { type: Boolean, default: false },
 
     // FCM Push Tokens (RF-18)
     fcmTokens: { type: [String], default: [] },

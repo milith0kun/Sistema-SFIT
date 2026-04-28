@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     return apiResponse({
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
-      expiresIn: 15 * 60,
+      expiresIn: 2 * 60 * 60,
     });
   } catch (error) {
     console.error("[refresh]", error);
