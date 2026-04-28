@@ -212,12 +212,9 @@ export default function RegisterPage() {
         />
 
         <div className="mb-8">
-          <div className="mb-6 animate-fade-in flex justify-center w-full">
-            <img src="/logo-vertical.svg" alt="SFIT Logo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
-          </div>
           <p className="kicker animate-fade-up text-center w-full">Solicitud de acceso</p>
           <h1
-            className="mt-4 font-bold text-[#09090b] animate-fade-up delay-50 text-center w-full"
+            className="mt-3 font-bold text-[#09090b] animate-fade-up delay-50 text-center w-full"
             style={{ fontSize: "clamp(1.625rem, 3.5vw, 2rem)", lineHeight: 1.15, letterSpacing: "-0.02em" }}
           >
             Tipo de usuario

@@ -376,6 +376,10 @@ body {
 }
 
 /* ── Feature card hover (landing) ── */
+/* Nav link en home (sobre fondo navy) */
+.nav-secondary { color: rgba(255,255,255,0.78); }
+.nav-secondary:hover { color: #ffffff; background: rgba(255,255,255,0.06); }
+
 .feature-card {
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
@@ -383,6 +387,14 @@ body {
   border-color: var(--color-primary) !important;
   box-shadow: 0 0 0 1px var(--color-primary), 0 8px 24px rgba(108, 6, 6, 0.10);
   transform: translateY(-2px);
+}
+.feature-card > div:first-child > div:first-child {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease;
+}
+.feature-card:hover > div:first-child > div:first-child {
+  transform: scale(1.06) rotate(-2deg);
+  background: #6C0606 !important;
+  color: #ffffff !important;
 }
 
 /* ── Ghost button (dark bg contexts) ── */
