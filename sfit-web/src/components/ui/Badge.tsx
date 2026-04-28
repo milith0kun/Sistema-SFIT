@@ -16,9 +16,9 @@ const VARIANTS: Record<BadgeVariant, { bg: string; color: string; border: string
   activo:     { bg: "#F0FDF4", color: "#15803d", border: "#86EFAC" },
   inactivo:   { bg: "#F4F4F5", color: "#52525b", border: "#E4E4E7" },
   pendiente:  { bg: "#FFFBEB", color: "#b45309", border: "#FCD34D" },
-  suspendido: { bg: "#FFF5F5", color: "#b91c1c", border: "#FCA5A5" },
+  suspendido: { bg: "#FFF5F5", color: "#DC2626", border: "#FCA5A5" },
   info:       { bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE" },
-  gold:       { bg: "#FDF8EC", color: "#926A09", border: "#E8D090" },
+  gold:       { bg: "#FBEAEA", color: "#4A0303", border: "#D9B0B0" },
 };
 
 export function Badge({

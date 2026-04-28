@@ -20,8 +20,8 @@ class SfitApp extends ConsumerWidget {
       title: 'SFIT',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.lightTheme,
-      themeMode: ThemeMode.light,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
       routerConfig: router,
       // El builder se ejecuta en cada ruta; _UpdateWrapper garantiza
       // que el check se dispare una sola vez al primer frame.

@@ -29,16 +29,16 @@ const VARIANTS: Record<StatusVariant, StatusDef> = {
   activo:        { label: "Activo",         color: "#15803d", bg: "#ECFDF5", dot: "#15803d" },
   apto:          { label: "Apto",           color: "#15803d", bg: "#ECFDF5", dot: "#15803d" },
   // Gold en ruta
-  en_ruta:       { label: "En ruta",        color: "#B8860B", bg: "#FDF8EC", dot: "#D4A827" },
+  en_ruta:       { label: "En ruta",        color: "#6C0606", bg: "#FBEAEA", dot: "#8B1414" },
   // Naranja riesgo / pendiente / mantenimiento
   pendiente:     { label: "Pendiente",      color: "#B45309", bg: "#FFF7ED", dot: "#B45309" },
   riesgo:        { label: "Riesgo",         color: "#B45309", bg: "#FFF7ED", dot: "#B45309" },
   mantenimiento: { label: "Mantenimiento",  color: "#B45309", bg: "#FFF7ED", dot: "#B45309" },
   // Rojo
-  suspendido:    { label: "Suspendido",     color: "#b91c1c", bg: "#FEF2F2", dot: "#b91c1c" },
-  no_apto:       { label: "No apto",        color: "#b91c1c", bg: "#FEF2F2", dot: "#b91c1c" },
-  rechazado:     { label: "Rechazado",      color: "#b91c1c", bg: "#FEF2F2", dot: "#b91c1c" },
-  fuera_servicio:{ label: "Fuera servicio", color: "#b91c1c", bg: "#FEF2F2", dot: "#b91c1c" },
+  suspendido:    { label: "Suspendido",     color: "#DC2626", bg: "#FEF2F2", dot: "#DC2626" },
+  no_apto:       { label: "No apto",        color: "#DC2626", bg: "#FEF2F2", dot: "#DC2626" },
+  rechazado:     { label: "Rechazado",      color: "#DC2626", bg: "#FEF2F2", dot: "#DC2626" },
+  fuera_servicio:{ label: "Fuera servicio", color: "#DC2626", bg: "#FEF2F2", dot: "#DC2626" },
   // Neutro
   inactivo:      { label: "Inactivo",       color: "#52525b", bg: "#F4F4F5", dot: "#71717a" },
 };

@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!driver) {
-    return apiNotFound("No se encontró un registro de conductor asociado a tu cuenta");
+    return apiNotFound("No se encontró un registro de conductor asociado a su cuenta");
   }
 
   return apiResponse({

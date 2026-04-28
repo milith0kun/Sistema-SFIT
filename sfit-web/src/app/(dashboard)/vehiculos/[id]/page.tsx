@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 // ─── paleta ───────────────────────────────────────────────────────────────────
 const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
 const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB"; const RIESGOBD = "#FCD34D";
-const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
+const NO = "#DC2626"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -562,7 +562,7 @@ export default function VehiculoDetallePage({ params }: Props) {
             {/* Placa */}
             <div>
               <label htmlFor="plate" style={{ display: "block", marginBottom: 8 }}>
-                Placa <span style={{ color: "#b91c1c" }}>*</span>
+                Placa <span style={{ color: "#DC2626" }}>*</span>
               </label>
               <input
                 id="plate"
@@ -576,7 +576,7 @@ export default function VehiculoDetallePage({ params }: Props) {
                 style={{ fontFamily: "ui-monospace,monospace", letterSpacing: "0.05em" }}
               />
               {fieldErrors.plate && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
                   {fieldErrors.plate}
                 </p>
               )}
@@ -585,7 +585,7 @@ export default function VehiculoDetallePage({ params }: Props) {
             {/* Tipo de vehículo */}
             <div>
               <label htmlFor="vehicleTypeKey" style={{ display: "block", marginBottom: 8 }}>
-                Tipo de vehículo <span style={{ color: "#b91c1c" }}>*</span>
+                Tipo de vehículo <span style={{ color: "#DC2626" }}>*</span>
               </label>
               <select
                 id="vehicleTypeKey"
@@ -602,7 +602,7 @@ export default function VehiculoDetallePage({ params }: Props) {
                 ))}
               </select>
               {fieldErrors.vehicleTypeKey && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
                   {fieldErrors.vehicleTypeKey}
                 </p>
               )}
@@ -634,7 +634,7 @@ export default function VehiculoDetallePage({ params }: Props) {
             {/* Marca */}
             <div>
               <label htmlFor="brand" style={{ display: "block", marginBottom: 8 }}>
-                Marca <span style={{ color: "#b91c1c" }}>*</span>
+                Marca <span style={{ color: "#DC2626" }}>*</span>
               </label>
               <input
                 id="brand"
@@ -647,7 +647,7 @@ export default function VehiculoDetallePage({ params }: Props) {
                 disabled={submitting || !canEdit}
               />
               {fieldErrors.brand && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
                   {fieldErrors.brand}
                 </p>
               )}
@@ -656,7 +656,7 @@ export default function VehiculoDetallePage({ params }: Props) {
             {/* Modelo */}
             <div>
               <label htmlFor="model" style={{ display: "block", marginBottom: 8 }}>
-                Modelo <span style={{ color: "#b91c1c" }}>*</span>
+                Modelo <span style={{ color: "#DC2626" }}>*</span>
               </label>
               <input
                 id="model"
@@ -669,7 +669,7 @@ export default function VehiculoDetallePage({ params }: Props) {
                 disabled={submitting || !canEdit}
               />
               {fieldErrors.model && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
                   {fieldErrors.model}
                 </p>
               )}
@@ -678,7 +678,7 @@ export default function VehiculoDetallePage({ params }: Props) {
             {/* Año */}
             <div>
               <label htmlFor="year" style={{ display: "block", marginBottom: 8 }}>
-                Año de fabricación <span style={{ color: "#b91c1c" }}>*</span>
+                Año de fabricación <span style={{ color: "#DC2626" }}>*</span>
               </label>
               <input
                 id="year"
@@ -692,7 +692,7 @@ export default function VehiculoDetallePage({ params }: Props) {
                 disabled={submitting || !canEdit}
               />
               {fieldErrors.year && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
                   {fieldErrors.year}
                 </p>
               )}

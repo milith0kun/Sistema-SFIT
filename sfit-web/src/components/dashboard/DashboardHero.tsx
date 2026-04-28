@@ -28,13 +28,13 @@ export function DashboardHero({ kicker, title, subtitle, pills, children }: Dash
         position: "relative",
         overflow: "hidden",
         color: "#fff",
-        border: "1px solid rgba(212, 168, 39, 0.10)",
+        border: "1px solid rgba(139, 20, 20, 0.10)",
       }}
     >
       {/* Acento dorado tenue — esquina superior derecha */}
       <div aria-hidden style={{
         position: "absolute", top: -40, right: -40, width: 180, height: 180,
-        background: "radial-gradient(circle, rgba(184,134,11,0.12) 0%, transparent 60%)",
+        background: "radial-gradient(circle, rgba(108,6,6,0.12) 0%, transparent 60%)",
         pointerEvents: "none",
       }} />
 
@@ -42,7 +42,7 @@ export function DashboardHero({ kicker, title, subtitle, pills, children }: Dash
         <div style={{ minWidth: 0, flex: "1 1 260px" }}>
           <div style={{
             fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.16em",
-            color: "#D4A827", textTransform: "uppercase", marginBottom: 6,
+            color: "#8B1414", textTransform: "uppercase", marginBottom: 6,
           }}>
             {kicker}
           </div>
@@ -76,7 +76,7 @@ function QuickStatPill({ label, value, warn }: { label: string; value: ReactNode
     <div
       style={{
         background: warn ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.05)",
-        borderLeft: `2px solid ${warn ? "#FCA5A5" : "rgba(212,168,39,0.45)"}`,
+        borderLeft: `2px solid ${warn ? "#FCA5A5" : "rgba(139,20,20,0.45)"}`,
         borderRadius: 0,
         padding: "4px 14px",
         minWidth: 78,

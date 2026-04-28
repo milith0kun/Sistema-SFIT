@@ -28,8 +28,8 @@ type DriverOpt = { id: string; name: string };
 
 const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
 const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB"; const RIESGOBD = "#FCD34D";
-const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
-const G = "#B8860B"; const GD = "#926A09"; const GBG = "#FDF8EC"; const GBR = "#E8D090";
+const NO = "#DC2626"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
+const G = "#6C0606"; const GD = "#4A0303"; const GBG = "#FBEAEA"; const GBR = "#D9B0B0";
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 
 function StepFlow({ status }: { status: SanctionStatus }) {
@@ -158,11 +158,11 @@ export default function SancionesPage() {
 
   const handleSubmit = async () => {
     const faultTypeValue = form.faultType === "Otra infracción" ? form.faultTypeCustom.trim() : form.faultType;
-    if (!form.vehicleId) { setFormError("Selecciona un vehículo"); return; }
+    if (!form.vehicleId) { setFormError("Seleccione un vehículo"); return; }
     if (!faultTypeValue) { setFormError("Ingresa el tipo de infracción"); return; }
     const amountSoles = parseFloat(form.amountSoles);
     if (isNaN(amountSoles) || amountSoles < 0) { setFormError("Monto inválido"); return; }
-    if (!form.amountUIT) { setFormError("Selecciona el monto en UIT"); return; }
+    if (!form.amountUIT) { setFormError("Seleccione el monto en UIT"); return; }
 
     setSubmitting(true); setFormError(null);
     try {
@@ -392,7 +392,7 @@ export default function SancionesPage() {
             </div>
           </div>
         ) : (
-          <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", color: INK5, padding: 40 }}>Selecciona una sanción</div>
+          <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", color: INK5, padding: 40 }}>Seleccione una sanción</div>
         )}
       </div>
 
@@ -414,7 +414,7 @@ export default function SancionesPage() {
                 <label style={labelStyle}>VEHÍCULO *</label>
                 <select value={form.vehicleId} onChange={e => setForm(f => ({ ...f, vehicleId: e.target.value }))}
                   style={{ ...inputStyle, appearance: "auto" }}>
-                  <option value="">Selecciona un vehículo…</option>
+                  <option value="">Seleccione un vehículo…</option>
                   {vehicles.map(v => <option key={v.id} value={v.id}>{v.plate}</option>)}
                 </select>
                 {vehicles.length === 0 && <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 4 }}>Cargando vehículos…</div>}
@@ -435,7 +435,7 @@ export default function SancionesPage() {
                 <label style={labelStyle}>TIPO DE INFRACCIÓN *</label>
                 <select value={form.faultType} onChange={e => setForm(f => ({ ...f, faultType: e.target.value, faultTypeCustom: "" }))}
                   style={{ ...inputStyle, appearance: "auto" }}>
-                  <option value="">Selecciona un tipo…</option>
+                  <option value="">Seleccione un tipo…</option>
                   {FAULT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
                 {form.faultType === "Otra infracción" && (

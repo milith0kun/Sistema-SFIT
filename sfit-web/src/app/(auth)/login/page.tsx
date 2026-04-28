@@ -97,7 +97,7 @@ export default function LoginPage() {
       document.cookie = `sfit_access_token=${data.data.accessToken}; path=/; max-age=900; SameSite=Lax`;
       router.push(destForStatus(data.data.user.status));
     } catch {
-      setError("Error de conexión con Google. Intenta nuevamente.");
+      setError("Error de conexión con Google. Intente nuevamente.");
     } finally {
       setGoogleLoading(false);
     }
@@ -139,7 +139,7 @@ export default function LoginPage() {
       document.cookie = `sfit_access_token=${data.data.accessToken}; path=/; max-age=900; SameSite=Lax`;
       router.push(destForStatus(data.data.user.status));
     } catch {
-      setError("Error de conexión. Intenta nuevamente.");
+      setError("Error de conexión. Intente nuevamente.");
     } finally {
       setLoading(false);
     }
@@ -156,26 +156,25 @@ export default function LoginPage() {
           Acceso al sistema
         </p>
         <h1
-          className="mt-5 font-black text-[#09090b] animate-fade-up delay-50 text-center w-full"
+          className="mt-5 font-bold text-[#09090b] animate-fade-up delay-50 text-center w-full"
           style={{
-            fontFamily: "var(--font-syne)",
-            fontSize: "2.75rem",
-            lineHeight: 0.95,
-            letterSpacing: "-0.035em",
+            fontSize: "clamp(1.75rem, 4vw, 2.5rem)",
+            lineHeight: 1.1,
+            letterSpacing: "-0.025em",
           }}
         >
-          Ingresar
+          Ingreso al sistema
         </h1>
         <p
           className="mt-4 animate-fade-up delay-100 text-center w-full"
           style={{
             color: "#52525b",
-            fontSize: "1.0625rem",
-            lineHeight: 1.55,
+            fontSize: "1rem",
+            lineHeight: 1.6,
             fontWeight: 400,
           }}
         >
-          Credenciales institucionales requeridas para<br />acceder al sistema de fiscalización.
+          Acceso restringido al personal autorizado mediante credenciales institucionales.
         </p>
       </div>
 
@@ -230,11 +229,11 @@ export default function LoginPage() {
             <Link
               href="/reset-password"
               className="transition-colors"
-              style={{ color: "#B8860B", fontSize: "0.8125rem", fontWeight: 600 }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#926A09")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#B8860B")}
+              style={{ color: "#6C0606", fontSize: "0.8125rem", fontWeight: 600 }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#4A0303")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "#6C0606")}
             >
-              ¿Olvidaste tu contraseña?
+              ¿Olvidó su contraseña?
             </Link>
           </div>
           <div className="relative">
@@ -278,7 +277,7 @@ export default function LoginPage() {
                 <span>Verificando…</span>
               </>
             ) : (
-              "Ingresar al sistema"
+              "Acceso al sistema"
             )}
           </button>
         </div>
@@ -331,13 +330,13 @@ export default function LoginPage() {
         className="mt-9 text-center animate-fade-up delay-500"
         style={{ fontSize: "0.9375rem", color: "#52525B", fontWeight: 400 }}
       >
-        ¿No tienes cuenta?{" "}
+        ¿No cuenta con un usuario?{" "}
         <Link
           href="/register"
           className="transition-colors"
-          style={{ color: "#B8860B", fontWeight: 600 }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#926A09")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "#B8860B")}
+          style={{ color: "#6C0606", fontWeight: 600 }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#4A0303")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#6C0606")}
         >
           Solicitar acceso
         </Link>

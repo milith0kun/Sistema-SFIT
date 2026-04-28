@@ -24,8 +24,8 @@ type Inspection = {
 
 const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
 const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB"; const RIESGOBD = "#FCD34D";
-const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
-const G = "#B8860B"; const GD = "#926A09"; const GBG = "#FDF8EC"; const GBR = "#E8D090";
+const NO = "#DC2626"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
+const G = "#6C0606"; const GD = "#4A0303"; const GBG = "#FBEAEA"; const GBR = "#D9B0B0";
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 
 function fmtDate(d: string) {
@@ -232,7 +232,7 @@ export default function InspeccionesPage() {
               <div style={{ fontSize: "1.5rem", fontWeight: 800, color: G, marginTop: 4 }}>
                 {items.length ? `${Math.round((aprobadas / items.length) * 100)}%` : "—"}
               </div>
-              <div style={{ height: 6, background: "rgba(184,134,11,.15)", borderRadius: 999, marginTop: 8, overflow: "hidden" }}>
+              <div style={{ height: 6, background: "rgba(108,6,6,.15)", borderRadius: 999, marginTop: 8, overflow: "hidden" }}>
                 <span style={{ display: "block", height: "100%", borderRadius: 999, background: G, width: items.length ? `${(aprobadas / items.length) * 100}%` : "0%" }} />
               </div>
             </div>

@@ -18,8 +18,8 @@ type RouteItem = {
   waypoints?: Waypoint[];
 };
 
-const G = "#B8860B"; const GD = "#926A09"; const GBG = "#FDF8EC";
-const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
+const G = "#6C0606"; const GD = "#4A0303"; const GBG = "#FBEAEA";
+const NO = "#DC2626"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 
 
@@ -195,7 +195,7 @@ export default function RutasPage() {
               </div>
             </div>
           </div>
-        ) : <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", color: INK5, padding: 40 }}>Selecciona una {tab === "ruta" ? "ruta" : "zona"}</div>}
+        ) : <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", color: INK5, padding: 40 }}>Seleccione una {tab === "ruta" ? "ruta" : "zona"}</div>}
       </div>
     </div>
   );

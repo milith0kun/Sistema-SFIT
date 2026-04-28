@@ -39,8 +39,10 @@ function loadMapsApi(key: string): Promise<void> {
   return _mapsLoading;
 }
 
+// "gold" se mantiene como nombre de variante por compatibilidad,
+// pero ahora apunta al marcador rojo del primary institucional.
 const MARKER_COLORS: Record<string, string> = {
-  gold: "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png",
+  gold: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
   red: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
   green: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
   blue: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
@@ -126,7 +128,7 @@ export function GoogleMapView({
         polylineRef.current = new g.maps.Polyline({
           path: polyline,
           geodesic: true,
-          strokeColor: "#B8860B",
+          strokeColor: "#6C0606",
           strokeOpacity: 0.9,
           strokeWeight: 4,
           map: mapRef.current,

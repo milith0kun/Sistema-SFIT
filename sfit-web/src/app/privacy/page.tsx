@@ -151,7 +151,7 @@ export default function PrivacyPage() {
         <p>
           Si tienes preguntas sobre esta política de privacidad, puedes contactarnos a través
           del correo electrónico del administrador del sistema o mediante los canales oficiales
-          de tu municipalidad.
+          de su municipalidad.
         </p>
       </section>
 

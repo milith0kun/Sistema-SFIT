@@ -24,8 +24,8 @@ export function HeroActionCard({
 }: HeroActionCardProps) {
   const [hover, setHover] = useState(false);
 
-  const bg = accent === "gold" ? "#B8860B" : "#0A1628";
-  const bgHover = accent === "gold" ? "#926A09" : "#111F38";
+  const bg = accent === "gold" ? "#6C0606" : "#0A1628";
+  const bgHover = accent === "gold" ? "#4A0303" : "#111F38";
 
   return (
     <Link

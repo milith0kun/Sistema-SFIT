@@ -23,10 +23,10 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 
 // ── Paleta SFIT ────────────────────────────────────────────────────────────────
-const G = "#B8860B"; const GD = "#926A09"; const GBG = "#FDF8EC"; const GBR = "#E8D090";
+const G = "#6C0606"; const GD = "#4A0303"; const GBG = "#FBEAEA"; const GBR = "#D9B0B0";
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 const APTO = "#15803d";
-const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
+const NO = "#DC2626"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
 const INFO = "#1D4ED8";
 const WARN = "#b45309";
 
@@ -48,7 +48,7 @@ type SancionItem = { _id: string; faultType: string; amountSoles: number; status
 type MunicipalStats = { kpis: MunicipalKpis; inspeccionesPorResultado: InspeccionResultado[]; top5VehiculosBajaReputacion: LowRepVehicle[]; ultimasSanciones: SancionItem[] };
 type StoredUser = { role: string; provinceId?: string; municipalityId?: string };
 
-const ROLE_LABELS: Record<string, string> = { super_admin: "Super Admin", admin_provincial: "Admin Provincial", admin_municipal: "Admin Municipal", fiscal: "Fiscal / Inspector", operador: "Operador", conductor: "Conductor", ciudadano: "Ciudadano" };
+const ROLE_LABELS: Record<string, string> = { super_admin: "Super Administrador", admin_provincial: "Administrador Provincial", admin_municipal: "Administrador Municipal", fiscal: "Fiscal / Inspector", operador: "Operador", conductor: "Conductor", ciudadano: "Ciudadano" };
 const ROLE_COLORS: Record<string, string> = { super_admin: G, admin_provincial: INK9, admin_municipal: INFO, fiscal: APTO, operador: WARN, conductor: INK6, ciudadano: "#a1a1aa" };
 
 function getToken(): string { return typeof window === "undefined" ? "" : localStorage.getItem("sfit_access_token") ?? ""; }

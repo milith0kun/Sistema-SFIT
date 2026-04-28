@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 /// Paleta oficial SFIT — espejo del canon web (`sfit-web`).
 ///
 /// Tokens organizados por familia:
-///   - gold*       : acento institucional (oro)
+///   - primary*    : acento institucional (rojo #6C0606)
 ///   - panel*      : superficies oscuras (navy)
 ///   - ink*/paper  : escala neutra zinc
 ///   - apto/riesgo/noApto + bg/border : estados vehiculares
@@ -13,12 +13,24 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // ── Acento institucional (oro) ────────────────────────────────
-  static const Color gold        = Color(0xFFB8860B);
-  static const Color goldLight   = Color(0xFFD4A827);
-  static const Color goldDark    = Color(0xFF926A09);
-  static const Color goldBg      = Color(0xFFFDF8EC);
-  static const Color goldBorder  = Color(0xFFE8D090);
+  // ── Acento institucional (rojo) ──────────────────────────────
+  static const Color primary       = Color(0xFF6C0606);
+  static const Color primaryLight  = Color(0xFF8B1414);
+  static const Color primaryDark   = Color(0xFF4A0303);
+  static const Color primaryBg     = Color(0xFFFBEAEA);
+  static const Color primaryBorder = Color(0xFFD9B0B0);
+
+  /// Rojo institucional adaptado para superficies oscuras.
+  /// Contraste ≥ 4.5:1 sobre `ink` (#09090B). Espejo de
+  /// `oklch(0.55 0.18 27)` definido en `globals.css .dark`.
+  static const Color primaryOnDark = Color(0xFFBA2C2C);
+
+  // ── Legacy gold aliases (DEPRECATED — usar primary*) ─────────
+  static const Color gold        = primary;
+  static const Color goldLight   = primaryLight;
+  static const Color goldDark    = primaryDark;
+  static const Color goldBg      = primaryBg;
+  static const Color goldBorder  = primaryBorder;
 
   // ── Panel oscuro (sidebar / auth / hero) ────────────────────
   static const Color panel       = Color(0xFF0A1628);
@@ -48,8 +60,9 @@ class AppColors {
   static const Color riesgoBg    = Color(0xFFFFF7ED);
   static const Color riesgoBorder= Color(0xFFFED7AA);
 
-  // ── Estado: no apto / rechazado / suspendido (rojo) ──────────
-  static const Color noApto      = Color(0xFFB91C1C);
+  // ── Estado: no apto / rechazado / suspendido (rojo brillante) ──────────
+  // Tono más vivo para diferenciarse del primary institucional (rojo oscuro).
+  static const Color noApto      = Color(0xFFDC2626);
   static const Color noAptoBg    = Color(0xFFFEF2F2);
   static const Color noAptoBorder= Color(0xFFFCA5A5);
 
@@ -59,9 +72,6 @@ class AppColors {
   static const Color infoBorder  = Color(0xFFBFDBFE);
 
   // ── Legacy aliases (compatibilidad con código existente) ─────
-  static const Color primary          = gold;
-  static const Color primaryLight     = goldLight;
-  static const Color primaryDark      = goldDark;
   static const Color success          = apto;
   static const Color warning          = riesgo;
   static const Color danger           = noApto;

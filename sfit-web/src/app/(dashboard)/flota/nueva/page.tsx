@@ -238,7 +238,7 @@ export default function NuevaFlotaPage() {
             {/* Fecha */}
             <div style={{ gridColumn: "1 / -1" }}>
               <label htmlFor="date" style={{ display: "block", marginBottom: 8 }}>
-                Fecha <span style={{ color: "#b91c1c" }}>*</span>
+                Fecha <span style={{ color: "#DC2626" }}>*</span>
               </label>
               <input
                 id="date"
@@ -254,7 +254,7 @@ export default function NuevaFlotaPage() {
             {/* Vehículo */}
             <div>
               <label htmlFor="vehicleId" style={{ display: "block", marginBottom: 8 }}>
-                Vehículo <span style={{ color: "#b91c1c" }}>*</span>
+                Vehículo <span style={{ color: "#DC2626" }}>*</span>
               </label>
               <select
                 id="vehicleId"
@@ -274,7 +274,7 @@ export default function NuevaFlotaPage() {
                 ))}
               </select>
               {errors.vehicleId && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
                   {errors.vehicleId}
                 </p>
               )}
@@ -283,7 +283,7 @@ export default function NuevaFlotaPage() {
             {/* Conductor */}
             <div>
               <label htmlFor="driverId" style={{ display: "block", marginBottom: 8 }}>
-                Conductor <span style={{ color: "#b91c1c" }}>*</span>
+                Conductor <span style={{ color: "#DC2626" }}>*</span>
               </label>
               <select
                 id="driverId"
@@ -304,7 +304,7 @@ export default function NuevaFlotaPage() {
                 ))}
               </select>
               {errors.driverId && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
                   {errors.driverId}
                 </p>
               )}
@@ -391,7 +391,7 @@ export default function NuevaFlotaPage() {
                   checked={form.checklistComplete}
                   onChange={(e) => handleField("checklistComplete", e.target.checked)}
                   disabled={submitting}
-                  style={{ width: 18, height: 18, accentColor: "#B8860B", cursor: "inherit" }}
+                  style={{ width: 18, height: 18, accentColor: "#6C0606", cursor: "inherit" }}
                 />
                 <span style={{ fontSize: "0.9375rem", fontWeight: 500, color: "#18181b" }}>
                   Checklist pre-viaje completo
@@ -428,7 +428,7 @@ export default function NuevaFlotaPage() {
               borderRadius: 8,
               backgroundColor: "#FFF5F5",
               border: "1px solid #FCA5A5",
-              color: "#b91c1c",
+              color: "#DC2626",
               fontSize: "0.875rem",
               fontWeight: 500,
             }}

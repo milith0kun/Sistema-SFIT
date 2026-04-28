@@ -28,7 +28,7 @@ export function AlertCard({
   const t =
     tone === "warning"
       ? { bg: "#FFFBEB", border: "#FDE68A", text: "#854D0E", icon: "#B45309", item: "rgba(253,230,138,0.5)" }
-      : { bg: "#FEF2F2", border: "#FCA5A5", text: "#991B1B", icon: "#b91c1c", item: "rgba(252,165,165,0.5)" };
+      : { bg: "#FEF2F2", border: "#FCA5A5", text: "#991B1B", icon: "#DC2626", item: "rgba(252,165,165,0.5)" };
 
   return (
     <div

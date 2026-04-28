@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Building2, Hash, Globe, Trash2, Save, AlertTriangle, ImageIcon } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { LoadingState } from "@/components/ui/LoadingState";
 
 type Province    = { id: string; name: string };
 type Municipality = { id: string; name: string; provinceId: string; logoUrl?: string; active: boolean; createdAt?: string };
@@ -15,8 +16,8 @@ interface Props { params: Promise<{ id: string }> }
 /* ── Tokens ── */
 const INK9 = "#18181b"; const INK6 = "#52525b"; const INK5 = "#71717a";
 const INK2 = "#e4e4e7"; const INK1 = "#f4f4f5";
-const GOLD = "#B8860B"; const GOLD_BG = "#FDF8EC"; const GOLD_BD = "#E8D090";
-const RED  = "#b91c1c"; const RED_BG  = "#FFF5F5"; const RED_BD  = "#FCA5A5";
+const GOLD = "#6C0606"; const GOLD_BG = "#FBEAEA"; const GOLD_BD = "#D9B0B0";
+const RED  = "#DC2626"; const RED_BG  = "#FFF5F5"; const RED_BD  = "#FCA5A5";
 const INFO_BG = "#EFF6FF"; const INFO_C = "#1D4ED8"; const INFO_BD = "#BFDBFE";
 
 const FIELD: React.CSSProperties = {
@@ -176,12 +177,9 @@ export default function EditarMunicipalidadPage({ params }: Props) {
   );
 
   if (loading || !municipality) return (
-    <div style={{ padding: 32, background: "#fff", borderRadius: 14, border: `1.5px solid ${INK2}`, color: INK5, display: "flex", alignItems: "center", gap: 10 }}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ animation: "spin 0.65s linear infinite" }}>
-        <circle cx="12" cy="12" r="10" stroke={GOLD} strokeWidth="3" opacity="0.25"/>
-        <path d="M4 12a8 8 0 018-8" stroke={GOLD} strokeWidth="3" strokeLinecap="round"/>
-      </svg>
-      Cargando municipalidad…
+    <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <PageHeader kicker="Municipalidades" title="Cargando municipalidad…" />
+      <LoadingState rows={5} />
     </div>
   );
 
@@ -214,7 +212,7 @@ export default function EditarMunicipalidadPage({ params }: Props) {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 18, alignItems: "start" }}>
+      <div className="sfit-aside-layout sfit-aside-layout--wide">
 
         {/* ── Form card ── */}
         <div style={{ background: "#fff", border: `1.5px solid ${INK2}`, borderRadius: 14, overflow: "hidden" }}>
@@ -252,7 +250,7 @@ export default function EditarMunicipalidadPage({ params }: Props) {
                   onFocus={(e) => { e.currentTarget.style.borderColor = fieldErrors.provinceId ? RED : GOLD; }}
                   onBlur={(e)  => { e.currentTarget.style.borderColor = fieldErrors.provinceId ? RED : INK2; }}
                 >
-                  <option value="" disabled>Selecciona una provincia…</option>
+                  <option value="" disabled>Seleccione una provincia…</option>
                   {provinces.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
                 <svg viewBox="0 0 10 6" width="10" height="10" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} fill="none">

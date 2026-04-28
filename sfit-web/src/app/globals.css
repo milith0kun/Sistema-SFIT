@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --font-display: var(--font-syne);
+  --font-display: var(--font-inter);
   --font-sans: var(--font-inter);
 
   /* ── Zinc monochrome (base) ── */
@@ -21,12 +21,19 @@
   --color-ink-1:  #f4f4f5;
   --color-paper:  #fafafa;
 
-  /* ── Gold accent (institutional) ── */
-  --color-gold:        #B8860B;
-  --color-gold-light:  #D4A827;
-  --color-gold-dark:   #926A09;
-  --color-gold-bg:     #FDF8EC;
-  --color-gold-border: #E8D090;
+  /* ── Primary accent (institutional red) ── */
+  --color-primary:        #6C0606;
+  --color-primary-light:  #8B1414;
+  --color-primary-dark:   #4A0303;
+  --color-primary-bg:     #FBEAEA;
+  --color-primary-border: #D9B0B0;
+
+  /* ── Legacy gold aliases (DEPRECATED — use --color-primary*) ── */
+  --color-gold:        var(--color-primary);
+  --color-gold-light:  var(--color-primary-light);
+  --color-gold-dark:   var(--color-primary-dark);
+  --color-gold-bg:     var(--color-primary-bg);
+  --color-gold-border: var(--color-primary-border);
 
   /* ── Dark panel (sidebar / auth left) ── */
   --color-panel:       #0A1628;
@@ -36,12 +43,7 @@
   /* ── Status ── */
   --color-apto:    #15803d;
   --color-riesgo:  #b45309;
-  --color-no-apto: #b91c1c;
-
-  /* ── Legacy aliases (backward compat) ── */
-  --color-primary:        var(--color-gold);
-  --color-primary-light:  var(--color-gold-light);
-  --color-primary-dark:   var(--color-gold-dark);
+  --color-no-apto: #DC2626;
   --color-navy:           var(--color-panel);
   --color-navy-mid:       var(--color-panel-mid);
   --color-navy-light:     var(--color-panel-light);
@@ -56,6 +58,38 @@
   --color-dark-border:    var(--color-ink-8);
   --color-dark-text:      var(--color-paper);
   --color-dark-text-secondary: var(--color-ink-4);
+
+  /* ── Spacing scale (4px grid) ── */
+  --space-0:    0;
+  --space-1:    4px;
+  --space-2:    8px;
+  --space-3:    12px;
+  --space-4:    16px;
+  --space-5:    20px;
+  --space-6:    24px;
+  --space-8:    32px;
+  --space-10:   40px;
+  --space-12:   48px;
+  --space-16:   64px;
+  --space-20:   80px;
+  --space-24:   96px;
+
+  /* ── Radius scale ── */
+  --radius-xs:   6px;
+  --radius-sm:   8px;
+  --radius-md:  10px;
+  --radius-lg:  12px;
+  --radius-xl:  16px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+
+  /* ── Breakpoints (espejo de tokens.ts y app_breakpoints.dart) ── */
+  --bp-mobile-sm: 375px;
+  --bp-mobile-lg: 425px;
+  --bp-tablet:    768px;
+  --bp-desktop:  1024px;
+  --bp-wide:     1280px;
+  --bp-xl:       1440px;
 }
 
 :root {
@@ -70,9 +104,9 @@
   --popover:               oklch(1 0 0);
   --popover-foreground:    oklch(0.145 0 0);
 
-  /* Gold SFIT: #B8860B ≈ oklch(0.595 0.152 80) */
-  --primary:               oklch(0.595 0.152 80);
-  --primary-foreground:    oklch(0.985 0 0);        /* blanco sobre gold */
+  /* Primary SFIT: #6C0606 ≈ oklch(0.345 0.165 27) */
+  --primary:               oklch(0.345 0.165 27);
+  --primary-foreground:    oklch(0.985 0 0);        /* blanco sobre rojo */
 
   --secondary:             oklch(0.97 0 0);         /* ink-1 #f4f4f5 */
   --secondary-foreground:  oklch(0.205 0 0);
@@ -80,16 +114,16 @@
   --muted-foreground:      oklch(0.556 0 0);        /* ink-5 */
   --accent:                oklch(0.97 0 0);
   --accent-foreground:     oklch(0.205 0 0);
-  --destructive:           oklch(0.577 0.245 27.325);
+  --destructive:           oklch(0.549 0.22 27);
   --border:                oklch(0.909 0 0);        /* #e4e4e7 ink-2 */
   --input:                 oklch(0.909 0 0);
-  --ring:                  oklch(0.595 0.152 80);   /* gold focus ring */
+  --ring:                  oklch(0.345 0.165 27);   /* primary red focus ring */
 
   /* Charts — colores SFIT */
-  --chart-1: oklch(0.595 0.152 80);   /* gold */
+  --chart-1: oklch(0.345 0.165 27);   /* primary red */
   --chart-2: oklch(0.216 0.077 250);  /* navy */
   --chart-3: oklch(0.459 0.128 148);  /* green apto */
-  --chart-4: oklch(0.549 0.17 30);    /* red no-apto */
+  --chart-4: oklch(0.549 0.22 27);    /* red no-apto */
   --chart-5: oklch(0.556 0.148 65);   /* amber riesgo */
 
   --radius: 0.625rem;
@@ -97,12 +131,12 @@
   /* Sidebar navy SFIT */
   --sidebar:                   oklch(0.09 0.045 250);   /* #0A1628 */
   --sidebar-foreground:        oklch(0.94 0 0);
-  --sidebar-primary:           oklch(0.595 0.152 80);
+  --sidebar-primary:           oklch(0.345 0.165 27);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent:            oklch(0.14 0.05 250);    /* #111F38 */
   --sidebar-accent-foreground: oklch(0.94 0 0);
   --sidebar-border:            oklch(0.18 0.05 250);    /* #1A2D4A */
-  --sidebar-ring:              oklch(0.595 0.152 80);
+  --sidebar-ring:              oklch(0.345 0.165 27);
 }
 
 .dark {
@@ -114,26 +148,26 @@
   --card-foreground:       oklch(0.985 0 0);
   --popover:               oklch(0.205 0 0);
   --popover-foreground:    oklch(0.985 0 0);
-  --primary:               oklch(0.72 0.15 80);
-  --primary-foreground:    oklch(0.145 0 0);
+  --primary:               oklch(0.55 0.18 27);
+  --primary-foreground:    oklch(0.985 0 0);
   --secondary:             oklch(0.269 0 0);
   --secondary-foreground:  oklch(0.985 0 0);
   --muted:                 oklch(0.269 0 0);
   --muted-foreground:      oklch(0.708 0 0);
   --accent:                oklch(0.269 0 0);
   --accent-foreground:     oklch(0.985 0 0);
-  --destructive:           oklch(0.704 0.191 22.216);
+  --destructive:           oklch(0.62 0.22 27);
   --border:                oklch(1 0 0 / 10%);
   --input:                 oklch(1 0 0 / 15%);
-  --ring:                  oklch(0.72 0.15 80);
+  --ring:                  oklch(0.55 0.18 27);
   --sidebar:               oklch(0.145 0 0);
   --sidebar-foreground:    oklch(0.985 0 0);
-  --sidebar-primary:       oklch(0.72 0.15 80);
-  --sidebar-primary-foreground: oklch(0.145 0 0);
+  --sidebar-primary:       oklch(0.55 0.18 27);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent:        oklch(0.205 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border:        oklch(1 0 0 / 10%);
-  --sidebar-ring:          oklch(0.72 0.15 80);
+  --sidebar-ring:          oklch(0.55 0.18 27);
 }
 
 html { font-size: 17px; }
@@ -152,7 +186,7 @@ body {
   letter-spacing: -0.005em;
 }
 
-/* ── Headings — Inter por defecto (más limpia/legible). Login conserva Syne inline. ── */
+/* ── Headings — Inter en todo el sistema (institucional, legible). ── */
 @layer base {
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-inter), "Inter", system-ui, sans-serif;
@@ -287,7 +321,7 @@ body {
 }
 .btn-primary:hover:not(:disabled) {
   background: var(--color-ink-8);
-  box-shadow: inset 3px 0 0 var(--color-gold);
+  box-shadow: inset 3px 0 0 var(--color-primary);
 }
 .btn-primary:active:not(:disabled) { background: var(--color-ink); transform: translateY(0.5px); }
 .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -297,7 +331,7 @@ body {
   inset-y: 0;
   left: 0;
   width: 30%;
-  background: linear-gradient(90deg, transparent, rgba(212, 168, 39, 0.22), transparent);
+  background: linear-gradient(90deg, transparent, rgba(139, 20, 20, 0.28), transparent);
   pointer-events: none;
   transform: translateX(-100%);
 }
@@ -346,8 +380,8 @@ body {
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 .feature-card:hover {
-  border-color: var(--color-gold) !important;
-  box-shadow: 0 0 0 1px var(--color-gold), 0 8px 24px rgba(184, 134, 11, 0.08);
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 1px var(--color-primary), 0 8px 24px rgba(108, 6, 6, 0.10);
   transform: translateY(-2px);
 }
 
@@ -382,16 +416,16 @@ body {
    Card de jerarquía superior en el dashboard. Hover acentúa borde dorado,
    sombra dorada y eleva el CTA navy a hover gold.                          */
 .sfit-quick-action:hover {
-  border-color: #C8971A !important;
-  box-shadow: 0 6px 20px rgba(184, 134, 11, 0.14) !important;
+  border-color: #8B1414 !important;
+  box-shadow: 0 6px 20px rgba(108, 6, 6, 0.16) !important;
   transform: translateY(-1px);
 }
 .sfit-quick-action:hover .sfit-quick-cta {
-  background: #B8860B !important;
+  background: #6C0606 !important;
   transform: translateX(2px);
 }
 .sfit-quick-action:focus-visible {
-  outline: 2px solid #B8860B;
+  outline: 2px solid #6C0606;
   outline-offset: 3px;
 }
 
@@ -499,8 +533,15 @@ body {
 }
 
 /* ── Responsive: grids inline colapsan en móvil ── */
+@media (max-width: 768px) {
+  /* KPI strips: 5/6 cols → 3 cols en tablet, 2 cols en mobile */
+  [style*="repeat(6"] { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  [style*="repeat(5"] { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+}
 @media (max-width: 640px) {
   /* KPI strips */
+  [style*="repeat(6"] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  [style*="repeat(5"] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   [style*="repeat(4"] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   [style*="repeat(3"] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   /* Chart panels 2 cols */
@@ -534,6 +575,64 @@ body {
 @media (max-width: 900px) {
   .notif-grid { grid-template-columns: 1fr; }
   .notif-detail-sticky { position: static !important; }
+}
+
+/* Layout estándar de detalle: contenido + aside lateral */
+.sfit-aside-layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 18px;
+  align-items: start;
+}
+.sfit-aside-layout--wide {
+  grid-template-columns: 1fr 300px;
+}
+@media (max-width: 900px) {
+  .sfit-aside-layout,
+  .sfit-aside-layout--wide {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+/* Filas de la página de design-system (spacing + breakpoints) */
+.ds-token-row {
+  display: grid;
+  grid-template-columns: 70px 60px 1fr 220px;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8125rem;
+}
+.ds-token-row--bp { grid-template-columns: 100px 80px 1fr; }
+@media (max-width: 640px) {
+  .ds-token-row {
+    grid-template-columns: 56px 1fr;
+    row-gap: 4px;
+  }
+  .ds-token-row > :nth-child(3) { grid-column: 1 / -1; }
+  .ds-token-row > :nth-child(4) { grid-column: 1 / -1; font-size: 0.75rem; }
+  .ds-token-row--bp { grid-template-columns: 92px 1fr; }
+  .ds-token-row--bp > :nth-child(3) { grid-column: 1 / -1; }
+}
+
+/* Filas de paradas/segmentos en formularios de rutas */
+.sfit-stops-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 180px auto;
+  gap: 10px;
+  align-items: center;
+}
+@media (max-width: 768px) {
+  .sfit-stops-row {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 8px;
+  }
+  .sfit-stops-row > :nth-child(3),
+  .sfit-stops-row > :nth-child(4) {
+    grid-column: 1 / -1;
+  }
 }
 @media (max-width: 640px) {
   .cols-4-responsive { grid-template-columns: repeat(2, 1fr); gap: 10px; }

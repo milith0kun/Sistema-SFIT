@@ -7,6 +7,8 @@ import { ArrowLeft, Check, X, ExternalLink, ShieldAlert, Camera } from "lucide-r
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { ErrorState } from "@/components/ui/ErrorState";
 
 type ReportStatus = "pendiente" | "revision" | "validado" | "rechazado";
 type FraudLayer = { layer: string; passed: boolean; detail: string };
@@ -34,13 +36,13 @@ type FiscalItem = { id: string; name: string };
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 const FRAUD_BAJO  = "#15803d";
 const FRAUD_MEDIO = "#b45309";
-const FRAUD_ALTO  = "#b91c1c";
+const FRAUD_ALTO  = "#DC2626";
 
 const STATUS_STYLE: Record<ReportStatus, { bg: string; color: string; border: string; label: string }> = {
   pendiente: { bg: "#f4f4f5", color: "#71717a", border: "#e4e4e7", label: "Pendiente" },
   revision:  { bg: "#FFFBEB", color: "#b45309", border: "#FCD34D", label: "En revisión" },
   validado:  { bg: "#F0FDF4", color: "#15803d", border: "#86EFAC", label: "Validado" },
-  rechazado: { bg: "#FFF5F5", color: "#b91c1c", border: "#FCA5A5", label: "Rechazado" },
+  rechazado: { bg: "#FFF5F5", color: "#DC2626", border: "#FCA5A5", label: "Rechazado" },
 };
 
 const ALLOWED = ["fiscal", "admin_municipal", "admin_provincial", "super_admin"];
@@ -162,15 +164,23 @@ export default function ReporteDetallePage({ params }: Props) {
 
   const canAct = CAN_ACT.includes(userRole);
 
-  if (loading) return <div style={{ color: INK5, padding: 40 }}>Cargando reporte…</div>;
+  if (loading) {
+    return (
+      <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <PageHeader kicker="Reportes" title="Cargando reporte…" />
+        <LoadingState rows={5} />
+      </div>
+    );
+  }
   if (notFound) return (
-    <div style={{ padding: 40, textAlign: "center" }}>
-      <p style={{ color: INK5, marginBottom: 16 }}>Reporte no encontrado.</p>
-      <Link href="/reportes"><Button variant="outline">Volver a Reportes</Button></Link>
-    </div>
+    <ErrorState
+      title="Reporte no encontrado"
+      message="El reporte ciudadano solicitado no existe o ya no está disponible. Verifique el enlace o regrese al listado."
+      action={<Link href="/reportes"><Button variant="primary" size="sm">Volver a Reportes</Button></Link>}
+    />
   );
   if (error && !report) return (
-    <div style={{ padding: "12px 16px", background: "#FFF5F5", border: "1px solid #FCA5A5", borderRadius: 10, color: "#b91c1c" }}>{error}</div>
+    <div style={{ padding: "12px 16px", background: "#FFF5F5", border: "1px solid #FCA5A5", borderRadius: 10, color: "#DC2626" }}>{error}</div>
   );
   if (!report) return null;
 
@@ -203,7 +213,7 @@ export default function ReporteDetallePage({ params }: Props) {
       />
 
       {error && (
-        <div role="alert" style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5", borderRadius: 12, padding: 16, color: "#b91c1c", fontSize: "0.9375rem", fontWeight: 500 }}>
+        <div role="alert" style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5", borderRadius: 12, padding: 16, color: "#DC2626", fontSize: "0.9375rem", fontWeight: 500 }}>
           {error}
         </div>
       )}
@@ -312,7 +322,7 @@ export default function ReporteDetallePage({ params }: Props) {
                         <tr key={i} style={{ background: i % 2 === 0 ? "#fff" : "#FAFAFA" }}>
                           <td style={{ padding: "10px 14px", borderBottom: `1px solid ${INK1}`, fontWeight: 600, color: INK9 }}>{l.layer}</td>
                           <td style={{ padding: "10px 14px", borderBottom: `1px solid ${INK1}` }}>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 8px", borderRadius: 999, fontSize: "0.6875rem", fontWeight: 700, background: l.passed ? "#F0FDF4" : "#FFF5F5", color: l.passed ? "#15803d" : "#b91c1c", border: `1px solid ${l.passed ? "#86EFAC" : "#FCA5A5"}` }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 8px", borderRadius: 999, fontSize: "0.6875rem", fontWeight: 700, background: l.passed ? "#F0FDF4" : "#FFF5F5", color: l.passed ? "#15803d" : "#DC2626", border: `1px solid ${l.passed ? "#86EFAC" : "#FCA5A5"}` }}>
                               {l.passed ? <Check size={10} /> : <X size={10} />}
                               {l.passed ? "Pasó" : "Falló"}
                             </span>
@@ -347,7 +357,7 @@ export default function ReporteDetallePage({ params }: Props) {
                   style={{
                     flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
                     height: 36, padding: "0 12px", borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600,
-                    cursor: "pointer", border: "1.5px solid #FCA5A5", background: "#FFF5F5", color: "#b91c1c",
+                    cursor: "pointer", border: "1.5px solid #FCA5A5", background: "#FFF5F5", color: "#DC2626",
                     fontFamily: "inherit", opacity: updating ? 0.6 : 1,
                   }}
                 >
@@ -436,8 +446,8 @@ export default function ReporteDetallePage({ params }: Props) {
                     key={n}
                     style={{
                       width: 28, height: 28, borderRadius: 7,
-                      background: n <= report.citizenReputationLevel ? "#B8860B" : INK1,
-                      border: `1.5px solid ${n <= report.citizenReputationLevel ? "#926A09" : INK2}`,
+                      background: n <= report.citizenReputationLevel ? "#6C0606" : INK1,
+                      border: `1.5px solid ${n <= report.citizenReputationLevel ? "#4A0303" : INK2}`,
                       display: "flex", alignItems: "center", justifyContent: "center",
                       fontSize: "0.6875rem", fontWeight: 800,
                       color: n <= report.citizenReputationLevel ? "#fff" : INK5,
@@ -454,8 +464,8 @@ export default function ReporteDetallePage({ params }: Props) {
           {/* Generate sanction CTA */}
           {vehicleId && (
             <Card style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5" }}>
-              <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 8, color: "#b91c1c" }}>Acción disciplinaria</h3>
-              <p style={{ fontSize: "0.8125rem", color: "#b91c1c", marginBottom: 14, lineHeight: 1.5 }}>
+              <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 8, color: "#DC2626" }}>Acción disciplinaria</h3>
+              <p style={{ fontSize: "0.8125rem", color: "#DC2626", marginBottom: 14, lineHeight: 1.5 }}>
                 Si el reporte es válido, puedes generar una sanción formal al vehículo infractor.
               </p>
               <Link href={`/sanciones/nueva?vehicleId=${vehicleId}&reportId=${id}`} style={{ display: "block" }}>

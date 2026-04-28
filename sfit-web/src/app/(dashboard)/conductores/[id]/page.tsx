@@ -6,10 +6,10 @@ import Link from "next/link";
 import { ArrowLeft, Save, Trash2, User, Phone, CreditCard, Award, Clock, TrendingUp, AlertTriangle, CheckCircle } from "lucide-react";
 
 // ── Paleta SFIT ───────────────────────────────────────────────────────────────
-const G = "#B8860B"; const GBG = "#FDF8EC"; const GBR = "#E8D090";
+const G = "#6C0606"; const GBG = "#FBEAEA"; const GBR = "#D9B0B0";
 const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
 const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB"; const RIESGOBD = "#FCD34D";
-const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
+const NO = "#DC2626"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 
 const VIEW_ROLES = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
@@ -143,7 +143,7 @@ export default function ConductorDetallePage({ params }: Props) {
     else if (form.name.trim().length > 160) next.name = "Máximo 160 caracteres.";
     if (!form.dni.trim() || form.dni.trim().length < 6) next.dni = "El DNI es requerido (mínimo 6 dígitos).";
     if (!form.licenseNumber.trim() || form.licenseNumber.trim().length < 4) next.licenseNumber = "Licencia requerida (mínimo 4 caracteres).";
-    if (!form.licenseCategory) next.licenseCategory = "Selecciona la categoría de licencia.";
+    if (!form.licenseCategory) next.licenseCategory = "Seleccione la categoría de licencia.";
     setErrors(next);
     return Object.keys(next).length === 0;
   }

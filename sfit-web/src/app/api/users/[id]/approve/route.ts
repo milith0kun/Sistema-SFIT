@@ -72,14 +72,14 @@ export async function POST(
     // RF-18: Email de aprobación — best-effort
     void sendEmail(
       target.email,
-      '[SFIT] Tu solicitud fue aprobada',
+      '[SFIT] Su solicitud fue aprobada',
       accountApprovedEmailHtml({ userName: target.name, role: assignedRole }),
     ).catch(() => {});
 
     await createNotification({
       userId: target._id.toString(),
-      title: "Tu solicitud fue aprobada",
-      body: `Bienvenido a SFIT. Tu cuenta está activa con el rol de ${assignedRole}.`,
+      title: "Su solicitud fue aprobada",
+      body: `Bienvenido a SFIT. Su cuenta está activa con el rol de ${assignedRole}.`,
       type: "success",
       category: "aprobacion",
     });

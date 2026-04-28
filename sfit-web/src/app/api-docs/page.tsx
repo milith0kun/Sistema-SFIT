@@ -69,14 +69,14 @@ export default function ApiDocsPage() {
         {/* Header */}
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-2">
-            <span className="text-2xl font-bold font-[--font-syne] text-gray-900 dark:text-white">
+            <span className="text-2xl font-bold  text-gray-900 dark:text-white">
               SFIT
             </span>
             <span className="text-sm bg-blue-600 text-white px-2 py-0.5 rounded-full font-mono">
               v1.5.0
             </span>
           </div>
-          <h1 className="text-3xl font-bold font-[--font-syne] text-gray-900 dark:text-white mb-2">
+          <h1 className="text-3xl font-bold  text-gray-900 dark:text-white mb-2">
             API Reference
           </h1>
           <p className="text-gray-600 dark:text-gray-400 max-w-2xl">
@@ -113,7 +113,7 @@ export default function ApiDocsPage() {
           const endpoints = ENDPOINTS.filter((e) => e.tag === tag);
           return (
             <section key={tag} className="mb-10">
-              <h2 className="text-lg font-semibold font-[--font-syne] text-gray-800 dark:text-gray-100 mb-3 pb-2 border-b border-gray-200 dark:border-gray-800">
+              <h2 className="text-lg font-semibold  text-gray-800 dark:text-gray-100 mb-3 pb-2 border-b border-gray-200 dark:border-gray-800">
                 {tag}
               </h2>
               <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">

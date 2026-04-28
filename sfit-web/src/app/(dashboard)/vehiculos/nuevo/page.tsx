@@ -245,7 +245,7 @@ export default function NuevoVehiculoPage() {
             {/* Placa */}
             <div>
               <label htmlFor="plate" style={{ display: "block", marginBottom: 8 }}>
-                Placa <span style={{ color: "#b91c1c" }}>*</span>
+                Placa <span style={{ color: "#DC2626" }}>*</span>
               </label>
               <input
                 id="plate"
@@ -259,7 +259,7 @@ export default function NuevoVehiculoPage() {
                 style={{ fontFamily: "ui-monospace,monospace", letterSpacing: "0.05em" }}
               />
               {fieldErrors.plate && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
                   {fieldErrors.plate}
                 </p>
               )}
@@ -268,7 +268,7 @@ export default function NuevoVehiculoPage() {
             {/* Tipo de vehículo */}
             <div>
               <label htmlFor="vehicleTypeKey" style={{ display: "block", marginBottom: 8 }}>
-                Tipo de vehículo <span style={{ color: "#b91c1c" }}>*</span>
+                Tipo de vehículo <span style={{ color: "#DC2626" }}>*</span>
               </label>
               <select
                 id="vehicleTypeKey"
@@ -287,7 +287,7 @@ export default function NuevoVehiculoPage() {
                 ))}
               </select>
               {fieldErrors.vehicleTypeKey && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
                   {fieldErrors.vehicleTypeKey}
                 </p>
               )}
@@ -319,7 +319,7 @@ export default function NuevoVehiculoPage() {
             {/* Marca */}
             <div>
               <label htmlFor="brand" style={{ display: "block", marginBottom: 8 }}>
-                Marca <span style={{ color: "#b91c1c" }}>*</span>
+                Marca <span style={{ color: "#DC2626" }}>*</span>
               </label>
               <input
                 id="brand"
@@ -332,7 +332,7 @@ export default function NuevoVehiculoPage() {
                 disabled={submitting}
               />
               {fieldErrors.brand && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
                   {fieldErrors.brand}
                 </p>
               )}
@@ -341,7 +341,7 @@ export default function NuevoVehiculoPage() {
             {/* Modelo */}
             <div>
               <label htmlFor="model" style={{ display: "block", marginBottom: 8 }}>
-                Modelo <span style={{ color: "#b91c1c" }}>*</span>
+                Modelo <span style={{ color: "#DC2626" }}>*</span>
               </label>
               <input
                 id="model"
@@ -354,7 +354,7 @@ export default function NuevoVehiculoPage() {
                 disabled={submitting}
               />
               {fieldErrors.model && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
                   {fieldErrors.model}
                 </p>
               )}
@@ -363,7 +363,7 @@ export default function NuevoVehiculoPage() {
             {/* Año */}
             <div>
               <label htmlFor="year" style={{ display: "block", marginBottom: 8 }}>
-                Año de fabricación <span style={{ color: "#b91c1c" }}>*</span>
+                Año de fabricación <span style={{ color: "#DC2626" }}>*</span>
               </label>
               <input
                 id="year"
@@ -377,7 +377,7 @@ export default function NuevoVehiculoPage() {
                 disabled={submitting}
               />
               {fieldErrors.year && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
                   {fieldErrors.year}
                 </p>
               )}
@@ -475,7 +475,7 @@ export default function NuevoVehiculoPage() {
               borderRadius: 8,
               backgroundColor: "#FFF5F5",
               border: "1px solid #FCA5A5",
-              color: "#b91c1c",
+              color: "#DC2626",
               fontSize: "0.875rem",
               fontWeight: 500,
             }}

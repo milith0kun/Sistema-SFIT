@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PUBLIC_ROUTES = ["/", "/login", "/register", "/reset-password"];
+const PUBLIC_ROUTES = ["/", "/login", "/register", "/reset-password", "/design-system"];
 const PUBLIC_API = ["/api/auth", "/api/public", "/api/health"];
 
 // ── Rate limiting (in-memory, production only) ──────────────────────────────

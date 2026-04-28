@@ -33,9 +33,9 @@ const C = {
   text:    "#18181b",
   muted:   "#71717a",
   dim:     "#52525b",
-  gold:    "#B8860B",
-  goldBg:  "#FDF8EC",
-  goldDk:  "#926A09",
+  gold:    "#6C0606",
+  goldBg:  "#FBEAEA",
+  goldDk:  "#4A0303",
 } as const;
 
 interface DataTableProps<TData> {

@@ -21,9 +21,9 @@ type Apelacion = {
   createdAt: string;
 };
 
-const G = "#B8860B"; const GD = "#926A09"; const GBG = "#FDF8EC";
+const G = "#6C0606"; const GD = "#4A0303"; const GBG = "#FBEAEA";
 const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
-const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
+const NO = "#DC2626"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
 const AMB = "#b45309"; const AMBBG = "#FFFBEB"; const AMBBD = "#FCD34D";
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 

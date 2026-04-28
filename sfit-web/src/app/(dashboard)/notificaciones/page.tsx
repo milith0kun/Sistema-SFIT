@@ -13,10 +13,10 @@ import {
 // ── Paleta zinc + gold institucional SFIT ─────────────────────────────────────
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK3 = "#d4d4d8";
 const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const ERR = "#b91c1c"; const ERRBG = "#FFF5F5"; const ERRBD = "#FCA5A5";
+const ERR = "#DC2626"; const ERRBG = "#FFF5F5"; const ERRBD = "#FCA5A5";
 // Gold (acento institucional, design system SFIT)
-const GOLD = "#B8860B"; const GOLD_LIGHT = "#D4A827"; const GOLD_DARK = "#926A09";
-const GOLD_BG = "#FDF8EC"; const GOLD_BORDER = "#E8D090";
+const GOLD = "#6C0606"; const GOLD_LIGHT = "#8B1414"; const GOLD_DARK = "#4A0303";
+const GOLD_BG = "#FBEAEA"; const GOLD_BORDER = "#D9B0B0";
 
 type Notification = {
   id: string; type?: string; category?: string;
@@ -92,7 +92,7 @@ function DetailPanel({ notif, onClose, onMarkRead }: {
       position: "sticky",
       top: 16,
       overflow: "hidden",
-      boxShadow: "0 1px 3px rgba(184,134,11,0.06), 0 8px 24px -8px rgba(184,134,11,0.10)",
+      boxShadow: "0 1px 3px rgba(108,6,6,0.06), 0 8px 24px -8px rgba(108,6,6,0.10)",
     }}>
       {/* ── Header en banda gold suave ─────────────────────────────────── */}
       <div style={{
@@ -154,7 +154,7 @@ function DetailPanel({ notif, onClose, onMarkRead }: {
             background: "#ffffff", border: `1px solid ${GOLD_BORDER}`,
             color: GOLD_DARK,
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-            boxShadow: "0 1px 2px rgba(184,134,11,0.08)",
+            boxShadow: "0 1px 2px rgba(108,6,6,0.08)",
           }}>
             <TypeIcon type={notif.type} size={20} />
           </div>
@@ -234,7 +234,7 @@ function DetailPanel({ notif, onClose, onMarkRead }: {
                 cursor: "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                 transition: "background 120ms",
-                boxShadow: "0 1px 2px rgba(184,134,11,0.20)",
+                boxShadow: "0 1px 2px rgba(108,6,6,0.20)",
               }}
               onMouseEnter={e => { e.currentTarget.style.background = GOLD_DARK; }}
               onMouseLeave={e => { e.currentTarget.style.background = GOLD; }}
@@ -569,12 +569,12 @@ export default function NotificacionesPage() {
                             transition: "all 200ms ease",
                             opacity: isExiting ? 0.4 : 1,
                             transform: isExiting ? "translateX(8px)" : "none",
-                            boxShadow: isSelected ? `0 0 0 3px rgba(184,134,11,0.10)` : "none",
+                            boxShadow: isSelected ? `0 0 0 3px rgba(108,6,6,0.10)` : "none",
                           }}
                           onMouseEnter={e => { if (!isExiting && !isSelected) { const el = e.currentTarget as HTMLElement; el.style.boxShadow = "0 4px 16px rgba(0,0,0,.06)"; el.style.transform = "translateY(-1px)"; } }}
                           onMouseLeave={e => {
                             const el = e.currentTarget as HTMLElement;
-                            el.style.boxShadow = isSelected ? `0 0 0 3px rgba(184,134,11,0.10)` : "none";
+                            el.style.boxShadow = isSelected ? `0 0 0 3px rgba(108,6,6,0.10)` : "none";
                             el.style.transform = "none";
                           }}
                         >
@@ -670,7 +670,7 @@ export default function NotificacionesPage() {
             <div style={{ width: 52, height: 52, borderRadius: 14, background: INK1, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Bell size={22} color={INK5} strokeWidth={1.5} />
             </div>
-            <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9 }}>Selecciona una notificación</div>
+            <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9 }}>Seleccione una notificación</div>
             <div style={{ fontSize: "0.8125rem", color: INK5 }}>Haz clic en cualquier aviso para ver su detalle aquí.</div>
           </div>
         )}

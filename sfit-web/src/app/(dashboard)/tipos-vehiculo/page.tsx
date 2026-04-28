@@ -95,7 +95,7 @@ export default function TiposVehiculoPage() {
       }
       setItems(data.data.items ?? []);
     } catch {
-      setError("Error de conexión. Intenta nuevamente.");
+      setError("Error de conexión. Intente nuevamente.");
     } finally {
       setLoading(false);
     }
@@ -185,7 +185,7 @@ export default function TiposVehiculoPage() {
         cols={4}
         items={[
           { label: "ACTIVOS", value: totalActive, subtitle: "en uso", accent: "#15803d", icon: Car },
-          { label: "PREDEFINIDOS", value: predefActive, subtitle: `de ${PREDEFINED.length} disponibles`, accent: "#B8860B", icon: Boxes },
+          { label: "PREDEFINIDOS", value: predefActive, subtitle: `de ${PREDEFINED.length} disponibles`, accent: "#6C0606", icon: Boxes },
           { label: "PERSONALIZADOS", value: customs.length, subtitle: "creados por la municipalidad", accent: "#0A1628", icon: Sparkles },
           { label: "CON CHECKLIST", value: withChecklist, subtitle: "listos para operar", accent: "#B45309", icon: ListChecks },
         ]}
@@ -209,7 +209,7 @@ export default function TiposVehiculoPage() {
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#b91c1c",
+            color: "#DC2626",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}
@@ -219,9 +219,9 @@ export default function TiposVehiculoPage() {
       )}
 
       {/* Predefinidos */}
-      <GroupedSection color="#B8860B" title="Tipos predefinidos del sistema" count={PREDEFINED.length}>
+      <GroupedSection color="#6C0606" title="Tipos predefinidos del sistema" count={PREDEFINED.length}>
         <p style={{ color: "#52525b", fontSize: "0.875rem", margin: "0 0 14px" }}>
-          Activa los tipos que tu municipalidad maneja. Luego podrás configurar sus checklists, inspecciones y categorías de reporte.
+          Activa los tipos que su municipalidad maneja. Luego podrás configurar sus checklists, inspecciones y categorías de reporte.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {PREDEFINED.map((p) => {
@@ -293,7 +293,7 @@ export default function TiposVehiculoPage() {
         ) : customs.length === 0 ? (
           <EmptyState
             title="Sin tipos personalizados"
-            subtitle="Crea un tipo con formularios propios si tu municipalidad opera un vehículo distinto a los predefinidos."
+            subtitle="Crea un tipo con formularios propios si su municipalidad opera un vehículo distinto a los predefinidos."
             cta={
               <Link href="/tipos-vehiculo/nuevo">
                 <Button variant="primary">Nuevo tipo personalizado</Button>

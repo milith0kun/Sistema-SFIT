@@ -7,6 +7,8 @@ import { ArrowLeft, AlertTriangle, CheckCircle, Clock, XCircle } from "lucide-re
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { ErrorState } from "@/components/ui/ErrorState";
 
 type SanctionStatus = "emitida" | "notificada" | "apelada" | "confirmada" | "anulada";
 type Notification = { channel: string; target: string; status: string; sentAt?: string };
@@ -31,7 +33,7 @@ type Sanction = {
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 
 const STATUS_STYLE: Record<SanctionStatus, { bg: string; color: string; border: string; label: string }> = {
-  emitida:    { bg: "#FFF5F5", color: "#b91c1c", border: "#FCA5A5", label: "Emitida" },
+  emitida:    { bg: "#FFF5F5", color: "#DC2626", border: "#FCA5A5", label: "Emitida" },
   notificada: { bg: "#FFFBEB", color: "#b45309", border: "#FCD34D", label: "Notificada" },
   apelada:    { bg: "#EFF6FF", color: "#1d4ed8", border: "#93C5FD", label: "Apelada" },
   confirmada: { bg: "#F0FDF4", color: "#15803d", border: "#86EFAC", label: "Confirmada" },
@@ -111,14 +113,22 @@ export default function SancionDetallePage({ params }: Props) {
 
   const canEdit = ["fiscal", "admin_municipal", "super_admin"].includes(userRole);
 
-  if (loading) return <div style={{ color: INK5, padding: 40 }}>Cargando sanción…</div>;
+  if (loading) {
+    return (
+      <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <PageHeader kicker="Sanciones" title="Cargando sanción…" />
+        <LoadingState rows={5} />
+      </div>
+    );
+  }
   if (notFound) return (
-    <div style={{ padding: 40, textAlign: "center" }}>
-      <p style={{ color: INK5, marginBottom: 16 }}>Sanción no encontrada.</p>
-      <Link href="/sanciones"><Button variant="outline">Volver a Sanciones</Button></Link>
-    </div>
+    <ErrorState
+      title="Sanción no encontrada"
+      message="La sanción solicitada no existe o ya no está disponible. Verifique el enlace o regrese al listado."
+      action={<Link href="/sanciones"><Button variant="primary" size="sm">Volver a Sanciones</Button></Link>}
+    />
   );
-  if (error && !sanction) return <div style={{ padding: "12px 16px", background: "#FFF5F5", border: "1px solid #FCA5A5", borderRadius: 10, color: "#b91c1c" }}>{error}</div>;
+  if (error && !sanction) return <div style={{ padding: "12px 16px", background: "#FFF5F5", border: "1px solid #FCA5A5", borderRadius: 10, color: "#DC2626" }}>{error}</div>;
   if (!sanction) return null;
 
   const st = STATUS_STYLE[sanction.status];
@@ -137,7 +147,7 @@ export default function SancionDetallePage({ params }: Props) {
         subtitle={`Emitida el ${new Date(sanction.createdAt).toLocaleDateString("es-PE", { dateStyle: "long" })}`}
       />
 
-      {error && <div role="alert" style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5", borderRadius: 12, padding: 16, color: "#b91c1c", fontSize: "0.9375rem", fontWeight: 500 }}>{error}</div>}
+      {error && <div role="alert" style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5", borderRadius: 12, padding: 16, color: "#DC2626", fontSize: "0.9375rem", fontWeight: 500 }}>{error}</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
         <div className="space-y-6">
@@ -162,8 +172,8 @@ export default function SancionDetallePage({ params }: Props) {
             <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 16 }}>Monto de la sanción</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <div style={{ padding: 20, background: "#FFF5F5", border: "1.5px solid #FCA5A5", borderRadius: 12 }}>
-                <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#b91c1c", marginBottom: 6 }}>Monto en soles</div>
-                <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "#b91c1c" }}>S/ {sanction.amountSoles.toLocaleString("es-PE")}</div>
+                <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#DC2626", marginBottom: 6 }}>Monto en soles</div>
+                <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "#DC2626" }}>S/ {sanction.amountSoles.toLocaleString("es-PE")}</div>
               </div>
               <div style={{ padding: 20, background: INK1, borderRadius: 12 }}>
                 <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: INK5, marginBottom: 6 }}>Equivalente UIT</div>

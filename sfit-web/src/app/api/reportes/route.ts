@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
     const citizenUser = await User.findById(auth.session.userId).select("status").lean();
     const capa1Passed = citizenUser?.status === "activo";
     if (!capa1Passed) {
-      return apiError("Tu cuenta está suspendida o inactiva y no puede enviar reportes", 403);
+      return apiError("Su cuenta está suspendida o inactiva y no puede enviar reportes", 403);
     }
 
     // Capa 3: Límite diario por ciudadano (max 5 reportes/día)

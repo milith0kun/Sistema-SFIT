@@ -28,7 +28,7 @@ export function PageHeader({ kicker, title, subtitle, action }: PageHeaderProps)
             fontSize: "0.6875rem",
             fontWeight: 700,
             letterSpacing: "0.14em",
-            color: "#B8860B",
+            color: "#6C0606",
             textTransform: "uppercase",
             marginBottom: 5,
           }}>

@@ -31,9 +31,9 @@ const ALLOWED = ["admin_municipal", "admin_provincial", "super_admin"];
 const LIMIT   = 200;
 
 const ROLE_LABELS: Record<string, string> = {
-  super_admin:      "Super Admin",
-  admin_provincial: "Admin Provincial",
-  admin_municipal:  "Admin Municipal",
+  super_admin:      "Super Administrador",
+  admin_provincial: "Administrador Provincial",
+  admin_municipal:  "Administrador Municipal",
   fiscal:           "Fiscal",
   operador:         "Operador",
   conductor:        "Conductor",
@@ -72,9 +72,9 @@ function RoleBadge({ role }: { role: string }) {
     <span style={{
       display: "inline-flex", padding: "3px 9px", borderRadius: 6,
       fontSize: "0.6875rem", fontWeight: 700, whiteSpace: "nowrap",
-      background: isGold ? "#FDF8EC" : isAdmin ? INFO_BG : INK1,
-      color: isGold ? "#926A09" : isAdmin ? INFO_C : INK6,
-      border: `1px solid ${isGold ? "#E8D090" : isAdmin ? INFO_BD : INK2}`,
+      background: isGold ? "#FBEAEA" : isAdmin ? INFO_BG : INK1,
+      color: isGold ? "#4A0303" : isAdmin ? INFO_C : INK6,
+      border: `1px solid ${isGold ? "#D9B0B0" : isAdmin ? INFO_BD : INK2}`,
     }}>
       {ROLE_LABELS[role] ?? role}
     </span>
@@ -247,7 +247,7 @@ export default function UsuariosAdminPage() {
       <KPIStrip items={kpis} cols={kpis.length as 2 | 3 | 4} />
 
       {error && (
-        <div style={{ padding: "11px 16px", background: "#FFF5F5", border: "1px solid #FCA5A5", borderRadius: 10, color: "#b91c1c", fontSize: "0.8125rem" }}>
+        <div style={{ padding: "11px 16px", background: "#FFF5F5", border: "1px solid #FCA5A5", borderRadius: 10, color: "#DC2626", fontSize: "0.8125rem" }}>
           {error}
         </div>
       )}

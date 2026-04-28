@@ -73,7 +73,7 @@ export default function NuevaEmpresaPage() {
     if (!payload.representanteLegal.name) localErrors.repName = "El nombre del representante es obligatorio.";
     if (!payload.representanteLegal.dni) localErrors.repDni = "El DNI es obligatorio.";
     else if (!/^\d{8}$/.test(payload.representanteLegal.dni)) localErrors.repDni = "El DNI debe tener 8 dígitos.";
-    if (selectedKeys.length === 0) localErrors.vehicleTypeKeys = "Selecciona al menos un tipo de flota.";
+    if (selectedKeys.length === 0) localErrors.vehicleTypeKeys = "Seleccione al menos un tipo de flota.";
 
     if (Object.keys(localErrors).length > 0) {
       setFieldErrors(localErrors);
@@ -127,7 +127,7 @@ export default function NuevaEmpresaPage() {
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#b91c1c",
+            color: "#DC2626",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}
@@ -153,7 +153,7 @@ export default function NuevaEmpresaPage() {
                 placeholder="Empresa de Transportes S.A.C."
               />
               {fieldErrors.razonSocial && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.razonSocial}</p>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>{fieldErrors.razonSocial}</p>
               )}
             </div>
             <div>
@@ -169,7 +169,7 @@ export default function NuevaEmpresaPage() {
                 inputMode="numeric"
               />
               {fieldErrors.ruc && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.ruc}</p>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>{fieldErrors.ruc}</p>
               )}
             </div>
           </div>
@@ -191,7 +191,7 @@ export default function NuevaEmpresaPage() {
                 placeholder="Juan Pérez Quispe"
               />
               {fieldErrors.repName && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.repName}</p>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>{fieldErrors.repName}</p>
               )}
             </div>
             <div>
@@ -207,7 +207,7 @@ export default function NuevaEmpresaPage() {
                 inputMode="numeric"
               />
               {fieldErrors.repDni && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.repDni}</p>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>{fieldErrors.repDni}</p>
               )}
             </div>
             <div style={{ gridColumn: "1 / -1" }}>
@@ -229,12 +229,12 @@ export default function NuevaEmpresaPage() {
             Tipos de flota
           </h3>
           <p style={{ color: "#52525b", fontSize: "0.875rem", marginBottom: 16 }}>
-            Selecciona los tipos de vehículo que la empresa operará.
+            Seleccione los tipos de vehículo que la empresa operará.
           </p>
           {types.length === 0 ? (
             <p style={{ color: "#a1a1aa" }}>
               No hay tipos de vehículo activos. Actívalos primero en{" "}
-              <Link href="/tipos-vehiculo" style={{ color: "#B8860B", fontWeight: 600 }}>
+              <Link href="/tipos-vehiculo" style={{ color: "#6C0606", fontWeight: 600 }}>
                 Tipos de vehículo
               </Link>
               .
@@ -252,8 +252,8 @@ export default function NuevaEmpresaPage() {
                       gap: 10,
                       padding: "12px 14px",
                       borderRadius: 10,
-                      border: checked ? "1.5px solid #E8D090" : "1.5px solid #e4e4e7",
-                      background: checked ? "#FDF8EC" : "#ffffff",
+                      border: checked ? "1.5px solid #D9B0B0" : "1.5px solid #e4e4e7",
+                      background: checked ? "#FBEAEA" : "#ffffff",
                       cursor: "pointer",
                     }}
                   >
@@ -265,7 +265,7 @@ export default function NuevaEmpresaPage() {
             </div>
           )}
           {fieldErrors.vehicleTypeKeys && (
-            <p style={{ marginTop: 12, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
+            <p style={{ marginTop: 12, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
               {fieldErrors.vehicleTypeKeys}
             </p>
           )}
