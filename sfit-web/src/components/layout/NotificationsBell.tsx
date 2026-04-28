@@ -184,7 +184,7 @@ export function NotificationsBell() {
               height: 18,
               padding: "0 5px",
               borderRadius: 999,
-              background: "#b91c1c",
+              background: "#DC2626",
               color: "#ffffff",
               fontSize: "0.625rem",
               fontWeight: 700,
@@ -326,7 +326,7 @@ export function NotificationsBell() {
                 }} />
               </div>
             ) : error ? (
-              <div style={{ padding: 24, color: "#b91c1c", fontSize: "0.875rem", textAlign: "center" }}>
+              <div style={{ padding: 24, color: "#DC2626", fontSize: "0.875rem", textAlign: "center" }}>
                 {error}
               </div>
             ) : items.length === 0 ? (
@@ -346,7 +346,7 @@ export function NotificationsBell() {
                         padding: "12px 18px",
                         borderBottom: "1px solid #f4f4f5",
                         background: "#ffffff",
-                        borderLeft: `3px solid ${n.read ? "transparent" : "#B8860B"}`,
+                        borderLeft: `3px solid ${n.read ? "transparent" : "#6C0606"}`,
                         cursor: "pointer",
                         transition: "background 0.12s ease",
                         display: "flex",
@@ -361,7 +361,7 @@ export function NotificationsBell() {
                         width: 6,
                         height: 6,
                         borderRadius: "50%",
-                        background: "#B8860B",
+                        background: "#6C0606",
                         opacity: n.read ? 0 : 1,
                         flexShrink: 0,
                         marginTop: 7,

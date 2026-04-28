@@ -206,7 +206,7 @@ export function accountApprovedEmailHtml(params: {
     </div>
     <p style="${textStyle}">
       Ya puedes iniciar sesión con tus credenciales y acceder a todas las funcionalidades
-      correspondientes a tu rol.
+      correspondientes a su rol.
     </p>
     <p style="${textStyle}">Bienvenido/a a SFIT.</p>
   `;
@@ -235,7 +235,7 @@ export function accountRejectedEmailHtml(params: {
     ${reasonSection}
     <p style="${textStyle}">
       Si consideras que hubo un error o deseas más información, comunícate con el administrador
-      de tu municipalidad o provincia correspondiente.
+      de su municipalidad o provincia correspondiente.
     </p>
   `;
   return wrapTemplate(body);

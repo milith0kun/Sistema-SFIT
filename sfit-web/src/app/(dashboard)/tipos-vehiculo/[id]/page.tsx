@@ -174,7 +174,7 @@ export default function EditarTipoVehiculoPage({ params }: Props) {
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#b91c1c",
+            color: "#DC2626",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}
@@ -347,15 +347,7 @@ function InspectionEditor({
   return (
     <div className="space-y-3">
       {items.map((f, idx) => (
-        <div
-          key={idx}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 180px auto",
-            gap: 8,
-            alignItems: "center",
-          }}
-        >
+        <div key={idx} className="sfit-stops-row" style={{ gap: 8 }}>
           <input
             className="field"
             placeholder="Key"

@@ -6,6 +6,7 @@ import { CheckCircle2, XCircle, AlertCircle, ArrowLeft, Gavel } from "lucide-rea
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/ui/LoadingState";
 
 /* ─── tipos ─────────────────────────────────────────────────────────── */
 interface Props {
@@ -43,7 +44,7 @@ type StoredUser = { role: string };
 /* ─── colores ────────────────────────────────────────────────────────── */
 const APTO   = "#15803d"; const APTOBG   = "#F0FDF4"; const APTOBD   = "#86EFAC";
 const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB"; const RIESGOBD = "#FCD34D";
-const NO     = "#b91c1c"; const NOBG     = "#FFF5F5"; const NOBD     = "#FCA5A5";
+const NO     = "#DC2626"; const NOBG     = "#FFF5F5"; const NOBD     = "#FCA5A5";
 const INK1   = "#f4f4f5"; const INK2     = "#e4e4e7"; const INK5     = "#71717a";
 const INK6   = "#52525b"; const INK9     = "#18181b";
 
@@ -142,7 +143,10 @@ export default function InspeccionDetallePage({ params }: Props) {
   /* ── UI ─────────────────────────────────────────────────────────────── */
   if (loading) {
     return (
-      <div style={{ padding: 64, textAlign: "center", color: INK5 }}>Cargando inspección…</div>
+      <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <PageHeader kicker="Inspecciones" title="Cargando inspección…" />
+        <LoadingState rows={5} />
+      </div>
     );
   }
 

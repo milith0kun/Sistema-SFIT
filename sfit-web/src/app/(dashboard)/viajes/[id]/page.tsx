@@ -7,6 +7,8 @@ import { ArrowLeft, MapPin, Clock, User, Truck, CheckCircle } from "lucide-react
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { ErrorState } from "@/components/ui/ErrorState";
 
 type TripStatus = "en_curso" | "completado" | "auto_cierre";
 
@@ -135,15 +137,23 @@ export default function ViajeDetallePage({ params }: Props) {
 
   const canEdit = CAN_EDIT.includes(userRole);
 
-  if (loading) return <div style={{ color: INK5, padding: 40 }}>Cargando viaje…</div>;
+  if (loading) {
+    return (
+      <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <PageHeader kicker="Viajes" title="Cargando viaje…" />
+        <LoadingState rows={5} />
+      </div>
+    );
+  }
   if (notFound) return (
-    <div style={{ padding: 40, textAlign: "center" }}>
-      <p style={{ color: INK5, marginBottom: 16 }}>Viaje no encontrado.</p>
-      <Link href="/viajes"><Button variant="outline">Volver a Viajes</Button></Link>
-    </div>
+    <ErrorState
+      title="Viaje no encontrado"
+      message="El viaje solicitado no existe o ya no está disponible. Verifique el enlace o regrese al listado."
+      action={<Link href="/viajes"><Button variant="primary" size="sm">Volver a Viajes</Button></Link>}
+    />
   );
   if (error && !trip) return (
-    <div style={{ padding: "12px 16px", background: "#FFF5F5", border: "1px solid #FCA5A5", borderRadius: 10, color: "#b91c1c" }}>{error}</div>
+    <div style={{ padding: "12px 16px", background: "#FFF5F5", border: "1px solid #FCA5A5", borderRadius: 10, color: "#DC2626" }}>{error}</div>
   );
   if (!trip) return null;
 
@@ -172,7 +182,7 @@ export default function ViajeDetallePage({ params }: Props) {
       />
 
       {error && (
-        <div role="alert" style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5", borderRadius: 12, padding: 16, color: "#b91c1c", fontSize: "0.9375rem", fontWeight: 500 }}>
+        <div role="alert" style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5", borderRadius: 12, padding: 16, color: "#DC2626", fontSize: "0.9375rem", fontWeight: 500 }}>
           {error}
         </div>
       )}

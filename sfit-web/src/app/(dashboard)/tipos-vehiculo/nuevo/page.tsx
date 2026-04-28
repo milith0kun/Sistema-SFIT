@@ -120,7 +120,7 @@ export default function NuevoTipoVehiculoPage() {
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#b91c1c",
+            color: "#DC2626",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}
@@ -147,7 +147,7 @@ export default function NuevoTipoVehiculoPage() {
                 placeholder="Ej. Camión recolector de residuos orgánicos"
               />
               {fieldErrors.name && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.name}</p>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>{fieldErrors.name}</p>
               )}
             </div>
             <div>
@@ -163,7 +163,7 @@ export default function NuevoTipoVehiculoPage() {
                 style={{ height: "auto", padding: "14px 18px", resize: "vertical" }}
               />
               {fieldErrors.description && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.description}</p>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>{fieldErrors.description}</p>
               )}
             </div>
             <div>
@@ -293,15 +293,7 @@ function InspectionEditor({
   return (
     <div className="space-y-3">
       {items.map((f, idx) => (
-        <div
-          key={idx}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 180px auto",
-            gap: 8,
-            alignItems: "center",
-          }}
-        >
+        <div key={idx} className="sfit-stops-row" style={{ gap: 8 }}>
           <input
             className="field"
             placeholder="Key (ej. frenos)"

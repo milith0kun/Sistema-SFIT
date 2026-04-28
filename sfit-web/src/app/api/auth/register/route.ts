@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       await createNotificationForRole(ROLES.ADMIN_MUNICIPAL, {
         municipalityId,
         title: "Nueva solicitud de registro",
-        body: `${name} solicita acceso como ${requestedRole}. Revisa y aprueba o rechaza.`,
+        body: `${name} solicita acceso como ${requestedRole}. Revise y aprueba o rechaza.`,
         type: "action_required",
         category: "aprobacion",
         link: "/dashboard/municipalidad/solicitudes",

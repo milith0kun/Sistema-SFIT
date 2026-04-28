@@ -68,8 +68,8 @@ function NuevoViajeForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const errs: Record<string, string> = {};
-    if (!vehicleId) errs.vehicleId = "Selecciona un vehículo.";
-    if (!driverId)  errs.driverId  = "Selecciona un conductor.";
+    if (!vehicleId) errs.vehicleId = "Seleccione un vehículo.";
+    if (!driverId)  errs.driverId  = "Seleccione un conductor.";
     setFieldErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
@@ -117,7 +117,7 @@ function NuevoViajeForm() {
       />
 
       {error && (
-        <div role="alert" style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5", borderRadius: 12, padding: 16, color: "#b91c1c", fontSize: "0.9375rem", fontWeight: 500 }}>
+        <div role="alert" style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5", borderRadius: 12, padding: 16, color: "#DC2626", fontSize: "0.9375rem", fontWeight: 500 }}>
           {error}
         </div>
       )}
@@ -130,7 +130,7 @@ function NuevoViajeForm() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 720 }}>
             <div>
               <label htmlFor="vehicleId" style={{ display: "block", marginBottom: 8, fontSize: "0.875rem", fontWeight: 500 }}>
-                Vehículo <span style={{ color: "#b91c1c" }}>*</span>
+                Vehículo <span style={{ color: "#DC2626" }}>*</span>
               </label>
               <select
                 id="vehicleId"
@@ -144,13 +144,13 @@ function NuevoViajeForm() {
                 ))}
               </select>
               {fieldErrors.vehicleId && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.vehicleId}</p>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>{fieldErrors.vehicleId}</p>
               )}
             </div>
 
             <div>
               <label htmlFor="driverId" style={{ display: "block", marginBottom: 8, fontSize: "0.875rem", fontWeight: 500 }}>
-                Conductor <span style={{ color: "#b91c1c" }}>*</span>
+                Conductor <span style={{ color: "#DC2626" }}>*</span>
               </label>
               <select
                 id="driverId"
@@ -164,7 +164,7 @@ function NuevoViajeForm() {
                 ))}
               </select>
               {fieldErrors.driverId && (
-                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.driverId}</p>
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>{fieldErrors.driverId}</p>
               )}
             </div>
 

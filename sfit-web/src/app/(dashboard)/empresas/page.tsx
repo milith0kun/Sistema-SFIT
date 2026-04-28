@@ -28,7 +28,7 @@ const ALLOWED_ROLES = ["admin_municipal", "fiscal", "admin_provincial", "super_a
 function repColor(score: number): { bg: string; color: string; border: string; label: string } {
   if (score >= 80) return { bg: "#F0FDF4", color: "#15803d", border: "#86EFAC", label: "Alta" };
   if (score >= 50) return { bg: "#FFFBEB", color: "#b45309", border: "#FCD34D", label: "Media" };
-  return { bg: "#FFF5F5", color: "#b91c1c", border: "#FCA5A5", label: "Baja" };
+  return { bg: "#FFF5F5", color: "#DC2626", border: "#FCA5A5", label: "Baja" };
 }
 
 const selectStyle: React.CSSProperties = {
@@ -235,7 +235,7 @@ export default function EmpresasPage() {
       </select>
       {canCreate && (
         <Link href="/empresas/nueva">
-          <button style={{ display:"inline-flex", alignItems:"center", gap:6, height:34, padding:"0 14px", borderRadius:8, border:"1.5px solid #B8860B", background:"#B8860B", color:"#fff", fontSize:"0.8125rem", fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+          <button style={{ display:"inline-flex", alignItems:"center", gap:6, height:34, padding:"0 14px", borderRadius:8, border:"1.5px solid #6C0606", background:"#6C0606", color:"#fff", fontSize:"0.8125rem", fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
             <Plus size={13}/>Nueva empresa
           </button>
         </Link>
@@ -263,7 +263,7 @@ export default function EmpresasPage() {
             border: "1.5px solid #FCA5A5",
             borderRadius: 12,
             padding: 16,
-            color: "#b91c1c",
+            color: "#DC2626",
             fontSize: "0.9375rem",
             fontWeight: 500,
           }}

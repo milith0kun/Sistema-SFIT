@@ -7,9 +7,9 @@ import { ArrowLeft, Pencil, Save, X, TrendingUp, Building2, Users, Car } from "l
 import { Badge } from "@/components/ui/Badge";
 
 // ── Paleta SFIT ───────────────────────────────────────────────────────────────
-const G = "#B8860B"; const GBG = "#FDF8EC"; const GBR = "#E8D090";
+const G = "#6C0606"; const GBG = "#FBEAEA"; const GBR = "#D9B0B0";
 const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
-const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
+const NO = "#DC2626"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
 const WARN = "#b45309"; const WARNBG = "#FFFBEB"; const WARNBD = "#FCD34D";
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 
@@ -210,7 +210,7 @@ export default function EmpresaDetallePage({ params }: Props) {
               </Link>
               {canManage && (
                 <>
-                  <button onClick={startEdit} style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 13px", borderRadius: 8, border: "1.5px solid rgba(212,168,39,0.4)", background: "rgba(184,134,11,0.15)", color: "#D4A827", fontWeight: 600, fontSize: "0.8125rem", cursor: "pointer", fontFamily: "inherit" }}>
+                  <button onClick={startEdit} style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 13px", borderRadius: 8, border: "1.5px solid rgba(139,20,20,0.4)", background: "rgba(108,6,6,0.15)", color: "#8B1414", fontWeight: 600, fontSize: "0.8125rem", cursor: "pointer", fontFamily: "inherit" }}>
                     <Pencil size={13} />Editar
                   </button>
                   <button onClick={() => setConfirm(isSuspended ? "reactivate" : "suspend")} disabled={toggling} style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 13px", borderRadius: 8, border: `1.5px solid ${isSuspended ? "rgba(134,239,172,.4)" : "rgba(252,165,165,.4)"}`, background: isSuspended ? "rgba(21,128,61,.15)" : "rgba(185,28,28,.15)", color: isSuspended ? "#86EFAC" : "#FCA5A5", fontWeight: 600, fontSize: "0.8125rem", cursor: "pointer", fontFamily: "inherit" }}>
@@ -224,7 +224,7 @@ export default function EmpresaDetallePage({ params }: Props) {
               <button onClick={cancelEdit} style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 13px", borderRadius: 8, border: "1.5px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.75)", fontWeight: 600, fontSize: "0.8125rem", cursor: "pointer", fontFamily: "inherit" }}>
                 <X size={13} />Cancelar
               </button>
-              <button form="empresa-form" type="submit" disabled={saving} style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 14px", borderRadius: 8, border: "none", background: "#D4A827", color: INK9, fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer", fontFamily: "inherit", opacity: saving ? 0.7 : 1 }}>
+              <button form="empresa-form" type="submit" disabled={saving} style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 14px", borderRadius: 8, border: "none", background: "#8B1414", color: INK9, fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer", fontFamily: "inherit", opacity: saving ? 0.7 : 1 }}>
                 <Save size={13} />{saving ? "Guardando…" : "Guardar cambios"}
               </button>
             </>

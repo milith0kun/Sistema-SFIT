@@ -21,7 +21,7 @@ export default function TerminosPage() {
       }}>
         <a href="/" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
           <img src="/logo.svg" alt="SFIT" width={22} height={22} style={{ objectFit: "contain" }} />
-          <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "13px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", fontFamily: "var(--font-syne)" }}>
+          <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "13px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", fontFamily: "var(--font-inter)" }}>
             SFIT
           </span>
         </a>
@@ -32,7 +32,7 @@ export default function TerminosPage() {
 
       {/* ── Hero ── */}
       <div style={{ background: "#0A1628", padding: "40px 24px 48px", textAlign: "center" }}>
-        <p style={{ color: "#B8860B", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: "10px" }}>
+        <p style={{ color: "#6C0606", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: "10px" }}>
           Documentación legal
         </p>
         <h1 style={{
@@ -40,7 +40,7 @@ export default function TerminosPage() {
           fontSize: "clamp(1.75rem, 3.5vw, 2.5rem)",
           fontWeight: 800,
           letterSpacing: "-0.025em",
-          fontFamily: "var(--font-syne)",
+          fontFamily: "var(--font-inter)",
           marginBottom: "10px",
         }}>
           Términos de Servicio
@@ -193,7 +193,7 @@ export default function TerminosPage() {
             <div style={{ marginTop: "16px", padding: "16px 20px", background: "#fafafa", borderRadius: "10px", border: "1px solid #e4e4e7" }}>
               <p style={{ margin: 0 }}>
                 <strong>Correo electrónico:</strong>{" "}
-                <a href="mailto:184193@unsaac.edu.pe" style={{ color: "#B8860B", textDecoration: "none", fontWeight: 600 }}>
+                <a href="mailto:184193@unsaac.edu.pe" style={{ color: "#6C0606", textDecoration: "none", fontWeight: 600 }}>
                   184193@unsaac.edu.pe
                 </a>
               </p>
@@ -260,7 +260,7 @@ const ulStyle: React.CSSProperties = {
 };
 
 const linkStyle: React.CSSProperties = {
-  color: "#B8860B",
+  color: "#6C0606",
   textDecoration: "none",
   fontSize: "0.875rem",
   fontWeight: 600,

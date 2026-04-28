@@ -3,7 +3,7 @@
  *
  * En este proyecto el balance se deriva de la última transacción en SfitCoin.
  * Este modelo existe como vista materializada opcional para consultas rápidas.
- * Si necesitas el balance actual de un usuario, usa `getBalance(userId)` de
+ * Si requiere el balance actual de un usuario, usa `getBalance(userId)` de
  * `@/lib/coins/awardCoins`.
  */
 import mongoose, { Schema, type Document, type Model } from "mongoose";

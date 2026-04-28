@@ -85,7 +85,7 @@ export function WaypointsEditor({
             <button
               type="button"
               onClick={() => onChange?.([]) }
-              style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: "#b91c1c", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: 0 }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: "#DC2626", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: 0 }}
             >
               <RotateCcw size={11} />
               Limpiar todo
@@ -97,7 +97,7 @@ export function WaypointsEditor({
       {waypoints.length > 0 && (
         <div style={{ marginTop: 10, maxHeight: 220, overflowY: "auto", border: "1px solid #e4e4e7", borderRadius: 8 }}>
           {waypoints.map((w, i) => {
-            const dotColor = i === 0 ? "#15803d" : i === waypoints.length - 1 && waypoints.length > 1 ? "#b91c1c" : "#B8860B";
+            const dotColor = i === 0 ? "#15803d" : i === waypoints.length - 1 && waypoints.length > 1 ? "#DC2626" : "#6C0606";
             const dotLabel = i === 0 ? "A" : i === waypoints.length - 1 && waypoints.length > 1 ? "B" : String(i + 1);
             return (
               <div

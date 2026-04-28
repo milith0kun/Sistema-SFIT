@@ -86,7 +86,7 @@ function NuevaSancionForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const errs: Record<string, string> = {};
-    if (!vehicleId) errs.vehicleId = "Selecciona un vehículo.";
+    if (!vehicleId) errs.vehicleId = "Seleccione un vehículo.";
     if (!faultType.trim()) errs.faultType = "El tipo de infracción es obligatorio.";
     const amtNum = parseFloat(amountSoles);
     if (!amountSoles || isNaN(amtNum) || amtNum < 0) errs.amountSoles = "Ingresa un monto válido.";
@@ -169,13 +169,13 @@ function NuevaSancionForm() {
       />
 
       {preInspectionId && (
-        <div style={{ padding: "12px 16px", background: "#FDF8EC", border: "1.5px solid #E8D090", borderRadius: 12, fontSize: "0.875rem", color: "#926A09", fontWeight: 500 }}>
+        <div style={{ padding: "12px 16px", background: "#FBEAEA", border: "1.5px solid #D9B0B0", borderRadius: 12, fontSize: "0.875rem", color: "#4A0303", fontWeight: 500 }}>
           Sanción vinculada a inspección ID: {preInspectionId}
         </div>
       )}
 
       {error && (
-        <div role="alert" style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5", borderRadius: 12, padding: 16, color: "#b91c1c", fontSize: "0.9375rem", fontWeight: 500 }}>
+        <div role="alert" style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5", borderRadius: 12, padding: 16, color: "#DC2626", fontSize: "0.9375rem", fontWeight: 500 }}>
           {error}
         </div>
       )}
@@ -199,7 +199,7 @@ function NuevaSancionForm() {
                   <option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model} {v.companyName ? `(${v.companyName})` : ""}</option>
                 ))}
               </select>
-              {fieldErrors.vehicleId && <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.vehicleId}</p>}
+              {fieldErrors.vehicleId && <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>{fieldErrors.vehicleId}</p>}
             </div>
 
             <div>
@@ -242,7 +242,7 @@ function NuevaSancionForm() {
                   <option key={ft} value={ft}>{faultLabels[ft]}</option>
                 ))}
               </select>
-              {fieldErrors.faultType && <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.faultType}</p>}
+              {fieldErrors.faultType && <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>{fieldErrors.faultType}</p>}
             </div>
 
             <div>
@@ -260,7 +260,7 @@ function NuevaSancionForm() {
                 className={`field${fieldErrors.amountSoles ? " field-error" : ""}`}
                 placeholder="500.00"
               />
-              {fieldErrors.amountSoles && <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.amountSoles}</p>}
+              {fieldErrors.amountSoles && <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>{fieldErrors.amountSoles}</p>}
             </div>
 
             <div>
@@ -272,7 +272,7 @@ function NuevaSancionForm() {
                 className={`field${fieldErrors.amountUIT ? " field-error" : ""}`}
                 placeholder="0.2 UIT"
               />
-              {fieldErrors.amountUIT && <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{fieldErrors.amountUIT}</p>}
+              {fieldErrors.amountUIT && <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>{fieldErrors.amountUIT}</p>}
               {amountSoles && !isNaN(parseFloat(amountSoles)) && (
                 <p style={{ marginTop: 4, fontSize: "0.75rem", color: INK5 }}>
                   Calculado automáticamente: UIT = S/ 5,150

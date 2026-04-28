@@ -28,9 +28,9 @@ type Profile = {
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  super_admin:      "Super Admin",
-  admin_provincial: "Admin Provincial",
-  admin_municipal:  "Admin Municipal",
+  super_admin:      "Super Administrador",
+  admin_provincial: "Administrador Provincial",
+  admin_municipal:  "Administrador Municipal",
   fiscal:           "Fiscal / Inspector",
   operador:         "Operador",
   conductor:        "Conductor",
@@ -39,9 +39,9 @@ const ROLE_LABELS: Record<string, string> = {
 
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a";
 const INK6 = "#52525b"; const INK9 = "#18181b";
-const RED  = "#b91c1c"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
+const RED  = "#DC2626"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
 const GRN  = "#15803d"; const GRNBG = "#F0FDF4"; const GRNBD = "#86EFAC";
-const GOLD = "#926A09"; const GOLD_BG = "#FDF8EC"; const GOLD_BD = "#E8D090";
+const GOLD = "#4A0303"; const GOLD_BG = "#FBEAEA"; const GOLD_BD = "#D9B0B0";
 
 const FIELD: React.CSSProperties = {
   width: "100%", height: 44, padding: "0 14px",
@@ -245,7 +245,7 @@ export default function PerfilPage() {
     setPassError(null); setPassSuccess(null);
     if (newPass.length < 8)        { setPassError("La nueva contraseña debe tener al menos 8 caracteres"); return; }
     if (newPass !== confirmPass)   { setPassError("Las contraseñas no coinciden"); return; }
-    if (currentPass.length === 0)  { setPassError("Ingresa tu contraseña actual"); return; }
+    if (currentPass.length === 0)  { setPassError("Ingrese su contraseña actual"); return; }
 
     setSavingPass(true);
     try {
@@ -269,7 +269,7 @@ export default function PerfilPage() {
     return (
       <div className="animate-fade-in flex flex-col gap-4">
         <PageHeader kicker="Mi cuenta" title="Cargando perfil…" />
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 18 }}>
+        <div className="sfit-aside-layout">
           <div style={{ height: 400, borderRadius: 14, background: INK1, position: "relative", overflow: "hidden" }}>
             <div className="skeleton-shimmer" style={{ position: "absolute", inset: 0 }} />
           </div>
@@ -285,7 +285,7 @@ export default function PerfilPage() {
     return (
       <div className="animate-fade-in flex flex-col gap-4">
         <PageHeader kicker="Mi cuenta" title="No se pudo cargar el perfil" />
-        <p style={{ color: INK5 }}>{error ?? "Vuelve a intentarlo más tarde."}</p>
+        <p style={{ color: INK5 }}>{error ?? "Intente nuevamente más tarde."}</p>
       </div>
     );
   }
@@ -298,7 +298,7 @@ export default function PerfilPage() {
       <PageHeader
         kicker="Mi cuenta"
         title="Mi perfil"
-        subtitle="Administra tus datos personales y tu contraseña"
+        subtitle="Administración de los datos personales y la contraseña"
       />
 
       {error && (
@@ -312,13 +312,13 @@ export default function PerfilPage() {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 18, alignItems: "start" }}>
+      <div className="sfit-aside-layout">
 
         {/* ── Columna principal ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
           {/* Datos personales */}
-          <SectionCard icon={<UserIcon size={16} color={INK6} />} title="Datos personales" subtitle="Tu nombre, teléfono y documento de identidad">
+          <SectionCard icon={<UserIcon size={16} color={INK6} />} title="Datos personales" subtitle="Su nombre, teléfono y documento de identidad">
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               {/* DNI primero — verifica con RENIEC y autocompleta el nombre */}
               <div style={{ gridColumn: "span 2" }}>
@@ -455,14 +455,14 @@ export default function PerfilPage() {
             icon={<KeyRound size={16} color={INK6} />}
             title="Contraseña"
             subtitle={isGoogle
-              ? "Tu cuenta usa Google — gestiona tu contraseña desde Google"
-              : "Cambia tu contraseña periódicamente para mantener tu cuenta segura"}
+              ? "La cuenta utiliza Google — la contraseña se gestiona desde Google"
+              : "Actualice su contraseña periódicamente para mantener la cuenta segura"}
           >
             {isGoogle ? (
               <div style={{ padding: "14px 16px", background: GOLD_BG, border: `1.5px solid ${GOLD_BD}`, borderRadius: 10, color: GOLD, fontSize: "0.875rem", display: "flex", alignItems: "flex-start", gap: 10 }}>
                 <ShieldCheck size={16} style={{ flexShrink: 0, marginTop: 2 }} />
                 <div>
-                  Inicias sesión con Google. La contraseña se gestiona desde tu cuenta de Google,
+                  El acceso se realiza con Google. La contraseña se gestiona desde la cuenta de Google,
                   no desde SFIT.
                 </div>
               </div>
@@ -485,7 +485,7 @@ export default function PerfilPage() {
                     <input
                       type={showPass ? "text" : "password"}
                       value={currentPass} onChange={e => setCurrentPass(e.target.value)}
-                      placeholder="Tu contraseña actual" style={FIELD}
+                      placeholder="Contraseña actual" style={FIELD}
                       onFocus={e => { e.currentTarget.style.borderColor = INK9; }}
                       onBlur={e => { e.currentTarget.style.borderColor = INK2; }}
                     />
@@ -505,7 +505,7 @@ export default function PerfilPage() {
                     <input
                       type={showPass ? "text" : "password"}
                       value={confirmPass} onChange={e => setConfirmPass(e.target.value)}
-                      placeholder="Repite la contraseña" style={FIELD}
+                      placeholder="Repita la contraseña" style={FIELD}
                       onFocus={e => { e.currentTarget.style.borderColor = INK9; }}
                       onBlur={e => { e.currentTarget.style.borderColor = INK2; }}
                     />
@@ -594,10 +594,10 @@ export default function PerfilPage() {
             </div>
           </div>
 
-          {/* Tip */}
-          <div style={{ padding: "14px 16px", background: GOLD_BG, border: `1.5px solid ${GOLD_BD}`, borderRadius: 12, fontSize: "0.8125rem", color: INK6, lineHeight: 1.5 }}>
-            <div style={{ fontWeight: 700, color: GOLD, marginBottom: 6 }}>Tu cuenta es solo tuya</div>
-            Si necesitas cambiar tu rol, municipio o eliminar tu cuenta, contacta a un administrador del sistema.
+          {/* Información */}
+          <div style={{ padding: "14px 16px", background: GOLD_BG, border: `1.5px solid ${GOLD_BD}`, borderRadius: 12, fontSize: "0.8125rem", color: INK6, lineHeight: 1.55 }}>
+            <div style={{ fontWeight: 700, color: GOLD, marginBottom: 6 }}>Cuenta personal e intransferible</div>
+            Para modificar el rol, la municipalidad o eliminar la cuenta, comuníquese con un administrador del sistema.
           </div>
         </div>
       </div>

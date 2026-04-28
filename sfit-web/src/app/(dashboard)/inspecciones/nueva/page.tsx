@@ -19,7 +19,7 @@ type ChecklistRow = { item: string; passed: boolean; notes: string };
 /* ─── colores ────────────────────────────────────────────────────────── */
 const APTO   = "#15803d"; const APTOBG   = "#F0FDF4"; const APTOBD   = "#86EFAC";
 const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB"; const RIESGOBD = "#FCD34D";
-const NO     = "#b91c1c"; const NOBG     = "#FFF5F5"; const NOBD     = "#FCA5A5";
+const NO     = "#DC2626"; const NOBG     = "#FFF5F5"; const NOBD     = "#FCA5A5";
 const INK1   = "#f4f4f5"; const INK2     = "#e4e4e7"; const INK5     = "#71717a";
 const INK6   = "#52525b"; const INK9     = "#18181b";
 
@@ -132,7 +132,7 @@ export default function NuevaInspeccionPage() {
     setError(null);
 
     const errs: Record<string, string> = {};
-    if (!vehicleId)           errs.vehicleId       = "Selecciona un vehículo.";
+    if (!vehicleId)           errs.vehicleId       = "Seleccione un vehículo.";
     if (checklist.length === 0) errs.checklist     = "El tipo de vehículo debe tener ítems en el checklist.";
 
     if (Object.keys(errs).length > 0) { setFieldErrors(errs); return; }

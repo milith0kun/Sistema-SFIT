@@ -14,9 +14,9 @@ const LoginSchema = z.object({
 });
 
 const STATUS_MESSAGES: Record<string, string> = {
-  pendiente: "Tu cuenta está pendiente de aprobación por el administrador.",
-  rechazado: "Tu solicitud fue rechazada.",
-  suspendido: "Tu cuenta está suspendida.",
+  pendiente: "Su cuenta está pendiente de aprobación por el administrador.",
+  rechazado: "Su solicitud fue rechazada.",
+  suspendido: "Su cuenta está suspendida.",
 };
 
 /**
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     // (flujo de recuperación). Mensaje claro para que pruebe con Google.
     if (!user.password) {
       return apiError(
-        "Esta cuenta se creó con Google. Ingresa con Google o restablece tu contraseña.",
+        "Esta cuenta se creó con Google. Ingresa con Google o restablece su contraseña.",
         400,
       );
     }

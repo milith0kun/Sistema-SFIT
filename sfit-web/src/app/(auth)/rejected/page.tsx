@@ -42,13 +42,13 @@ export default function RejectedPage() {
         </svg>
       </div>
       <h1
-        className="font-black text-[#09090b] mb-4"
-        style={{ fontFamily: "var(--font-syne)", fontSize: "2rem", lineHeight: 1, letterSpacing: "-0.03em" }}
+        className="font-bold text-[#09090b] mb-4"
+        style={{ fontSize: "clamp(1.5rem, 3vw, 1.875rem)", lineHeight: 1.15, letterSpacing: "-0.02em" }}
       >
-        Solicitud rechazada
+        Solicitud no aprobada
       </h1>
-      <p className="mb-8 max-w-[380px] mx-auto" style={{ color: "#52525b", fontSize: "0.9375rem", lineHeight: 1.55 }}>
-        Tu solicitud de acceso fue rechazada por el administrador municipal. Puedes contactar al soporte municipal para más detalles o crear una nueva solicitud.
+      <p className="mb-8 max-w-[400px] mx-auto" style={{ color: "#52525b", fontSize: "0.9375rem", lineHeight: 1.6 }}>
+        La solicitud de acceso fue rechazada por la administración municipal. Puede comunicarse con la municipalidad correspondiente para obtener mayor información o presentar una nueva solicitud.
       </p>
       <button onClick={logout} className="btn-outline" style={{ width: "auto", padding: "0 32px" }}>
         Volver al inicio

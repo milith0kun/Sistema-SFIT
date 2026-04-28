@@ -199,7 +199,7 @@ class _RankingTile extends StatelessWidget {
   });
 
   (Color bg, Color border) get _rowColors {
-    if (isMe) return (const Color(0xFFFDF8EC), AppColors.goldBorder);
+    if (isMe) return (const Color(0xFFFBEAEA), AppColors.goldBorder);
     if (position <= 3) return (Colors.white, AppColors.ink2);
     return (Colors.white, AppColors.ink2);
   }

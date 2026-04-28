@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = requireAuth(request);
     if (!session) {
-      return apiUnauthorized("Debes iniciar sesión para cambiar tu contraseña");
+      return apiUnauthorized("Debes iniciar sesión para cambiar su contraseña");
     }
 
     const body = await request.json();

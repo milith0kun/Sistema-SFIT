@@ -1,89 +1,115 @@
+import {
+  QrCode,
+  Clock,
+  MessageSquareWarning,
+  Scale,
+  FileText,
+  BarChart3,
+  ArrowRight,
+} from "lucide-react";
+
 const FEATURES = [
   {
     n: "01",
-    icon: "📱",
-    title: "Inspecciones QR",
-    desc: "Escanea el código QR del vehículo y registra el acta de inspección en tiempo real desde el campo.",
+    Icon: QrCode,
+    title: "Inspección mediante código QR",
+    desc: "Verificación vehicular con código QR firmado y registro digital del acta de inspección en campo, con sincronización en tiempo real.",
   },
   {
     n: "02",
-    icon: "😴",
-    title: "Fatiga de conductores",
-    desc: "Monitoreo automático de horas de manejo según las normativas peruanas vigentes. Alertas preventivas.",
+    Icon: Clock,
+    title: "Control de fatiga de conductores",
+    desc: "Control automatizado de horas de conducción conforme a la normativa nacional vigente, con alertas preventivas según el estado de aptitud.",
   },
   {
     n: "03",
-    icon: "🏅",
-    title: "Reportes ciudadanos",
-    desc: "Los ciudadanos reportan anomalías con geolocalización y ganan SFITCoins por su participación.",
+    Icon: MessageSquareWarning,
+    title: "Reportes de la ciudadanía",
+    desc: "Recepción de reportes ciudadanos con geolocalización y validación; los aportes verificados otorgan reconocimiento mediante el sistema institucional de incentivos.",
   },
   {
     n: "04",
-    icon: "⚖️",
-    title: "Apelaciones",
-    desc: "Flujo de revisión transparente: el conductor apela, el fiscal revisa, el admin municipal resuelve.",
+    Icon: Scale,
+    title: "Procedimiento de apelación",
+    desc: "Procedimiento formal de apelación con trazabilidad: presentación por el administrado, revisión técnica y resolución por la autoridad municipal competente.",
   },
   {
     n: "05",
-    icon: "📋",
-    title: "Sanciones",
-    desc: "Registro oficial de infracciones con trazabilidad completa y exportación a CSV para reportes.",
+    Icon: FileText,
+    title: "Registro de sanciones",
+    desc: "Registro oficial de infracciones con trazabilidad documental completa y exportación de datos para reportes administrativos.",
   },
   {
     n: "06",
-    icon: "📊",
-    title: "Analytics",
-    desc: "Estadísticas en tiempo real por municipio: inspecciones, sanciones, flota activa y conductores.",
+    Icon: BarChart3,
+    title: "Indicadores estadísticos",
+    desc: "Indicadores estadísticos por municipalidad: inspecciones realizadas, sanciones impuestas, flota operativa y registro de conductores.",
   },
 ];
 
 const ROLES = [
-  { role: "Super Administrador",  desc: "Configuración global del sistema" },
-  { role: "Admin Provincial",     desc: "Gestión de municipalidades en la provincia" },
-  { role: "Admin Municipal",      desc: "Aprobación de usuarios y configuración local" },
-  { role: "Fiscal / Inspector",   desc: "Inspecciones de campo y actas digitales" },
-  { role: "Operador de Empresa",  desc: "Gestión de flota y salidas diarias" },
-  { role: "Conductor",            desc: "Estado de aptitud y registro de viajes" },
-  { role: "Ciudadano",            desc: "Consultas y reporte de anomalías" },
+  { role: "Super Administrador",  desc: "Administración general del sistema" },
+  { role: "Administrador Provincial", desc: "Supervisión de municipalidades en la jurisdicción provincial" },
+  { role: "Administrador Municipal",  desc: "Autorización de usuarios y configuración de la municipalidad" },
+  { role: "Fiscal / Inspector",   desc: "Realización de inspecciones y emisión de actas en campo" },
+  { role: "Operador de Empresa",  desc: "Administración de la flota vehicular y registro de salidas" },
+  { role: "Conductor",            desc: "Consulta de aptitud y registro de operaciones" },
+  { role: "Ciudadano",            desc: "Consulta pública y presentación de reportes" },
 ];
 
 const STATS = [
   { n: "100+", label: "Vehículos registrados" },
-  { n: "7",    label: "Roles de acceso" },
+  { n: "7",    label: "Niveles de acceso" },
   { n: "24/7", label: "Monitoreo continuo" },
-  { n: "100%", label: "Aislamiento por tenant" },
+  { n: "100%", label: "Aislamiento por municipalidad" },
 ];
 
 export default function HomePage() {
   return (
-    <div style={{ fontFamily: "var(--font-plus-jakarta), system-ui, sans-serif" }}>
+    <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
 
       {/* ── Nav fijo ─────────────────────────── */}
       <header
-        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 py-4"
+        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-5 md:px-12 py-3.5"
         style={{
-          background: "rgba(10,22,40,0.88)",
-          backdropFilter: "blur(14px)",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          background: "rgba(10,22,40,0.92)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          borderBottom: "1px solid rgba(255,255,255,0.08)",
         }}
       >
-        <div className="flex items-center gap-2.5">
-          <SfitMark size={24} />
+        <a href="#" className="flex items-center gap-2.5 group" aria-label="Inicio SFIT">
+          <SfitMark size={26} />
           <span
-            className="text-white font-bold text-[14px] tracking-[0.2em] uppercase"
-            style={{ fontFamily: "var(--font-syne)" }}
+            className="text-white font-bold text-[13px] tracking-[0.22em] uppercase transition-opacity group-hover:opacity-80"
           >
             SFIT
           </span>
-        </div>
-        <a
-          href="/login"
-          className="btn-primary"
-          style={{ height: "38px", fontSize: "13px", padding: "0 18px", width: "auto" }}
-        >
-          <span className="shine" aria-hidden />
-          Iniciar sesión
         </a>
+        <nav className="flex items-center gap-2 sm:gap-3">
+          <a
+            href="/consulta-publica"
+            className="nav-secondary hidden sm:inline-flex items-center transition-colors"
+            style={{
+              height: 38,
+              padding: "0 14px",
+              borderRadius: 9,
+              fontSize: "0.8125rem",
+              fontWeight: 500,
+              textDecoration: "none",
+            }}
+          >
+            Consulta pública
+          </a>
+          <a
+            href="/login"
+            className="btn-primary"
+            style={{ height: "38px", fontSize: "13px", padding: "0 16px", width: "auto" }}
+          >
+            <span className="shine" aria-hidden />
+            Acceso al sistema
+          </a>
+        </nav>
       </header>
 
       {/* ── Hero ─────────────────────────────── */}
@@ -100,13 +126,13 @@ export default function HomePage() {
             backgroundSize: "24px 24px",
           }}
         />
-        {/* Gold glow */}
+        {/* Primary glow */}
         <div
           className="absolute pointer-events-none"
           style={{
             bottom: "-200px", left: "8%",
             width: "650px",   height: "650px",
-            background: "radial-gradient(circle, rgba(184,134,11,0.09) 0%, transparent 65%)",
+            background: "radial-gradient(circle, rgba(139,20,20,0.18) 0%, transparent 65%)",
           }}
         />
         {/* Blue glow */}
@@ -124,44 +150,40 @@ export default function HomePage() {
           <div className="flex items-center justify-center gap-2 mb-6">
             <span
               className="w-1.5 h-1.5 rounded-full animate-soft-pulse"
-              style={{ background: "#D4A827" }}
+              style={{ background: "#8B1414" }}
               aria-hidden
             />
             <span
               style={{
-                color: "#D4A827",
+                color: "#D9B0B0",
                 fontSize: "0.6875rem",
                 fontWeight: 700,
                 letterSpacing: "0.22em",
                 textTransform: "uppercase",
               }}
             >
-              Plataforma Municipal · Perú 2026
+              Sistema de Fiscalización · República del Perú
             </span>
           </div>
 
           {/* Headline */}
           <h1
-            className="font-black text-white mb-6 animate-fade-up delay-100"
+            className="font-bold text-white mb-6 animate-fade-up delay-100"
             style={{
-              fontFamily: "var(--font-syne)",
-              fontSize: "clamp(2.5rem, 5.5vw, 4.25rem)",
-              lineHeight: 0.98,
-              letterSpacing: "-0.035em",
+              fontSize: "clamp(2rem, 5vw, 3.75rem)",
+              lineHeight: 1.05,
+              letterSpacing: "-0.025em",
             }}
           >
-            La plataforma que{" "}
-            <span style={{ color: "#D4A827" }}>unifica</span>
+            Sistema Integral de Fiscalización
             <br />
-            la fiscalización del
-            <br />
-            transporte municipal
+            del <span style={{ color: "#D9B0B0" }}>Transporte Municipal</span>
           </h1>
 
-          {/* Gold rule */}
+          {/* Primary rule */}
           <div
             className="mx-auto mb-6"
-            style={{ width: "44px", height: "2.5px", background: "#D4A827", borderRadius: "1px" }}
+            style={{ width: "44px", height: "2.5px", background: "#8B1414", borderRadius: "1px" }}
           />
 
           {/* Subtext */}
@@ -170,19 +192,19 @@ export default function HomePage() {
             style={{
               color: "#E4E4E7",
               fontSize: "1.0625rem",
-              lineHeight: 1.55,
-              maxWidth: "600px",
+              lineHeight: 1.6,
+              maxWidth: "640px",
               fontWeight: 400,
             }}
           >
-            Inspecciones digitales, gestión de flota, conductores y reportes ciudadanos — todo en una sola plataforma multi-tenant para municipalidades del Perú.
+            Plataforma institucional para la fiscalización digital del transporte público, la gestión de la flota vehicular, el control de conductores y la atención de reportes ciudadanos en las municipalidades del Perú.
           </p>
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10 animate-fade-up delay-300">
             <a
               href="/login"
-              className="group relative inline-flex items-center justify-center gap-2 overflow-hidden hover:-translate-y-[1px] hover:shadow-[0_0_0_1px_rgba(212,168,39,0.5),0_14px_40px_rgba(184,134,11,0.5)]"
+              className="group relative inline-flex items-center justify-center gap-2 overflow-hidden hover:-translate-y-[1px]"
               style={{
                 width: "auto",
                 minWidth: "200px",
@@ -192,18 +214,20 @@ export default function HomePage() {
                 fontWeight: 600,
                 letterSpacing: "-0.005em",
                 borderRadius: "12px",
-                background: "linear-gradient(180deg, #D4A827 0%, #B8860B 100%)",
-                color: "#09090b",
-                border: "1px solid #E8D090",
-                boxShadow: "0 0 0 1px rgba(212,168,39,0.3), 0 10px 30px rgba(184,134,11,0.35)",
+                background: "linear-gradient(180deg, #8B1414 0%, #6C0606 100%)",
+                color: "#ffffff",
+                border: "1px solid #D9B0B0",
+                boxShadow: "0 0 0 1px rgba(139,20,20,0.35), 0 10px 30px rgba(108,6,6,0.40)",
                 transition: "transform 0.15s ease, box-shadow 0.2s ease",
                 textDecoration: "none",
               }}
             >
-              Acceder al panel
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-hover:translate-x-0.5">
-                <path d="M5 12h14M13 6l6 6-6 6" />
-              </svg>
+              Acceso al sistema
+              <ArrowRight
+                size={18}
+                strokeWidth={2.5}
+                className="transition-transform duration-200 group-hover:translate-x-0.5"
+              />
             </a>
             <a
               href="/consulta-publica"
@@ -223,36 +247,30 @@ export default function HomePage() {
                 transition: "background 0.15s, border-color 0.15s",
               }}
             >
-              Consultar vehículo
+              Consulta vehicular pública
             </a>
           </div>
 
-          {/* Hint de siguiente paso */}
-          <p className="mb-8 animate-fade-up delay-400" style={{
-            color: "rgba(255,255,255,0.5)",
-            fontSize: "0.8125rem",
-            fontWeight: 500,
-          }}>
-            ¿Eres ciudadano? Consulta el estado de cualquier vehículo por su placa.
-          </p>
-
-          {/* Chips */}
-          <div className="flex items-center justify-center gap-2.5 flex-wrap animate-fade-up delay-400">
-            {["7 roles de acceso", "19 módulos RF", "Multi-tenant", "Web + App móvil"].map((chip) => (
-              <span
-                key={chip}
-                className="px-3.5 py-1.5 rounded-full"
-                style={{
-                  background: "rgba(255,255,255,0.08)",
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  color: "#F4F4F5",
-                  fontSize: "0.8125rem",
-                  fontWeight: 500,
-                }}
-              >
-                {chip}
+          {/* Trust line + hint de siguiente paso */}
+          <div className="flex flex-col items-center gap-2.5 animate-fade-up delay-400">
+            <div className="flex items-center gap-4 flex-wrap justify-center" style={{ color: "rgba(255,255,255,0.55)", fontSize: "0.75rem", fontWeight: 500 }}>
+              <span className="inline-flex items-center gap-1.5">
+                <TrustLockIcon />
+                Conexión cifrada
               </span>
-            ))}
+              <span aria-hidden style={{ color: "rgba(255,255,255,0.18)" }}>·</span>
+              <span>Servidor institucional</span>
+              <span aria-hidden style={{ color: "rgba(255,255,255,0.18)" }}>·</span>
+              <span>Disponibilidad 24/7</span>
+            </div>
+            <p className="mt-2" style={{
+              color: "rgba(255,255,255,0.6)",
+              fontSize: "0.8125rem",
+              fontWeight: 500,
+              maxWidth: 520,
+            }}>
+              Ciudadanía: consulte el estado de habilitación de un vehículo mediante el número de placa.
+            </p>
           </div>
         </div>
       </section>
@@ -262,73 +280,86 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto">
           <div className="mb-16">
             <p className="kicker">
-              Capacidades del sistema
+              Funcionalidades del sistema
             </p>
             <h2
-              className="mt-5 font-black text-[#09090b]"
+              className="mt-5 font-bold text-[#09090b]"
               style={{
-                fontFamily: "var(--font-syne)",
-                fontSize: "clamp(2rem, 4vw, 3rem)",
-                lineHeight: 0.98,
-                letterSpacing: "-0.035em",
+                fontSize: "clamp(1.75rem, 3.5vw, 2.5rem)",
+                lineHeight: 1.1,
+                letterSpacing: "-0.025em",
               }}
             >
-              Todo en una plataforma
+              Módulos institucionales
             </h2>
             <p
               className="mt-5"
               style={{
                 color: "#52525b",
                 fontSize: "1.0625rem",
-                lineHeight: 1.55,
-                maxWidth: "560px",
+                lineHeight: 1.6,
+                maxWidth: "640px",
                 fontWeight: 400,
               }}
             >
-              Módulos integrados que cubren el ciclo completo de fiscalización, desde la salida de flota hasta la resolución de sanciones.
+              Módulos integrados que comprenden el proceso integral de fiscalización vehicular: desde el registro de salida de la flota hasta la resolución de procedimientos sancionadores.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {FEATURES.map((f) => (
-              <div
-                key={f.n}
-                className="feature-card p-7 rounded-2xl"
-                style={{ background: "#ffffff", border: "1.5px solid #e4e4e7" }}
-              >
-                <div className="flex items-center gap-3 mb-5">
-                  <span style={{ fontSize: "1.75rem", lineHeight: 1 }} aria-hidden>{f.icon}</span>
-                  <div
-                    className="font-black leading-none select-none"
-                    style={{ fontFamily: "var(--font-syne)", fontSize: "1rem", letterSpacing: "-0.02em", color: "#d4d4d8" }}
-                    aria-hidden
-                  >
-                    {f.n}
+            {FEATURES.map((f) => {
+              const Icon = f.Icon;
+              return (
+                <div
+                  key={f.n}
+                  className="feature-card p-7 rounded-2xl"
+                  style={{ background: "#ffffff", border: "1.5px solid #e4e4e7" }}
+                >
+                  <div className="flex items-center justify-between mb-5">
+                    <div
+                      className="flex items-center justify-center rounded-xl"
+                      style={{
+                        width: 44,
+                        height: 44,
+                        background: "#FBEAEA",
+                        border: "1.5px solid #D9B0B0",
+                        color: "#6C0606",
+                      }}
+                      aria-hidden
+                    >
+                      <Icon size={22} strokeWidth={1.8} />
+                    </div>
+                    <div
+                      className="font-bold leading-none select-none"
+                      style={{ fontSize: "0.875rem", letterSpacing: "0.05em", color: "#a1a1aa" }}
+                      aria-hidden
+                    >
+                      {f.n}
+                    </div>
                   </div>
+                  <h3
+                    className="font-bold text-[#09090b] mb-3"
+                    style={{
+                      fontSize: "1.125rem",
+                      lineHeight: 1.3,
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    {f.title}
+                  </h3>
+                  <p
+                    style={{
+                      color: "#52525b",
+                      fontSize: "0.9375rem",
+                      lineHeight: 1.6,
+                      fontWeight: 400,
+                    }}
+                  >
+                    {f.desc}
+                  </p>
                 </div>
-                <h3
-                  className="font-bold text-[#09090b] mb-3"
-                  style={{
-                    fontFamily: "var(--font-syne)",
-                    fontSize: "1.125rem",
-                    lineHeight: 1.25,
-                    letterSpacing: "-0.015em",
-                  }}
-                >
-                  {f.title}
-                </h3>
-                <p
-                  style={{
-                    color: "#52525b",
-                    fontSize: "0.9375rem",
-                    lineHeight: 1.55,
-                    fontWeight: 400,
-                  }}
-                >
-                  {f.desc}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -350,19 +381,18 @@ export default function HomePage() {
         <div className="relative z-10 max-w-5xl mx-auto">
           <div className="mb-16">
             <p className="kicker">
-              Acceso por rol
+              Estructura de acceso
             </p>
             <h2
-              className="mt-5 font-black text-white"
+              className="mt-5 font-bold text-white"
               style={{
-                fontFamily: "var(--font-syne)",
-                fontSize: "clamp(2rem, 4vw, 3rem)",
-                lineHeight: 0.98,
-                letterSpacing: "-0.035em",
+                fontSize: "clamp(1.75rem, 3.5vw, 2.5rem)",
+                lineHeight: 1.1,
+                letterSpacing: "-0.025em",
               }}
             >
-              Para cada actor,{" "}
-              <span style={{ color: "#B8860B" }}>la herramienta exacta</span>
+              Acceso diferenciado{" "}
+              <span style={{ color: "#D9B0B0" }}>según nivel de competencia</span>
             </h2>
           </div>
 
@@ -378,16 +408,15 @@ export default function HomePage() {
               >
                 <div
                   className="w-2 h-2 rounded-full mb-4"
-                  style={{ background: "#B8860B" }}
+                  style={{ background: "#8B1414" }}
                   aria-hidden
                 />
                 <div
                   className="font-bold text-white mb-2"
                   style={{
-                    fontFamily: "var(--font-syne)",
                     fontSize: "0.9375rem",
                     lineHeight: 1.3,
-                    letterSpacing: "-0.01em",
+                    letterSpacing: "-0.005em",
                   }}
                 >
                   {r.role}
@@ -396,7 +425,7 @@ export default function HomePage() {
                   style={{
                     color: "#D4D4D8",
                     fontSize: "0.875rem",
-                    lineHeight: 1.5,
+                    lineHeight: 1.55,
                     fontWeight: 400,
                   }}
                 >
@@ -412,25 +441,24 @@ export default function HomePage() {
       <section className="py-24 px-6 md:px-12 text-center" style={{ background: "#f4f4f5" }}>
         <div className="max-w-4xl mx-auto">
           <p className="kicker">
-            En cifras
+            Datos del sistema
           </p>
           <h2
-            className="mt-5 mb-16 font-black text-[#09090b]"
+            className="mt-5 mb-16 font-bold text-[#09090b]"
             style={{
-              fontFamily: "var(--font-syne)",
-              fontSize: "clamp(2rem, 4vw, 2.75rem)",
-              lineHeight: 0.98,
-              letterSpacing: "-0.035em",
+              fontSize: "clamp(1.75rem, 3.5vw, 2.5rem)",
+              lineHeight: 1.1,
+              letterSpacing: "-0.025em",
             }}
           >
-            Diseñado para escalar
+            Arquitectura institucional escalable
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
             {STATS.map((s) => (
               <div key={s.label} className="text-center">
                 <div
-                  className="font-black text-[#09090b] mb-2 leading-none"
-                  style={{ fontFamily: "var(--font-syne)", fontSize: "3rem", letterSpacing: "-0.04em" }}
+                  className="font-bold text-[#09090b] mb-2 leading-none"
+                  style={{ fontSize: "clamp(2.25rem, 5vw, 3rem)", letterSpacing: "-0.03em" }}
                 >
                   {s.n}
                 </div>
@@ -454,38 +482,37 @@ export default function HomePage() {
             top: "50%", left: "50%",
             transform: "translate(-50%, -50%)",
             width: "500px", height: "500px",
-            background: "radial-gradient(circle, rgba(184,134,11,0.07) 0%, transparent 65%)",
+            background: "radial-gradient(circle, rgba(139,20,20,0.10) 0%, transparent 65%)",
           }}
         />
         <div className="relative z-10 max-w-xl mx-auto">
           <div
             className="w-10 h-10 mx-auto mb-7 flex items-center justify-center rounded-lg"
-            style={{ border: "1.5px solid rgba(184,134,11,0.5)", background: "rgba(184,134,11,0.08)" }}
+            style={{ border: "1.5px solid rgba(139,20,20,0.55)", background: "rgba(108,6,6,0.12)" }}
           >
             <SfitMark size={22} />
           </div>
           <h2
-            className="font-black text-white mb-5"
+            className="font-bold text-white mb-5"
             style={{
-              fontFamily: "var(--font-syne)",
-              fontSize: "clamp(2rem, 4vw, 3rem)",
-              lineHeight: 0.98,
-              letterSpacing: "-0.035em",
+              fontSize: "clamp(1.75rem, 3.5vw, 2.5rem)",
+              lineHeight: 1.1,
+              letterSpacing: "-0.025em",
             }}
           >
-            ¿Tu municipalidad necesita SFIT?
+            Implementación institucional
           </h2>
           <p
             className="mb-10 mx-auto"
             style={{
               color: "#E4E4E7",
               fontSize: "1.0625rem",
-              lineHeight: 1.55,
-              maxWidth: "440px",
+              lineHeight: 1.6,
+              maxWidth: "480px",
               fontWeight: 400,
             }}
           >
-            Contáctanos para implementar SFIT en tu municipalidad o ingresa con tu cuenta institucional.
+            Para implementar el sistema en su municipalidad, comuníquese con la administración. Si su municipalidad ya cuenta con acceso, ingrese con sus credenciales institucionales.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <a
@@ -494,7 +521,7 @@ export default function HomePage() {
               style={{ width: "auto", padding: "0 34px", height: "54px", fontSize: "1rem" }}
             >
               <span className="shine" aria-hidden />
-              Acceder al panel
+              Acceso al sistema
             </a>
             <a
               href="mailto:184193@unsaac.edu.pe?subject=Implementación SFIT en mi municipalidad"
@@ -512,7 +539,7 @@ export default function HomePage() {
                 transition: "background 0.15s, border-color 0.15s",
               }}
             >
-              Contactar
+              Solicitar información
             </a>
           </div>
         </div>
@@ -528,7 +555,7 @@ export default function HomePage() {
             <SfitMark size={18} />
             <span
               className="text-[12px] font-bold tracking-[0.16em] uppercase"
-              style={{ color: "rgba(255,255,255,0.32)", fontFamily: "var(--font-syne)" }}
+              style={{ color: "rgba(255,255,255,0.32)" }}
             >
               SFIT
             </span>
@@ -542,7 +569,7 @@ export default function HomePage() {
               className="hover:text-white transition-colors">Términos</a>
           </div>
           <p className="text-[11px] text-center" style={{ color: "rgba(255,255,255,0.16)" }}>
-            © 2026 SFIT — Perú
+            © 2026 SFIT · República del Perú
           </p>
         </div>
       </footer>
@@ -554,10 +581,19 @@ function SfitMark({ size = 32 }: { size?: number }) {
   return (
     <img
       src="/logo.svg"
-      alt="SFIT Logo"
+      alt="SFIT"
       width={size}
       height={size}
       className="object-contain"
     />
+  );
+}
+
+function TrustLockIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
   );
 }

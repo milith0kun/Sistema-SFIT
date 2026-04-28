@@ -33,7 +33,7 @@ export function FeatureCard({
         overflow: "hidden",
         display: "block",
         background: hover ? "#FDFAF2" : "#ffffff",
-        border: `1.5px solid ${hover ? "#E8D090" : "#e4e4e7"}`,
+        border: `1.5px solid ${hover ? "#D9B0B0" : "#e4e4e7"}`,
         borderRadius: 12,
         padding: "14px 16px",
         minHeight: 88,
@@ -41,7 +41,7 @@ export function FeatureCard({
         transition:
           "border-color 180ms ease, background 180ms ease, box-shadow 180ms ease, transform 180ms ease",
         boxShadow: hover
-          ? "0 6px 18px rgba(184, 134, 11, 0.08)"
+          ? "0 6px 18px rgba(108, 6, 6, 0.08)"
           : "0 0 0 rgba(0,0,0,0)",
         transform: hover ? "translateY(-1px)" : "translateY(0)",
       }}
@@ -52,9 +52,9 @@ export function FeatureCard({
             position: "absolute",
             top: 14,
             right: 14,
-            background: "#FDF8EC",
-            color: "#926A09",
-            border: "1px solid #E8D090",
+            background: "#FBEAEA",
+            color: "#4A0303",
+            border: "1px solid #D9B0B0",
             borderRadius: 999,
             padding: "3px 9px",
             fontSize: "0.6875rem",
@@ -104,7 +104,7 @@ export function FeatureCard({
           position: "absolute",
           right: -12,
           bottom: -12,
-          color: hover ? "#B8860B" : "#C8971A",
+          color: hover ? "#6C0606" : "#C8971A",
           opacity: hover ? 0.28 : 0.16,
           pointerEvents: "none",
           lineHeight: 0,

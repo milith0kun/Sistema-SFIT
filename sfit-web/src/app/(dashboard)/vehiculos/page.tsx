@@ -14,10 +14,10 @@ type Vehicle = {
   lastInspectionStatus?: string; reputationScore: number; soatExpiry?: string; qrHmac?: string;
 };
 
-const G = "#B8860B"; const GD = "#926A09"; const GBG = "#FDF8EC";
+const G = "#6C0606"; const GD = "#4A0303"; const GBG = "#FBEAEA";
 const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
 const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB"; const RIESGOBD = "#FCD34D";
-const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
+const NO = "#DC2626"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
 const INFO = "#1e40af"; const INFOBG = "#EFF6FF"; const INFOBD = "#BFDBFE";
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 
@@ -330,7 +330,7 @@ export default function VehiculosPage() {
                 </button>
               </div>
               {qrError && (
-                <div style={{ marginTop: 8, padding: "8px 12px", background: "#FFF5F5", border: "1px solid #FCA5A5", borderRadius: 8, fontSize: "0.8125rem", color: "#b91c1c" }}>
+                <div style={{ marginTop: 8, padding: "8px 12px", background: "#FFF5F5", border: "1px solid #FCA5A5", borderRadius: 8, fontSize: "0.8125rem", color: "#DC2626" }}>
                   {qrError}
                 </div>
               )}
@@ -344,7 +344,7 @@ export default function VehiculosPage() {
             </div>
           </div>
         ) : (
-          <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", color: INK5, padding: 40 }}>Selecciona un vehículo</div>
+          <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", color: INK5, padding: 40 }}>Seleccione un vehículo</div>
         )}
       </div>
     </div>

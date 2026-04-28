@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 
 // ─── paleta del proyecto ──────────────────────────────────────────────────────
-const G = "#B8860B"; const GBG = "#FDF8EC"; const GBR = "#E8D090";
+const G = "#6C0606"; const GBG = "#FBEAEA"; const GBR = "#D9B0B0";
 const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
-const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
+const NO = "#DC2626"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 
 // ─── tipos ───────────────────────────────────────────────────────────────────
