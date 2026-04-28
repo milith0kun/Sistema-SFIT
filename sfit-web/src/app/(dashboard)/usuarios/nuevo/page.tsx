@@ -20,9 +20,9 @@ type StoredUser   = { role: string };
 /* ── Tokens ── */
 const INK9 = "#18181b"; const INK6 = "#52525b"; const INK5 = "#71717a";
 const INK2 = "#e4e4e7"; const INK1 = "#f4f4f5";
-const RED  = "#b91c1c"; const RED_BG  = "#FFF5F5"; const RED_BD  = "#FCA5A5";
+const RED  = "#DC2626"; const RED_BG  = "#FFF5F5"; const RED_BD  = "#FCA5A5";
 const GRN  = "#15803d"; const GRN_BG  = "#F0FDF4"; const GRN_BD  = "#86EFAC";
-const GOLD_BG = "#FDF8EC"; const GOLD_BD = "#E8D090"; const GOLD_C = "#926A09";
+const GOLD_BG = "#FBEAEA"; const GOLD_BD = "#D9B0B0"; const GOLD_C = "#4A0303";
 
 const FIELD: React.CSSProperties = {
   width: "100%", height: 44, padding: "0 14px",
@@ -44,11 +44,11 @@ const BTN_PRIMARY: React.CSSProperties = {
 };
 
 const ROLE_META: Record<string, { label: string; desc: string; needsMuni: boolean; needsProv: boolean }> = {
-  super_admin:      { label: "Super Admin",      desc: "Acceso total al sistema — puede crear y gestionar todo", needsProv: false, needsMuni: false },
-  admin_provincial: { label: "Admin Provincial", desc: "Supervisa todas las municipalidades de su provincia", needsProv: true,  needsMuni: false },
-  admin_municipal:  { label: "Admin Municipal",  desc: "Gestiona una municipalidad específica",              needsProv: true,  needsMuni: true  },
+  super_admin:      { label: "Super Administrador",      desc: "Acceso total al sistema — puede crear y gestionar todo", needsProv: false, needsMuni: false },
+  admin_provincial: { label: "Administrador Provincial", desc: "Supervisa todas las municipalidades de su provincia", needsProv: true,  needsMuni: false },
+  admin_municipal:  { label: "Administrador Municipal",  desc: "Administra una municipalidad específica",              needsProv: true,  needsMuni: true  },
   fiscal:           { label: "Fiscal / Inspector", desc: "Realiza inspecciones en campo",                   needsProv: true,  needsMuni: true  },
-  operador:         { label: "Operador",          desc: "Gestiona la flota de una empresa de transporte",   needsProv: true,  needsMuni: true  },
+  operador:         { label: "Operador",          desc: "Administra la flota de una empresa de transporte",   needsProv: true,  needsMuni: true  },
   conductor:        { label: "Conductor",         desc: "Conductor registrado en una empresa",               needsProv: true,  needsMuni: true  },
   ciudadano:        { label: "Ciudadano",         desc: "Ciudadano reportador — acceso global, sin municipio", needsProv: false, needsMuni: false },
 };
@@ -169,8 +169,8 @@ export default function NuevoUsuarioPage() {
     if (!name.trim())    errs.name     = "El nombre es requerido";
     if (!email.trim())   errs.email    = "El correo es requerido";
     if (password.length < 8) errs.password = "Mínimo 8 caracteres";
-    if (meta.needsProv && !selProv)  errs.provinceId     = "Selecciona la provincia";
-    if (meta.needsMuni && !selMuni)  errs.municipalityId = "Selecciona la municipalidad";
+    if (meta.needsProv && !selProv)  errs.provinceId     = "Seleccione la provincia";
+    if (meta.needsMuni && !selMuni)  errs.municipalityId = "Seleccione la municipalidad";
     if (completeNow) {
       if (!/^\d{6,12}$/.test(dni.trim()))   errs.dni   = "DNI debe tener entre 6 y 12 dígitos";
       if (phone.trim().length < 7)          errs.phone = "Teléfono requerido";
@@ -271,7 +271,7 @@ export default function NuevoUsuarioPage() {
       )}
 
       <form onSubmit={(e) => { void submit(e); }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 18, alignItems: "start" }}>
+        <div className="sfit-aside-layout sfit-aside-layout--wide">
 
           {/* ── Columna principal ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -366,7 +366,7 @@ export default function NuevoUsuarioPage() {
                       <div style={{ position: "relative" }}>
                         <select value={selProv} onChange={e => { setSelProv(e.target.value); setSelMuni(""); }}
                           style={{ ...FIELD, appearance: "none", paddingRight: 36, cursor: "pointer", borderColor: fieldErrors.provinceId ? RED : INK2 }}>
-                          <option value="">— Selecciona provincia —</option>
+                          <option value="">— Seleccione provincia —</option>
                           {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                         <svg viewBox="0 0 10 6" width="10" height="10" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} fill="none">
@@ -383,7 +383,7 @@ export default function NuevoUsuarioPage() {
                           <select value={selMuni} onChange={e => setSelMuni(e.target.value)}
                             disabled={!selProv}
                             style={{ ...FIELD, appearance: "none", paddingRight: 36, cursor: selProv ? "pointer" : "default", opacity: selProv ? 1 : 0.5, borderColor: fieldErrors.municipalityId ? RED : INK2 }}>
-                            <option value="">— Selecciona municipalidad —</option>
+                            <option value="">— Seleccione municipalidad —</option>
                             {filteredMunis.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                           </select>
                           <svg viewBox="0 0 10 6" width="10" height="10" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} fill="none">
@@ -570,13 +570,13 @@ export default function NuevoUsuarioPage() {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {[
-                  { label: "Super Admin",       desc: "Acceso total — solo tú" },
-                  { label: "Admin Provincial",  desc: "Supervisa su provincia" },
-                  { label: "Admin Municipal",   desc: "Gestiona su municipio" },
-                  { label: "Fiscal",            desc: "Inspecciones en campo" },
-                  { label: "Operador",          desc: "Gestiona flota empresa" },
-                  { label: "Conductor",         desc: "Conductor registrado" },
-                  { label: "Ciudadano",         desc: "Portal de reporte (app)" },
+                  { label: "Super Administrador",       desc: "Administración general del sistema" },
+                  { label: "Administrador Provincial",  desc: "Supervisión de la provincia" },
+                  { label: "Administrador Municipal",   desc: "Gestión de la municipalidad" },
+                  { label: "Fiscal",                    desc: "Inspecciones de campo" },
+                  { label: "Operador",                  desc: "Administración de la flota" },
+                  { label: "Conductor",                 desc: "Personal de conducción" },
+                  { label: "Ciudadano",                 desc: "Acceso público desde la aplicación" },
                 ].map((r, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ width: 20, height: 20, borderRadius: "50%", background: i === 0 ? GOLD_C : INK2, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>

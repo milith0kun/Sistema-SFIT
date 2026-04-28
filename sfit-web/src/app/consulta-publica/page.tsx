@@ -54,7 +54,7 @@ const VEHICLE_TYPE_LABELS: Record<string, string> = {
 const INDICATOR_CONFIG: Record<IndicadorColor, { label: string; color: string; bg: string; border: string }> = {
   verde:    { label: "Habilitado",      color: "#15803d", bg: "#f0fdf4", border: "#bbf7d0" },
   amarillo: { label: "Con observaciones", color: "#b45309", bg: "#fffbeb", border: "#fde68a" },
-  rojo:     { label: "No habilitado",   color: "#b91c1c", bg: "#fef2f2", border: "#fecaca" },
+  rojo:     { label: "No habilitado",   color: "#DC2626", bg: "#fef2f2", border: "#fecaca" },
 };
 
 /* ─── Componente ─────────────────────────────────────────────────── */
@@ -111,7 +111,7 @@ export default function ConsultaPublicaPage() {
       }}>
         <a href="/" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
           <img src="/logo.svg" alt="SFIT" width={22} height={22} style={{ objectFit: "contain" }} />
-          <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "13px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", fontFamily: "var(--font-syne)" }}>
+          <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "13px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", fontFamily: "var(--font-inter)" }}>
             SFIT
           </span>
         </a>
@@ -141,7 +141,7 @@ export default function ConsultaPublicaPage() {
         padding: "48px 24px 56px",
         textAlign: "center",
       }}>
-        <p style={{ color: "#B8860B", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: "12px" }}>
+        <p style={{ color: "#6C0606", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: "12px" }}>
           Consulta pública · SFIT
         </p>
         <h1 style={{
@@ -151,7 +151,7 @@ export default function ConsultaPublicaPage() {
           letterSpacing: "-0.03em",
           lineHeight: 1.1,
           marginBottom: "10px",
-          fontFamily: "var(--font-syne)",
+          fontFamily: "var(--font-inter)",
         }}>
           Verificación de vehículos
         </h1>
@@ -192,11 +192,11 @@ export default function ConsultaPublicaPage() {
               height: "54px",
               padding: "0 28px",
               borderRadius: "10px",
-              background: loading ? "#926A09" : "linear-gradient(180deg, #D4A827 0%, #B8860B 100%)",
+              background: loading ? "#4A0303" : "linear-gradient(180deg, #8B1414 0%, #6C0606 100%)",
               color: "#09090b",
               fontSize: "1rem",
               fontWeight: 700,
-              border: "1px solid #E8D090",
+              border: "1px solid #D9B0B0",
               cursor: loading ? "not-allowed" : "pointer",
               opacity: !plate.trim() ? 0.5 : 1,
               transition: "opacity 0.15s",
@@ -274,7 +274,7 @@ export default function ConsultaPublicaPage() {
                   <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "4px" }}>
                     Placa registrada
                   </p>
-                  <p style={{ color: "#D4A827", fontSize: "1.75rem", fontWeight: 800, letterSpacing: "0.12em", fontFamily: "var(--font-syne)", lineHeight: 1 }}>
+                  <p style={{ color: "#8B1414", fontSize: "1.75rem", fontWeight: 800, letterSpacing: "0.12em", fontFamily: "var(--font-inter)", lineHeight: 1 }}>
                     {result.vehicle.plate}
                   </p>
                 </div>
@@ -333,8 +333,8 @@ export default function ConsultaPublicaPage() {
                     <p style={{
                       fontWeight: 800,
                       fontSize: "1.25rem",
-                      fontFamily: "var(--font-syne)",
-                      color: result.vehicle.reputationScore >= 75 ? "#15803d" : result.vehicle.reputationScore >= 50 ? "#b45309" : "#b91c1c",
+                      fontFamily: "var(--font-inter)",
+                      color: result.vehicle.reputationScore >= 75 ? "#15803d" : result.vehicle.reputationScore >= 50 ? "#b45309" : "#DC2626",
                     }}>
                       {result.vehicle.reputationScore} / 100
                     </p>
@@ -409,7 +409,7 @@ export default function ConsultaPublicaPage() {
         {!searched && !loading && (
           <div style={{ textAlign: "center", color: "#a1a1aa", paddingTop: "16px" }}>
             <div style={{ fontSize: "3rem", marginBottom: "12px" }}>🚌</div>
-            <p style={{ fontSize: "0.9375rem" }}>Ingresa la placa del vehículo para consultar su estado.</p>
+            <p style={{ fontSize: "0.9375rem" }}>Ingrese la placa del vehículo para consultar su estado.</p>
           </div>
         )}
       </main>
@@ -444,7 +444,7 @@ function InfoField({
   value: string;
   highlight?: "green" | "amber" | "red";
 }) {
-  const valueColor = highlight === "green" ? "#15803d" : highlight === "amber" ? "#b45309" : highlight === "red" ? "#b91c1c" : "#18181b";
+  const valueColor = highlight === "green" ? "#15803d" : highlight === "amber" ? "#b45309" : highlight === "red" ? "#DC2626" : "#18181b";
   return (
     <div>
       <p style={{ color: "#71717a", fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "4px" }}>

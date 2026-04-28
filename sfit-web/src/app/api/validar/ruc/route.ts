@@ -24,6 +24,6 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Error al consultar RUC";
     console.error("[validar/ruc]", msg);
-    return apiError("No se pudo verificar el RUC. Intenta nuevamente.", 503);
+    return apiError("No se pudo verificar el RUC. Intente nuevamente.", 503);
   }
 }

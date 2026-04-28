@@ -28,7 +28,7 @@ const STATUS_CONFIG: Record<
   cerrado: { label: "Cerrado", color: "#71717a", bg: "#f4f4f5", border: "#e4e4e7" },
   auto_cierre: { label: "Auto cierre", color: "#71717a", bg: "#f4f4f5", border: "#e4e4e7" },
   mantenimiento: { label: "Mantenimiento", color: "#b45309", bg: "#FFFBEB", border: "#FCD34D" },
-  fuera_de_servicio: { label: "Fuera de servicio", color: "#b91c1c", bg: "#FFF5F5", border: "#FCA5A5" },
+  fuera_de_servicio: { label: "Fuera de servicio", color: "#DC2626", bg: "#FFF5F5", border: "#FCA5A5" },
 };
 
 const ALL_STATUSES: FleetStatus[] = [
@@ -588,7 +588,7 @@ export default function FlotaDetallePage({ params }: Props) {
             {/* Status */}
             <div>
               <label htmlFor="status" style={{ display: "block", marginBottom: 8 }}>
-                Estado {canEdit && <span style={{ color: "#b91c1c" }}>*</span>}
+                Estado {canEdit && <span style={{ color: "#DC2626" }}>*</span>}
               </label>
               {canEdit ? (
                 <select
@@ -635,7 +635,7 @@ export default function FlotaDetallePage({ params }: Props) {
                   checked={editForm.checklistComplete}
                   onChange={(e) => handleEditField("checklistComplete", e.target.checked)}
                   disabled={submitting || !canEdit}
-                  style={{ width: 18, height: 18, accentColor: "#B8860B", cursor: "inherit" }}
+                  style={{ width: 18, height: 18, accentColor: "#6C0606", cursor: "inherit" }}
                 />
                 <span style={{ fontSize: "0.9375rem", fontWeight: 500, color: "#18181b" }}>
                   Checklist pre-viaje completo
@@ -672,7 +672,7 @@ export default function FlotaDetallePage({ params }: Props) {
               borderRadius: 8,
               backgroundColor: "#FFF5F5",
               border: "1px solid #FCA5A5",
-              color: "#b91c1c",
+              color: "#DC2626",
               fontSize: "0.875rem",
               fontWeight: 500,
             }}
@@ -740,7 +740,7 @@ export default function FlotaDetallePage({ params }: Props) {
                 onClick={handleDelete}
                 style={{
                   borderColor: "#FCA5A5",
-                  color: "#b91c1c",
+                  color: "#DC2626",
                   backgroundColor: "transparent",
                 }}
               >

@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!driver) {
-      return apiNotFound("No se encontró registro de conductor asociado a tu cuenta");
+      return apiNotFound("No se encontró registro de conductor asociado a su cuenta");
     }
 
     // Viajes del día

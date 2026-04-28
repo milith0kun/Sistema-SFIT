@@ -42,7 +42,7 @@ export default function NotFound() {
           transform: "translate(-50%, -50%)",
           width: "600px",
           height: "600px",
-          background: "radial-gradient(circle, rgba(184,134,11,0.07) 0%, transparent 65%)",
+          background: "radial-gradient(circle, rgba(108,6,6,0.07) 0%, transparent 65%)",
           pointerEvents: "none",
         }}
       />
@@ -58,8 +58,8 @@ export default function NotFound() {
           alignItems: "center",
           justifyContent: "center",
           borderRadius: "16px",
-          border: "1.5px solid rgba(184,134,11,0.4)",
-          background: "rgba(184,134,11,0.07)",
+          border: "1.5px solid rgba(108,6,6,0.4)",
+          background: "rgba(108,6,6,0.07)",
         }}>
           <img src="/logo.svg" alt="SFIT" width={36} height={36} style={{ objectFit: "contain" }} />
         </div>
@@ -68,10 +68,10 @@ export default function NotFound() {
         <div style={{
           fontSize: "clamp(5rem, 15vw, 8rem)",
           fontWeight: 900,
-          color: "#B8860B",
+          color: "#6C0606",
           lineHeight: 1,
           letterSpacing: "-0.06em",
-          fontFamily: "var(--font-syne)",
+          fontFamily: "var(--font-inter)",
           marginBottom: "8px",
           opacity: 0.9,
         }}>
@@ -79,7 +79,7 @@ export default function NotFound() {
         </div>
 
         {/* Divider */}
-        <div style={{ width: "40px", height: "2px", background: "#B8860B", borderRadius: "1px", margin: "0 auto 24px" }} />
+        <div style={{ width: "40px", height: "2px", background: "#6C0606", borderRadius: "1px", margin: "0 auto 24px" }} />
 
         {/* Title */}
         <h1 style={{
@@ -87,7 +87,7 @@ export default function NotFound() {
           fontSize: "clamp(1.25rem, 3vw, 1.75rem)",
           fontWeight: 700,
           letterSpacing: "-0.02em",
-          fontFamily: "var(--font-syne)",
+          fontFamily: "var(--font-inter)",
           marginBottom: "12px",
         }}>
           Página no encontrada
@@ -113,7 +113,7 @@ export default function NotFound() {
               height: "48px",
               padding: "0 28px",
               borderRadius: "10px",
-              background: "linear-gradient(180deg, #D4A827 0%, #B8860B 100%)",
+              background: "linear-gradient(180deg, #8B1414 0%, #6C0606 100%)",
               color: "#09090b",
               fontWeight: 700,
               fontSize: "0.9375rem",
@@ -121,8 +121,8 @@ export default function NotFound() {
               display: "inline-flex",
               alignItems: "center",
               gap: "8px",
-              border: "1px solid #E8D090",
-              boxShadow: "0 4px 16px rgba(184,134,11,0.3)",
+              border: "1px solid #D9B0B0",
+              boxShadow: "0 4px 16px rgba(108,6,6,0.3)",
             }}
           >
             Volver al inicio

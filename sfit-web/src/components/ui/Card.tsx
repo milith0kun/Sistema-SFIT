@@ -16,8 +16,8 @@ export function Card({
   ...props
 }: CardProps) {
   const base: CSSProperties = {
-    background: accent === "gold" ? "#FDF8EC" : "#ffffff",
-    border: accent === "gold" ? "1.5px solid #E8D090" : "1.5px solid #e4e4e7",
+    background: accent === "gold" ? "#FBEAEA" : "#ffffff",
+    border: accent === "gold" ? "1.5px solid #D9B0B0" : "1.5px solid #e4e4e7",
     borderRadius: 16,
     padding: padded ? "1.5rem" : 0,
     ...style,

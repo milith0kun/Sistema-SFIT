@@ -277,8 +277,8 @@ export async function PATCH(
     if (statusChanged && parsed.data.status === USER_STATUS.ACTIVO) {
       await createNotification({
         userId: target._id.toString(),
-        title: "Tu solicitud fue aprobada",
-        body: `Bienvenido a SFIT. Tu cuenta está activa con el rol de ${target.role}.`,
+        title: "Su solicitud fue aprobada",
+        body: `Bienvenido a SFIT. Su cuenta está activa con el rol de ${target.role}.`,
         type: "success",
         category: "aprobacion",
       });
@@ -288,10 +288,10 @@ export async function PATCH(
     ) {
       await createNotification({
         userId: target._id.toString(),
-        title: "Tu solicitud fue rechazada",
+        title: "Su solicitud fue rechazada",
         body:
           target.rejectionReason ||
-          "Tu solicitud de acceso no fue aprobada. Contacta al administrador para más información.",
+          "Su solicitud de acceso no fue aprobada. Contacta al administrador para más información.",
         type: "error",
         category: "aprobacion",
       });
@@ -301,8 +301,8 @@ export async function PATCH(
     ) {
       await createNotification({
         userId: target._id.toString(),
-        title: "Tu cuenta fue suspendida",
-        body: "Comunícate con el administrador de tu municipalidad.",
+        title: "Su cuenta fue suspendida",
+        body: "Comunícate con el administrador de su municipalidad.",
         type: "warning",
         category: "aprobacion",
       });

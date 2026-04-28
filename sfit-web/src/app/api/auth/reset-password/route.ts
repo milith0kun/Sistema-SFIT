@@ -102,7 +102,7 @@ function buildEmail(name: string, url: string): string {
           <h1 style="margin:0 0 20px;font-size:26px;font-weight:800;color:#18181b;line-height:1.15;">Restablecer contraseña</h1>
           <p style="margin:0 0 8px;font-size:15px;color:#52525b;line-height:1.6;">Hola, <strong style="color:#18181b;">${name}</strong>.</p>
           <p style="margin:0 0 28px;font-size:15px;color:#52525b;line-height:1.6;">
-            Recibimos una solicitud para restablecer la contraseña de tu cuenta SFIT. Haz clic en el botón para crear una nueva contraseña.
+            Recibimos una solicitud para restablecer la contraseña de su cuenta SFIT. Haz clic en el botón para crear una nueva contraseña.
           </p>
           <table cellpadding="0" cellspacing="0"><tr><td>
             <a href="${url}" style="display:inline-block;padding:14px 28px;background:#0A1628;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;border-radius:10px;letter-spacing:-0.1px;">

@@ -48,8 +48,8 @@ export function ComingSoon({ title, subtitle, rf }: ComingSoonProps) {
               width: 64,
               height: 64,
               borderRadius: "50%",
-              background: "rgba(184,134,11,0.08)",
-              border: "1.5px solid rgba(184,134,11,0.22)",
+              background: "rgba(108,6,6,0.08)",
+              border: "1.5px solid rgba(108,6,6,0.22)",
               marginBottom: 20,
             }}
             aria-hidden
@@ -92,7 +92,7 @@ function ShieldIcon() {
       height="28"
       viewBox="0 0 24 24"
       fill="none"
-      stroke="#B8860B"
+      stroke="#6C0606"
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"

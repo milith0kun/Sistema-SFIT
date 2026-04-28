@@ -12,10 +12,10 @@ type AccentPalette = {
 };
 
 const PALETTE: Record<Accent, AccentPalette> = {
-  gold:    { iconBg: "#FDF8EC", iconBorder: "#E8D090", iconFg: "#926A09", watermark: "#B8860B" },
+  gold:    { iconBg: "#FBEAEA", iconBorder: "#D9B0B0", iconFg: "#4A0303", watermark: "#6C0606" },
   apto:    { iconBg: "#F0FDF4", iconBorder: "#86EFAC", iconFg: "#15803d", watermark: "#15803d" },
   riesgo:  { iconBg: "#FFFBEB", iconBorder: "#FCD34D", iconFg: "#b45309", watermark: "#b45309" },
-  no_apto: { iconBg: "#FFF5F5", iconBorder: "#FCA5A5", iconFg: "#b91c1c", watermark: "#b91c1c" },
+  no_apto: { iconBg: "#FFF5F5", iconBorder: "#FCA5A5", iconFg: "#DC2626", watermark: "#DC2626" },
   ink:     { iconBg: "#F4F4F5", iconBorder: "#E4E4E7", iconFg: "#3F3F46", watermark: "#52525b" },
 };
 

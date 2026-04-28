@@ -216,7 +216,7 @@ export default function NuevoconductorPage() {
                 htmlFor="name"
                 style={{ display: "block", marginBottom: 8 }}
               >
-                Nombre completo <span style={{ color: "#b91c1c" }}>*</span>
+                Nombre completo <span style={{ color: "#DC2626" }}>*</span>
               </label>
               <input
                 id="name"
@@ -233,7 +233,7 @@ export default function NuevoconductorPage() {
                   style={{
                     marginTop: 6,
                     fontSize: "0.8125rem",
-                    color: "#b91c1c",
+                    color: "#DC2626",
                     fontWeight: 500,
                   }}
                 >
@@ -248,7 +248,7 @@ export default function NuevoconductorPage() {
                 htmlFor="dni"
                 style={{ display: "block", marginBottom: 8 }}
               >
-                DNI <span style={{ color: "#b91c1c" }}>*</span>
+                DNI <span style={{ color: "#DC2626" }}>*</span>
               </label>
               <input
                 id="dni"
@@ -265,7 +265,7 @@ export default function NuevoconductorPage() {
                   style={{
                     marginTop: 6,
                     fontSize: "0.8125rem",
-                    color: "#b91c1c",
+                    color: "#DC2626",
                     fontWeight: 500,
                   }}
                 >
@@ -322,7 +322,7 @@ export default function NuevoconductorPage() {
                 htmlFor="licenseNumber"
                 style={{ display: "block", marginBottom: 8 }}
               >
-                Número de licencia <span style={{ color: "#b91c1c" }}>*</span>
+                Número de licencia <span style={{ color: "#DC2626" }}>*</span>
               </label>
               <input
                 id="licenseNumber"
@@ -339,7 +339,7 @@ export default function NuevoconductorPage() {
                   style={{
                     marginTop: 6,
                     fontSize: "0.8125rem",
-                    color: "#b91c1c",
+                    color: "#DC2626",
                     fontWeight: 500,
                   }}
                 >
@@ -354,7 +354,7 @@ export default function NuevoconductorPage() {
                 htmlFor="licenseCategory"
                 style={{ display: "block", marginBottom: 8 }}
               >
-                Categoría de licencia <span style={{ color: "#b91c1c" }}>*</span>
+                Categoría de licencia <span style={{ color: "#DC2626" }}>*</span>
               </label>
               <select
                 id="licenseCategory"
@@ -375,7 +375,7 @@ export default function NuevoconductorPage() {
                   style={{
                     marginTop: 6,
                     fontSize: "0.8125rem",
-                    color: "#b91c1c",
+                    color: "#DC2626",
                     fontWeight: 500,
                   }}
                 >
@@ -435,7 +435,7 @@ export default function NuevoconductorPage() {
               borderRadius: 8,
               backgroundColor: "#FFF5F5",
               border: "1px solid #FCA5A5",
-              color: "#b91c1c",
+              color: "#DC2626",
               fontSize: "0.875rem",
               fontWeight: 500,
             }}

@@ -21,7 +21,7 @@ const SIZES: Record<Size, { height: string; padX: string; fontSize: string }> = 
 function variantStyles(variant: Variant): CSSProperties {
   switch (variant) {
     case "primary":
-      return { background: "#B8860B", color: "#ffffff", border: "1.5px solid #B8860B" };
+      return { background: "#6C0606", color: "#ffffff", border: "1.5px solid #6C0606" };
     case "secondary":
       return { background: "#ffffff", color: "#09090b", border: "1.5px solid #09090b" };
     case "outline":
@@ -29,7 +29,7 @@ function variantStyles(variant: Variant): CSSProperties {
     case "ghost":
       return { background: "transparent", color: "#52525b", border: "1.5px solid transparent" };
     case "danger":
-      return { background: "#b91c1c", color: "#ffffff", border: "1.5px solid #b91c1c" };
+      return { background: "#DC2626", color: "#ffffff", border: "1.5px solid #DC2626" };
     case "approve":
       return { background: "#15803d", color: "#ffffff", border: "1.5px solid #15803d" };
   }
@@ -38,7 +38,7 @@ function variantStyles(variant: Variant): CSSProperties {
 function hoverStyles(variant: Variant): CSSProperties {
   switch (variant) {
     case "primary":
-      return { background: "#926A09", borderColor: "#926A09" };
+      return { background: "#4A0303", borderColor: "#4A0303" };
     case "secondary":
       return { background: "#18181b", color: "#ffffff" };
     case "outline":

@@ -69,7 +69,7 @@ function NewRecompensaModal({
   const [error, setError] = useState<string | null>(null);
 
   const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-  const RECH_C = "#b91c1c"; const RECH_BG = "#FFF5F5"; const RECH_BD = "#FCA5A5";
+  const RECH_C = "#DC2626"; const RECH_BG = "#FFF5F5"; const RECH_BD = "#FCA5A5";
 
   async function submit() {
     if (!name.trim()) { setError("El nombre es requerido"); return; }
@@ -282,7 +282,7 @@ export default function RecompensasPage() {
         cell: ({ getValue }) => {
           const v = getValue() as number | undefined;
           return (
-            <span style={{ fontWeight: 700, fontSize: "0.9375rem", color: "#B8860B", fontVariantNumeric: "tabular-nums" }}>
+            <span style={{ fontWeight: 700, fontSize: "0.9375rem", color: "#6C0606", fontVariantNumeric: "tabular-nums" }}>
               {v != null ? v.toLocaleString("es-PE") : "—"}
               <span style={{ fontSize: "0.75rem", color: "#71717a", marginLeft: 4, fontWeight: 500 }}>coins</span>
             </span>
@@ -297,7 +297,7 @@ export default function RecompensasPage() {
           return (
             <span style={{
               fontVariantNumeric: "tabular-nums", fontWeight: 600,
-              color: v === -1 ? "#15803d" : v === 0 ? "#b91c1c" : "#09090b",
+              color: v === -1 ? "#15803d" : v === 0 ? "#DC2626" : "#09090b",
             }}>
               {fmtStock(v)}
             </span>
@@ -321,7 +321,7 @@ export default function RecompensasPage() {
             style={{
               display: "inline-flex", alignItems: "center", gap: 8, height: 38, padding: "0 16px",
               borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer",
-              border: "1.5px solid #E8D090", background: "#FDF8EC", color: "#B8860B", fontFamily: "inherit",
+              border: "1.5px solid #D9B0B0", background: "#FBEAEA", color: "#6C0606", fontFamily: "inherit",
             }}
             onClick={() => setShowModal(true)}
           >
@@ -334,14 +334,14 @@ export default function RecompensasPage() {
         cols={4}
         items={[
           { label: "TOTAL CANJES", value: kpi?.totalCanjes ?? "—", subtitle: "histórico", accent: "#52525b", icon: ShoppingBag },
-          { label: "COINS CIRC.", value: kpi?.coinsEnCirculacion ?? "—", subtitle: "en circulación", accent: "#B8860B", icon: Coins },
+          { label: "COINS CIRC.", value: kpi?.coinsEnCirculacion ?? "—", subtitle: "en circulación", accent: "#6C0606", icon: Coins },
           { label: "USUARIOS", value: kpi?.usuariosConCoins ?? "—", subtitle: "con saldo", accent: "#15803d", icon: Users },
-          { label: "EN CATÁLOGO", value: loading ? "—" : items.length, subtitle: "recompensas", accent: "#B8860B", icon: Gift },
+          { label: "EN CATÁLOGO", value: loading ? "—" : items.length, subtitle: "recompensas", accent: "#6C0606", icon: Gift },
         ]}
       />
 
       {error && (
-        <div style={{ padding: "12px 16px", background: "#FFF5F5", border: "1px solid #FCA5A5", borderRadius: 10, color: "#b91c1c" }}>
+        <div style={{ padding: "12px 16px", background: "#FFF5F5", border: "1px solid #FCA5A5", borderRadius: 10, color: "#DC2626" }}>
           {error}
         </div>
       )}

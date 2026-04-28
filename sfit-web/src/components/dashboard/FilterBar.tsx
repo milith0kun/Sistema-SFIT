@@ -171,16 +171,16 @@ export function FilterBar({
             alignItems: "center",
             gap: 6,
             cursor: "pointer",
-            boxShadow: "inset 0 0 0 1px rgba(212,168,39,0)",
+            boxShadow: "inset 0 0 0 1px rgba(139,20,20,0)",
             transition: "all 150ms",
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "#27272a";
-            e.currentTarget.style.boxShadow = "inset 3px 0 0 #D4A827";
+            e.currentTarget.style.boxShadow = "inset 3px 0 0 #8B1414";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = "#09090b";
-            e.currentTarget.style.boxShadow = "inset 0 0 0 1px rgba(212,168,39,0)";
+            e.currentTarget.style.boxShadow = "inset 0 0 0 1px rgba(139,20,20,0)";
           }}
         >
           <PrimaryIcon size={14} strokeWidth={1.8} /> {primaryLabel}

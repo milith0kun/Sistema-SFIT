@@ -79,9 +79,9 @@ export function EventsLog({
             e.tipo === "salida"
               ? "#15803d"
               : e.tipo === "alerta"
-                ? "#b91c1c"
+                ? "#DC2626"
                 : e.tipo === "retorno"
-                  ? "#B8860B"
+                  ? "#6C0606"
                   : e.tipo === "info"
                     ? "#1D4ED8"
                     : "#71717a";

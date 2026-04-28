@@ -13,7 +13,7 @@ type VehicleType = { id: string; key: string; name: string; active: boolean };
 type StoredUser = { role: string };
 
 const ALLOWED_CREATE = ["admin_municipal", "super_admin"];
-const NO = "#b91c1c"; const INK5 = "#71717a";
+const NO = "#DC2626"; const INK5 = "#71717a";
 
 export default function NuevaRutaPage() {
   const router = useRouter();

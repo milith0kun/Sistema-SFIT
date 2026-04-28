@@ -49,7 +49,7 @@ export async function POST(
 
     await createNotification({
       userId: target._id.toString(),
-      title: "Tu solicitud fue rechazada",
+      title: "Su solicitud fue rechazada",
       body: target.rejectionReason,
       type: "error",
       category: "aprobacion",

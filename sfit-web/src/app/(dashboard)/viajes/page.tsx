@@ -21,7 +21,7 @@ type Trip = {
 const APTO = "#15803d"; const APTOBG = "#F0FDF4";
 const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB";
 const INFO = "#1e40af"; const INFOBG = "#EFF6FF";
-const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
+const NO = "#DC2626"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 
 const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];

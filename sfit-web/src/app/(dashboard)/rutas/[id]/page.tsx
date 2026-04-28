@@ -30,7 +30,7 @@ const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin",
 const CAN_EDIT = ["admin_municipal", "super_admin"];
 
 const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
-const NO = "#b91c1c"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
+const NO = "#DC2626"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
 const INK2 = "#e4e4e7"; const INK5 = "#71717a";
 
 export default function RutaDetallePage({ params }: Props) {
@@ -213,7 +213,7 @@ export default function RutaDetallePage({ params }: Props) {
           {route.vehicleCount} vehículo{route.vehicleCount !== 1 ? "s" : ""}
         </span>
         {waypoints.length > 0 && (
-          <span style={{ padding: "4px 12px", borderRadius: 999, fontSize: "0.8125rem", fontWeight: 600, background: "#FDF8EC", color: "#926A09", border: "1px solid #E8D090" }}>
+          <span style={{ padding: "4px 12px", borderRadius: 999, fontSize: "0.8125rem", fontWeight: 600, background: "#FBEAEA", color: "#4A0303", border: "1px solid #D9B0B0" }}>
             {waypoints.length} parada{waypoints.length !== 1 ? "s" : ""} en mapa
           </span>
         )}

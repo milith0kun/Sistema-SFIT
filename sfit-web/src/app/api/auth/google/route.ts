@@ -10,9 +10,9 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 const STATUS_MESSAGES: Record<string, string> = {
-  pendiente: "Tu cuenta está pendiente de aprobación por el administrador.",
-  rechazado: "Tu solicitud fue rechazada.",
-  suspendido: "Tu cuenta está suspendida.",
+  pendiente: "Su cuenta está pendiente de aprobación por el administrador.",
+  rechazado: "Su solicitud fue rechazada.",
+  suspendido: "Su cuenta está suspendida.",
 };
 
 /**

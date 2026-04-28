@@ -231,7 +231,7 @@ export async function PATCH(
     if (status === "rechazado") {
       void sendEmail(
         updated.email,
-        '[SFIT] Tu solicitud fue rechazada',
+        '[SFIT] Su solicitud fue rechazada',
         accountRejectedEmailHtml({ userName: updated.name }),
       ).catch(() => {});
     }

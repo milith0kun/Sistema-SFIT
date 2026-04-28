@@ -8,9 +8,9 @@ import { useRouter } from "next/navigation";
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
 const ROLES_OPERATIVO = [
-  { value: "conductor", label: "Conductor",           desc: "Ver rutas asignadas, viajes y estado de fatiga" },
-  { value: "fiscal",    label: "Fiscal / Inspector",  desc: "Realizar inspecciones y emitir actas" },
-  { value: "operador",  label: "Operador de Empresa", desc: "Gestionar flota, salidas y conductores" },
+  { value: "conductor", label: "Conductor",           desc: "Consulta de rutas asignadas, viajes y estado de aptitud" },
+  { value: "fiscal",    label: "Fiscal / Inspector",  desc: "Realización de inspecciones y emisión de actas" },
+  { value: "operador",  label: "Operador de Empresa", desc: "Administración de flota, salidas y conductores" },
 ] as const;
 
 type Step     = "tipo" | "datos" | "ubicacion" | "exito";
@@ -107,8 +107,8 @@ export default function RegisterPage() {
 
   function validateDatos() {
     const errs: Record<string, string> = {};
-    if (!form.name.trim() || form.name.length < 2) errs.name     = "Ingresa tu nombre completo";
-    if (!form.email.includes("@"))                  errs.email    = "Correo inválido";
+    if (!form.name.trim() || form.name.length < 2) errs.name     = "Ingrese su nombre completo";
+    if (!form.email.includes("@"))                  errs.email    = "Correo electrónico inválido";
     if (form.password.length < 8)                   errs.password = "Mínimo 8 caracteres";
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
@@ -175,7 +175,7 @@ export default function RegisterPage() {
       storeSession(data.data);
       router.push(destForStatus(data.data.user.status));
     } catch {
-      setError("Error de conexión. Intenta nuevamente.");
+      setError("Error de conexión. Intente nuevamente.");
     } finally {
       setLoading(false);
     }
@@ -215,15 +215,15 @@ export default function RegisterPage() {
           <div className="mb-6 animate-fade-in flex justify-center w-full">
             <img src="/logo-vertical.svg" alt="SFIT Logo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
           </div>
-          <p className="kicker animate-fade-up text-center w-full">Nuevo acceso</p>
+          <p className="kicker animate-fade-up text-center w-full">Solicitud de acceso</p>
           <h1
-            className="mt-4 font-black text-[#09090b] animate-fade-up delay-50 text-center w-full"
-            style={{ fontFamily: "var(--font-syne)", fontSize: "2.25rem", lineHeight: 0.95, letterSpacing: "-0.035em" }}
+            className="mt-4 font-bold text-[#09090b] animate-fade-up delay-50 text-center w-full"
+            style={{ fontSize: "clamp(1.625rem, 3.5vw, 2rem)", lineHeight: 1.15, letterSpacing: "-0.02em" }}
           >
-            ¿Quién eres?
+            Tipo de usuario
           </h1>
-          <p className="mt-3 animate-fade-up delay-100 text-center w-full" style={{ color: "#52525b", fontSize: "1rem", lineHeight: 1.5 }}>
-            Elige cómo usarás SFIT para mostrarte<br />el flujo correcto.
+          <p className="mt-3 animate-fade-up delay-100 text-center w-full" style={{ color: "#52525b", fontSize: "0.9375rem", lineHeight: 1.55 }}>
+            Seleccione la modalidad de acceso al sistema según su perfil.
           </p>
         </div>
 
@@ -235,7 +235,7 @@ export default function RegisterPage() {
             className="w-full text-left rounded-xl p-5 transition-all duration-150 cursor-pointer group"
             style={{ border: "1.5px solid #E4E4E7", background: "#ffffff" }}
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.border = "1.5px solid #B8860B";
+              (e.currentTarget as HTMLElement).style.border = "1.5px solid #6C0606";
               (e.currentTarget as HTMLElement).style.background = "#FDFBF4";
             }}
             onMouseLeave={(e) => {
@@ -257,8 +257,8 @@ export default function RegisterPage() {
                     Acceso inmediato
                   </span>
                 </div>
-                <p style={{ color: "#52525B", fontSize: "0.875rem", lineHeight: 1.45 }}>
-                  Reporta anomalías de transporte, consulta el estado de vehículos y sigue tus denuncias.
+                <p style={{ color: "#52525B", fontSize: "0.875rem", lineHeight: 1.55 }}>
+                  Presentación de reportes ciudadanos, consulta del estado de vehículos y seguimiento de denuncias.
                 </p>
               </div>
               <ChevronRight />
@@ -272,7 +272,7 @@ export default function RegisterPage() {
             className="w-full text-left rounded-xl p-5 transition-all duration-150 cursor-pointer"
             style={{ border: "1.5px solid #E4E4E7", background: "#ffffff" }}
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.border = "1.5px solid #B8860B";
+              (e.currentTarget as HTMLElement).style.border = "1.5px solid #6C0606";
               (e.currentTarget as HTMLElement).style.background = "#FDFBF4";
             }}
             onMouseLeave={(e) => {
@@ -289,13 +289,13 @@ export default function RegisterPage() {
                   <span className="font-bold text-[#09090b]" style={{ fontSize: "1rem" }}>Personal operativo</span>
                   <span
                     className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                    style={{ background: "#FDF8EC", color: "#92400E", border: "1px solid #FCD34D" }}
+                    style={{ background: "#FBEAEA", color: "#92400E", border: "1px solid #FCD34D" }}
                   >
                     Requiere aprobación
                   </span>
                 </div>
-                <p style={{ color: "#52525B", fontSize: "0.875rem", lineHeight: 1.45 }}>
-                  Conductor, fiscal o inspector, operador de empresa de transporte.
+                <p style={{ color: "#52525B", fontSize: "0.875rem", lineHeight: 1.55 }}>
+                  Conductor, fiscal/inspector u operador de empresa de transporte.
                 </p>
               </div>
               <ChevronRight />
@@ -304,15 +304,15 @@ export default function RegisterPage() {
         </div>
 
         <p className="mt-7 text-center text-[13px] text-[#71717A] animate-fade-up delay-300">
-          ¿Ya tienes cuenta?{" "}
+          ¿Cuenta con un usuario?{" "}
           <Link
             href="/login"
             className="font-semibold transition-colors"
-            style={{ color: "#B8860B" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "#926A09")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "#B8860B")}
+            style={{ color: "#6C0606" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#4A0303")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#6C0606")}
           >
-            Iniciar sesión
+            Acceso al sistema
           </Link>
         </p>
       </div>
@@ -346,7 +346,7 @@ export default function RegisterPage() {
               style={
                 isCiudadano
                   ? { background: "#F0FDF4", color: "#16A34A", border: "1px solid #86EFAC" }
-                  : { background: "#FDF8EC", color: "#92400E", border: "1px solid #FCD34D" }
+                  : { background: "#FBEAEA", color: "#92400E", border: "1px solid #FCD34D" }
               }
             >
               {isCiudadano ? "Ciudadano" : "Personal operativo"}
@@ -354,15 +354,15 @@ export default function RegisterPage() {
           </div>
 
           <h1
-            className="font-black text-[#09090b] animate-fade-up delay-50"
-            style={{ fontFamily: "var(--font-syne)", fontSize: "2.25rem", lineHeight: 0.95, letterSpacing: "-0.035em" }}
+            className="font-bold text-[#09090b] animate-fade-up delay-50"
+            style={{ fontSize: "clamp(1.625rem, 3.5vw, 2rem)", lineHeight: 1.15, letterSpacing: "-0.02em" }}
           >
-            Tus datos
+            Datos personales
           </h1>
-          <p className="mt-3 animate-fade-up delay-100" style={{ color: "#52525b", fontSize: "0.9375rem", lineHeight: 1.5 }}>
+          <p className="mt-3 animate-fade-up delay-100" style={{ color: "#52525b", fontSize: "0.9375rem", lineHeight: 1.55 }}>
             {isCiudadano
-              ? "Crea tu cuenta y entra al sistema de inmediato."
-              : "Paso 1 de 2 — Datos personales"}
+              ? "Creación de cuenta para acceso inmediato al sistema."
+              : "Paso 1 de 2 — Información del usuario"}
           </p>
 
           {/* Progress bar */}
@@ -462,9 +462,9 @@ export default function RegisterPage() {
             >
               <span className="shine" aria-hidden />
               {loading ? (
-                <><span className="spinner" /><span>Creando cuenta…</span></>
+                <><span className="spinner" /><span>Procesando solicitud…</span></>
               ) : isCiudadano ? (
-                "Crear cuenta y entrar"
+                "Crear cuenta"
               ) : (
                 "Continuar"
               )}
@@ -477,9 +477,9 @@ export default function RegisterPage() {
           <Link
             href="/login"
             className="font-semibold transition-colors"
-            style={{ color: "#B8860B" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "#926A09")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "#B8860B")}
+            style={{ color: "#6C0606" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#4A0303")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#6C0606")}
           >
             Iniciar sesión
           </Link>
@@ -505,20 +505,20 @@ export default function RegisterPage() {
             </button>
             <span
               className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
-              style={{ background: "#FDF8EC", color: "#92400E", border: "1px solid #FCD34D" }}
+              style={{ background: "#FBEAEA", color: "#92400E", border: "1px solid #FCD34D" }}
             >
               Personal operativo
             </span>
           </div>
 
           <h1
-            className="font-black text-[#09090b] animate-fade-up delay-50"
-            style={{ fontFamily: "var(--font-syne)", fontSize: "2.25rem", lineHeight: 0.95, letterSpacing: "-0.035em" }}
+            className="font-bold text-[#09090b] animate-fade-up delay-50"
+            style={{ fontSize: "clamp(1.625rem, 3.5vw, 2rem)", lineHeight: 1.15, letterSpacing: "-0.02em" }}
           >
-            Ubicación y rol
+            Ubicación institucional
           </h1>
-          <p className="mt-3 animate-fade-up delay-100" style={{ color: "#52525b", fontSize: "0.9375rem", lineHeight: 1.5 }}>
-            Paso 2 de 2 — Municipalidad y función
+          <p className="mt-3 animate-fade-up delay-100" style={{ color: "#52525b", fontSize: "0.9375rem", lineHeight: 1.55 }}>
+            Paso 2 de 2 — Municipalidad y rol institucional
           </p>
 
           <div className="flex gap-2 mt-5 animate-fade-up delay-150">
@@ -548,7 +548,7 @@ export default function RegisterPage() {
               disabled={loadingProv}
             >
               <option value="">
-                {loadingProv ? "Cargando provincias…" : "Selecciona tu provincia"}
+                {loadingProv ? "Cargando provincias…" : "Seleccione una provincia"}
               </option>
               {provincias.map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
@@ -570,12 +570,12 @@ export default function RegisterPage() {
             >
               <option value="">
                 {!form.provinceId
-                  ? "Primero selecciona una provincia"
+                  ? "Seleccione primero una provincia"
                   : loadingMunis
                   ? "Cargando municipalidades…"
                   : municipalidades.length === 0
                   ? "Sin municipalidades disponibles"
-                  : "Selecciona tu municipalidad"}
+                  : "Seleccione una municipalidad"}
               </option>
               {municipalidades.map((m) => (
                 <option key={m.id} value={m.id}>{m.name}</option>
@@ -588,8 +588,8 @@ export default function RegisterPage() {
             <label className="block mb-2.5" style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#09090b" }}>
               Rol solicitado
             </label>
-            <p className="mb-3 text-[13px]" style={{ color: "#71717A" }}>
-              El administrador municipal aprobará o rechazará tu solicitud.
+            <p className="mb-3 text-[13px]" style={{ color: "#71717A", lineHeight: 1.55 }}>
+              La administración municipal evaluará la solicitud y notificará la resolución correspondiente.
             </p>
             <div className="space-y-2">
               {ROLES_OPERATIVO.map((rol, i) => {
@@ -602,17 +602,17 @@ export default function RegisterPage() {
                     className="w-full text-left rounded-lg p-4 transition-all duration-150 cursor-pointer animate-fade-up"
                     style={{
                       animationDelay: `${200 + i * 60}ms`,
-                      border: `1.5px solid ${selected ? "#B8860B" : "#E4E4E7"}`,
-                      background: selected ? "#FDF8EC" : "#ffffff",
-                      boxShadow: selected ? "inset 3px 0 0 #B8860B" : "none",
+                      border: `1.5px solid ${selected ? "#6C0606" : "#E4E4E7"}`,
+                      background: selected ? "#FBEAEA" : "#ffffff",
+                      boxShadow: selected ? "inset 3px 0 0 #6C0606" : "none",
                     }}
                   >
                     <div className="flex items-center gap-3">
                       <div
                         className="w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center"
-                        style={{ borderColor: selected ? "#B8860B" : "#D4D4D8" }}
+                        style={{ borderColor: selected ? "#6C0606" : "#D4D4D8" }}
                       >
-                        {selected && <div className="w-2 h-2 rounded-full" style={{ background: "#B8860B" }} />}
+                        {selected && <div className="w-2 h-2 rounded-full" style={{ background: "#6C0606" }} />}
                       </div>
                       <div>
                         <div className="font-semibold text-[13px] text-[#18181B]">{rol.label}</div>
@@ -647,9 +647,9 @@ export default function RegisterPage() {
           <Link
             href="/login"
             className="font-semibold transition-colors"
-            style={{ color: "#B8860B" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "#926A09")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "#B8860B")}
+            style={{ color: "#6C0606" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#4A0303")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#6C0606")}
           >
             Iniciar sesión
           </Link>

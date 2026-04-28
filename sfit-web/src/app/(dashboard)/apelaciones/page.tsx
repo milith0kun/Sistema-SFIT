@@ -81,7 +81,7 @@ function ResolveModal({
   }
 
   const APRO_C = "#15803d"; const APRO_BG = "#F0FDF4"; const APRO_BD = "#86EFAC";
-  const RECH_C = "#b91c1c"; const RECH_BG = "#FFF5F5"; const RECH_BD = "#FCA5A5";
+  const RECH_C = "#DC2626"; const RECH_BG = "#FFF5F5"; const RECH_BD = "#FCA5A5";
   const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 
   return (
@@ -432,14 +432,14 @@ export default function ApelacionesPage() {
           { label: "TOTAL", value: loading ? "—" : items.length, subtitle: "registradas", accent: "#52525b", icon: MessageSquareWarning },
           { label: "PENDIENTES", value: loading ? "—" : pendientes, subtitle: "por resolver", accent: "#b45309", icon: Clock },
           { label: "APROBADAS", value: loading ? "—" : aprobadas, subtitle: "confirmadas", accent: "#15803d", icon: CheckCircle },
-          { label: "RECHAZADAS", value: loading ? "—" : rechazadas, subtitle: "denegadas", accent: "#b91c1c", icon: XCircle },
+          { label: "RECHAZADAS", value: loading ? "—" : rechazadas, subtitle: "denegadas", accent: "#DC2626", icon: XCircle },
         ]}
       />
 
       {error && (
         <div style={{
           padding: "12px 16px", background: "#FFF5F5",
-          border: "1px solid #FCA5A5", borderRadius: 10, color: "#b91c1c",
+          border: "1px solid #FCA5A5", borderRadius: 10, color: "#DC2626",
         }}>
           {error}
         </div>

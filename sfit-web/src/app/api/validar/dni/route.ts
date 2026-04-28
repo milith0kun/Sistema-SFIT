@@ -39,11 +39,11 @@ export async function POST(request: NextRequest) {
           return apiError(err.message || "No se encontraron datos para ese DNI", 404);
         case "network":
         default:
-          return apiError("No se pudo conectar con RENIEC. Intenta nuevamente.", 503);
+          return apiError("No se pudo conectar con RENIEC. Intente nuevamente.", 503);
       }
     }
     const msg = err instanceof Error ? err.message : "Error al consultar DNI";
     console.error("[validar/dni] inesperado:", msg);
-    return apiError("No se pudo verificar el DNI. Intenta nuevamente.", 503);
+    return apiError("No se pudo verificar el DNI. Intente nuevamente.", 503);
   }
 }

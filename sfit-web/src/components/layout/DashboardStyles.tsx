@@ -1,0 +1,230 @@
+/**
+ * Estilos del shell del dashboard (sidebar flotante, topbar, scrollbars).
+ *
+ * Se inyectan inline porque dependen del color primario `#6C0606` y
+ * no se pueden derivar limpiamente desde Tailwind v4 sin perder el
+ * comportamiento responsive específico (sidebar mobile slide-in vs
+ * desktop sticky-card).
+ */
+export function DashboardStyles() {
+  return (
+    <style>{`
+      .sfit-sidebar {
+        /* Mobile: pegado al borde, slide-in completo, sin redondeo */
+        position: fixed; top: 0; left: 0; bottom: 0;
+        width: 282px; z-index: 50;
+        transform: translateX(-100%);
+        transition: transform 280ms cubic-bezier(0.4,0,0.2,1);
+        flex-direction: column;
+        background: #0A1628;
+      }
+      .sfit-sidebar.open { transform: translateX(0); }
+      @media (min-width: 1024px) {
+        .sfit-sidebar {
+          /* Desktop: tarjeta flotante con margen, redondeo y elevación */
+          position: sticky !important; top: 12px !important;
+          margin: 12px !important;
+          height: calc(100svh - 24px) !important;
+          transform: translateX(0) !important;
+          display: flex !important; flex-shrink: 0;
+          border-radius: 18px;
+          overflow: hidden;
+          border: 1px solid rgba(139, 20, 20, 0.18);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.04),
+            0 4px 12px rgba(9, 22, 40, 0.10),
+            0 14px 32px rgba(9, 22, 40, 0.10);
+        }
+        .sfit-sidebar-backdrop { display: none !important; }
+        .sfit-hamburger { display: none !important; }
+      }
+
+      /* ── Main shell — tarjeta flotante (mismo lenguaje del sidebar) ── */
+      .sfit-main-shell {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-width: 0;
+        position: relative;
+        background: #FAFAFA;
+      }
+      @media (min-width: 1024px) {
+        .sfit-main-shell {
+          margin: 12px 12px 12px 0;
+          border-radius: 18px;
+          border: 1px solid #E4E4E7;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.6),
+            0 4px 12px rgba(9, 22, 40, 0.05),
+            0 14px 32px rgba(9, 22, 40, 0.06);
+          height: calc(100svh - 24px);
+        }
+      }
+
+      /* ── Content scroll ── */
+      .sfit-content-scroll {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(108, 6, 6, 0.22) transparent;
+        scrollbar-gutter: stable;
+        scroll-behavior: smooth;
+      }
+      .sfit-content-scroll::-webkit-scrollbar { width: 8px; }
+      .sfit-content-scroll::-webkit-scrollbar-track { background: transparent; }
+      .sfit-content-scroll::-webkit-scrollbar-thumb {
+        background: rgba(108, 6, 6, 0.22);
+        border-radius: 999px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+        transition: background-color 160ms ease;
+      }
+      .sfit-content-scroll::-webkit-scrollbar-thumb:hover {
+        background: rgba(108, 6, 6, 0.45);
+        background-clip: padding-box;
+      }
+
+      /* ── Sidebar nav scroll ── */
+      .sfit-sidebar-nav {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(139, 20, 20, 0.22) transparent;
+        scrollbar-gutter: stable;
+      }
+      .sfit-sidebar-nav::-webkit-scrollbar { width: 6px; }
+      .sfit-sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+      .sfit-sidebar-nav::-webkit-scrollbar-thumb {
+        background: rgba(139, 20, 20, 0.22);
+        border-radius: 999px;
+        transition: background 160ms ease;
+      }
+      .sfit-sidebar-nav::-webkit-scrollbar-thumb:hover {
+        background: rgba(139, 20, 20, 0.45);
+      }
+      /* Sombras superior/inferior cuando hay overflow */
+      .sfit-sidebar-nav {
+        background:
+          linear-gradient(#0A1628 30%, transparent),
+          linear-gradient(transparent, #0A1628 70%) bottom,
+          radial-gradient(farthest-side at 50% 0, rgba(139, 20, 20, 0.10), transparent),
+          radial-gradient(farthest-side at 50% 100%, rgba(139, 20, 20, 0.10), transparent) bottom;
+        background-repeat: no-repeat;
+        background-size: 100% 16px, 100% 16px, 100% 6px, 100% 6px;
+        background-attachment: local, local, scroll, scroll;
+      }
+
+      /* ── Hidden mobile helper ── */
+      .hidden-mobile { display: flex; }
+      @media (max-width: 640px) {
+        .hidden-mobile { display: none !important; }
+      }
+
+      /* ── Breadcrumb visibility ── */
+      .sfit-breadcrumb-mobile { display: none; }
+      @media (max-width: 640px) {
+        .sfit-breadcrumb-mobile { display: inline-block; }
+      }
+
+      .sfit-crumb-root {
+        font-family: var(--font-inter, system-ui);
+        font-size: 0.6875rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #71717A;
+        text-decoration: none;
+        padding: 4px 6px;
+        border-radius: 6px;
+        transition: color 140ms ease, background 140ms ease;
+        flex-shrink: 0;
+      }
+      .sfit-crumb-root:hover { color: #09090B; background: #F4F4F5; }
+      .sfit-crumb-root:focus-visible {
+        outline: 2px solid #6C0606; outline-offset: 2px;
+      }
+
+      .sfit-crumb-sep {
+        color: #D4D4D8;
+        font-weight: 400;
+        font-size: 0.875rem;
+        user-select: none;
+        flex-shrink: 0;
+      }
+
+      .sfit-crumb-link {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #71717A;
+        text-decoration: none;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: color 140ms ease, background 140ms ease;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 200px;
+      }
+      .sfit-crumb-link:hover { color: #09090B; background: #F4F4F5; }
+      .sfit-crumb-link:focus-visible {
+        outline: 2px solid #6C0606; outline-offset: 2px;
+      }
+
+      .sfit-crumb-mute {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #A1A1AA;
+        padding: 4px 8px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 200px;
+      }
+
+      .sfit-crumb-current {
+        font-size: 0.9375rem;
+        font-weight: 700;
+        color: #09090B;
+        padding: 4px 8px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 280px;
+      }
+
+      /* ── Sidebar nav links ── */
+      .sfit-sidebar-link:hover:not([data-active]) {
+        background: rgba(255, 255, 255, 0.05) !important;
+        color: rgba(255, 255, 255, 0.92) !important;
+      }
+      .sfit-sidebar-link:focus-visible {
+        outline: 2px solid #8B1414;
+        outline-offset: -2px;
+      }
+
+      /* ── Sidebar logout button ── */
+      .sfit-sidebar-logout {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        padding: 9px 12px;
+        border-radius: 8px;
+        width: 100%;
+        border: none;
+        background: transparent;
+        color: rgba(255, 255, 255, 0.55);
+        font-family: inherit;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 120ms ease, color 120ms ease;
+        text-align: left;
+      }
+      .sfit-sidebar-logout:hover {
+        background: rgba(220, 38, 38, 0.12);
+        color: #FCA5A5;
+      }
+      .sfit-sidebar-logout:focus-visible {
+        outline: 2px solid #FCA5A5;
+        outline-offset: -2px;
+      }
+    `}</style>
+  );
+}

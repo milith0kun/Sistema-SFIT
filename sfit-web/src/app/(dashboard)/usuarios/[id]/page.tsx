@@ -27,13 +27,13 @@ type StoredUser   = { id: string; role: string };
 /* ── Design tokens ── */
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a";
 const INK6 = "#52525b"; const INK9 = "#18181b";
-const RED  = "#b91c1c"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
+const RED  = "#DC2626"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
 const GRN  = "#15803d"; const GRNBG = "#F0FDF4"; const GRNBD = "#86EFAC";
 
 const ROLE_LABELS: Record<string, string> = {
-  super_admin:      "Super Admin",
-  admin_provincial: "Admin Provincial",
-  admin_municipal:  "Admin Municipal",
+  super_admin:      "Super Administrador",
+  admin_provincial: "Administrador Provincial",
+  admin_municipal:  "Administrador Municipal",
   fiscal:           "Fiscal / Inspector",
   operador:         "Operador",
   conductor:        "Conductor",
@@ -271,7 +271,7 @@ export default function UsuarioDetallePage() {
   if (loading) return (
     <div className="animate-fade-in flex flex-col gap-4">
       <PageHeader kicker="Usuarios · RF-01" title="Cargando usuario…" action={backBtn} />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20 }}>
+      <div className="sfit-aside-layout">
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {[160, 140, 120].map((h, i) => (
             <div key={i} style={{ height: h, borderRadius: 14, background: "#fff", border: `1px solid ${INK2}`, overflow: "hidden", position: "relative" }}>
@@ -318,7 +318,7 @@ export default function UsuarioDetallePage() {
       )}
 
       {/* ── Two-column grid ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 18, alignItems: "start" }}>
+      <div className="sfit-aside-layout">
 
         {/* ─── Columna principal ─── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

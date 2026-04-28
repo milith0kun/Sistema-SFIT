@@ -6,8 +6,8 @@ import { useSearchParams } from "next/navigation";
 
 /* ── Design tokens ── */
 const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const GOLD = "#B8860B"; const GOLDDARK = "#926A09"; const GOLDBG = "#FDF8EC"; const GOLDBORDER = "#E8D090";
-const RED  = "#b91c1c"; const REDBG   = "#FFF5F5"; const REDBD   = "#FCA5A5";
+const PRIMARY = "#6C0606"; const PRIMARY_DARK = "#4A0303"; const PRIMARY_BG = "#FBEAEA"; const PRIMARY_BORDER = "#D9B0B0";
+const RED  = "#DC2626"; const REDBG   = "#FFF5F5"; const REDBD   = "#FCA5A5";
 const GRN  = "#15803d"; const GRNBG   = "#F0FDF4"; const GRNBD   = "#86EFAC";
 
 const FIELD: React.CSSProperties = {
@@ -35,28 +35,28 @@ function RequestForm() {
         body:    JSON.stringify({ email }),
       });
       setSent(true);
-    } catch { setError("Error de conexión. Intenta nuevamente."); }
+    } catch { setError("Error de conexión. Intente nuevamente."); }
     finally { setLoading(false); }
   }
 
   if (sent) return (
     <div className="text-center animate-fade-up">
       <div className="mx-auto mb-6 w-14 h-14 rounded-full flex items-center justify-center"
-        style={{ background: GOLDBG, border: `1.5px solid ${GOLDBORDER}` }}>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        style={{ background: PRIMARY_BG, border: `1.5px solid ${PRIMARY_BORDER}` }}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
           <polyline points="22,6 12,13 2,6"/>
         </svg>
       </div>
-      <h2 className="font-extrabold mb-3" style={{ fontFamily: "var(--font-syne)", fontSize: "1.75rem", lineHeight: 1.1, color: INK9 }}>
-        Revisa tu correo
+      <h2 className="font-bold mb-3" style={{ fontSize: "1.5rem", lineHeight: 1.2, letterSpacing: "-0.02em", color: INK9 }}>
+        Verifique su correo electrónico
       </h2>
-      <p className="mb-8 leading-relaxed max-w-[300px] mx-auto" style={{ fontSize: "15px", color: INK6 }}>
-        Si existe una cuenta con ese correo, recibirás un enlace de recuperación en los próximos minutos.
+      <p className="mb-8 leading-relaxed max-w-[340px] mx-auto" style={{ fontSize: "15px", lineHeight: 1.6, color: INK6 }}>
+        Si existe una cuenta asociada al correo proporcionado, se enviará un enlace de recuperación en los próximos minutos.
       </p>
       <p style={{ fontSize: "13px", color: "#A1A1AA" }}>
-        ¿No llegó?{" "}
-        <button onClick={() => setSent(false)} className="font-semibold transition-colors" style={{ color: GOLD }}>
+        ¿No recibió el correo?{" "}
+        <button onClick={() => setSent(false)} className="font-semibold transition-colors" style={{ color: PRIMARY }}>
           Reintentar
         </button>
       </p>
@@ -67,15 +67,15 @@ function RequestForm() {
     <div className="animate-fade-in">
       <div className="mb-10">
         <p className="kicker animate-fade-up">Recuperar acceso</p>
-        <h1 className="mt-5 font-black animate-fade-up delay-50"
-          style={{ fontFamily: "var(--font-syne)", fontSize: "2.5rem", lineHeight: 0.95, letterSpacing: "-0.035em", color: INK9 }}>
-          ¿Olvidaste tu<br/>contraseña?
+        <h1 className="mt-5 font-bold animate-fade-up delay-50"
+          style={{ fontSize: "clamp(1.625rem, 3.5vw, 2rem)", lineHeight: 1.15, letterSpacing: "-0.02em", color: INK9 }}>
+          Recuperación de contraseña
         </h1>
-        <p className="mt-4 animate-fade-up delay-100" style={{ color: INK6, fontSize: "1.0625rem", lineHeight: 1.55 }}>
-          Ingresa tu correo y te enviaremos un enlace de recuperación.
+        <p className="mt-4 animate-fade-up delay-100" style={{ color: INK6, fontSize: "1rem", lineHeight: 1.6 }}>
+          Ingrese su correo electrónico institucional para recibir el enlace de recuperación.
         </p>
         <p className="mt-3 animate-fade-up delay-150" style={{ color: INK5, fontSize: "0.875rem", fontWeight: 500 }}>
-          No aplica para cuentas de Google.
+          No aplica a cuentas vinculadas con Google.
         </p>
       </div>
 
@@ -110,10 +110,10 @@ function RequestForm() {
 
       <p className="mt-7 text-center animate-fade-up delay-300" style={{ fontSize: "14px", color: INK6 }}>
         <Link href="/login" className="font-semibold transition-colors"
-          style={{ color: GOLD }}
-          onMouseEnter={e => (e.currentTarget.style.color = GOLDDARK)}
-          onMouseLeave={e => (e.currentTarget.style.color = GOLD)}>
-          ← Volver al inicio de sesión
+          style={{ color: PRIMARY }}
+          onMouseEnter={e => (e.currentTarget.style.color = PRIMARY_DARK)}
+          onMouseLeave={e => (e.currentTarget.style.color = PRIMARY)}>
+          ← Volver al acceso del sistema
         </Link>
       </p>
     </div>
@@ -143,7 +143,7 @@ function ConfirmForm({ token }: { token: string }) {
       const data = await res.json() as { success: boolean; error?: string };
       if (!res.ok || !data.success) { setError(data.error ?? "Error al restablecer."); return; }
       setDone(true);
-    } catch { setError("Error de conexión. Intenta nuevamente."); }
+    } catch { setError("Error de conexión. Intente nuevamente."); }
     finally { setLoading(false); }
   }
 
@@ -155,16 +155,16 @@ function ConfirmForm({ token }: { token: string }) {
           <path d="M20 6L9 17l-5-5"/>
         </svg>
       </div>
-      <h2 className="font-extrabold mb-3" style={{ fontFamily: "var(--font-syne)", fontSize: "1.75rem", lineHeight: 1.1, color: INK9 }}>
+      <h2 className="font-bold mb-3" style={{ fontSize: "1.5rem", lineHeight: 1.2, letterSpacing: "-0.02em", color: INK9 }}>
         Contraseña actualizada
       </h2>
-      <p className="mb-8 leading-relaxed max-w-[300px] mx-auto" style={{ fontSize: "15px", color: INK6 }}>
-        Tu contraseña fue restablecida correctamente. Ya puedes iniciar sesión.
+      <p className="mb-8 leading-relaxed max-w-[340px] mx-auto" style={{ fontSize: "15px", lineHeight: 1.6, color: INK6 }}>
+        La contraseña ha sido restablecida correctamente. Ya puede acceder al sistema con sus nuevas credenciales.
       </p>
       <Link href="/login">
         <button className="btn-primary">
           <span className="shine" aria-hidden/>
-          Ir al inicio de sesión
+          Acceso al sistema
         </button>
       </Link>
     </div>
@@ -174,12 +174,12 @@ function ConfirmForm({ token }: { token: string }) {
     <div className="animate-fade-in">
       <div className="mb-10">
         <p className="kicker animate-fade-up">Recuperar acceso</p>
-        <h1 className="mt-5 font-black animate-fade-up delay-50"
-          style={{ fontFamily: "var(--font-syne)", fontSize: "2.5rem", lineHeight: 0.95, letterSpacing: "-0.035em", color: INK9 }}>
-          Nueva<br/>contraseña
+        <h1 className="mt-5 font-bold animate-fade-up delay-50"
+          style={{ fontSize: "clamp(1.625rem, 3.5vw, 2rem)", lineHeight: 1.15, letterSpacing: "-0.02em", color: INK9 }}>
+          Nueva contraseña
         </h1>
-        <p className="mt-4 animate-fade-up delay-100" style={{ color: INK6, fontSize: "1.0625rem", lineHeight: 1.55 }}>
-          Elige una contraseña segura de al menos 8 caracteres.
+        <p className="mt-4 animate-fade-up delay-100" style={{ color: INK6, fontSize: "1rem", lineHeight: 1.6 }}>
+          Establezca una contraseña segura con un mínimo de 8 caracteres.
         </p>
       </div>
 
@@ -210,7 +210,7 @@ function ConfirmForm({ token }: { token: string }) {
           <input
             type={showPass ? "text" : "password"}
             value={confirmPass} onChange={e => setConfirmPass(e.target.value)}
-            placeholder="Repite la contraseña" style={FIELD}
+            placeholder="Repita la contraseña" style={FIELD}
             onFocus={e => { e.currentTarget.style.borderColor = INK9; }}
             onBlur={e  => { e.currentTarget.style.borderColor = INK2; }}
             required
@@ -232,10 +232,10 @@ function ConfirmForm({ token }: { token: string }) {
 
       <p className="mt-7 text-center animate-fade-up delay-300" style={{ fontSize: "14px", color: INK6 }}>
         <Link href="/login" className="font-semibold transition-colors"
-          style={{ color: GOLD }}
-          onMouseEnter={e => (e.currentTarget.style.color = GOLDDARK)}
-          onMouseLeave={e => (e.currentTarget.style.color = GOLD)}>
-          ← Volver al inicio de sesión
+          style={{ color: PRIMARY }}
+          onMouseEnter={e => (e.currentTarget.style.color = PRIMARY_DARK)}
+          onMouseLeave={e => (e.currentTarget.style.color = PRIMARY)}>
+          ← Volver al acceso del sistema
         </Link>
       </p>
     </div>

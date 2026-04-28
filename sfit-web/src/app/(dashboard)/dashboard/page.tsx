@@ -119,9 +119,9 @@ function getServerUser(): User | null {
 }
 
 const ROLE_LABELS: Record<string, string> = {
-  super_admin: "Super Admin",
-  admin_provincial: "Admin Provincial",
-  admin_municipal: "Admin Municipal",
+  super_admin: "Super Administrador",
+  admin_provincial: "Administrador Provincial",
+  admin_municipal: "Administrador Municipal",
   fiscal: "Fiscal / Inspector",
   operador: "Operador",
   conductor: "Conductor",
@@ -260,7 +260,7 @@ export default function DashboardPage() {
       />
 
       {error && (
-        <div role="alert" style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5", borderRadius: 10, padding: "10px 14px", color: "#b91c1c", fontSize: "0.875rem", fontWeight: 500 }}>
+        <div role="alert" style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5", borderRadius: 10, padding: "10px 14px", color: "#DC2626", fontSize: "0.875rem", fontWeight: 500 }}>
           {error}
         </div>
       )}
@@ -335,7 +335,7 @@ function ActiveFleetMap({
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {loading && <span style={{ fontSize: "0.75rem", color: "#71717a" }}>Actualizando…</span>}
           {locations.length > 0 && (
-            <span style={{ fontSize: "0.6875rem", fontWeight: 700, color: "#926A09", background: "#FDF8EC", borderRadius: 999, padding: "2px 8px" }}>
+            <span style={{ fontSize: "0.6875rem", fontWeight: 700, color: "#4A0303", background: "#FBEAEA", borderRadius: 999, padding: "2px 8px" }}>
               {locations.length} en ruta
             </span>
           )}
@@ -366,8 +366,8 @@ function ActiveFleetMap({
             {locations.length > 0 && (
               <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
                 {locations.map((loc) => (
-                  <div key={loc.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", background: "#FDFAF2", border: "1px solid #E8D090", borderRadius: 8 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#B8860B", flexShrink: 0 }} />
+                  <div key={loc.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", background: "#FBEAEA", border: "1px solid #D9B0B0", borderRadius: 8 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#6C0606", flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ fontWeight: 700, fontSize: "0.8125rem", color: "#09090b" }}>{loc.plate}</span>
                       {loc.routeCode && (
@@ -410,9 +410,9 @@ function QuickModuleLink({ icon: Icon, title, subtitle, href }: QuickActionDef) 
         gap: 18,
         padding: "20px 22px",
         borderRadius: 14,
-        background: "linear-gradient(135deg, #ffffff 0%, #FDFAF2 60%, #F8F1DF 100%)",
-        border: "1.5px solid #E8D090",
-        boxShadow: "0 1px 3px rgba(184,134,11,0.06)",
+        background: "linear-gradient(135deg, #ffffff 0%, #FBEAEA 60%, #F4D5D5 100%)",
+        border: "1.5px solid #D9B0B0",
+        boxShadow: "0 1px 3px rgba(108,6,6,0.06)",
         textDecoration: "none",
         transition: "border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease",
         minHeight: 92,
@@ -425,7 +425,7 @@ function QuickModuleLink({ icon: Icon, title, subtitle, href }: QuickActionDef) 
           position: "absolute",
           left: 0, top: 0, bottom: 0,
           width: 4,
-          background: "linear-gradient(180deg, #D4A827 0%, #B8860B 100%)",
+          background: "linear-gradient(180deg, #8B1414 0%, #6C0606 100%)",
           pointerEvents: "none",
         }}
       />
@@ -437,7 +437,7 @@ function QuickModuleLink({ icon: Icon, title, subtitle, href }: QuickActionDef) 
           position: "absolute",
           right: -18,
           bottom: -22,
-          color: "#B8860B",
+          color: "#6C0606",
           opacity: 0.13,
           pointerEvents: "none",
           lineHeight: 0,
@@ -451,15 +451,15 @@ function QuickModuleLink({ icon: Icon, title, subtitle, href }: QuickActionDef) 
         style={{
           width: 52, height: 52,
           borderRadius: 13,
-          background: "#FDF8EC",
-          border: "1.5px solid #E8D090",
+          background: "#FBEAEA",
+          border: "1.5px solid #D9B0B0",
           display: "flex", alignItems: "center", justifyContent: "center",
           flexShrink: 0,
           position: "relative", zIndex: 1,
           boxShadow: "inset 0 1px 0 rgba(255,255,255,0.5)",
         }}
       >
-        <Icon size={24} color="#926A09" strokeWidth={1.9} />
+        <Icon size={24} color="#4A0303" strokeWidth={1.9} />
       </div>
 
       {/* Texto */}
@@ -470,7 +470,7 @@ function QuickModuleLink({ icon: Icon, title, subtitle, href }: QuickActionDef) 
             fontWeight: 800,
             letterSpacing: "0.16em",
             textTransform: "uppercase",
-            color: "#926A09",
+            color: "#4A0303",
             marginBottom: 4,
           }}
         >
@@ -542,10 +542,10 @@ const ACTIVITY_ICON: Record<ActivityItem["type"], typeof Users> = {
   inspeccion: ClipboardCheck, reporte: Flag, apelacion: MessageSquareWarning, sancion: AlertCircle,
 };
 const ACTIVITY_COLOR: Record<ActivityItem["type"], string> = {
-  inspeccion: "#15803d", reporte: "#B8860B", apelacion: "#1e40af", sancion: "#b91c1c",
+  inspeccion: "#15803d", reporte: "#6C0606", apelacion: "#1e40af", sancion: "#DC2626",
 };
 const ACTIVITY_BG: Record<ActivityItem["type"], string> = {
-  inspeccion: "#F0FDF4", reporte: "#FDF8EC", apelacion: "#EFF6FF", sancion: "#FFF5F5",
+  inspeccion: "#F0FDF4", reporte: "#FBEAEA", apelacion: "#EFF6FF", sancion: "#FFF5F5",
 };
 
 function fmtRelative(dateStr: string): string {
@@ -615,7 +615,7 @@ function ActivityFeed({ items }: { items: ActivityItem[] }) {
 /* ── Placeholder para roles sin feed de actividad ── */
 function PlaceholderContent({ role, conductorStats }: { role: string; conductorStats: ConductorStats | null }) {
   if (role === "conductor" && conductorStats) {
-    const statusColor = conductorStats.status === "apto" ? "#15803d" : conductorStats.status === "riesgo" ? "#B45309" : "#b91c1c";
+    const statusColor = conductorStats.status === "apto" ? "#15803d" : conductorStats.status === "riesgo" ? "#B45309" : "#DC2626";
     const statusBg = conductorStats.status === "apto" ? "#F0FDF4" : conductorStats.status === "riesgo" ? "#FEF3C7" : "#FFF5F5";
     return (
       <div style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: 12, padding: "20px" }}>
@@ -685,7 +685,7 @@ function buildQuickActionFor(role: string): QuickActionDef | null {
   switch (role) {
     case "super_admin":      return { icon: Users,       title: "Gestión de Usuarios y Roles",     subtitle: "Designar accesos y permisos en toda la plataforma.", href: "/usuarios" };
     case "admin_provincial": return { icon: Building2,   title: "Municipalidades de tu provincia", subtitle: "Supervisa la gestión de cada municipalidad.",         href: "/municipalidades" };
-    case "admin_municipal":  return { icon: UserCheck,   title: "Aprobaciones pendientes",          subtitle: "Revisa nuevos usuarios y sus permisos.",             href: "/admin/users" };
+    case "admin_municipal":  return { icon: UserCheck,   title: "Aprobaciones pendientes",          subtitle: "Revise nuevos usuarios y sus permisos.",             href: "/admin/users" };
     case "operador":         return { icon: ClipboardList, title: "Flota del día",                 subtitle: "Asignaciones, conductores y despacho.",               href: "/flota" };
     case "fiscal":           return { icon: Shield,      title: "Inspecciones en campo",            subtitle: "Levanta actas digitales y escanea QR.",              href: "/inspecciones" };
     default:                 return { icon: Bell,        title: "Notificaciones",                   subtitle: "Mantente al día con novedades.",                     href: "/notificaciones" };
@@ -705,7 +705,7 @@ function buildKpiItemsFor(
   const val = (n: number | undefined) => (typeof n === "number" ? n : loading ? "…" : 0);
   // accent solo se asigna cuando el valor tiene significado semántico de estado/alerta
   const warn  = (n: number | undefined) => n && n > 0 ? "#B45309" : undefined;
-  const alert = (n: number | undefined) => n && n > 0 ? "#b91c1c" : undefined;
+  const alert = (n: number | undefined) => n && n > 0 ? "#DC2626" : undefined;
 
   if (role === "super_admin") return [
     { label: "PROVINCIAS",  value: val(stats?.provincesCount),       subtitle: "registradas",                                                        icon: MapPin    },
@@ -730,7 +730,7 @@ function buildKpiItemsFor(
     return [
       { label: "VEHÍCULOS",   value: ov(operadorStats?.totalVehicles),  subtitle: operadorStats ? `${operadorStats.activeVehicles} activos` : "total", icon: Car        },
       { label: "EN RUTA",     value: ov(operadorStats?.vehiclesEnRuta), subtitle: "en circulación",                                                     icon: Route      },
-      { label: "CONDUCTORES", value: ov(operadorStats?.activeDrivers),  subtitle: "aptos hoy",     accent: operadorStats?.activeDrivers === 0 ? "#b91c1c" : undefined,   icon: Users      },
+      { label: "CONDUCTORES", value: ov(operadorStats?.activeDrivers),  subtitle: "aptos hoy",     accent: operadorStats?.activeDrivers === 0 ? "#DC2626" : undefined,   icon: Users      },
       { label: "FLOTA ACTIVA",value: ov(operadorStats?.activeVehicles), subtitle: "disponibles",                                                         icon: CalendarDays },
     ];
   }
@@ -745,7 +745,7 @@ function buildKpiItemsFor(
   }
   if (role === "conductor") {
     const cv = (n: number | undefined) => (typeof n === "number" ? n : loading ? "…" : "—");
-    const statusAccent = conductorStats?.status === "apto" ? "#15803d" : conductorStats?.status === "riesgo" ? "#B45309" : conductorStats?.status === "no_apto" ? "#b91c1c" : undefined;
+    const statusAccent = conductorStats?.status === "apto" ? "#15803d" : conductorStats?.status === "riesgo" ? "#B45309" : conductorStats?.status === "no_apto" ? "#DC2626" : undefined;
     return [
       { label: "ESTADO",     value: conductorStats ? (FATIGUE_LABELS[conductorStats.status] ?? conductorStats.status) : loading ? "…" : "—", subtitle: conductorStats ? `${conductorStats.continuousHours}h continuas` : "fatiga", accent: statusAccent, icon: Shield },
       { label: "DESCANSO",   value: conductorStats ? `${conductorStats.restHours}h` : loading ? "…" : "—", subtitle: "horas de descanso",                                    icon: CalendarDays },
