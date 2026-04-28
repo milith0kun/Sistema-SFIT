@@ -19,9 +19,11 @@ dns.setServers(["8.8.8.8", "1.1.1.1", "8.8.4.4"]);
 
 config({ path: ".env.local" });
 
-const PROVINCE_NAME = "Provincia de Prueba SFIT";
-const PROVINCE_REGION = "Cusco";
-const MUNICIPALITY_NAME = "Municipalidad de Prueba SFIT";
+// Provincia y municipalidad de pruebas resueltas desde el catálogo UBIGEO real.
+// Cusco-Cusco-Cusco (provincia 0801, distrito 080101). Se asume que el catálogo
+// UBIGEO ya fue sembrado: `npx tsx scripts/seed-ubigeo.ts`.
+const TEST_PROVINCE_UBIGEO     = "0801";
+const TEST_MUNICIPALITY_UBIGEO = "080101";
 
 const PASSWORD = "Sfit2026!";
 
@@ -117,39 +119,39 @@ async function main() {
     mongoose.model("Municipality", MunicipalitySchema);
   const User = mongoose.models.User ?? mongoose.model("User", UserSchema);
 
-  // 1. Provincia de prueba (upsert por nombre)
-  const provinceRes = await Province.findOneAndUpdate(
-    { name: PROVINCE_NAME },
-    {
-      $set: {
-        name: PROVINCE_NAME,
-        region: PROVINCE_REGION,
-        active: true,
-        updatedAt: new Date(),
-      },
-      $setOnInsert: { createdAt: new Date() },
-    },
-    { upsert: true, new: true },
-  );
-  const provinceId = provinceRes._id;
-  console.log(`✓ Provincia: ${PROVINCE_NAME} (${provinceId})`);
+  // 1. Resolver provincia UBIGEO real (Cusco — 0801) y activarla.
+  const provinceDoc = await Province.findOne({
+    ubigeoCode: TEST_PROVINCE_UBIGEO,
+  });
+  if (!provinceDoc) {
+    throw new Error(
+      `No se encontró la provincia UBIGEO ${TEST_PROVINCE_UBIGEO}. ` +
+      `Ejecuta primero: npx tsx scripts/seed-ubigeo.ts`,
+    );
+  }
+  if (!provinceDoc.active) {
+    provinceDoc.active = true;
+    await provinceDoc.save();
+  }
+  const provinceId = provinceDoc._id;
+  console.log(`✓ Provincia UBIGEO ${TEST_PROVINCE_UBIGEO}: ${provinceDoc.name} (${provinceId})`);
 
-  // 2. Municipalidad de prueba (upsert por (provinceId, name))
-  const muniRes = await Municipality.findOneAndUpdate(
-    { provinceId, name: MUNICIPALITY_NAME },
-    {
-      $set: {
-        name: MUNICIPALITY_NAME,
-        provinceId,
-        active: true,
-        updatedAt: new Date(),
-      },
-      $setOnInsert: { createdAt: new Date() },
-    },
-    { upsert: true, new: true },
-  );
-  const municipalityId = muniRes._id;
-  console.log(`✓ Municipalidad: ${MUNICIPALITY_NAME} (${municipalityId})`);
+  // 2. Resolver municipalidad UBIGEO real (Cusco distrito — 080101) y activarla.
+  const muniDoc = await Municipality.findOne({
+    ubigeoCode: TEST_MUNICIPALITY_UBIGEO,
+  });
+  if (!muniDoc) {
+    throw new Error(
+      `No se encontró la municipalidad UBIGEO ${TEST_MUNICIPALITY_UBIGEO}. ` +
+      `Ejecuta primero: npx tsx scripts/seed-ubigeo.ts`,
+    );
+  }
+  if (!muniDoc.active) {
+    muniDoc.active = true;
+    await muniDoc.save();
+  }
+  const municipalityId = muniDoc._id;
+  console.log(`✓ Municipalidad UBIGEO ${TEST_MUNICIPALITY_UBIGEO}: ${muniDoc.name} (${municipalityId})`);
 
   // 3. Usuarios — bcrypt 12 rounds (RNF-04)
   const hashed = await bcrypt.hash(PASSWORD, 12);

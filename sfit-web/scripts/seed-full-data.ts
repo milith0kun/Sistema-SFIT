@@ -10,14 +10,20 @@ import dns from "dns";
 
 dns.setServers(["8.8.8.8", "1.1.1.1", "8.8.4.4"]);
 
-const PROVINCE_ID = new Types.ObjectId("69e38d63e52dc0303612c21e");
-const MUNIC_ID    = new Types.ObjectId("69e38d63e52dc0303612c21f");
+// Provincia y municipalidad resueltas desde el catálogo UBIGEO en runtime
+// (Cusco — provincia 0801, distrito Cusco 080101). Se inicializan en main().
+let PROVINCE_ID: Types.ObjectId;
+let MUNIC_ID: Types.ObjectId;
+const TEST_PROVINCE_UBIGEO     = "0801";
+const TEST_MUNICIPALITY_UBIGEO = "080101";
 
 // ── Modelos inline con strict:false (evitar importar toda la app) ─────────────
 
 const loose = { strict: false, timestamps: true } as const;
 
 const UserModel        = mongoose.models.User        ?? model("User",        new Schema({}, loose));
+const ProvinceModel    = mongoose.models.Province    ?? model("Province",    new Schema({}, loose));
+const MunicipalityModel = mongoose.models.Municipality ?? model("Municipality", new Schema({}, loose));
 const VehicleTypeModel = mongoose.models.VehicleType ?? model("VehicleType", new Schema({}, loose));
 const CompanyModel     = mongoose.models.Company     ?? model("Company",     new Schema({}, loose));
 const DriverModel      = mongoose.models.Driver      ?? model("Driver",      new Schema({}, loose));
@@ -49,6 +55,34 @@ async function main() {
 
   await mongoose.connect(uri);
   console.log("✅ Conectado a MongoDB");
+
+  // Resolver provincia/municipalidad UBIGEO real (Cusco-Cusco-Cusco).
+  const province = await ProvinceModel.findOne({
+    ubigeoCode: TEST_PROVINCE_UBIGEO,
+  }).lean() as { _id: Types.ObjectId } | null;
+  if (!province) {
+    throw new Error(
+      `Provincia UBIGEO ${TEST_PROVINCE_UBIGEO} no existe. ` +
+      `Ejecuta: npx tsx scripts/seed-ubigeo.ts`,
+    );
+  }
+  const muni = await MunicipalityModel.findOne({
+    ubigeoCode: TEST_MUNICIPALITY_UBIGEO,
+  }).lean() as { _id: Types.ObjectId } | null;
+  if (!muni) {
+    throw new Error(
+      `Municipalidad UBIGEO ${TEST_MUNICIPALITY_UBIGEO} no existe. ` +
+      `Ejecuta: npx tsx scripts/seed-ubigeo.ts`,
+    );
+  }
+  PROVINCE_ID = province._id;
+  MUNIC_ID    = muni._id;
+  console.log(`✅ Provincia UBIGEO ${TEST_PROVINCE_UBIGEO}: ${PROVINCE_ID}`);
+  console.log(`✅ Municipalidad UBIGEO ${TEST_MUNICIPALITY_UBIGEO}: ${MUNIC_ID}`);
+
+  // Asegurar activación
+  await ProvinceModel.findByIdAndUpdate(PROVINCE_ID, { $set: { active: true } });
+  await MunicipalityModel.findByIdAndUpdate(MUNIC_ID, { $set: { active: true } });
 
   const fiscalId    = await getUserId("fiscal@sfit.test");
   const operadorId  = await getUserId("operador@sfit.test");

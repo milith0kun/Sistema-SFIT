@@ -1,106 +1,166 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Building2, AlertTriangle, Plus, Info } from "lucide-react";
+import { ArrowLeft, Building2, AlertTriangle, CheckCircle, Search } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 
-type Province    = { id: string; name: string };
+type Department  = { code: string; name: string };
+type Province    = { id: string; name: string; departmentCode?: string };
+type Municipality = {
+  id: string; name: string;
+  ubigeoCode?: string;
+  departmentName?: string;
+  provinceName?: string;
+  active: boolean;
+};
 type StoredUser  = { role: string; provinceId?: string };
 
-/* ── Tokens ── */
+/* ── Tokens visuales ── */
 const INK9 = "#18181b"; const INK6 = "#52525b"; const INK5 = "#71717a";
 const INK2 = "#e4e4e7"; const INK1 = "#f4f4f5";
 const GOLD = "#B8860B"; const GOLD_BG = "#FDF8EC"; const GOLD_BD = "#E8D090";
 const RED  = "#b91c1c"; const RED_BG  = "#FFF5F5"; const RED_BD  = "#FCA5A5";
+const GRN  = "#15803d"; const GRN_BG  = "#F0FDF4"; const GRN_BD  = "#86EFAC";
 const INFO_BG = "#EFF6FF"; const INFO_C = "#1D4ED8"; const INFO_BD = "#BFDBFE";
 
 const FIELD: React.CSSProperties = {
-  width: "100%", height: 44, padding: "0 14px",
-  border: `1.5px solid ${INK2}`, borderRadius: 10,
-  fontSize: "0.9375rem", color: INK9, fontFamily: "inherit",
-  outline: "none", background: "#fff", transition: "border-color 0.15s",
-  boxSizing: "border-box",
+  width: "100%", height: 42, padding: "0 12px",
+  border: `1.5px solid ${INK2}`, borderRadius: 9,
+  fontSize: "0.875rem", color: INK9, fontFamily: "inherit",
+  outline: "none", background: "#fff", boxSizing: "border-box",
 };
 const LABEL: React.CSSProperties = {
   display: "block", fontSize: "0.6875rem", fontWeight: 700,
   letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, marginBottom: 8,
 };
 
-export default function NuevaMunicipalidadPage() {
+export default function ActivarMunicipalidadPage() {
   const router = useRouter();
-  const [user,     setUser]     = useState<StoredUser | null>(null);
-  const [provinces, setProvinces] = useState<Province[]>([]);
-  const [name,     setName]     = useState("");
-  const [provId,   setProvId]   = useState("");
-  const [logoUrl,  setLogoUrl]  = useState("");
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [user,             setUser]             = useState<StoredUser | null>(null);
+  const [departments,      setDepartments]      = useState<Department[]>([]);
+  const [provinces,        setProvinces]        = useState<Province[]>([]);
+  const [results,          setResults]          = useState<Municipality[]>([]);
+  const [departmentFilter, setDepartmentFilter] = useState("");
+  const [provinceFilter,   setProvinceFilter]   = useState("");
+  const [q,                setQ]                = useState("");
+  const [loading,          setLoading]          = useState(false);
+  const [activatingId,     setActivatingId]     = useState<string | null>(null);
+  const [error,            setError]            = useState<string | null>(null);
+  const [recentActivated,  setRecentActivated]  = useState<string[]>([]);
 
+  // ── Cargar usuario y permisos ──
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
     const u = JSON.parse(raw) as StoredUser;
-    if (!["super_admin", "admin_provincial"].includes(u.role)) { router.replace("/dashboard"); return; }
+    if (!["super_admin", "admin_provincial"].includes(u.role)) {
+      router.replace("/dashboard"); return;
+    }
     setUser(u);
-    void loadProvinces();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [router]);
 
-  async function loadProvinces() {
+  const isSA = user?.role === "super_admin";
+
+  // ── Cargar departamentos (super_admin) ──
+  useEffect(() => {
+    if (!user || !isSA) return;
+    const token = localStorage.getItem("sfit_access_token");
+    fetch("/api/admin/departamentos", { headers: { Authorization: `Bearer ${token ?? ""}` } })
+      .then((r) => r.json())
+      .then((d) => { if (d?.success) setDepartments(d.data.items ?? []); })
+      .catch(() => { /* silent */ });
+  }, [user, isSA]);
+
+  // ── Cargar provincias filtradas por depto ──
+  useEffect(() => {
+    if (!user) return;
+    const token = localStorage.getItem("sfit_access_token");
+    const qs = new URLSearchParams();
+    if (departmentFilter) qs.set("departmentCode", departmentFilter);
+    qs.set("limit", "200");
+    fetch(`/api/provincias?${qs}`, { headers: { Authorization: `Bearer ${token ?? ""}` } })
+      .then((r) => r.json())
+      .then((d) => { if (d?.success) setProvinces(d.data.items ?? []); })
+      .catch(() => { /* silent */ });
+    setProvinceFilter("");
+  }, [user, departmentFilter]);
+
+  // ── Buscar inactivas ──
+  const search = useCallback(async () => {
+    if (!user) return;
+    setLoading(true); setError(null);
     try {
       const token = localStorage.getItem("sfit_access_token");
-      const res = await fetch("/api/provincias", { headers: { Authorization: `Bearer ${token ?? ""}` } });
-      if (res.status === 401) return router.replace("/login");
-      const data = await res.json();
-      if (res.ok && data.success) setProvinces(data.data.items ?? []);
-    } catch { /* silent */ }
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const resolvedProvId = user?.role === "admin_provincial" ? user.provinceId : provId;
-    const errs: Record<string, string> = {};
-    if (!name.trim())       errs.name       = "El nombre es obligatorio.";
-    if (!resolvedProvId)    errs.provinceId = "La provincia es obligatoria.";
-    if (Object.keys(errs).length) { setFieldErrors(errs); return; }
-
-    setLoading(true); setError(null); setFieldErrors({});
-    try {
-      const token = localStorage.getItem("sfit_access_token");
-      const res = await fetch("/api/municipalidades", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
-        body: JSON.stringify({ name: name.trim(), provinceId: resolvedProvId, ...(logoUrl.trim() ? { logoUrl: logoUrl.trim() } : {}) }),
+      const qs = new URLSearchParams();
+      qs.set("active", "false");
+      qs.set("limit", "200");
+      if (departmentFilter) qs.set("departmentCode", departmentFilter);
+      if (provinceFilter)   qs.set("provinceId", provinceFilter);
+      if (q.trim())         qs.set("q", q.trim());
+      const res = await fetch(`/api/municipalidades?${qs}`, {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
       });
       if (res.status === 401) return router.replace("/login");
+      if (res.status === 403) return router.replace("/dashboard");
       const data = await res.json();
       if (!res.ok || !data.success) {
-        if (data.errors) {
-          const mapped: Record<string, string> = {};
-          for (const [k, v] of Object.entries(data.errors)) mapped[k] = (v as string[])[0];
-          setFieldErrors(mapped);
-        } else { setError(data.error ?? "No se pudo crear la municipalidad."); }
+        setError(data.error ?? "Error al buscar.");
         return;
       }
-      router.push("/municipalidades");
-    } catch { setError("Error de conexión. Intenta nuevamente."); }
+      setResults(data.data.items ?? []);
+    } catch { setError("Error de conexión."); }
     finally { setLoading(false); }
+  }, [user, departmentFilter, provinceFilter, q, router]);
+
+  // Auto-buscar cuando cambian los filtros (con pequeño debounce)
+  useEffect(() => {
+    const t = setTimeout(() => { void search(); }, 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // ── Activar ──
+  async function activate(m: Municipality) {
+    if (!m.ubigeoCode) {
+      setError(`"${m.name}" no pertenece al catálogo UBIGEO.`);
+      return;
+    }
+    setActivatingId(m.id); setError(null);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/admin/municipalidades/${m.id}/activar`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ active: true }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error ?? "No se pudo activar.");
+        return;
+      }
+      setResults((prev) => prev.filter((x) => x.id !== m.id));
+      setRecentActivated((prev) => [m.name, ...prev].slice(0, 5));
+    } catch { setError("Error de conexión."); }
+    finally { setActivatingId(null); }
   }
 
   if (!user) return null;
 
   return (
-    <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <PageHeader
-        kicker="Municipalidades · RF-02"
-        title="Nueva municipalidad"
-        subtitle="Registra una nueva municipalidad dentro de la provincia correspondiente."
+        kicker="Catálogo UBIGEO INEI"
+        title="Activar municipalidad del catálogo"
+        subtitle="Busca un distrito y actívalo para incorporarlo al sistema. El catálogo proviene del INEI; no se crean municipalidades a mano."
         action={
           <Link href="/municipalidades">
-            <button style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 14px", borderRadius: 9, border: "1.5px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.08)", color: "#fff", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+            <button style={{
+              display: "inline-flex", alignItems: "center", gap: 7, height: 36,
+              padding: "0 14px", borderRadius: 9,
+              border: "1.5px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.08)",
+              color: "#fff", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+            }}>
               <ArrowLeft size={15} />Volver
             </button>
           </Link>
@@ -108,134 +168,165 @@ export default function NuevaMunicipalidadPage() {
       />
 
       {error && (
-        <div style={{ padding: "12px 16px", background: RED_BG, border: `1.5px solid ${RED_BD}`, borderRadius: 10, color: RED, fontSize: "0.875rem", fontWeight: 500, display: "flex", alignItems: "center", gap: 10 }}>
-          <AlertTriangle size={16} />{error}
+        <div style={{
+          padding: "10px 14px", background: RED_BG, border: `1.5px solid ${RED_BD}`,
+          borderRadius: 9, color: RED, fontSize: "0.8125rem", fontWeight: 500,
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <AlertTriangle size={14} />{error}
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 18, alignItems: "start" }}>
+      {recentActivated.length > 0 && (
+        <div style={{
+          padding: "10px 14px", background: GRN_BG, border: `1.5px solid ${GRN_BD}`,
+          borderRadius: 9, color: GRN, fontSize: "0.8125rem", fontWeight: 500,
+          display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+        }}>
+          <CheckCircle size={14} />
+          <span>Activadas en esta sesión:</span>
+          <strong>{recentActivated.join(", ")}</strong>
+        </div>
+      )}
 
-        {/* ── Form card ── */}
-        <div style={{ background: "#fff", border: `1.5px solid ${INK2}`, borderRadius: 14, overflow: "hidden" }}>
-          <div style={{ padding: "18px 24px", borderBottom: `1px solid ${INK1}`, display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 9, background: INFO_BG, border: `1.5px solid ${INFO_BD}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Building2 size={15} color={INFO_C} />
-            </div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: "0.9375rem", color: INK9 }}>Datos de la municipalidad</div>
-              <div style={{ fontSize: "0.75rem", color: INK5 }}>Completa la información requerida</div>
-            </div>
+      <div style={{
+        background: "#fff", border: `1.5px solid ${INK2}`, borderRadius: 12,
+        padding: 18, display: "grid",
+        gridTemplateColumns: isSA ? "1fr 1fr 2fr" : "1fr 2fr",
+        gap: 12, alignItems: "end",
+      }}>
+        {isSA && (
+          <div>
+            <label style={LABEL}>Departamento</label>
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              style={FIELD}
+            >
+              <option value="">Todos</option>
+              {departments.map((d) => (
+                <option key={d.code} value={d.code}>{d.code} — {d.name}</option>
+              ))}
+            </select>
           </div>
+        )}
+        <div>
+          <label style={LABEL}>Provincia</label>
+          <select
+            value={provinceFilter}
+            onChange={(e) => setProvinceFilter(e.target.value)}
+            style={FIELD}
+          >
+            <option value="">Todas</option>
+            {provinces.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={LABEL}>Buscar por nombre</label>
+          <div style={{ position: "relative" }}>
+            <Search size={14} color={INK5} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Ej. Wanchaq, San Sebastián…"
+              style={{ ...FIELD, paddingLeft: 34 }}
+            />
+          </div>
+        </div>
+      </div>
 
-          <form onSubmit={handleSubmit} style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
-            {/* Nombre */}
-            <div>
-              <label style={LABEL}>Nombre de la municipalidad</label>
-              <input
-                value={name} onChange={(e) => setName(e.target.value)}
-                placeholder="Ej. Municipalidad Provincial del Cusco"
-                style={{ ...FIELD, borderColor: fieldErrors.name ? RED : INK2 }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = fieldErrors.name ? RED : GOLD; }}
-                onBlur={(e)  => { e.currentTarget.style.borderColor = fieldErrors.name ? RED : INK2; }}
-              />
-              {fieldErrors.name && <p style={{ marginTop: 6, fontSize: "0.8125rem", color: RED, fontWeight: 500 }}>{fieldErrors.name}</p>}
-            </div>
-
-            {/* Logo URL */}
-            <div>
-              <label style={LABEL}>URL del logo <span style={{ color: INK5, fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>(opcional)</span></label>
-              <input
-                value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)}
-                placeholder="https://ejemplo.com/logo.png"
-                style={{ ...FIELD, borderColor: fieldErrors.logoUrl ? RED : INK2 }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = GOLD; }}
-                onBlur={(e)  => { e.currentTarget.style.borderColor = fieldErrors.logoUrl ? RED : INK2; }}
-              />
-              {fieldErrors.logoUrl && <p style={{ marginTop: 6, fontSize: "0.8125rem", color: RED, fontWeight: 500 }}>{fieldErrors.logoUrl}</p>}
-            </div>
-
-            {/* Provincia */}
-            {user.role === "super_admin" ? (
-              <div>
-                <label style={LABEL}>Provincia</label>
-                <div style={{ position: "relative" }}>
-                  <select
-                    value={provId} onChange={(e) => setProvId(e.target.value)}
-                    style={{ ...FIELD, appearance: "none", paddingRight: 36, cursor: "pointer", borderColor: fieldErrors.provinceId ? RED : INK2 }}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = fieldErrors.provinceId ? RED : GOLD; }}
-                    onBlur={(e)  => { e.currentTarget.style.borderColor = fieldErrors.provinceId ? RED : INK2; }}
-                  >
-                    <option value="" disabled>Selecciona una provincia…</option>
-                    {provinces.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                  <svg viewBox="0 0 10 6" width="10" height="10" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} fill="none">
-                    <path d="M1 1l4 4 4-4" stroke={INK5} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
-                {fieldErrors.provinceId && <p style={{ marginTop: 6, fontSize: "0.8125rem", color: RED, fontWeight: 500 }}>{fieldErrors.provinceId}</p>}
-              </div>
-            ) : (
-              <div>
-                <label style={LABEL}>Provincia</label>
-                <div style={{ padding: "12px 16px", background: INFO_BG, border: `1.5px solid ${INFO_BD}`, borderRadius: 10, display: "flex", alignItems: "center", gap: 10 }}>
-                  <Info size={15} color={INFO_C} style={{ flexShrink: 0 }} />
-                  <p style={{ fontSize: "0.875rem", color: INFO_C, fontWeight: 500, margin: 0 }}>
-                    La municipalidad se creará bajo tu provincia asignada.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
-              <button
-                type="submit" disabled={loading}
-                style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 42, padding: "0 20px", borderRadius: 10, border: `1.5px solid ${GOLD}`, background: GOLD, color: "#fff", fontSize: "0.9375rem", fontWeight: 600, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: loading ? 0.7 : 1 }}
-              >
-                {loading ? (
-                  <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ animation: "spin 0.65s linear infinite" }}><circle cx="12" cy="12" r="10" stroke="#fff" strokeWidth="3" opacity="0.3"/><path d="M4 12a8 8 0 018-8" stroke="#fff" strokeWidth="3" strokeLinecap="round"/></svg>Creando…</>
-                ) : (
-                  <><Plus size={15} />Crear municipalidad</>
-                )}
-              </button>
-              <Link href="/municipalidades">
-                <button type="button" style={{ display: "inline-flex", alignItems: "center", height: 42, padding: "0 20px", borderRadius: 10, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "0.9375rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-                  Cancelar
-                </button>
-              </Link>
-            </div>
-          </form>
+      <div style={{ background: "#fff", border: `1.5px solid ${INK2}`, borderRadius: 12, overflow: "hidden" }}>
+        <div style={{
+          padding: "12px 18px", borderBottom: `1px solid ${INK1}`,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Building2 size={16} color={INK6} />
+            <strong style={{ fontSize: "0.875rem", color: INK9 }}>
+              Inactivas en el catálogo
+            </strong>
+            <span style={{ fontSize: "0.75rem", color: INK5 }}>
+              {loading ? "buscando…" : `${results.length} resultado${results.length === 1 ? "" : "s"}`}
+            </span>
+          </div>
         </div>
 
-        {/* ── Sidebar ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ background: "#fff", border: `1.5px solid ${INK2}`, borderRadius: 14, overflow: "hidden" }}>
-            <div style={{ padding: "14px 18px", borderBottom: `1px solid ${INK1}` }}>
-              <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: INK5 }}>Jerarquía del sistema</div>
-            </div>
-            <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
-              {[
-                { icon: "🏛", label: "Provincia", active: false, desc: "Nivel raíz" },
-                { icon: "🏢", label: "Municipalidad", active: true, desc: "Nivel actual" },
-                { icon: "🚌", label: "Vehículos y conductores", active: false, desc: "Pertenecen a la municipalidad" },
-              ].map((item) => (
-                <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, background: item.active ? GOLD_BG : "transparent", border: item.active ? `1px solid ${GOLD_BD}` : "1px solid transparent" }}>
-                  <span style={{ fontSize: 16 }}>{item.icon}</span>
-                  <div>
-                    <div style={{ fontSize: "0.8125rem", fontWeight: item.active ? 700 : 500, color: item.active ? GOLD : INK9 }}>{item.label}</div>
-                    <div style={{ fontSize: "0.6875rem", color: INK5 }}>{item.desc}</div>
+        {results.length === 0 && !loading ? (
+          <div style={{ padding: "32px 18px", textAlign: "center", color: INK5, fontSize: "0.875rem" }}>
+            No se encontraron municipalidades inactivas con esos filtros.
+          </div>
+        ) : (
+          <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            {results.map((m, i) => (
+              <li
+                key={m.id}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "12px 18px", gap: 12,
+                  borderTop: i > 0 ? `1px solid ${INK1}` : "none",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                  <span style={{
+                    display: "inline-flex", padding: "2px 8px", borderRadius: 6,
+                    background: INK9, color: "#fff",
+                    fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.75rem",
+                    flexShrink: 0,
+                  }}>
+                    {m.ubigeoCode ?? "?"}
+                  </span>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9 }}>{m.name}</div>
+                    <div style={{ fontSize: "0.75rem", color: INK5 }}>
+                      {m.provinceName ?? "—"} · {m.departmentName ?? "—"}
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+                <button
+                  disabled={activatingId === m.id}
+                  onClick={() => void activate(m)}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    height: 32, padding: "0 14px", borderRadius: 8,
+                    border: `1.5px solid ${GOLD}`, background: GOLD,
+                    color: "#fff", fontSize: "0.8125rem", fontWeight: 700,
+                    cursor: activatingId === m.id ? "wait" : "pointer",
+                    opacity: activatingId === m.id ? 0.6 : 1,
+                    fontFamily: "inherit", flexShrink: 0,
+                  }}
+                >
+                  <CheckCircle size={13} />
+                  {activatingId === m.id ? "Activando…" : "Activar"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
-          <div style={{ background: GOLD_BG, border: `1.5px solid ${GOLD_BD}`, borderRadius: 14, padding: "14px 18px" }}>
-            <div style={{ fontSize: "0.75rem", fontWeight: 700, color: GOLD, marginBottom: 6 }}>Estado inicial</div>
-            <p style={{ fontSize: "0.8125rem", color: "#78530A", lineHeight: 1.5, margin: 0 }}>
-              Las municipalidades se crean como <strong>activas</strong>. Puedes suspenderlas en cualquier momento desde la pantalla de edición.
-            </p>
-          </div>
+      <div style={{
+        background: GOLD_BG, border: `1.5px solid ${GOLD_BD}`, borderRadius: 10,
+        padding: "12px 16px", display: "flex", alignItems: "center", gap: 10,
+      }}>
+        <div style={{
+          width: 28, height: 28, borderRadius: 7, background: "#fff",
+          border: `1.5px solid ${GOLD_BD}`, display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0,
+        }}>
+          <Building2 size={14} color={GOLD} />
         </div>
+        <div style={{ fontSize: "0.8125rem", color: "#78530A", lineHeight: 1.5 }}>
+          Las municipalidades activadas quedan disponibles en el formulario público de registro y en
+          los selectores del sistema. Para suspender una municipalidad activa, ve a {" "}
+          <Link href="/municipalidades" style={{ color: GOLD, fontWeight: 600 }}>el listado principal</Link>.
+        </div>
+      </div>
+      <div style={{
+        padding: "10px 14px", background: INFO_BG, border: `1.5px solid ${INFO_BD}`,
+        borderRadius: 9, color: INFO_C, fontSize: "0.75rem",
+      }}>
+        El catálogo proviene del INEI (UBIGEO oficial). Si necesitas un distrito que no aparece,
+        re-siembra con: <code>npx tsx scripts/seed-ubigeo.ts</code>
       </div>
     </div>
   );
