@@ -44,9 +44,22 @@ export default function LoginPage() {
   const [error, setError]           = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
+  const [capsLock, setCapsLock] = useState(false);
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
   const googleBtnRef = useRef<HTMLDivElement>(null);
   const initializedRef = useRef(false);
   const [gisReady, setGisReady] = useState(false);
+
+  // Auto-focus en email al cargar (estándar UX para forms de login)
+  useEffect(() => {
+    emailInputRef.current?.focus();
+  }, []);
+
+  // Mover foco al alert cuando aparece un error global
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
 
   // Inicializa Google Identity Services cuando el script carga
   useEffect(() => {
@@ -149,14 +162,11 @@ export default function LoginPage() {
     <div className="animate-fade-in">
       {/* Header */}
       <div className="mb-8">
-        <div className="mb-6 animate-fade-in flex justify-center w-full">
-          <img src="/logo-vertical.svg" alt="SFIT Logo" className="w-[140px] sm:w-[170px] h-auto object-contain" />
-        </div>
         <p className="kicker animate-fade-up text-center w-full">
           Acceso al sistema
         </p>
         <h1
-          className="mt-5 font-bold text-[#09090b] animate-fade-up delay-50 text-center w-full"
+          className="mt-3 font-bold text-[#09090b] animate-fade-up delay-50 text-center w-full"
           style={{
             fontSize: "clamp(1.75rem, 4vw, 2.5rem)",
             lineHeight: 1.1,
@@ -166,22 +176,34 @@ export default function LoginPage() {
           Ingreso al sistema
         </h1>
         <p
-          className="mt-4 animate-fade-up delay-100 text-center w-full"
+          className="mt-3 animate-fade-up delay-100 text-center w-full"
           style={{
             color: "#52525b",
-            fontSize: "1rem",
-            lineHeight: 1.6,
+            fontSize: "0.9375rem",
+            lineHeight: 1.55,
             fontWeight: 400,
           }}
         >
-          Acceso restringido al personal autorizado mediante credenciales institucionales.
+          Acceso restringido al personal autorizado.
+        </p>
+        {/* HTTPS / institutional reassurance */}
+        <p
+          className="mt-3 flex items-center justify-center gap-1.5 animate-fade-in delay-150"
+          style={{ fontSize: "0.75rem", color: "#71717A", fontWeight: 500 }}
+        >
+          <LockIcon />
+          Conexión cifrada · Servidor institucional
         </p>
       </div>
 
       {/* Global error */}
       {error && (
         <div
-          className="mb-6 flex items-start gap-3 rounded-xl p-4 animate-fade-up"
+          ref={errorRef}
+          role="alert"
+          aria-live="assertive"
+          tabIndex={-1}
+          className="mb-6 flex items-start gap-3 rounded-xl p-4 animate-fade-up outline-none focus-visible:ring-2 focus-visible:ring-[#FCA5A5]"
           style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5" }}
         >
           <AlertCircle className="mt-0.5 shrink-0 text-[#EF4444]" />
@@ -202,16 +224,19 @@ export default function LoginPage() {
             Correo electrónico
           </label>
           <input
+            ref={emailInputRef}
             id="email"
             name="email"
             type="email"
             autoComplete="email"
             required
             placeholder="nombre@municipalidad.gob.pe"
+            aria-invalid={!!fieldErrors.email}
+            aria-describedby={fieldErrors.email ? "email-error" : undefined}
             className={`field${fieldErrors.email ? " field-error" : ""}`}
           />
           {fieldErrors.email && (
-            <p className="mt-2" style={{ fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
+            <p id="email-error" className="mt-2" style={{ fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
               {fieldErrors.email}
             </p>
           )}
@@ -244,6 +269,15 @@ export default function LoginPage() {
               autoComplete="current-password"
               required
               placeholder="••••••••••"
+              aria-invalid={!!fieldErrors.password}
+              aria-describedby={
+                [fieldErrors.password ? "password-error" : null, capsLock ? "caps-warn" : null]
+                  .filter(Boolean)
+                  .join(" ") || undefined
+              }
+              onKeyUp={(e) => setCapsLock(e.getModifierState("CapsLock"))}
+              onKeyDown={(e) => setCapsLock(e.getModifierState("CapsLock"))}
+              onBlur={() => setCapsLock(false)}
               className={`field pr-12${fieldErrors.password ? " field-error" : ""}`}
             />
             <button
@@ -256,8 +290,18 @@ export default function LoginPage() {
               {showPassword ? <EyeOff /> : <Eye />}
             </button>
           </div>
+          {capsLock && (
+            <p
+              id="caps-warn"
+              role="status"
+              className="mt-2 inline-flex items-center gap-1.5"
+              style={{ fontSize: "0.8125rem", color: "#B45309", fontWeight: 500 }}
+            >
+              <CapsLockIcon /> Bloq Mayús activado
+            </p>
+          )}
           {fieldErrors.password && (
-            <p className="mt-2" style={{ fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
+            <p id="password-error" className="mt-2" style={{ fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
               {fieldErrors.password}
             </p>
           )}
@@ -361,6 +405,25 @@ function EyeOff() {
       <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
       <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
       <line x1="1" y1="1" x2="23" y2="23" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
+
+function CapsLockIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="m18 8-6-6-6 6" />
+      <path d="M5 14h14" />
+      <path d="M5 18h14" />
     </svg>
   );
 }

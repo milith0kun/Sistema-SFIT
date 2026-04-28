@@ -70,29 +70,46 @@ export default function HomePage() {
 
       {/* ── Nav fijo ─────────────────────────── */}
       <header
-        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 py-4"
+        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-5 md:px-12 py-3.5"
         style={{
-          background: "rgba(10,22,40,0.88)",
-          backdropFilter: "blur(14px)",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          background: "rgba(10,22,40,0.92)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          borderBottom: "1px solid rgba(255,255,255,0.08)",
         }}
       >
-        <div className="flex items-center gap-2.5">
-          <SfitMark size={24} />
+        <a href="#" className="flex items-center gap-2.5 group" aria-label="Inicio SFIT">
+          <SfitMark size={26} />
           <span
-            className="text-white font-bold text-[14px] tracking-[0.2em] uppercase"
+            className="text-white font-bold text-[13px] tracking-[0.22em] uppercase transition-opacity group-hover:opacity-80"
           >
             SFIT
           </span>
-        </div>
-        <a
-          href="/login"
-          className="btn-primary"
-          style={{ height: "38px", fontSize: "13px", padding: "0 18px", width: "auto" }}
-        >
-          <span className="shine" aria-hidden />
-          Acceso al sistema
         </a>
+        <nav className="flex items-center gap-2 sm:gap-3">
+          <a
+            href="/consulta-publica"
+            className="nav-secondary hidden sm:inline-flex items-center transition-colors"
+            style={{
+              height: 38,
+              padding: "0 14px",
+              borderRadius: 9,
+              fontSize: "0.8125rem",
+              fontWeight: 500,
+              textDecoration: "none",
+            }}
+          >
+            Consulta pública
+          </a>
+          <a
+            href="/login"
+            className="btn-primary"
+            style={{ height: "38px", fontSize: "13px", padding: "0 16px", width: "auto" }}
+          >
+            <span className="shine" aria-hidden />
+            Acceso al sistema
+          </a>
+        </nav>
       </header>
 
       {/* ── Hero ─────────────────────────────── */}
@@ -234,37 +251,26 @@ export default function HomePage() {
             </a>
           </div>
 
-          {/* Hint de siguiente paso */}
-          <p className="mb-8 animate-fade-up delay-400" style={{
-            color: "rgba(255,255,255,0.55)",
-            fontSize: "0.8125rem",
-            fontWeight: 500,
-          }}>
-            Ciudadanía: consulta del estado de habilitación de vehículos mediante el número de placa.
-          </p>
-
-          {/* Chips */}
-          <div className="flex items-center justify-center gap-2.5 flex-wrap animate-fade-up delay-400">
-            {[
-              "7 niveles de acceso",
-              "19 módulos funcionales",
-              "Aislamiento por municipalidad",
-              "Plataforma web y móvil",
-            ].map((chip) => (
-              <span
-                key={chip}
-                className="px-3.5 py-1.5 rounded-full"
-                style={{
-                  background: "rgba(255,255,255,0.08)",
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  color: "#F4F4F5",
-                  fontSize: "0.8125rem",
-                  fontWeight: 500,
-                }}
-              >
-                {chip}
+          {/* Trust line + hint de siguiente paso */}
+          <div className="flex flex-col items-center gap-2.5 animate-fade-up delay-400">
+            <div className="flex items-center gap-4 flex-wrap justify-center" style={{ color: "rgba(255,255,255,0.55)", fontSize: "0.75rem", fontWeight: 500 }}>
+              <span className="inline-flex items-center gap-1.5">
+                <TrustLockIcon />
+                Conexión cifrada
               </span>
-            ))}
+              <span aria-hidden style={{ color: "rgba(255,255,255,0.18)" }}>·</span>
+              <span>Servidor institucional</span>
+              <span aria-hidden style={{ color: "rgba(255,255,255,0.18)" }}>·</span>
+              <span>Disponibilidad 24/7</span>
+            </div>
+            <p className="mt-2" style={{
+              color: "rgba(255,255,255,0.6)",
+              fontSize: "0.8125rem",
+              fontWeight: 500,
+              maxWidth: 520,
+            }}>
+              Ciudadanía: consulte el estado de habilitación de un vehículo mediante el número de placa.
+            </p>
           </div>
         </div>
       </section>
@@ -580,5 +586,14 @@ function SfitMark({ size = 32 }: { size?: number }) {
       height={size}
       className="object-contain"
     />
+  );
+}
+
+function TrustLockIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
   );
 }
