@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { CheckCircle, AlertTriangle, Loader2, Search } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,13 @@ import { Button } from "@/components/ui/button";
 const CREATE_ROLES = ["admin_municipal", "operador", "super_admin"];
 
 const CURRENT_YEAR = new Date().getFullYear();
+
+type PlateLookup =
+  | { state: "idle" }
+  | { state: "loading" }
+  | { state: "ok"; source: "MTC" | "SUNARP"; brand?: string; model?: string; year?: number; clase?: string; nAsientos?: number; razonSocial?: string }
+  | { state: "not_found" }
+  | { state: "error"; message: string };
 
 interface Empresa {
   id: string;
@@ -66,6 +74,10 @@ export default function NuevoVehiculoPage() {
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
+  // Autocompletado por placa (catálogo MTC primero, Factiliza/SUNARP como fallback).
+  const [plateLookup, setPlateLookup] = useState<PlateLookup>({ state: "idle" });
+  const plateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
     const tk = localStorage.getItem("sfit_access_token");
@@ -112,6 +124,79 @@ export default function NuevoVehiculoPage() {
       })
       .finally(() => setLoadingData(false));
   }, [authorized, token]);
+
+  // Debounced lookup de la placa: primero catálogo MTC interno (gratis e
+  // instantáneo), si no la encuentra cae a Factiliza/SUNARP (cuesta cupo).
+  useEffect(() => {
+    if (plateTimer.current) clearTimeout(plateTimer.current);
+    if (!token) return;
+    const placa = form.plate.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+    if (!/^[A-Z0-9]{6,7}$/.test(placa)) {
+      if (plateLookup.state !== "idle") setPlateLookup({ state: "idle" });
+      return;
+    }
+    setPlateLookup({ state: "loading" });
+    plateTimer.current = setTimeout(async () => {
+      const headers = { Authorization: `Bearer ${token}` };
+      // 1) Catálogo MTC
+      try {
+        const r = await fetch(`/api/catalogo/vehiculo-mtc?placa=${encodeURIComponent(placa)}`, { headers });
+        if (r.ok) {
+          const j = await r.json();
+          if (j?.success && j?.data) {
+            const d = j.data;
+            applyAutocomplete({
+              brand: d.marca, year: d.anioFabr, clase: d.clase,
+              nAsientos: d.nAsientos, razonSocial: d.authorization?.razonSocial,
+            });
+            setPlateLookup({
+              state: "ok", source: "MTC",
+              brand: d.marca, year: d.anioFabr, clase: d.clase,
+              nAsientos: d.nAsientos, razonSocial: d.authorization?.razonSocial,
+            });
+            return;
+          }
+        }
+      } catch { /* sigue al fallback */ }
+      // 2) Factiliza (SUNARP) — solo da marca/modelo/color/motor (sin año ni asientos)
+      try {
+        const r2 = await fetch(`/api/validar/placa`, {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ placa }),
+        });
+        const j = await r2.json();
+        if (!r2.ok || !j?.success || !j?.data) {
+          setPlateLookup({ state: r2.status === 404 ? "not_found" : "error", message: j?.error ?? "No se encontró" } as PlateLookup);
+          return;
+        }
+        const d = j.data;
+        applyAutocomplete({ brand: d.marca, model: d.modelo });
+        setPlateLookup({ state: "ok", source: "SUNARP", brand: d.marca, model: d.modelo });
+      } catch {
+        setPlateLookup({ state: "error", message: "No se pudo verificar la placa" });
+      }
+    }, 350);
+    return () => { if (plateTimer.current) clearTimeout(plateTimer.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.plate, token]);
+
+  /**
+   * Aplica los campos del lookup al formulario sólo si el usuario aún no
+   * los escribió a mano. No sobrescribimos lo que el operador ya tipeó.
+   */
+  function applyAutocomplete(data: {
+    brand?: string; model?: string; year?: number; clase?: string;
+    nAsientos?: number; razonSocial?: string;
+  }) {
+    setForm((prev) => {
+      const next = { ...prev };
+      if (data.brand && !prev.brand.trim()) next.brand = data.brand;
+      if (data.model && !prev.model.trim()) next.model = data.model;
+      if (data.year  && (!prev.year || prev.year === String(CURRENT_YEAR))) next.year = String(data.year);
+      return next;
+    });
+  }
 
   function validate(): boolean {
     const next: FieldErrors = {};
@@ -242,26 +327,81 @@ export default function NuevoVehiculoPage() {
               maxWidth: 720,
             }}
           >
-            {/* Placa */}
+            {/* Placa con autocompletado MTC + SUNARP */}
             <div>
               <label htmlFor="plate" style={{ display: "block", marginBottom: 8 }}>
                 Placa <span style={{ color: "#b91c1c" }}>*</span>
+                <span style={{ marginLeft: 8, fontWeight: 500, color: "#71717a", fontSize: "0.75rem" }}>
+                  · verificación automática MTC / SUNARP
+                </span>
               </label>
-              <input
-                id="plate"
-                type="text"
-                className={`field${fieldErrors.plate ? " field-error" : ""}`}
-                value={form.plate}
-                onChange={(e) => handleChange("plate", e.target.value.toUpperCase())}
-                placeholder="ABC-123"
-                maxLength={10}
-                disabled={submitting}
-                style={{ fontFamily: "ui-monospace,monospace", letterSpacing: "0.05em" }}
-              />
+              <div style={{ position: "relative" }}>
+                <input
+                  id="plate"
+                  type="text"
+                  className={`field${fieldErrors.plate ? " field-error" : ""}`}
+                  value={form.plate}
+                  onChange={(e) => handleChange("plate", e.target.value.toUpperCase())}
+                  placeholder="ABC-123"
+                  maxLength={10}
+                  disabled={submitting}
+                  style={{ fontFamily: "ui-monospace,monospace", letterSpacing: "0.05em", paddingRight: 40 }}
+                />
+                <div style={{
+                  position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+                  pointerEvents: "none", display: "flex", alignItems: "center",
+                }}>
+                  {plateLookup.state === "loading" && <Loader2 size={16} color="#71717a" style={{ animation: "spin 0.7s linear infinite" }} />}
+                  {plateLookup.state === "ok" && <CheckCircle size={16} color="#15803d" />}
+                  {plateLookup.state === "not_found" && <Search size={16} color="#71717a" />}
+                  {plateLookup.state === "error" && <AlertTriangle size={16} color="#b91c1c" />}
+                </div>
+              </div>
               {fieldErrors.plate && (
                 <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>
                   {fieldErrors.plate}
                 </p>
+              )}
+              {plateLookup.state === "ok" && (
+                <div style={{
+                  marginTop: 8, padding: "10px 14px",
+                  background: "#F0FDF4", border: "1.5px solid #86EFAC", borderRadius: 9,
+                  display: "flex", flexDirection: "column", gap: 4,
+                }}>
+                  <div style={{ fontSize: "0.6875rem", fontWeight: 700, color: "#15803d", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                    Verificado en {plateLookup.source}
+                  </div>
+                  <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "#18181b" }}>
+                    {[plateLookup.brand, plateLookup.model, plateLookup.clase].filter(Boolean).join(" · ")}
+                    {plateLookup.year ? ` · ${plateLookup.year}` : ""}
+                    {plateLookup.nAsientos ? ` · ${plateLookup.nAsientos} asientos` : ""}
+                  </div>
+                  {plateLookup.razonSocial && (
+                    <div style={{ fontSize: "0.75rem", color: "#52525b" }}>
+                      Empresa MTC: <strong>{plateLookup.razonSocial}</strong>
+                    </div>
+                  )}
+                </div>
+              )}
+              {plateLookup.state === "not_found" && (
+                <div style={{
+                  marginTop: 8, padding: "10px 14px",
+                  background: "#FFFBEB", border: "1.5px solid #FDE68A", borderRadius: 9,
+                  fontSize: "0.75rem", color: "#92400E",
+                  display: "flex", alignItems: "center", gap: 8,
+                }}>
+                  <AlertTriangle size={13} />
+                  Placa no encontrada en MTC ni SUNARP. Puedes registrarla manualmente.
+                </div>
+              )}
+              {plateLookup.state === "error" && (
+                <div style={{
+                  marginTop: 8, padding: "10px 14px",
+                  background: "#FFF5F5", border: "1.5px solid #FCA5A5", borderRadius: 9,
+                  fontSize: "0.75rem", color: "#b91c1c",
+                }}>
+                  {plateLookup.message}
+                </div>
               )}
             </div>
 

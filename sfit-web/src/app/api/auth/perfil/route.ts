@@ -38,13 +38,16 @@ export async function GET(request: NextRequest) {
     await connectDB();
     const user = await User.findById(session.userId)
       .select("name email role status provider phone dni image municipalityId provinceId createdAt")
-      .populate("municipalityId", "name")
+      .populate("municipalityId", "name ruc razonSocial dataCompleted")
       .populate("provinceId", "name")
       .lean();
 
     if (!user) return apiNotFound("Usuario no encontrado");
 
-    const muni = user.municipalityId as unknown as { _id: string; name: string } | null;
+    const muni = user.municipalityId as unknown as {
+      _id: string; name: string;
+      ruc?: string; razonSocial?: string; dataCompleted?: boolean;
+    } | null;
     const prov = user.provinceId     as unknown as { _id: string; name: string } | null;
 
     return apiResponse({
@@ -59,6 +62,10 @@ export async function GET(request: NextRequest) {
       image:            user.image ?? null,
       municipalityId:   muni ? String(muni._id) : null,
       municipalityName: muni?.name ?? null,
+      // Datos institucionales de la municipalidad (si el usuario tiene una asociada).
+      municipalityRuc:           muni?.ruc         ?? null,
+      municipalityRazonSocial:   muni?.razonSocial ?? null,
+      municipalityDataCompleted: muni ? Boolean(muni.dataCompleted) : null,
       provinceId:       prov ? String(prov._id) : null,
       provinceName:     prov?.name ?? null,
       createdAt:        user.createdAt,

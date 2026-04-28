@@ -14,6 +14,10 @@ export interface IMunicipality extends Document {
   ubigeoCode?: string;     // 6 dígitos: depto(2)+prov(2)+dist(2), p.ej. "080101"
   departmentCode?: string; // 2 dígitos, p.ej. "08"
   provinceCode?: string;   // 4 dígitos, p.ej. "0801"
+  // Datos institucionales — los completa el admin_municipal en su primer login.
+  ruc?: string;            // 11 dígitos, único nacional
+  razonSocial?: string;    // Razón social oficial según SUNAT
+  dataCompleted: boolean;  // true cuando RUC + razón social están registrados
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +36,9 @@ const MunicipalitySchema = new Schema<IMunicipality>(
     ubigeoCode:     { type: String, trim: true },
     departmentCode: { type: String, trim: true, index: true },
     provinceCode:   { type: String, trim: true, index: true },
+    ruc:            { type: String, trim: true },
+    razonSocial:    { type: String, trim: true },
+    dataCompleted:  { type: Boolean, default: false },
   },
   { timestamps: true },
 );
@@ -40,6 +47,9 @@ const MunicipalitySchema = new Schema<IMunicipality>(
 MunicipalitySchema.index({ provinceId: 1, name: 1 }, { unique: true });
 // Catálogo UBIGEO: el código de distrito es único a nivel nacional.
 MunicipalitySchema.index({ ubigeoCode: 1 }, { unique: true, sparse: true });
+// RUC institucional único nacional (sparse para permitir municipalidades
+// activadas que aún no completaron sus datos).
+MunicipalitySchema.index({ ruc: 1 }, { unique: true, sparse: true });
 
 export const Municipality: Model<IMunicipality> =
   (mongoose.models.Municipality as Model<IMunicipality> | undefined) ||

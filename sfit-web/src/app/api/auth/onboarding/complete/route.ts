@@ -3,10 +3,12 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
+import { Municipality } from "@/models/Municipality";
 import {
   apiResponse, apiError, apiUnauthorized, apiValidationError,
 } from "@/lib/api/response";
 import { verifyAccessToken } from "@/lib/auth/jwt";
+import { ROLES } from "@/lib/constants";
 
 /**
  * POST /api/auth/onboarding/complete
@@ -16,6 +18,9 @@ import { verifyAccessToken } from "@/lib/auth/jwt";
  *   - Teléfono
  *   - Foto (image URL, opcional)
  *   - Cambiar password si tiene mustChangePassword=true
+ *   - Si role=admin_municipal y su municipalidad aún no tiene datos
+ *     institucionales, registra ruc + razonSocial y la marca como
+ *     dataCompleted=true.
  *
  * Marca profileCompleted=true y mustChangePassword=false.
  */
@@ -25,6 +30,12 @@ const Schema = z.object({
   phone: z.string().min(7).max(30),
   image: z.string().url("URL de imagen inválida").optional(),
   newPassword: z.string().min(8, "Mínimo 8 caracteres").max(128).optional(),
+  // Datos institucionales — sólo se aplican si el usuario es admin_municipal
+  // y su municipalidad aún no los tiene.
+  municipality: z.object({
+    ruc:         z.string().regex(/^\d{11}$/, "RUC debe tener 11 dígitos"),
+    razonSocial: z.string().min(2).max(200).trim(),
+  }).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -52,7 +63,7 @@ export async function POST(request: NextRequest) {
     return apiValidationError(errors);
   }
 
-  const { dni, phone, image, newPassword } = parsed.data;
+  const { dni, phone, image, newPassword, municipality } = parsed.data;
 
   try {
     await connectDB();
@@ -76,6 +87,31 @@ export async function POST(request: NextRequest) {
     user.profileCompleted = true;
     await user.save();
 
+    // Si es admin_municipal y vino bloque `municipality`, completar los datos
+    // institucionales de su municipalidad (sólo si aún no estaban completos —
+    // el flujo del primer login no debe sobrescribir datos verificados).
+    let municipalityDataCompleted: boolean | null = null;
+    if (user.role === ROLES.ADMIN_MUNICIPAL && user.municipalityId) {
+      const muni = await Municipality.findById(user.municipalityId);
+      if (!muni) return apiError("Municipalidad asociada no encontrada", 404);
+
+      if (!muni.dataCompleted && municipality) {
+        // RUC único nacional entre municipalidades.
+        const dupRuc = await Municipality.findOne({
+          ruc: municipality.ruc,
+          _id: { $ne: muni._id },
+        });
+        if (dupRuc) {
+          return apiError("Ese RUC ya está registrado en otra municipalidad", 409);
+        }
+        muni.ruc           = municipality.ruc;
+        muni.razonSocial   = municipality.razonSocial;
+        muni.dataCompleted = true;
+        await muni.save();
+      }
+      municipalityDataCompleted = muni.dataCompleted;
+    }
+
     return apiResponse({
       id: user._id.toString(),
       name: user.name,
@@ -89,6 +125,7 @@ export async function POST(request: NextRequest) {
       dni: user.dni,
       profileCompleted: user.profileCompleted,
       mustChangePassword: user.mustChangePassword,
+      municipalityDataCompleted,
     });
   } catch (error) {
     console.error("[onboarding/complete]", error);

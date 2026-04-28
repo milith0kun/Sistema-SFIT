@@ -13,7 +13,7 @@ import {
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 
-type StoredUser = { id: string; name: string; email: string; role: string; image?: string; status?: string; profileCompleted?: boolean; mustChangePassword?: boolean };
+type StoredUser = { id: string; name: string; email: string; role: string; image?: string; status?: string; profileCompleted?: boolean; mustChangePassword?: boolean; municipalityDataCompleted?: boolean };
 type NavSection = "PANEL" | "GESTIÓN" | "RED NACIONAL" | "OPERACIÓN" | "CIUDADANÍA" | "ANÁLISIS" | "MI CUENTA";
 type NavItem = { href: string; label: string; icon: LucideIcon; roles: string[]; section: NavSection };
 
@@ -130,6 +130,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       // temporal, forzamos al usuario a /onboarding antes de cualquier otra ruta.
       if (parsed.profileCompleted === false || parsed.mustChangePassword === true) {
         router.replace("/onboarding");
+        return;
+      }
+      // Para admin_municipal verificamos también que su municipalidad tenga
+      // los datos institucionales (RUC + razón social) registrados. Si no
+      // están en localStorage los cargamos del backend una vez por sesión.
+      if (parsed.role === "admin_municipal" && parsed.municipalityDataCompleted !== true) {
+        const token = localStorage.getItem("sfit_access_token");
+        if (!token) return;
+        fetch("/api/auth/perfil", { headers: { Authorization: `Bearer ${token}` } })
+          .then((r) => r.json())
+          .then((data: { success: boolean; data?: { municipalityDataCompleted: boolean | null } }) => {
+            if (!data?.success || !data?.data) return;
+            const completed = data.data.municipalityDataCompleted === true;
+            // Persistimos para evitar re-fetch en próximas navegaciones.
+            const updated = { ...parsed, municipalityDataCompleted: completed };
+            localStorage.setItem("sfit_user", JSON.stringify(updated));
+            if (!completed) router.replace("/onboarding");
+          })
+          .catch(() => { /* silent */ });
       }
     } catch { router.replace("/login"); }
   }, [router]);

@@ -1,8 +1,9 @@
 "use client";
 
-import { use as usePromise, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { CheckCircle, AlertTriangle, Loader2, Search } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,20 @@ import { Button } from "@/components/ui/button";
 const CREATE_ROLES = ["admin_municipal", "operador", "super_admin"];
 
 const LICENSE_CATEGORIES = ["A-I", "A-IIa", "A-IIb", "A-IIIa", "A-IIIb", "A-IIIc"];
+
+type DniLookup =
+  | { state: "idle" }
+  | { state: "loading" }
+  | { state: "ok"; nombreCompleto: string }
+  | { state: "not_found" }
+  | { state: "error"; message: string };
+
+type LicLookup =
+  | { state: "idle" }
+  | { state: "loading" }
+  | { state: "ok"; numero: string; categoria: string; estado: string; vencimiento: string; restricciones?: string }
+  | { state: "not_found" }
+  | { state: "error"; message: string };
 
 interface Empresa {
   id: string;
@@ -53,6 +68,23 @@ export default function NuevoconductorPage() {
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
+  // Autocompletado: RENIEC al escribir DNI; consulta de licencia MTC en
+  // paralelo (Factiliza /licencia/info/{dni}).
+  const [dniLookup, setDniLookup] = useState<DniLookup>({ state: "idle" });
+  const [licLookup, setLicLookup] = useState<LicLookup>({ state: "idle" });
+  const dniTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function mapMtcCategory(cat: string): string | null {
+    const k = cat.toUpperCase().replace(/\s+/g, "").replace(/-/g, "");
+    if (k === "AI")    return "A-I";
+    if (k === "AIIA")  return "A-IIa";
+    if (k === "AIIB")  return "A-IIb";
+    if (k === "AIIIA") return "A-IIIa";
+    if (k === "AIIIB") return "A-IIIb";
+    if (k === "AIIIC") return "A-IIIc";
+    return null;
+  }
+
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
     const tk = localStorage.getItem("sfit_access_token");
@@ -94,6 +126,65 @@ export default function NuevoconductorPage() {
       .catch(() => setEmpresas([]))
       .finally(() => setLoadingEmpresas(false));
   }, [authorized, token]);
+
+  // Lookup encadenado al cambiar el DNI: RENIEC + Licencia MTC en paralelo.
+  useEffect(() => {
+    if (dniTimer.current) clearTimeout(dniTimer.current);
+    if (!token) return;
+    if (!/^\d{8}$/.test(form.dni)) {
+      if (dniLookup.state !== "idle") setDniLookup({ state: "idle" });
+      if (licLookup.state !== "idle") setLicLookup({ state: "idle" });
+      return;
+    }
+    setDniLookup({ state: "loading" });
+    setLicLookup({ state: "loading" });
+    dniTimer.current = setTimeout(async () => {
+      const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+      const dni = form.dni;
+      // RENIEC
+      void fetch("/api/validar/dni", { method: "POST", headers, body: JSON.stringify({ dni }) })
+        .then(async (r) => {
+          const j = await r.json();
+          if (!r.ok || !j?.success || !j?.data) {
+            setDniLookup({ state: r.status === 404 ? "not_found" : "error", message: j?.error ?? "No se encontró" } as DniLookup);
+            return;
+          }
+          const nc = (j.data.nombre_completo ?? "").trim();
+          // Solo autocompletamos el nombre si el campo está vacío.
+          setForm((prev) => prev.name.trim() ? prev : { ...prev, name: nc });
+          setDniLookup({ state: "ok", nombreCompleto: nc });
+        })
+        .catch(() => setDniLookup({ state: "error", message: "No se pudo verificar el DNI" }));
+      // Licencia MTC (Factiliza)
+      void fetch("/api/validar/licencia", { method: "POST", headers, body: JSON.stringify({ dni }) })
+        .then(async (r) => {
+          const j = await r.json();
+          if (!r.ok || !j?.success || !j?.data?.licencia) {
+            setLicLookup({ state: r.status === 404 ? "not_found" : "error", message: j?.error ?? "Sin licencia" } as LicLookup);
+            return;
+          }
+          const lic = j.data.licencia;
+          // Autocompletamos número y categoría sólo si están vacíos.
+          setForm((prev) => {
+            const next = { ...prev };
+            if (!prev.licenseNumber.trim() && lic.numero) next.licenseNumber = lic.numero;
+            if (!prev.licenseCategory) {
+              const mapped = mapMtcCategory(lic.categoria ?? "");
+              if (mapped) next.licenseCategory = mapped;
+            }
+            return next;
+          });
+          setLicLookup({
+            state: "ok",
+            numero: lic.numero, categoria: lic.categoria, estado: lic.estado,
+            vencimiento: lic.fecha_vencimiento, restricciones: lic.restricciones,
+          });
+        })
+        .catch(() => setLicLookup({ state: "error", message: "No se pudo verificar la licencia" }));
+    }, 350);
+    return () => { if (dniTimer.current) clearTimeout(dniTimer.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.dni, token]);
 
   function validate(): boolean {
     const next: FieldErrors = {};
@@ -242,34 +333,45 @@ export default function NuevoconductorPage() {
               )}
             </div>
 
-            {/* DNI */}
+            {/* DNI con verificación RENIEC + licencia MTC */}
             <div>
-              <label
-                htmlFor="dni"
-                style={{ display: "block", marginBottom: 8 }}
-              >
+              <label htmlFor="dni" style={{ display: "block", marginBottom: 8 }}>
                 DNI <span style={{ color: "#b91c1c" }}>*</span>
+                <span style={{ marginLeft: 8, color: "#71717a", fontWeight: 400, fontSize: "0.75rem" }}>
+                  · RENIEC + licencia MTC
+                </span>
               </label>
-              <input
-                id="dni"
-                type="text"
-                className={errors.dni ? "field field-error" : "field"}
-                value={form.dni}
-                onChange={(e) => handleChange("dni", e.target.value)}
-                placeholder="Ej. 12345678"
-                maxLength={20}
-                disabled={submitting}
-              />
+              <div style={{ position: "relative" }}>
+                <input
+                  id="dni"
+                  type="text"
+                  className={errors.dni ? "field field-error" : "field"}
+                  value={form.dni}
+                  onChange={(e) => handleChange("dni", e.target.value.replace(/\D/g, "").slice(0, 8))}
+                  placeholder="Ej. 12345678"
+                  maxLength={8}
+                  inputMode="numeric"
+                  disabled={submitting}
+                  style={{ fontFamily: "ui-monospace,monospace", paddingRight: 40 }}
+                />
+                <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                  {dniLookup.state === "loading" && <Loader2 size={16} color="#71717a" style={{ animation: "spin 0.7s linear infinite" }} />}
+                  {dniLookup.state === "ok" && <CheckCircle size={16} color="#15803d" />}
+                  {dniLookup.state === "not_found" && <Search size={16} color="#71717a" />}
+                  {dniLookup.state === "error" && <AlertTriangle size={16} color="#b91c1c" />}
+                </div>
+              </div>
               {errors.dni && (
-                <p
-                  style={{
-                    marginTop: 6,
-                    fontSize: "0.8125rem",
-                    color: "#b91c1c",
-                    fontWeight: 500,
-                  }}
-                >
-                  {errors.dni}
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{errors.dni}</p>
+              )}
+              {dniLookup.state === "ok" && (
+                <p style={{ marginTop: 6, fontSize: "0.75rem", color: "#15803d", fontWeight: 600 }}>
+                  ✓ {dniLookup.nombreCompleto}
+                </p>
+              )}
+              {dniLookup.state === "not_found" && (
+                <p style={{ marginTop: 6, fontSize: "0.75rem", color: "#92400E" }}>
+                  DNI no encontrado en RENIEC.
                 </p>
               )}
             </div>
@@ -316,34 +418,51 @@ export default function NuevoconductorPage() {
               maxWidth: 720,
             }}
           >
-            {/* Número de licencia */}
+            {/* Número de licencia con verificación MTC */}
             <div>
-              <label
-                htmlFor="licenseNumber"
-                style={{ display: "block", marginBottom: 8 }}
-              >
+              <label htmlFor="licenseNumber" style={{ display: "block", marginBottom: 8 }}>
                 Número de licencia <span style={{ color: "#b91c1c" }}>*</span>
+                <span style={{ marginLeft: 8, color: "#71717a", fontWeight: 400, fontSize: "0.75rem" }}>
+                  · se autocompleta con el DNI
+                </span>
               </label>
               <input
                 id="licenseNumber"
                 type="text"
                 className={errors.licenseNumber ? "field field-error" : "field"}
                 value={form.licenseNumber}
-                onChange={(e) => handleChange("licenseNumber", e.target.value)}
+                onChange={(e) => handleChange("licenseNumber", e.target.value.toUpperCase())}
                 placeholder="Ej. Q12345678"
                 maxLength={30}
                 disabled={submitting}
+                style={{ fontFamily: "ui-monospace,monospace" }}
               />
               {errors.licenseNumber && (
-                <p
-                  style={{
-                    marginTop: 6,
-                    fontSize: "0.8125rem",
-                    color: "#b91c1c",
-                    fontWeight: 500,
-                  }}
-                >
-                  {errors.licenseNumber}
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#b91c1c", fontWeight: 500 }}>{errors.licenseNumber}</p>
+              )}
+              {licLookup.state === "ok" && (
+                <div style={{
+                  marginTop: 8, padding: "10px 14px",
+                  background: "#F0FDF4", border: "1.5px solid #86EFAC", borderRadius: 9,
+                  fontSize: "0.75rem",
+                }}>
+                  <div style={{ fontWeight: 700, fontSize: "0.6875rem", color: "#15803d", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                    Verificada en MTC · {licLookup.estado}
+                  </div>
+                  <div style={{ color: "#18181b", fontWeight: 600, marginTop: 2 }}>
+                    {licLookup.numero} · Categoría {licLookup.categoria}
+                  </div>
+                  <div style={{ color: "#52525b", marginTop: 2 }}>
+                    Vence {licLookup.vencimiento}
+                    {licLookup.restricciones && licLookup.restricciones !== "SIN RESTRICCIONES"
+                      ? ` · ${licLookup.restricciones}`
+                      : ""}
+                  </div>
+                </div>
+              )}
+              {licLookup.state === "not_found" && (
+                <p style={{ marginTop: 6, fontSize: "0.75rem", color: "#92400E" }}>
+                  Sin licencia registrada en MTC para ese DNI. Captúrala manualmente.
                 </p>
               )}
             </div>

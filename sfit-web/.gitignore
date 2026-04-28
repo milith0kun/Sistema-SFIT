@@ -42,3 +42,6 @@ next-env.d.ts
 
 # uploads (archivos subidos por usuarios — volumen persistente en producción)
 /public/uploads/
+
+# cache local de datasets descargados (MTC, etc.) — se regenera con los seeds
+/.cache/
