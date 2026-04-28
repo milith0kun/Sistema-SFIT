@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
@@ -42,7 +40,6 @@ type GlobalStats = {
 };
 type Province = { id: string; name: string; active?: boolean };
 type Municipality = { id: string; name: string; provinceId: string; active: boolean };
-type AuditEntry = { id: string; createdAt: string; action: string };
 type MunicipioRow = { municipioId: string; municipioNombre: string; inspecciones: number; aprobadas: number; aprobadasPct: number; reportes: number; sanciones: number };
 type MunicipalKpis = { activeVehicles: number; activeDrivers: number; inspectionsThisMonth: number; reportsPending: number };
 type InspeccionResultado = { result: string; count: number };
@@ -91,9 +88,7 @@ export default function EstadisticasPage() {
   const [stats, setStats] = useState<GlobalStats | null>(null);
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
-  const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [municipiosRows, setMunicipiosRows] = useState<MunicipioRow[]>([]);
-  const [days, setDays] = useState<7 | 30 | 90>(30);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [municipalStats, setMunicipalStats] = useState<MunicipalStats | null>(null);
@@ -103,21 +98,19 @@ export default function EstadisticasPage() {
     if (raw) setUser(JSON.parse(raw) as StoredUser);
   }, []);
 
-  const load = useCallback(async (currentUser: StoredUser, range: 7 | 30 | 90) => {
+  const load = useCallback(async (currentUser: StoredUser) => {
     setLoading(true); setError(null);
     try {
       const headers = { Authorization: `Bearer ${getToken()}` };
-      const [sres, pres, mres, ares, munires] = await Promise.all([
+      const [sres, pres, mres, munires] = await Promise.all([
         fetch("/api/admin/stats/global", { headers }),
         fetch("/api/provincias", { headers }),
         fetch("/api/municipalidades", { headers }),
-        fetch(`/api/admin/audit-log?limit=500&from=${new Date(Date.now() - range * 86400000).toISOString()}`, { headers }),
         fetch("/api/admin/stats/municipios", { headers }),
       ]);
       if (sres.ok) { const d: ApiResponse<GlobalStats> = await sres.json(); if (d.success && d.data) setStats(d.data); }
       if (pres.ok) { const d: ApiResponse<{ items: Province[] }> = await pres.json(); if (d.success && d.data) { const items = d.data.items ?? []; setProvinces(currentUser.role === "admin_provincial" && currentUser.provinceId ? items.filter(p => p.id === currentUser.provinceId) : items); } }
       if (mres.ok) { const d: ApiResponse<{ items: Municipality[] }> = await mres.json(); if (d.success && d.data) { const items = d.data.items ?? []; setMunicipalities(currentUser.role === "admin_provincial" && currentUser.provinceId ? items.filter(m => m.provinceId === currentUser.provinceId) : items); } }
-      if (ares.ok) { const d: ApiResponse<{ items: AuditEntry[] }> = await ares.json(); if (d.success && d.data) setAudit(d.data.items ?? []); }
       if (munires.ok) { const d: ApiResponse<{ rows: MunicipioRow[] }> = await munires.json(); if (d.success && d.data) setMunicipiosRows(d.data.rows ?? []); }
     } catch { setError("Error de conexión."); }
     finally { setLoading(false); }
@@ -136,10 +129,10 @@ export default function EstadisticasPage() {
 
   useEffect(() => {
     if (!user) return;
-    if (user.role === "super_admin" || user.role === "admin_provincial") void load(user, days);
+    if (user.role === "super_admin" || user.role === "admin_provincial") void load(user);
     else if (user.role === "admin_municipal") void loadMunicipal();
     else setLoading(false);
-  }, [user, days, load, loadMunicipal]);
+  }, [user, load, loadMunicipal]);
 
   const pieData = useMemo(() => {
     if (!stats) return [];
@@ -152,13 +145,6 @@ export default function EstadisticasPage() {
     municipalities.forEach(m => { const e = map.get(m.provinceId); if (!e) return; if (m.active) e.activas++; else e.inactivas++; });
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [provinces, municipalities]);
-
-  const lineData = useMemo(() => {
-    const map = new Map<string, number>();
-    for (let i = days - 1; i >= 0; i--) { const key = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10); map.set(key, 0); }
-    audit.forEach(a => { if (!a.createdAt) return; const d = new Date(a.createdAt); if (isNaN(d.getTime())) return; const key = d.toISOString().slice(0, 10); if (map.has(key)) map.set(key, (map.get(key) ?? 0) + 1); });
-    return Array.from(map.entries()).map(([date, count]) => ({ date: date.slice(5), count }));
-  }, [audit, days]);
 
   const municipiosColumns = useMemo<ColumnDef<MunicipioRow, unknown>[]>(() => [
     { accessorKey: "municipioNombre", header: "Municipio", cell: ({ getValue }) => <span style={{ fontWeight: 600, color: INK9 }}>{getValue() as string}</span> },
@@ -292,40 +278,6 @@ export default function EstadisticasPage() {
                   </ResponsiveContainer>
                 )}
               </div>
-            </div>
-          </div>
-
-          {/* Area chart — actividad */}
-          <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, padding: "20px 22px" }}>
-            <SectionTitle
-              title="Actividad del sistema"
-              sub="Acciones del audit-log agrupadas por día"
-              right={
-                <div style={{ display: "inline-flex", gap: 6 }}>
-                  {([7, 30, 90] as const).map(d => (
-                    <button key={d} type="button" onClick={() => setDays(d)} style={{ padding: "5px 11px", borderRadius: 7, border: `1.5px solid ${days === d ? INK9 : INK2}`, background: days === d ? INK9 : "#fff", color: days === d ? "#fff" : INK6, fontSize: "0.75rem", fontWeight: 600, cursor: "pointer" }}>
-                      {d}d
-                    </button>
-                  ))}
-                </div>
-              }
-            />
-            <div style={{ width: "100%", height: 220 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={lineData} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="gradGold" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={G} stopOpacity={0.18} />
-                      <stop offset="95%" stopColor={G} stopOpacity={0.01} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke={INK2} vertical={false} />
-                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: INK5 }} axisLine={false} tickLine={false} interval={days === 7 ? 0 : days === 30 ? 4 : 13} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: INK5 }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<ChartTooltip />} cursor={{ stroke: INK2, strokeWidth: 1 }} />
-                  <Area type="monotone" dataKey="count" stroke={G} strokeWidth={2.5} fill="url(#gradGold)" dot={false} name="Acciones" activeDot={{ r: 4, fill: G, stroke: "#fff", strokeWidth: 2 }} />
-                </AreaChart>
-              </ResponsiveContainer>
             </div>
           </div>
 

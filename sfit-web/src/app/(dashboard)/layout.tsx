@@ -8,12 +8,13 @@ import {
   House, UserCheck, Users, MapPin, Building2, Car, ClipboardList,
   Route, Shield, Flag, TriangleAlert, ChartColumn, LogOut, Bell,
   ChevronDown, CalendarDays, MessageSquareWarning, Gift, Settings, Menu, X,
+  CircleUserRound,
 } from "lucide-react";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 
-type StoredUser = { id: string; name: string; email: string; role: string; image?: string; status?: string };
-type NavSection = "PANEL" | "GESTIÓN" | "TERRITORIO" | "OPERACIÓN" | "CIUDADANÍA" | "ANÁLISIS" | "ADMINISTRACIÓN";
+type StoredUser = { id: string; name: string; email: string; role: string; image?: string; status?: string; profileCompleted?: boolean; mustChangePassword?: boolean };
+type NavSection = "PANEL" | "GESTIÓN" | "RED NACIONAL" | "OPERACIÓN" | "CIUDADANÍA" | "ANÁLISIS" | "MI CUENTA";
 type NavItem = { href: string; label: string; icon: LucideIcon; roles: string[]; section: NavSection };
 
 const NAV: NavItem[] = [
@@ -24,33 +25,35 @@ const NAV: NavItem[] = [
   { href: "/usuarios",        label: "Usuarios",            icon: Users,                 section: "GESTIÓN",        roles: ["super_admin","admin_provincial","admin_municipal"] },
   { href: "/admin/users",     label: "Aprobaciones",        icon: UserCheck,             section: "GESTIÓN",        roles: ["super_admin","admin_provincial","admin_municipal"] },
 
-  // TERRITORIO — solo admins de jerarquía alta
-  { href: "/provincias",      label: "Provincias",          icon: MapPin,                section: "TERRITORIO",     roles: ["super_admin"] },
-  { href: "/municipalidades", label: "Municipalidades",     icon: Building2,             section: "TERRITORIO",     roles: ["super_admin","admin_provincial"] },
+  // RED NACIONAL — vista cross-tenant del super_admin
+  { href: "/admin/red-nacional", label: "Red nacional",     icon: MapPin,                section: "RED NACIONAL",   roles: ["super_admin"] },
+  { href: "/municipalidades", label: "Municipalidades",     icon: Building2,             section: "RED NACIONAL",   roles: ["super_admin","admin_provincial"] },
+  { href: "/admin/empresas",  label: "Empresas nacionales", icon: Building2,             section: "RED NACIONAL",   roles: ["super_admin","admin_provincial"] },
 
-  // OPERACIÓN — gestión de la flota municipal
-  { href: "/empresas",        label: "Empresas",            icon: Building2,             section: "OPERACIÓN",      roles: ["admin_municipal"] },
-  { href: "/conductores",     label: "Conductores",         icon: Users,                 section: "OPERACIÓN",      roles: ["admin_municipal","operador","fiscal"] },
-  { href: "/vehiculos",       label: "Vehículos / QR",      icon: Car,                   section: "OPERACIÓN",      roles: ["admin_municipal","operador","fiscal"] },
-  { href: "/flota",           label: "Flota del día",       icon: ClipboardList,         section: "OPERACIÓN",      roles: ["operador"] },
-  { href: "/rutas",           label: "Rutas y zonas",       icon: Route,                 section: "OPERACIÓN",      roles: ["admin_municipal","operador","fiscal"] },
-  { href: "/viajes",          label: "Viajes",              icon: CalendarDays,          section: "OPERACIÓN",      roles: ["admin_municipal","operador","fiscal"] },
-  { href: "/inspecciones",    label: "Inspecciones",        icon: Shield,                section: "OPERACIÓN",      roles: ["admin_municipal","fiscal"] },
-  { href: "/apelaciones",     label: "Apelaciones",         icon: MessageSquareWarning,  section: "OPERACIÓN",      roles: ["super_admin","admin_provincial","admin_municipal","fiscal"] },
+  // OPERACIÓN — gestión de la flota municipal (super_admin ve todo en agregado nacional;
+  //              admin_provincial ve agregado de su provincia en modo lectura)
+  { href: "/empresas",        label: "Empresas",            icon: Building2,             section: "OPERACIÓN",      roles: ["super_admin","admin_provincial","admin_municipal"] },
+  { href: "/conductores",     label: "Conductores",         icon: Users,                 section: "OPERACIÓN",      roles: ["super_admin","admin_provincial","admin_municipal","operador","fiscal"] },
+  { href: "/vehiculos",       label: "Vehículos / QR",      icon: Car,                   section: "OPERACIÓN",      roles: ["super_admin","admin_provincial","admin_municipal","operador","fiscal"] },
+  { href: "/flota",           label: "Flota del día",       icon: ClipboardList,         section: "OPERACIÓN",      roles: ["super_admin","admin_provincial","admin_municipal","operador"] },
+  { href: "/rutas",           label: "Rutas y zonas",       icon: Route,                 section: "OPERACIÓN",      roles: ["super_admin","admin_provincial","admin_municipal","operador","fiscal"] },
+  { href: "/viajes",          label: "Viajes",              icon: CalendarDays,          section: "OPERACIÓN",      roles: ["super_admin","admin_provincial","admin_municipal","operador","fiscal"] },
+  { href: "/inspecciones",    label: "Inspecciones",        icon: Shield,                section: "OPERACIÓN",      roles: ["super_admin","admin_provincial","admin_municipal","fiscal"] },
+  { href: "/apelaciones",     label: "Apelaciones",         icon: MessageSquareWarning,  section: "OPERACIÓN",      roles: ["super_admin","admin_provincial","admin_municipal"] },
 
   // CIUDADANÍA — reportes y recompensas
-  { href: "/reportes",        label: "Reportes ciudadanos", icon: Flag,                  section: "CIUDADANÍA",     roles: ["admin_municipal","fiscal"] },
-  { href: "/sanciones",       label: "Sanciones",           icon: TriangleAlert,         section: "CIUDADANÍA",     roles: ["admin_municipal","fiscal"] },
-  { href: "/recompensas",     label: "Recompensas",         icon: Gift,                  section: "CIUDADANÍA",     roles: ["super_admin","admin_municipal"] },
+  { href: "/reportes",        label: "Reportes ciudadanos", icon: Flag,                  section: "CIUDADANÍA",     roles: ["super_admin","admin_provincial","admin_municipal","fiscal"] },
+  { href: "/sanciones",       label: "Sanciones",           icon: TriangleAlert,         section: "CIUDADANÍA",     roles: ["super_admin","admin_provincial","admin_municipal","fiscal"] },
+  { href: "/recompensas",     label: "Recompensas",         icon: Gift,                  section: "CIUDADANÍA",     roles: ["admin_municipal"] },
 
   // ANÁLISIS — estadísticas e inteligencia
   { href: "/estadisticas",    label: "Estadísticas",        icon: ChartColumn,           section: "ANÁLISIS",       roles: ["super_admin","admin_provincial","admin_municipal"] },
 
-  // ADMINISTRACIÓN — auditoría
-  { href: "/auditoria",       label: "Auditoría",           icon: Shield,                section: "ADMINISTRACIÓN", roles: ["super_admin","admin_provincial","admin_municipal"] },
+  // MI CUENTA — datos personales del usuario autenticado
+  { href: "/perfil",          label: "Mi perfil",           icon: CircleUserRound,       section: "MI CUENTA",      roles: ["super_admin","admin_provincial","admin_municipal","fiscal","operador","conductor","ciudadano"] },
 ];
 
-const SECTION_ORDER: NavSection[] = ["PANEL","GESTIÓN","TERRITORIO","OPERACIÓN","CIUDADANÍA","ANÁLISIS","ADMINISTRACIÓN"];
+const SECTION_ORDER: NavSection[] = ["PANEL","GESTIÓN","RED NACIONAL","OPERACIÓN","CIUDADANÍA","ANÁLISIS","MI CUENTA"];
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: "Super Admin", admin_provincial: "Admin Provincial",
@@ -64,9 +67,10 @@ const SEG_LABELS: Record<string, string> = {
   "tipos-vehiculo": "Tipos de vehículo", empresas: "Empresas", conductores: "Conductores",
   vehiculos: "Vehículos", flota: "Flota del día", rutas: "Rutas y zonas", viajes: "Viajes",
   inspecciones: "Inspecciones", apelaciones: "Apelaciones", reportes: "Reportes ciudadanos",
-  sanciones: "Sanciones", estadisticas: "Estadísticas", auditoria: "Auditoría",
+  sanciones: "Sanciones", estadisticas: "Estadísticas",
   notificaciones: "Notificaciones", recompensas: "Recompensas",
   perfil: "Mi perfil", users: "Aprobaciones",
+  "red-nacional": "Red nacional",
 };
 
 function prettySegment(seg: string): string {
@@ -120,6 +124,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const parsed = JSON.parse(raw) as StoredUser;
       if (parsed.status && parsed.status !== "activo") {
         router.replace(parsed.status === "rechazado" ? "/rejected" : "/pending");
+        return;
+      }
+      // Onboarding obligatorio: si el perfil está incompleto o tiene password
+      // temporal, forzamos al usuario a /onboarding antes de cualquier otra ruta.
+      if (parsed.profileCompleted === false || parsed.mustChangePassword === true) {
+        router.replace("/onboarding");
       }
     } catch { router.replace("/login"); }
   }, [router]);

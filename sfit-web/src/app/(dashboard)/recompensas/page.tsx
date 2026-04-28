@@ -30,7 +30,7 @@ type KpiStats = {
   recompensasActivas: number;
 };
 
-const ALLOWED = ["super_admin", "admin_municipal"];
+const ALLOWED = ["admin_municipal"];
 
 const CATEGORY_LABELS: Record<RecompensaCategory, string> = {
   descuento: "Descuento",

@@ -1,13 +1,27 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Check, X, UserCheck, Clock, Users } from "lucide-react";
+import { Check, X, UserCheck, Clock, Users, Calendar, Mail, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle 
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 type PendingUser = {
   id: string;
@@ -108,280 +122,239 @@ export default function AdminUsersPage() {
   }, {});
   const maxRole = Object.entries(rolesCount).sort((a, b) => b[1] - a[1])[0];
 
+  const formatDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return new Intl.DateTimeFormat("es-PE", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(date);
+    } catch {
+      return dateStr;
+    }
+  };
+
   return (
-    <div className="flex flex-col gap-3 animate-fade-in">
+    <div className="flex flex-col gap-6 animate-fade-in pb-10">
       <DashboardHero
-        kicker="Aprobaciones pendientes"
+        kicker="Control de Acceso"
         rfCode="RF-01-04"
-        title="Solicitudes pendientes"
+        title="Aprobaciones de Usuarios"
         pills={[
-          { label: "Por revisar", value: users.length, warn: users.length > 0 },
+          { label: "Pendientes", value: users.length, warn: users.length > 0 },
         ]}
       />
 
       <KPIStrip
         cols={3}
         items={[
-          { label: "PENDIENTES", value: users.length, subtitle: "por revisar", accent: "#B45309", icon: Clock },
-          { label: "TIPOS DE ROL", value: Object.keys(rolesCount).length, subtitle: "solicitados", accent: "#B8860B", icon: Users },
+          { label: "PENDIENTES", value: users.length, subtitle: "por revisar", accent: "#92400E", icon: Clock },
+          { label: "TIPOS DE ROL", value: Object.keys(rolesCount).length, subtitle: "solicitados", accent: "#0A1628", icon: Users },
           { label: "MÁS SOLICITADO", value: maxRole ? (ROLE_LABELS[maxRole[0]] ?? maxRole[0]) : "—", subtitle: maxRole ? `${maxRole[1]} solicitud${maxRole[1] === 1 ? "" : "es"}` : "sin datos", accent: "#0A1628", icon: UserCheck },
         ]}
       />
 
       {error && (
-        <div
-          role="alert"
-          className="animate-fade-up"
-          style={{
-            background: "#FFF5F5",
-            border: "1.5px solid #FCA5A5",
-            borderRadius: 12,
-            padding: 16,
-            color: "#b91c1c",
-            fontSize: "0.9375rem",
-            fontWeight: 500,
-          }}
-        >
-          {error}
+        <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 flex items-start gap-3 text-destructive animate-fade-up">
+          <ShieldAlert className="size-5 shrink-0 mt-0.5" />
+          <div className="text-sm font-medium">{error}</div>
         </div>
       )}
 
-      <div className="animate-fade-up delay-100">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="text-lg font-semibold tracking-tight text-zinc-900 flex items-center gap-2">
+            Lista de Solicitudes
+            {users.length > 0 && (
+              <span className="bg-zinc-100 text-zinc-700 text-xs font-bold px-2 py-0.5 rounded-full border border-zinc-200">
+                {users.length}
+              </span>
+            )}
+          </h2>
+        </div>
+
         {loading ? (
-          <Card>
-            <div style={{ color: "#71717a", fontSize: "0.9375rem" }}>Cargando solicitudes…</div>
-          </Card>
+          <div className="grid gap-3">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="p-4 flex items-center gap-4">
+                <Skeleton className="size-10 rounded-full shrink-0" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-1/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+                <div className="flex gap-2">
+                  <Skeleton className="h-8 w-24 rounded-lg" />
+                  <Skeleton className="h-8 w-24 rounded-lg" />
+                </div>
+              </Card>
+            ))}
+          </div>
         ) : users.length === 0 ? (
           <EmptyState
-            icon={<UserCheck size={22} strokeWidth={1.8} />}
-            title="Sin solicitudes pendientes"
-            subtitle="Todas las solicitudes han sido procesadas."
+            icon={<UserCheck size={28} strokeWidth={1.5} className="text-muted-foreground/60" />}
+            title="Bandeja vacía"
+            subtitle="No hay nuevas solicitudes de acceso por el momento."
           />
         ) : (
-          <div
-            style={{
-              background: "#ffffff",
-              border: "1.5px solid #e4e4e7",
-              borderRadius: 16,
-              overflow: "hidden",
-            }}
-          >
-            <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-              {users.map((u, i) => (
-                <li
-                  key={u.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 16,
-                    padding: "16px 22px",
-                    borderTop: i > 0 ? "1px solid #f4f4f5" : "none",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
-                    <div
-                      aria-hidden
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: "50%",
-                        background: "#FDF8EC",
-                        border: "1.5px solid #E8D090",
-                        color: "#926A09",
-                        fontWeight: 700,
-                        fontSize: "0.9375rem",
-                        fontFamily: "var(--font-inter)",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                      }}
-                    >
+          <div className="grid gap-3">
+            {users.map((u) => (
+              <Card
+                key={u.id}
+                className="group p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:border-zinc-300 hover:shadow-md"
+              >
+                <div className="flex items-center gap-4 min-w-0">
+                  <Avatar size="lg" className="border border-zinc-200 bg-zinc-100">
+                    <AvatarImage src={u.image} />
+                    <AvatarFallback className="bg-zinc-100 text-zinc-700 font-semibold">
                       {u.name.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-zinc-900 truncate">{u.name}</span>
+                      <Badge variant="info">
+                        {ROLE_LABELS[u.requestedRole] ?? u.requestedRole}
+                      </Badge>
                     </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontSize: "0.9375rem",
-                          fontWeight: 600,
-                          color: "#09090b",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {u.name}
+
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-sm text-zinc-500">
+                      <div className="flex items-center gap-1.5">
+                        <Mail className="size-3.5" />
+                        <span className="truncate max-w-[220px]">{u.email}</span>
                       </div>
-                      <div
-                        style={{
-                          fontSize: "0.8125rem",
-                          color: "#71717a",
-                          marginTop: 2,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <span>{u.email}</span>
-                        <span style={{ color: "#d4d4d8" }}>·</span>
-                        <span>Solicita:</span>
-                        <Badge variant="gold">
-                          {ROLE_LABELS[u.requestedRole] ?? u.requestedRole}
-                        </Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="size-3.5" />
+                        <span>{formatDate(u.createdAt)}</span>
                       </div>
                     </div>
                   </div>
-                  <div style={{ display: "inline-flex", gap: 8, flexShrink: 0 }}>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => {
-                        setSelected(u.id);
-                        setAction("approve");
-                        setAssignedRole(u.requestedRole);
-                      }}
-                    >
-                      <Check size={14} strokeWidth={2} />
-                      Aprobar
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSelected(u.id);
-                        setAction("reject");
-                      }}
-                    >
-                      <X size={14} strokeWidth={2} />
-                      Rechazar
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelected(u.id);
+                      setAction("reject");
+                    }}
+                  >
+                    <X size={15} className="mr-2" />
+                    Rechazar
+                  </Button>
+                  <Button
+                    variant="approve"
+                    size="sm"
+                    onClick={() => {
+                      setSelected(u.id);
+                      setAction("approve");
+                      setAssignedRole(u.requestedRole);
+                    }}
+                  >
+                    <Check size={15} className="mr-2" />
+                    Aprobar
+                  </Button>
+                </div>
+              </Card>
+            ))}
           </div>
         )}
       </div>
 
-      {/* Modal de confirmación */}
-      {selected && target && action && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center px-4"
-          style={{ background: "rgba(9,9,11,0.5)", backdropFilter: "blur(4px)" }}
-          onClick={() => {
-            if (!processing) {
-              setSelected(null);
-              setAction(null);
-            }
-          }}
-        >
-          <div
-            className="animate-fade-up"
-            style={{
-              width: "100%",
-              maxWidth: 480,
-              background: "#ffffff",
-              border: "1.5px solid #e4e4e7",
-              borderRadius: 16,
-              padding: 24,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3
-              style={{
-                fontFamily: "var(--font-inter)",
-                fontSize: "1.25rem",
-                fontWeight: 700,
-                color: "#09090b",
-                letterSpacing: "-0.015em",
-                margin: 0,
+      {/* Modal de confirmación mejorado */}
+      <Dialog 
+        open={!!selected} 
+        onOpenChange={(open) => {
+          if (!open && !processing) {
+            setSelected(null);
+            setAction(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl">
+              {action === "approve" ? "Aprobar Solicitud" : "Rechazar Solicitud"}
+            </DialogTitle>
+            <DialogDescription>
+              {action === "approve" 
+                ? "Confirma el rol asignado para este usuario para que pueda acceder a la plataforma." 
+                : "Indica el motivo por el cual se deniega el acceso a este usuario."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {target && (
+            <div className="py-4 space-y-4">
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-zinc-50 border border-zinc-200">
+                <Avatar size="default" className="border border-zinc-200">
+                  <AvatarImage src={target.image} />
+                  <AvatarFallback className="bg-zinc-100 text-zinc-700 font-semibold">
+                    {target.name.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm text-zinc-900 truncate">{target.name}</p>
+                  <p className="text-xs text-zinc-500 truncate">{target.email}</p>
+                </div>
+              </div>
+
+              {action === "approve" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="assignedRole">Asignar Rol Definitivo</Label>
+                  <Select value={assignedRole} onValueChange={(v) => { if (v !== null) setAssignedRole(v); }}>
+                    <SelectTrigger id="assignedRole" className="w-full">
+                      <SelectValue placeholder="Selecciona un rol" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLE_OPTIONS.map((r) => (
+                        <SelectItem key={r.value} value={r.value}>
+                          {r.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="rejectReason">Motivo de rechazo</Label>
+                  <Textarea
+                    id="rejectReason"
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="Ej. Datos de empresa no verificados..."
+                    className="resize-none"
+                    rows={4}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              disabled={processing}
+              onClick={() => {
+                setSelected(null);
+                setAction(null);
               }}
             >
-              {action === "approve" ? "Aprobar solicitud" : "Rechazar solicitud"}
-            </h3>
-            <p style={{ margin: "8px 0 20px", color: "#52525b", fontSize: "0.9375rem", lineHeight: 1.55 }}>
-              <strong>{target.name}</strong> — {target.email}
-            </p>
-
-            {action === "approve" ? (
-              <div>
-                <label
-                  htmlFor="assignedRole"
-                  style={{
-                    display: "block",
-                    marginBottom: 8,
-                    fontSize: "0.9375rem",
-                    fontWeight: 600,
-                    color: "#09090b",
-                  }}
-                >
-                  Asignar rol
-                </label>
-                <select
-                  id="assignedRole"
-                  value={assignedRole}
-                  onChange={(e) => setAssignedRole(e.target.value)}
-                  className="field"
-                >
-                  {ROLE_OPTIONS.map((r) => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <div>
-                <label
-                  htmlFor="rejectReason"
-                  style={{
-                    display: "block",
-                    marginBottom: 8,
-                    fontSize: "0.9375rem",
-                    fontWeight: 600,
-                    color: "#09090b",
-                  }}
-                >
-                  Motivo (opcional)
-                </label>
-                <textarea
-                  id="rejectReason"
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  placeholder="Ej. Datos institucionales no verificados"
-                  rows={3}
-                  className="field"
-                  style={{ height: "auto", padding: "12px 16px", resize: "vertical" }}
-                />
-              </div>
-            )}
-
-            <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
-              <Button
-                variant="outline"
-                size="md"
-                style={{ flex: 1 }}
-                disabled={processing}
-                onClick={() => {
-                  setSelected(null);
-                  setAction(null);
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant={action === "approve" ? "primary" : "danger"}
-                size="md"
-                style={{ flex: 1 }}
-                loading={processing}
-                onClick={handleAction}
-              >
-                {action === "approve" ? "Confirmar aprobación" : "Confirmar rechazo"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+              Cancelar
+            </Button>
+            <Button
+              variant={action === "approve" ? "approve" : "danger"}
+              loading={processing}
+              onClick={handleAction}
+            >
+              {action === "approve" ? "Aprobar Usuario" : "Rechazar Solicitud"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

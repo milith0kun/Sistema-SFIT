@@ -168,7 +168,15 @@ export function DataTable<TData>({
                 boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
               }}>
                 {table.getAllColumns()
-                  .filter((c) => c.getCanHide())
+                  .filter((c) => {
+                    if (!c.getCanHide()) return false;
+                    // Ocultar columnas auxiliares sin etiqueta visible
+                    // (p. ej. chevron de navegación con header vacío o id que empieza con "_").
+                    const h = c.columnDef.header;
+                    if (typeof h === "string" && h.trim() === "") return false;
+                    if (c.id.startsWith("_")) return false;
+                    return true;
+                  })
                   .map((c) => (
                     <label key={c.id} style={{
                       display: "flex", alignItems: "center", gap: 9,

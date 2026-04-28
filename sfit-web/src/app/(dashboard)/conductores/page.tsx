@@ -189,7 +189,7 @@ export default function ConductoresPage() {
   return (
     <div className="flex flex-col gap-3 animate-fade-in">
       <PageHeader kicker="Operación · RF-05" title="Conductores"
-        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Exportar CSV</button><Link href="/conductores/nuevo"><button style={btnInk}><Plus size={16} />Nuevo conductor</button></Link></div>} />
+        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Exportar CSV</button>{["super_admin","admin_municipal","operador"].includes(user.role) && (<Link href="/conductores/nuevo"><button style={btnInk}><Plus size={16} />Nuevo conductor</button></Link>)}</div>} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
         {[

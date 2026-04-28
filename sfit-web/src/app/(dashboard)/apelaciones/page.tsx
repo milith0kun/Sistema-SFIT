@@ -206,6 +206,7 @@ export default function ApelacionesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [resolving, setResolving] = useState<Apelacion | null>(null);
+  const canResolve = user?.role === "admin_municipal" || user?.role === "super_admin";
 
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
@@ -367,7 +368,7 @@ export default function ApelacionesPage() {
             >
               Ver detalle
             </Link>
-            {row.original.status === "pendiente" && (
+            {canResolve && row.original.status === "pendiente" && (
               <button
                 onClick={() => setResolving(row.original)}
                 style={{
@@ -388,7 +389,7 @@ export default function ApelacionesPage() {
         ),
       },
     ],
-    []
+    [canResolve]
   );
 
   const statusFilterButtons = (

@@ -807,12 +807,11 @@ function buildTabsFor(role: string, stats: GlobalStats | null): TabConfig[] {
       { title: "Aprobaciones", subtitle: "Revisar pendientes", href: "/admin/users", icon: UserCheck, badge: pending > 0 ? `${pending}` : undefined           },
     ]},
     { key: "territorio", label: "Territorio", items: [
-      { title: "Provincias",      subtitle: "Red nacional",       href: "/provincias",       icon: MapPin    },
-      { title: "Municipalidades", subtitle: "Estado y actividad", href: "/municipalidades",  icon: Building2 },
+      { title: "Red nacional",    subtitle: "Depto · Prov · Distrito", href: "/admin/red-nacional", icon: MapPin    },
+      { title: "Municipalidades", subtitle: "Estado y actividad",      href: "/municipalidades",   icon: Building2 },
     ]},
     { key: "analisis",   label: "Análisis",   items: [
       { title: "Estadísticas", subtitle: "Métricas globales", href: "/estadisticas", icon: ChartColumn },
-      { title: "Auditoría",    subtitle: "Trazabilidad",      href: "/auditoria",    icon: FileText    },
     ]},
   ];
 
@@ -824,7 +823,6 @@ function buildTabsFor(role: string, stats: GlobalStats | null): TabConfig[] {
     ]},
     { key: "analisis", label: "Análisis", items: [
       { title: "Estadísticas", subtitle: "Provincia", href: "/estadisticas", icon: ChartColumn },
-      { title: "Auditoría",    subtitle: "Actividad", href: "/auditoria",    icon: FileText    },
     ]},
     { key: "campo",    label: "Campo",    items: [
       { title: "Sanciones", subtitle: "Mensuales",  href: "/sanciones", icon: TriangleAlert },
@@ -846,7 +844,6 @@ function buildTabsFor(role: string, stats: GlobalStats | null): TabConfig[] {
     ]},
     { key: "analisis",   label: "Análisis",   items: [
       { title: "Estadísticas", subtitle: "Municipales",  href: "/estadisticas", icon: ChartColumn },
-      { title: "Auditoría",    subtitle: "Trazabilidad", href: "/auditoria",    icon: FileText    },
     ]},
   ];
 

@@ -15,7 +15,7 @@ const CreateSchema = z.object({
   imageUrl: z.string().url().optional(),
 });
 
-const ALLOWED = [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL];
+const ALLOWED = [ROLES.ADMIN_MUNICIPAL];
 
 /**
  * GET /api/admin/recompensas

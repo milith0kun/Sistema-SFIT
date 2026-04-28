@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   User as UserIcon, Save, KeyRound, CheckCircle2, AlertTriangle,
   Mail, MapPin, Building2, Eye, EyeOff, ShieldCheck,
+  IdCard, Loader2, Search, Phone as PhoneIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 
@@ -97,6 +98,13 @@ export default function PerfilPage() {
   const [dni,   setDni]   = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
 
+  // Estado del autocompletado por DNI (consulta a RENIEC vía /api/validar/dni)
+  type DniLookupStatus = "idle" | "loading" | "found" | "notfound" | "error";
+  const [dniStatus, setDniStatus]       = useState<DniLookupStatus>("idle");
+  const [dniMessage, setDniMessage]     = useState<string | null>(null);
+  const [dniLookedUp, setDniLookedUp]   = useState<string | null>(null); // último DNI consultado con éxito
+  const lookupSeq = useRef(0); // para descartar respuestas obsoletas
+
   // Cambio de password
   const [currentPass, setCurrentPass] = useState("");
   const [newPass,     setNewPass]     = useState("");
@@ -121,11 +129,74 @@ export default function PerfilPage() {
       setName(data.data.name ?? "");
       setPhone(data.data.phone ?? "");
       setDni(data.data.dni ?? "");
+      // Si el perfil ya trae un DNI guardado, lo damos por verificado para no
+      // re-consultar la API innecesariamente al primer render.
+      if (data.data.dni && /^\d{8}$/.test(data.data.dni)) {
+        setDniLookedUp(data.data.dni);
+        setDniStatus("idle");
+      }
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
   }, [router]);
 
   useEffect(() => { void load(); }, [load]);
+
+  /** Consulta /api/validar/dni y autocompleta el nombre cuando RENIEC responde. */
+  const lookupDni = useCallback(async (value: string, opts?: { force?: boolean }) => {
+    if (!/^\d{8}$/.test(value)) return;
+    if (!opts?.force && dniLookedUp === value) return;
+
+    const seq = ++lookupSeq.current;
+    setDniStatus("loading");
+    setDniMessage(null);
+
+    try {
+      const res = await fetch("/api/validar/dni", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ dni: value }),
+      });
+      // Si ya hay otra consulta más reciente, descartamos esta respuesta.
+      if (seq !== lookupSeq.current) return;
+
+      const data = await res.json() as { success: boolean; data?: { nombre_completo?: string }; error?: string };
+
+      if (!res.ok || !data.success || !data.data) {
+        setDniStatus(res.status === 503 ? "error" : "notfound");
+        setDniMessage(data.error ?? "No se encontró información para ese DNI");
+        return;
+      }
+
+      const fullName = (data.data.nombre_completo ?? "").trim();
+      if (fullName) {
+        // Autocompletar el nombre con lo que devuelve RENIEC
+        setName(fullName);
+        setDniMessage(`Verificado: ${fullName}`);
+      } else {
+        setDniMessage("DNI verificado");
+      }
+      setDniStatus("found");
+      setDniLookedUp(value);
+    } catch {
+      if (seq !== lookupSeq.current) return;
+      setDniStatus("error");
+      setDniMessage("No se pudo conectar con RENIEC");
+    }
+  }, [dniLookedUp]);
+
+  // Auto-consulta cuando el usuario completa los 8 dígitos (con un pequeño debounce).
+  useEffect(() => {
+    if (dni.length !== 8) {
+      // Si no hay 8 dígitos, limpiamos el feedback (a menos que sea idle ya).
+      if (dni.length < 8 && (dniStatus === "found" || dniStatus === "notfound" || dniStatus === "error")) {
+        setDniStatus("idle"); setDniMessage(null);
+      }
+      return;
+    }
+    if (dniLookedUp === dni) return;
+    const t = setTimeout(() => { void lookupDni(dni); }, 300);
+    return () => clearTimeout(t);
+  }, [dni, dniLookedUp, dniStatus, lookupDni]);
 
   function flashSuccess(msg: string) {
     setSuccess(msg);
@@ -248,25 +319,122 @@ export default function PerfilPage() {
           {/* Datos personales */}
           <SectionCard icon={<UserIcon size={16} color={INK6} />} title="Datos personales" subtitle="Tu nombre, teléfono y documento de identidad">
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              {/* DNI primero — verifica con RENIEC y autocompleta el nombre */}
+              <div style={{ gridColumn: "span 2" }}>
+                <label style={LABEL}>
+                  <IdCard size={11} style={{ display: "inline", verticalAlign: "middle", marginRight: 5 }} />
+                  DNI
+                  <span style={{ marginLeft: 8, fontWeight: 500, textTransform: "none", letterSpacing: 0, color: INK5, fontSize: "0.6875rem" }}>
+                    · se verifica automáticamente con RENIEC
+                  </span>
+                </label>
+                <div style={{ position: "relative" }}>
+                  <input
+                    value={dni}
+                    onChange={e => setDni(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                    placeholder="12345678"
+                    inputMode="numeric"
+                    maxLength={8}
+                    style={{
+                      ...FIELD,
+                      paddingRight: 110,
+                      fontFamily: "ui-monospace, monospace",
+                      letterSpacing: "0.05em",
+                      borderColor:
+                        dniStatus === "found" ? GRNBD :
+                        dniStatus === "notfound" || dniStatus === "error" ? REDBD :
+                        INK2,
+                    }}
+                    onFocus={e => {
+                      if (dniStatus === "idle") e.currentTarget.style.borderColor = INK9;
+                    }}
+                    onBlur={e => {
+                      if (dniStatus === "idle") e.currentTarget.style.borderColor = INK2;
+                    }}
+                  />
+                  {/* Indicador de estado / botón de búsqueda manual */}
+                  <div style={{
+                    position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
+                    display: "flex", alignItems: "center", gap: 6,
+                  }}>
+                    {dniStatus === "loading" && (
+                      <span style={{
+                        display: "inline-flex", alignItems: "center", gap: 5,
+                        padding: "5px 10px", borderRadius: 7,
+                        background: INK1, color: INK6, fontSize: "0.75rem", fontWeight: 600,
+                      }}>
+                        <Loader2 size={12} style={{ animation: "spin 0.9s linear infinite" }} />
+                        Buscando…
+                      </span>
+                    )}
+                    {dniStatus === "found" && (
+                      <span style={{
+                        display: "inline-flex", alignItems: "center", gap: 5,
+                        padding: "5px 10px", borderRadius: 7,
+                        background: GRNBG, color: GRN, border: `1px solid ${GRNBD}`,
+                        fontSize: "0.75rem", fontWeight: 700,
+                      }}>
+                        <CheckCircle2 size={12} />
+                        Verificado
+                      </span>
+                    )}
+                    {(dniStatus === "idle" || dniStatus === "notfound" || dniStatus === "error") && (
+                      <button
+                        type="button"
+                        onClick={() => { void lookupDni(dni, { force: true }); }}
+                        disabled={!/^\d{8}$/.test(dni)}
+                        style={{
+                          display: "inline-flex", alignItems: "center", gap: 5,
+                          height: 32, padding: "0 12px", borderRadius: 7,
+                          border: `1.5px solid ${INK2}`, background: "#fff", color: INK6,
+                          fontSize: "0.75rem", fontWeight: 600, cursor: /^\d{8}$/.test(dni) ? "pointer" : "not-allowed",
+                          opacity: /^\d{8}$/.test(dni) ? 1 : 0.5,
+                          fontFamily: "inherit", transition: "all 0.15s",
+                        }}
+                        title="Consultar RENIEC"
+                      >
+                        <Search size={12} />
+                        Buscar
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {dniMessage && (
+                  <p style={{
+                    marginTop: 6, fontSize: "0.75rem", fontWeight: 500,
+                    color:
+                      dniStatus === "found" ? GRN :
+                      dniStatus === "notfound" || dniStatus === "error" ? RED :
+                      INK5,
+                    display: "flex", alignItems: "center", gap: 5,
+                  }}>
+                    {dniStatus === "found"
+                      ? <CheckCircle2 size={11} />
+                      : <AlertTriangle size={11} />}
+                    {dniMessage}
+                  </p>
+                )}
+              </div>
+
               <div style={{ gridColumn: "span 2" }}>
                 <label style={LABEL}>Nombre completo <span style={{ color: RED }}>*</span></label>
                 <input value={name} onChange={e => setName(e.target.value)} style={FIELD}
+                  placeholder="Se completará automáticamente al verificar el DNI"
                   onFocus={e => { e.currentTarget.style.borderColor = INK9; }}
                   onBlur={e => { e.currentTarget.style.borderColor = INK2; }}
                 />
               </div>
-              <div>
-                <label style={LABEL}>Teléfono</label>
-                <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="987 654 321" style={FIELD}
-                  onFocus={e => { e.currentTarget.style.borderColor = INK9; }}
-                  onBlur={e => { e.currentTarget.style.borderColor = INK2; }}
-                />
-              </div>
-              <div>
-                <label style={LABEL}>DNI</label>
+
+              <div style={{ gridColumn: "span 2" }}>
+                <label style={LABEL}>
+                  <PhoneIcon size={11} style={{ display: "inline", verticalAlign: "middle", marginRight: 5 }} />
+                  Teléfono
+                </label>
                 <input
-                  value={dni} onChange={e => setDni(e.target.value.replace(/\D/g, "").slice(0, 8))}
-                  placeholder="12345678" inputMode="numeric" maxLength={8}
+                  value={phone}
+                  onChange={e => setPhone(e.target.value.replace(/[^\d+\s-]/g, "").slice(0, 20))}
+                  placeholder="+51 987 654 321"
+                  inputMode="tel"
                   style={FIELD}
                   onFocus={e => { e.currentTarget.style.borderColor = INK9; }}
                   onBlur={e => { e.currentTarget.style.borderColor = INK2; }}

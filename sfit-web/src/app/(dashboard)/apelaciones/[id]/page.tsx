@@ -31,7 +31,7 @@ const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const IN
 void GD; void GBG;
 
 const ALLOWED_VIEW = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
-const CAN_RESOLVE = ["admin_municipal", "fiscal", "admin_provincial", "super_admin"];
+const CAN_RESOLVE = ["admin_municipal", "super_admin"];
 
 function StatusBadge({ s }: { s: ApelacionStatus }) {
   const map = {

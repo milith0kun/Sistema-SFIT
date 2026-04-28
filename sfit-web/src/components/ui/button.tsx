@@ -3,7 +3,7 @@
 import { forwardRef } from "react";
 import type { ButtonHTMLAttributes, CSSProperties } from "react";
 
-type Variant = "primary" | "secondary" | "outline" | "ghost" | "danger";
+type Variant = "primary" | "secondary" | "outline" | "ghost" | "danger" | "approve";
 type Size = "sm" | "md" | "lg";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -30,6 +30,8 @@ function variantStyles(variant: Variant): CSSProperties {
       return { background: "transparent", color: "#52525b", border: "1.5px solid transparent" };
     case "danger":
       return { background: "#b91c1c", color: "#ffffff", border: "1.5px solid #b91c1c" };
+    case "approve":
+      return { background: "#15803d", color: "#ffffff", border: "1.5px solid #15803d" };
   }
 }
 
@@ -45,6 +47,8 @@ function hoverStyles(variant: Variant): CSSProperties {
       return { background: "#f4f4f5" };
     case "danger":
       return { background: "#991b1b", borderColor: "#991b1b" };
+    case "approve":
+      return { background: "#166534", borderColor: "#166534" };
   }
 }
 

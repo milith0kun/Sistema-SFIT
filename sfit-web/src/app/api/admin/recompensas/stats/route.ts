@@ -6,7 +6,7 @@ import { apiResponse, apiError, apiForbidden, apiUnauthorized } from "@/lib/api/
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 
-const ALLOWED = [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL];
+const ALLOWED = [ROLES.ADMIN_MUNICIPAL];
 
 /**
  * GET /api/admin/recompensas/stats

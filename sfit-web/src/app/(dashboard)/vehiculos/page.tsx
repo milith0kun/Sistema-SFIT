@@ -249,7 +249,7 @@ export default function VehiculosPage() {
   return (
     <div className="flex flex-col gap-3 animate-fade-in">
       <PageHeader kicker="Operación · RF-06" title="Vehículos y QR"
-        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><QrCode size={16} />Escanear QR</button><Link href="/vehiculos/nuevo"><button style={btnInk}><Plus size={16} />Nuevo vehículo</button></Link></div>} />
+        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><QrCode size={16} />Escanear QR</button>{["super_admin","admin_municipal","operador"].includes(user.role) && (<Link href="/vehiculos/nuevo"><button style={btnInk}><Plus size={16} />Nuevo vehículo</button></Link>)}</div>} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
         {[
