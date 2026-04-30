@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, MapPin, Clock, User, Truck, CheckCircle, Save, AlertTriangle,
   Loader2, Hash, Copy, Check, Calendar, Activity, Users as UsersIcon, Gauge,
+  Route as RouteIcon,
 } from "lucide-react";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
+import { GoogleMapView, type MapPolyline } from "@/components/ui/GoogleMapView";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 
 type TripStatus = "en_curso" | "completado" | "auto_cierre" | "cerrado_automatico";
@@ -100,6 +102,13 @@ export default function ViajeDetallePage({ params }: Props) {
   const [saving, setSaving] = useState(false);
   const [finishing, setFinishing] = useState(false);
 
+  // Trazado real (GPS del conductor) y planeado (waypoints de la ruta)
+  const [trackPoints, setTrackPoints] = useState<Array<{ lat: number; lng: number }>>([]);
+  const [trackStart, setTrackStart] = useState<{ lat: number; lng: number } | null>(null);
+  const [trackEnd, setTrackEnd] = useState<{ lat: number; lng: number } | null>(null);
+  const [routeWaypoints, setRouteWaypoints] = useState<Array<{ lat: number; lng: number; label?: string; order: number }>>([]);
+  const [trackLoading, setTrackLoading] = useState(false);
+
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
@@ -136,8 +145,56 @@ export default function ViajeDetallePage({ params }: Props) {
       } else {
         setEndTime("");
       }
+      // Cargar trazado real + ruta planeada en paralelo (defensivo: errores no rompen la página)
+      void loadTrackAndRoute(t, token ?? "");
     } catch { setError("Error de conexión."); }
     finally { setLoading(false); }
+  }
+
+  async function loadTrackAndRoute(t: Trip, token: string) {
+    setTrackLoading(true);
+    try {
+      const tasks: Promise<void>[] = [];
+      // Trazado real desde la entrada de flota vinculada
+      if (t.fleetEntryId) {
+        tasks.push((async () => {
+          try {
+            const r = await fetch(`/api/flota/${t.fleetEntryId}/location`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!r.ok) return;
+            const j = await r.json();
+            const pts = (j?.data?.trackPoints ?? []) as Array<{ lat: number; lng: number }>;
+            setTrackPoints(pts.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng)));
+            const sl = j?.data?.startLocation;
+            const el = j?.data?.endLocation;
+            if (sl && Number.isFinite(sl.lat) && Number.isFinite(sl.lng)) setTrackStart({ lat: sl.lat, lng: sl.lng });
+            if (el && Number.isFinite(el.lat) && Number.isFinite(el.lng)) setTrackEnd({ lat: el.lat, lng: el.lng });
+          } catch { /* viaje sin GPS — silencioso */ }
+        })());
+      }
+      // Ruta planeada (waypoints)
+      const routeId = t.route?._id;
+      if (routeId) {
+        tasks.push((async () => {
+          try {
+            const r = await fetch(`/api/rutas/${routeId}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!r.ok) return;
+            const j = await r.json();
+            const wps = (j?.data?.waypoints ?? []) as Array<{ lat: number; lng: number; label?: string; order: number }>;
+            const valid = wps
+              .filter(w => Number.isFinite(w.lat) && Number.isFinite(w.lng))
+              .sort((a, b) => a.order - b.order);
+            setRouteWaypoints(valid);
+          } catch { /* ruta sin waypoints — silencioso */ }
+        })());
+      }
+      await Promise.all(tasks);
+    } finally {
+      setTrackLoading(false);
+    }
   }
 
   async function handleSave() {
@@ -392,6 +449,16 @@ export default function ViajeDetallePage({ params }: Props) {
               />
             </div>
           </SectionCard>
+
+          <TripTrackCard
+            trackPoints={trackPoints}
+            trackStart={trackStart}
+            trackEnd={trackEnd}
+            routeWaypoints={routeWaypoints}
+            loading={trackLoading}
+            hasFleetEntry={!!trip.fleetEntryId}
+            hasRoute={!!trip.route}
+          />
         </div>
 
         {/* Sidebar */}
@@ -620,6 +687,158 @@ function SystemIdRow({ id }: { id: string }) {
         {copied ? <Check size={10} color={APTO} /> : <Copy size={10} />}
         {copied ? "Copiado" : "Copiar"}
       </button>
+    </div>
+  );
+}
+
+/**
+ * Tarjeta con mapa que superpone el trazado real (GPS del conductor) sobre la
+ * ruta planeada (waypoints). Si no hay ninguna de las dos fuentes, no renderiza nada.
+ * Si solo hay una, muestra lo disponible con un mensaje aclaratorio.
+ */
+function TripTrackCard({
+  trackPoints, trackStart, trackEnd, routeWaypoints, loading, hasFleetEntry, hasRoute,
+}: {
+  trackPoints: Array<{ lat: number; lng: number }>;
+  trackStart: { lat: number; lng: number } | null;
+  trackEnd: { lat: number; lng: number } | null;
+  routeWaypoints: Array<{ lat: number; lng: number; label?: string; order: number }>;
+  loading: boolean;
+  hasFleetEntry: boolean;
+  hasRoute: boolean;
+}) {
+  // Si no hay ningún dato útil, no renderizar la card.
+  const hasReal = trackPoints.length > 0;
+  const hasPlanned = routeWaypoints.length > 0;
+  if (!hasFleetEntry && !hasRoute) return null;
+  if (!loading && !hasReal && !hasPlanned) return null;
+
+  const polylines: MapPolyline[] = [];
+  if (hasPlanned) {
+    polylines.push({
+      path: routeWaypoints.map(w => ({ lat: w.lat, lng: w.lng })),
+      color: INK9,
+      weight: 3,
+      opacity: 0.45,
+    });
+  }
+  if (hasReal) {
+    polylines.push({
+      path: trackPoints,
+      color: APTO,
+      weight: 4,
+      opacity: 0.95,
+    });
+  }
+
+  const markers: Array<{ lat: number; lng: number; label?: string; title?: string; color?: "gold" | "red" | "green" | "blue" }> = [];
+  if (trackStart) markers.push({ lat: trackStart.lat, lng: trackStart.lng, label: "A", title: "Inicio (GPS)", color: "green" });
+  if (trackEnd) markers.push({ lat: trackEnd.lat, lng: trackEnd.lng, label: "B", title: "Fin (GPS)", color: "red" });
+  // Marcadores intermedios (paraderos planeados, excluyendo extremos)
+  if (hasPlanned) {
+    routeWaypoints.forEach((w, i) => {
+      if (i === 0 || i === routeWaypoints.length - 1) return;
+      markers.push({
+        lat: w.lat, lng: w.lng,
+        label: String(i),
+        title: w.label ?? `Paradero ${i}`,
+        color: "gold",
+      });
+    });
+  }
+
+  // Centro: priorizar trazado real; si no, primer waypoint planeado.
+  const center =
+    hasReal ? trackPoints[Math.floor(trackPoints.length / 2)] :
+    hasPlanned ? routeWaypoints[Math.floor(routeWaypoints.length / 2)] :
+    undefined;
+
+  // Subtitle según los datos disponibles.
+  let subtitle = "Trazado real del conductor vs ruta planeada";
+  if (!hasReal && hasPlanned) subtitle = "Solo ruta planeada — el viaje no registró GPS";
+  else if (hasReal && !hasPlanned) subtitle = "Solo trazado real — el viaje no tenía ruta asignada";
+
+  return (
+    <div style={{
+      background: "#fff", border: `1px solid ${INK2}`,
+      borderRadius: 12, overflow: "hidden",
+    }}>
+      <div style={{
+        padding: "10px 16px", borderBottom: `1px solid ${INK1}`,
+        display: "flex", alignItems: "center", gap: 10,
+      }}>
+        <div style={{
+          width: 26, height: 26, borderRadius: 6,
+          background: INK1, border: `1px solid ${INK2}`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0,
+        }}>
+          <RouteIcon size={14} color={INK6} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9, lineHeight: 1.25 }}>
+            Recorrido en mapa
+          </div>
+          <div style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.3, marginTop: 1 }}>
+            {subtitle}
+          </div>
+        </div>
+        {hasReal && (
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 5,
+            padding: "3px 9px", borderRadius: 999,
+            background: "#fff", color: APTO, border: `1px solid #86EFAC`,
+            fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
+          }}>
+            <span style={{ width: 5, height: 5, borderRadius: "50%", background: APTO }} />
+            {trackPoints.length} pts
+          </div>
+        )}
+      </div>
+      <div style={{ padding: 12 }}>
+        {loading ? (
+          <div style={{
+            height: 360, borderRadius: 10, background: INK1,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: INK5, gap: 8, fontSize: "0.8125rem",
+          }}>
+            <Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} />
+            Cargando recorrido…
+          </div>
+        ) : (
+          <>
+            <GoogleMapView
+              center={center}
+              zoom={13}
+              markers={markers}
+              polylines={polylines}
+              height={360}
+            />
+            <div style={{
+              marginTop: 10, display: "flex", flexWrap: "wrap", gap: 14,
+              fontSize: "0.6875rem", color: INK6,
+            }}>
+              {hasReal && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 22, height: 0, borderTop: `3px solid ${APTO}` }} />
+                  Trazado real GPS
+                </span>
+              )}
+              {hasPlanned && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 22, height: 0, borderTop: `2px dashed ${INK9}`, opacity: 0.65 }} />
+                  Ruta planeada
+                </span>
+              )}
+              {!hasReal && hasFleetEntry && (
+                <span style={{ color: INK5, marginLeft: "auto" }}>
+                  El conductor no envió posiciones GPS para este viaje.
+                </span>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

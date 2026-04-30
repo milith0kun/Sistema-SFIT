@@ -106,6 +106,13 @@ class _TripCheckoutPageState extends ConsumerState<TripCheckoutPage> {
 
   @override
   Widget build(BuildContext context) {
+    final tracking = ref.watch(locationTrackingProvider);
+    final totalStops = tracking.routeWaypoints.length;
+    final visitedStops = tracking.visitedStopIndices.length;
+    final compliance = totalStops > 0
+        ? ((visitedStops / totalStops) * 100).round()
+        : null;
+
     return Scaffold(
       backgroundColor: AppColors.paper,
       appBar: AppBar(
@@ -197,7 +204,16 @@ class _TripCheckoutPageState extends ConsumerState<TripCheckoutPage> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+
+              if (totalStops > 0) ...[
+                _ComplianceCard(
+                  visited: visitedStops,
+                  total: totalStops,
+                  compliance: compliance ?? 0,
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // ── Kilometraje al regreso ─────────────────────────────
               Text(
@@ -316,6 +332,88 @@ class _TripCheckoutPageState extends ConsumerState<TripCheckoutPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ComplianceCard extends StatelessWidget {
+  final int visited;
+  final int total;
+  final int compliance;
+
+  const _ComplianceCard({
+    required this.visited,
+    required this.total,
+    required this.compliance,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final (statusLabel, color, bg, border, icon) = compliance >= 90
+        ? ('CUMPLIMIENTO ÓPTIMO', AppColors.apto, AppColors.aptoBg,
+            AppColors.aptoBorder, Icons.check_circle_rounded)
+        : compliance >= 60
+            ? ('CUMPLIMIENTO PARCIAL', AppColors.riesgo, AppColors.riesgoBg,
+                AppColors.riesgoBorder, Icons.timelapse_rounded)
+            : ('CUMPLIMIENTO BAJO', AppColors.noApto, AppColors.noAptoBg,
+                AppColors.noAptoBorder, Icons.warning_amber_rounded);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bg,
+        border: Border.all(color: border),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: color),
+              const SizedBox(width: 8),
+              Text(
+                statusLabel,
+                style: AppTheme.inter(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '$compliance%',
+                style: AppTheme.inter(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                  tabular: true,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Paraderos cubiertos: $visited de $total',
+            style: AppTheme.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.ink8,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: total > 0 ? visited / total : 0,
+              minHeight: 8,
+              backgroundColor: Colors.white,
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+        ],
       ),
     );
   }

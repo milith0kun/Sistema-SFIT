@@ -15,6 +15,8 @@ export interface IDriver extends Document {
   restHours: number;
   reputationScore: number;
   currentVehicleId?: mongoose.Types.ObjectId;
+  /** Última ruta operada por el conductor — usada para sugerir al iniciar turno. */
+  lastRouteId?: mongoose.Types.ObjectId;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -35,6 +37,7 @@ const DriverSchema = new Schema<IDriver>(
     restHours: { type: Number, default: 8, min: 0 },
     reputationScore: { type: Number, default: 100, min: 0, max: 100 },
     currentVehicleId: { type: Schema.Types.ObjectId, ref: "Vehicle" },
+    lastRouteId: { type: Schema.Types.ObjectId, ref: "Route" },
     active: { type: Boolean, default: true },
   },
   { timestamps: true },

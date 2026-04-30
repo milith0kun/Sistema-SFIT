@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -32,6 +33,20 @@ class _TripCheckinPageState extends ConsumerState<TripCheckinPage> {
   String _selectedVehiclePlate = '';
   DateTime _departureTime = DateTime.now();
 
+  /// Preferencias del conductor (última unidad/ruta usadas).
+  DriverPreferences? _prefs;
+
+  /// Estado del permiso GPS — bloquea el paso 1 hasta obtener "granted".
+  LocationPermissionResult? _permissionResult;
+  bool _checkingPermission = false;
+
+  /// Si la ruta vino prellenada en `widget.preRouteId` se usa esa; si no,
+  /// se cae a la ruta de preferencias (la última que usó el conductor).
+  String? get _effectiveRouteId =>
+      widget.preRouteId ?? _prefs?.route?.id;
+  String? get _effectiveRouteName =>
+      widget.preRouteName ?? _prefs?.route?.name;
+
   // ── Paso 2 — Checklist ────────────────────────────────────────────────────
   final Map<String, bool> _checklist = {
     'combustible': false,
@@ -60,7 +75,8 @@ class _TripCheckinPageState extends ConsumerState<TripCheckinPage> {
   @override
   void initState() {
     super.initState();
-    _loadVehicles();
+    _loadVehiclesAndPrefs();
+    _checkPermissionsSilently();
   }
 
   @override
@@ -69,20 +85,57 @@ class _TripCheckinPageState extends ConsumerState<TripCheckinPage> {
     super.dispose();
   }
 
-  Future<void> _loadVehicles() async {
+  Future<void> _checkPermissionsSilently() async {
+    // Solo verifica el estado actual sin disparar el diálogo del SO; el
+    // diálogo se mostrará al tocar "Continuar" si todavía no fue otorgado.
+    final notifier = ref.read(locationTrackingProvider.notifier);
+    final result = await notifier.ensurePermissions();
+    if (!mounted) return;
+    setState(() => _permissionResult = result);
+  }
+
+  Future<void> _loadVehiclesAndPrefs() async {
     setState(() {
       _vehiclesLoading = true;
       _vehiclesError = null;
     });
     try {
-      final svc = ref.read(fleetApiServiceProvider);
-      final items = await svc.getAvailableVehicles();
-      if (mounted) {
-        setState(() {
-          _vehicles = items;
-          _vehiclesLoading = false;
-        });
+      final fleetSvc = ref.read(fleetApiServiceProvider);
+      final tripsSvc = ref.read(tripsApiServiceProvider);
+      // Preferencias y vehículos en paralelo — preferencias es opcional, no bloquea.
+      final results = await Future.wait([
+        fleetSvc.getAvailableVehicles(),
+        tripsSvc.getDriverPreferences().catchError(
+            (_) => const DriverPreferences()),
+      ]);
+      final items = results[0] as List<Map<String, dynamic>>;
+      final prefs = results[1] as DriverPreferences;
+
+      if (!mounted) return;
+
+      // Pre-seleccionar la última unidad si está dentro de las disponibles.
+      String? preselectId;
+      String preselectPlate = '';
+      if (prefs.vehicle != null) {
+        for (final v in items) {
+          final id = v['_id'] as String? ?? v['id'] as String? ?? '';
+          if (id == prefs.vehicle!.id) {
+            preselectId = id;
+            preselectPlate = v['plate'] as String? ?? prefs.vehicle!.plate;
+            break;
+          }
+        }
       }
+
+      setState(() {
+        _vehicles = items;
+        _vehiclesLoading = false;
+        _prefs = prefs;
+        if (preselectId != null) {
+          _selectedVehicleId = preselectId;
+          _selectedVehiclePlate = preselectPlate;
+        }
+      });
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -116,16 +169,84 @@ class _TripCheckinPageState extends ConsumerState<TripCheckinPage> {
     }
   }
 
-  void _goToStep2() {
+  Future<void> _goToStep2() async {
     if (_selectedVehicleId == null) {
       _showSnack('Selecciona un vehículo para continuar');
       return;
     }
+
+    // Permisos GPS bloqueantes — no se puede iniciar turno sin ubicación.
+    setState(() => _checkingPermission = true);
+    final result =
+        await ref.read(locationTrackingProvider.notifier).ensurePermissions();
+    if (!mounted) return;
+    setState(() {
+      _permissionResult = result;
+      _checkingPermission = false;
+    });
+
+    if (result != LocationPermissionResult.granted) {
+      await _showPermissionBlockedDialog(result);
+      return;
+    }
+
     _pageController.nextPage(
       duration: const Duration(milliseconds: 280),
       curve: Curves.easeInOut,
     );
     setState(() => _step = 1);
+  }
+
+  Future<void> _showPermissionBlockedDialog(
+      LocationPermissionResult result) async {
+    final (title, message, ctaLabel, openSettings) = switch (result) {
+      LocationPermissionResult.serviceDisabled => (
+          'Activa la ubicación',
+          'El GPS del dispositivo está apagado. Actívalo en los ajustes para poder iniciar turno.',
+          'Abrir ajustes del sistema',
+          () => Geolocator.openLocationSettings(),
+        ),
+      LocationPermissionResult.deniedForever => (
+          'Permiso de ubicación bloqueado',
+          'Has bloqueado el acceso a la ubicación. Habilítalo manualmente desde los ajustes de la app — sin esto no podemos registrar tu turno.',
+          'Abrir ajustes de la app',
+          () => Geolocator.openAppSettings(),
+        ),
+      _ => (
+          'Necesitamos tu ubicación',
+          'SFIT registra tu recorrido en tiempo real para validar la ruta y calcular cumplimiento. Toca "Reintentar" y otorga el permiso para continuar.',
+          'Reintentar',
+          () async {
+            final r = await ref
+                .read(locationTrackingProvider.notifier)
+                .ensurePermissions();
+            if (mounted) setState(() => _permissionResult = r);
+            return r == LocationPermissionResult.granted;
+          },
+        ),
+    };
+
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              await openSettings();
+              if (ctx.mounted) Navigator.of(ctx).pop();
+            },
+            child: Text(ctaLabel),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _iniciarTurno() async {
@@ -136,16 +257,17 @@ class _TripCheckinPageState extends ConsumerState<TripCheckinPage> {
     setState(() => _submitting = true);
     try {
       final svc = ref.read(tripsApiServiceProvider);
+      final routeId = _effectiveRouteId;
       final entryId = await svc.startTrip(
         vehicleId: _selectedVehicleId!,
         departureTime: _departureTime,
         checklistComplete: true,
-        routeId: widget.preRouteId,
+        routeId: routeId,
       );
       // Arranca el tracker GPS con el id de la FleetEntry y la ruta seleccionada
       await ref.read(locationTrackingProvider.notifier).startTracking(
         entryId,
-        routeId: widget.preRouteId,
+        routeId: routeId,
       );
       if (mounted) {
         context.go('/home');
@@ -220,14 +342,20 @@ class _TripCheckinPageState extends ConsumerState<TripCheckinPage> {
             error: _vehiclesError,
             selectedVehicleId: _selectedVehicleId,
             departureTime: _departureTime,
-            onRetry: _loadVehicles,
+            onRetry: _loadVehiclesAndPrefs,
             onVehicleSelected: (id, plate) => setState(() {
               _selectedVehicleId = id;
               _selectedVehiclePlate = plate;
             }),
             onPickTime: _pickDepartureTime,
             onNext: _goToStep2,
-            preRouteName: widget.preRouteName,
+            preRouteName: _effectiveRouteName,
+            isSuggestedRoute:
+                widget.preRouteId == null && _prefs?.route != null,
+            suggestedVehicleId: _prefs?.vehicle?.id,
+            permissionResult: _permissionResult,
+            checkingPermission: _checkingPermission,
+            onRetryPermission: _checkPermissionsSilently,
           ),
           _Step2(
             checklist: _checklist,
@@ -280,6 +408,13 @@ class _Step1 extends StatelessWidget {
   final VoidCallback onPickTime;
   final VoidCallback onNext;
   final String? preRouteName;
+  /// `true` cuando la ruta no vino prellenada y se cae a la última usada.
+  final bool isSuggestedRoute;
+  /// ID de la unidad sugerida (última usada por el conductor).
+  final String? suggestedVehicleId;
+  final LocationPermissionResult? permissionResult;
+  final bool checkingPermission;
+  final VoidCallback onRetryPermission;
 
   const _Step1({
     required this.vehicles,
@@ -291,7 +426,12 @@ class _Step1 extends StatelessWidget {
     required this.onVehicleSelected,
     required this.onPickTime,
     required this.onNext,
+    required this.permissionResult,
+    required this.checkingPermission,
+    required this.onRetryPermission,
     this.preRouteName,
+    this.isSuggestedRoute = false,
+    this.suggestedVehicleId,
   });
 
   @override
@@ -307,7 +447,13 @@ class _Step1 extends StatelessWidget {
             title: 'Vehículo y hora de salida',
             subtitle: 'Selecciona el vehículo asignado y confirma la hora estimada de salida.',
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+
+          _PermissionBanner(
+            result: permissionResult,
+            checking: checkingPermission,
+            onRetry: onRetryPermission,
+          ),
 
           if (preRouteName != null) ...[
             Container(
@@ -320,14 +466,18 @@ class _Step1 extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.route, size: 18, color: AppColors.goldDark),
+                  Icon(
+                    isSuggestedRoute ? Icons.history_rounded : Icons.route,
+                    size: 18,
+                    color: AppColors.goldDark,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'RUTA ASIGNADA',
+                          isSuggestedRoute ? 'RUTA SUGERIDA (ÚLTIMA USADA)' : 'RUTA ASIGNADA',
                           style: AppTheme.inter(
                             fontSize: 9.5,
                             fontWeight: FontWeight.w700,
@@ -388,6 +538,7 @@ class _Step1 extends StatelessWidget {
                 plate: plate,
                 label: '$brand $model'.trim(),
                 selected: selected,
+                isSuggested: suggestedVehicleId != null && suggestedVehicleId == id,
                 onTap: () => onVehicleSelected(id, plate),
               );
             }),
@@ -477,6 +628,7 @@ class _VehicleCard extends StatelessWidget {
   final String plate;
   final String label;
   final bool selected;
+  final bool isSuggested;
   final VoidCallback onTap;
 
   const _VehicleCard({
@@ -485,6 +637,7 @@ class _VehicleCard extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.isSuggested = false,
   });
 
   @override
@@ -522,13 +675,46 @@ class _VehicleCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    plate,
-                    style: AppTheme.inter(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.ink9,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        plate,
+                        style: AppTheme.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink9,
+                        ),
+                      ),
+                      if (isSuggested) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.infoBg,
+                            border: Border.all(color: AppColors.infoBorder),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.history_rounded,
+                                  size: 10, color: AppColors.info),
+                              const SizedBox(width: 3),
+                              Text(
+                                'ÚLTIMA',
+                                style: AppTheme.inter(
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.info,
+                                  letterSpacing: 0.6,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   if (label.isNotEmpty)
                     Text(
@@ -542,6 +728,119 @@ class _VehicleCard extends StatelessWidget {
               const Icon(Icons.check_circle, color: AppColors.gold, size: 20),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PermissionBanner extends StatelessWidget {
+  final LocationPermissionResult? result;
+  final bool checking;
+  final VoidCallback onRetry;
+
+  const _PermissionBanner({
+    required this.result,
+    required this.checking,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (result == LocationPermissionResult.granted) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.aptoBg,
+          border: Border.all(color: AppColors.aptoBorder),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.gps_fixed_rounded,
+                size: 16, color: AppColors.apto),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Ubicación activa — el recorrido se registrará durante tu turno.',
+                style: AppTheme.inter(fontSize: 12, color: AppColors.apto),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final (color, bg, border, icon, message) = switch (result) {
+      LocationPermissionResult.serviceDisabled => (
+          AppColors.noApto,
+          AppColors.noAptoBg,
+          AppColors.noAptoBorder,
+          Icons.location_disabled_rounded,
+          'GPS apagado. Actívalo desde el sistema antes de iniciar turno.',
+        ),
+      LocationPermissionResult.deniedForever => (
+          AppColors.noApto,
+          AppColors.noAptoBg,
+          AppColors.noAptoBorder,
+          Icons.block_rounded,
+          'Permiso de ubicación bloqueado. Habilítalo en ajustes para continuar.',
+        ),
+      _ => (
+          AppColors.riesgo,
+          AppColors.riesgoBg,
+          AppColors.riesgoBorder,
+          Icons.gps_off_rounded,
+          'Necesitamos tu ubicación para registrar el recorrido del turno.',
+        ),
+    };
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: bg,
+        border: Border.all(color: border),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: AppTheme.inter(
+                fontSize: 12,
+                color: color,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: checking ? null : onRetry,
+            style: TextButton.styleFrom(
+              foregroundColor: color,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: const Size(0, 32),
+            ),
+            child: checking
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 1.6),
+                  )
+                : Text(
+                    'Probar',
+                    style: AppTheme.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+          ),
+        ],
       ),
     );
   }

@@ -14,10 +14,12 @@ export interface DashboardHeroProps {
   rfCode?: string;
   subtitle?: string;
   pills?: HeroPill[];
+  /** Bloque de acciones a la derecha (botones, enlaces). Se renderiza junto a los pills. */
+  action?: ReactNode;
   children?: ReactNode;
 }
 
-export function DashboardHero({ kicker, title, subtitle, pills, children }: DashboardHeroProps) {
+export function DashboardHero({ kicker, title, subtitle, pills, action, children }: DashboardHeroProps) {
   return (
     <div
       className="animate-fade-in"
@@ -60,9 +62,10 @@ export function DashboardHero({ kicker, title, subtitle, pills, children }: Dash
           )}
         </div>
 
-        {(pills || children) && (
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {(pills || action || children) && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             {pills?.map(p => <QuickStatPill key={p.label} label={p.label} value={p.value} warn={p.warn} />)}
+            {action}
             {children}
           </div>
         )}

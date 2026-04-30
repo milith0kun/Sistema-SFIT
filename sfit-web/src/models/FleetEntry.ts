@@ -7,6 +7,22 @@ export interface IGpsPoint {
 
 export interface ICurrentLocation extends IGpsPoint {
   updatedAt: Date;
+  /** Precisión reportada por el GPS del dispositivo (metros). */
+  accuracy?: number;
+  /** Velocidad estimada (m/s) en el momento del fix. */
+  speed?: number;
+}
+
+/** Visita a un paradero detectada automáticamente al pasar dentro del radio. */
+export interface IVisitedStop {
+  /** Índice del waypoint en `Route.waypoints` (coincide con `waypoint.order`). */
+  stopIndex: number;
+  /** Etiqueta del paradero (copiada del waypoint para histórico aún si la ruta cambia). */
+  label?: string;
+  /** Coordenada efectiva donde se registró la visita. */
+  lat: number;
+  lng: number;
+  visitedAt: Date;
 }
 
 export interface IFleetEntry extends Document {
@@ -25,7 +41,11 @@ export interface IFleetEntry extends Document {
   currentLocation?: ICurrentLocation;
   startLocation?: IGpsPoint;
   endLocation?: IGpsPoint;
-  trackPoints?: Array<{ lat: number; lng: number; ts: Date }>;
+  trackPoints?: Array<{ lat: number; lng: number; ts: Date; accuracy?: number; speed?: number }>;
+  /** Paraderos visitados durante el turno (detección automática por proximidad). */
+  visitedStops?: IVisitedStop[];
+  /** % de paraderos cubiertos al cierre (0-100). Solo se calcula al pasar a 'cerrado'. */
+  routeCompliancePercentage?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,6 +72,8 @@ const FleetEntrySchema = new Schema<IFleetEntry>(
       lat: { type: Number },
       lng: { type: Number },
       updatedAt: { type: Date },
+      accuracy: { type: Number },
+      speed: { type: Number },
     },
     startLocation: {
       lat: { type: Number },
@@ -65,8 +87,19 @@ const FleetEntrySchema = new Schema<IFleetEntry>(
       lat: { type: Number },
       lng: { type: Number },
       ts: { type: Date },
+      accuracy: { type: Number },
+      speed: { type: Number },
       _id: false,
     }],
+    visitedStops: [{
+      stopIndex: { type: Number, required: true },
+      label: { type: String },
+      lat: { type: Number, required: true },
+      lng: { type: Number, required: true },
+      visitedAt: { type: Date, required: true },
+      _id: false,
+    }],
+    routeCompliancePercentage: { type: Number, min: 0, max: 100 },
   },
   { timestamps: true },
 );

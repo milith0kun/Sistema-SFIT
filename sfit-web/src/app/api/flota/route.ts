@@ -152,6 +152,12 @@ export async function POST(request: NextRequest) {
       registeredBy: auth.session.userId,
     });
 
+    // Persistir la última unidad y ruta para sugerirlas en el próximo turno.
+    void Driver.findByIdAndUpdate(driverId, {
+      currentVehicleId: parsed.data.vehicleId,
+      ...(parsed.data.routeId && { lastRouteId: parsed.data.routeId }),
+    }).catch((e) => console.error("[flota POST] update driver prefs", e));
+
     return apiResponse({ id: String(created._id), ...created.toObject() }, 201);
   } catch (error) {
     console.error("[flota POST]", error);

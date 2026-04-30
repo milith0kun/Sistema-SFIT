@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Car, Route, Wrench, X, Users, Download, Plus, Filter, AlertTriangle, Check,
-  Calendar, Loader2, Inbox,
+  Calendar, Loader2, Inbox, MapPin,
 } from "lucide-react";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
@@ -339,6 +339,15 @@ export default function FlotaPage() {
             }}>
               <Download size={13} />Reporte diario
             </button>
+            <Link href="/flota/mapa" style={{
+              display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
+              borderRadius: 7, border: "1px solid rgba(255,255,255,0.18)",
+              background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.85)",
+              fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+              textDecoration: "none",
+            }}>
+              <MapPin size={13} />Mapa en vivo
+            </Link>
             {canRegister && (
               <button
                 style={{

@@ -11,13 +11,29 @@ type MapMarker = {
   draggable?: boolean;
 };
 
+/**
+ * Una polilínea adicional con su propio estilo. Permite renderizar varias líneas
+ * (ej. trazado planeado vs. trazado real) sobre el mismo mapa.
+ */
+export type MapPolyline = {
+  path: LatLng[];
+  color?: string;
+  weight?: number;
+  opacity?: number;
+};
+
 interface Props {
   center?: LatLng;
   zoom?: number;
   markers?: MapMarker[];
   polyline?: LatLng[];
-  /** Color del trazo de la polilínea. Default: negro institucional INK9. */
+  /** Color del trazo de la polilínea principal. Default: negro institucional INK9. */
   polylineColor?: string;
+  /**
+   * Polilíneas adicionales independientes de `polyline`. Cada una con su color,
+   * peso y opacidad propios. Útil para superponer trazado real vs. ruta planeada.
+   */
+  polylines?: MapPolyline[];
   height?: number | string;
   style?: React.CSSProperties;
   className?: string;
@@ -69,6 +85,8 @@ function loadMapsApi(key: string): Promise<void> {
       await importLibrary("maps");
       // `geometry` ya viene en el query string, pero forzamos su carga por si llega tarde.
       try { await importLibrary("geometry"); } catch { /* opcional */ }
+      // `routes` habilita DirectionsService (snap a calles en el editor de rutas).
+      try { await importLibrary("routes"); } catch { /* opcional, fallback usa core */ }
     }
 
     // 2) Poll de respaldo (50 intentos × 50ms = 2.5s máx) por si la api antigua
@@ -107,6 +125,7 @@ export function GoogleMapView({
   markers = [],
   polyline = [],
   polylineColor = "#18181b",
+  polylines = [],
   height = 280,
   style,
   className,
@@ -118,6 +137,7 @@ export function GoogleMapView({
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
   const polylineRef = useRef<google.maps.Polyline | null>(null);
+  const polylinesRef = useRef<google.maps.Polyline[]>([]);
   const clickListenerRef = useRef<google.maps.MapsEventListener | null>(null);
   const onMapClickRef = useRef(onMapClick);
   onMapClickRef.current = onMapClick;
@@ -200,11 +220,29 @@ export function GoogleMapView({
           map: mapRef.current,
         });
       }
+
+      // Clear existing extra polylines
+      polylinesRef.current.forEach(p => p.setMap(null));
+      polylinesRef.current = [];
+
+      polylines.forEach(p => {
+        if (p.path.length > 1) {
+          const pl = new g.maps.Polyline({
+            path: p.path,
+            geodesic: true,
+            strokeColor: p.color ?? "#18181b",
+            strokeOpacity: p.opacity ?? 0.9,
+            strokeWeight: p.weight ?? 4,
+            map: mapRef.current,
+          });
+          polylinesRef.current.push(pl);
+        }
+      });
     }).catch(() => { /* API key faltante o sin internet */ });
 
     return () => { active = false; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [center.lat, center.lng, zoom, JSON.stringify(markers), JSON.stringify(polyline), key]);
+  }, [center.lat, center.lng, zoom, JSON.stringify(markers), JSON.stringify(polyline), JSON.stringify(polylines), key]);
 
   if (noKey) {
     return (

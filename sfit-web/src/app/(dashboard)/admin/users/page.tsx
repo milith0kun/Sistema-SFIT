@@ -569,7 +569,7 @@ function DetailPanel({
           <button
             onClick={() => setAction("approve")}
             style={{
-              padding: "6px 10px", borderRadius: 6, border: "none",
+              padding: "6px 10px", borderRadius: 6,
               background: action === "approve" ? "#fff" : "transparent",
               color: action === "approve" ? INK9 : INK6,
               fontWeight: action === "approve" ? 700 : 500,
@@ -584,7 +584,7 @@ function DetailPanel({
           <button
             onClick={() => setAction("reject")}
             style={{
-              padding: "6px 10px", borderRadius: 6, border: "none",
+              padding: "6px 10px", borderRadius: 6,
               background: action === "reject" ? "#fff" : "transparent",
               color: action === "reject" ? INK9 : INK6,
               fontWeight: action === "reject" ? 700 : 500,

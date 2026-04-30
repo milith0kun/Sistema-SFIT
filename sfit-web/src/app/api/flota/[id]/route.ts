@@ -4,6 +4,7 @@ import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { FleetEntry } from "@/models/FleetEntry";
 import { Driver } from "@/models/Driver";
+import { Route as RouteModel } from "@/models/Route";
 import { apiResponse, apiError, apiForbidden, apiNotFound, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
@@ -73,6 +74,29 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   Object.assign(entry, parsed.data);
+
+  // Si el turno está pasando a 'cerrado', calcular cumplimiento de ruta.
+  const closingNow =
+    parsed.data.status === "cerrado" || parsed.data.status === "auto_cierre";
+  if (closingNow && entry.routeId) {
+    try {
+      const route = await RouteModel.findById(entry.routeId)
+        .select("waypoints")
+        .lean();
+      const total = route?.waypoints?.length ?? 0;
+      const visited = (entry.visitedStops ?? []).length;
+      if (total > 0) {
+        entry.routeCompliancePercentage = Math.round(
+          Math.min(100, (visited / total) * 100),
+        );
+      } else {
+        entry.routeCompliancePercentage = 0;
+      }
+    } catch (e) {
+      console.error("[flota PATCH] compliance calc", e);
+    }
+  }
+
   await entry.save();
   return apiResponse({ id: String(entry._id), ...entry.toObject() });
 }

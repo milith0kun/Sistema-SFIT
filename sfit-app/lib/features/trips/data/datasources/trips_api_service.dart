@@ -87,6 +87,25 @@ class TripsApiService {
     }).toList();
   }
 
+  /// GET /rutas/:id — waypoints con metadata completa (order + label).
+  /// Útil para renderizar paraderos numerados en el mapa.
+  Future<List<Map<String, dynamic>>> getRouteWaypointsDetailed(
+      String routeId) async {
+    final resp = await _dio.get('/rutas/$routeId');
+    final body = resp.data as Map<String, dynamic>;
+    final data = body['data'] as Map<String, dynamic>;
+    final wps = data['waypoints'] as List? ?? [];
+    return wps.asMap().entries.map((entry) {
+      final m = entry.value as Map<String, dynamic>;
+      return {
+        'order': (m['order'] as num?)?.toInt() ?? entry.key,
+        'lat': (m['lat'] as num).toDouble(),
+        'lng': (m['lng'] as num).toDouble(),
+        'label': m['label'] as String?,
+      };
+    }).toList();
+  }
+
   /// GET /flota — viajes activos del conductor autenticado.
   Future<List<Map<String, dynamic>>> getMyFleetEntries() async {
     final resp = await _dio.get('/flota');
@@ -115,32 +134,54 @@ class TripsApiService {
   }
 
   /// PATCH /flota/:entryId/location — envía update de GPS al backend.
-  Future<void> sendLocation({
+  /// Retorna el body `data` parseado (incluye `visitedStops` y `newlyVisited`).
+  Future<Map<String, dynamic>> sendLocation({
     required String entryId,
     required double lat,
     required double lng,
+    double? accuracy,
+    double? speed,
     String? action,
   }) async {
-    await _dio.patch('/flota/$entryId/location', data: {
+    final resp = await _dio.patch('/flota/$entryId/location', data: {
       'lat': lat,
       'lng': lng,
+      if (accuracy != null) 'accuracy': accuracy,
+      if (speed != null) 'speed': speed,
       if (action != null) 'action': action,
     });
+    final data = (resp.data as Map)['data'];
+    return Map<String, dynamic>.from(data as Map);
   }
 
-  /// GET /flota/:entryId/location — obtiene trayecto guardado.
-  /// Devuelve lista de {lat, lng} maps.
-  Future<List<Map<String, double>>> getTrackPoints(String entryId) async {
+  /// GET /flota/:entryId/location — obtiene trayecto y paraderos visitados.
+  Future<TrackHistory> getTrackHistory(String entryId) async {
     final resp = await _dio.get('/flota/$entryId/location');
     final data = (resp.data as Map)['data'] as Map<String, dynamic>;
-    final points = data['trackPoints'] as List? ?? [];
-    return points.map((p) {
+    final points = (data['trackPoints'] as List? ?? []).map((p) {
       final m = p as Map<String, dynamic>;
       return {
         'lat': (m['lat'] as num).toDouble(),
         'lng': (m['lng'] as num).toDouble(),
       };
     }).toList();
+    final visited = (data['visitedStops'] as List? ?? [])
+        .map((s) => Map<String, dynamic>.from(s as Map))
+        .toList();
+    return TrackHistory(trackPoints: points, visitedStops: visited);
+  }
+
+  /// GET /flota/:entryId/location — solo trayecto (legacy convenience).
+  Future<List<Map<String, double>>> getTrackPoints(String entryId) async {
+    final hist = await getTrackHistory(entryId);
+    return hist.trackPoints;
+  }
+
+  /// GET /conductor/preferencias — última unidad y ruta usadas por el conductor.
+  Future<DriverPreferences> getDriverPreferences() async {
+    final resp = await _dio.get('/conductor/preferencias');
+    final data = (resp.data as Map)['data'] as Map<String, dynamic>;
+    return DriverPreferences.fromJson(data);
   }
 
   /// GET /conductor/fatiga — estado de fatiga del conductor autenticado (RF-14).
@@ -153,6 +194,94 @@ class TripsApiService {
     final data = body['data'] as Map<String, dynamic>;
     return FatigaStatus.fromJson(data);
   }
+}
+
+// ── Modelo de trayecto + paraderos visitados ───────────────────────────────
+
+class TrackHistory {
+  final List<Map<String, double>> trackPoints;
+  final List<Map<String, dynamic>> visitedStops;
+  const TrackHistory({required this.trackPoints, required this.visitedStops});
+}
+
+// ── Preferencias del conductor (última unidad/ruta) ────────────────────────
+
+class DriverPreferenceVehicle {
+  final String id;
+  final String plate;
+  final String? brand;
+  final String? model;
+  final String? vehicleTypeKey;
+  final String? status;
+
+  const DriverPreferenceVehicle({
+    required this.id,
+    required this.plate,
+    this.brand,
+    this.model,
+    this.vehicleTypeKey,
+    this.status,
+  });
+
+  factory DriverPreferenceVehicle.fromJson(Map<String, dynamic> j) =>
+      DriverPreferenceVehicle(
+        id: j['id'] as String,
+        plate: j['plate'] as String? ?? '',
+        brand: j['brand'] as String?,
+        model: j['model'] as String?,
+        vehicleTypeKey: j['vehicleTypeKey'] as String?,
+        status: j['status'] as String?,
+      );
+}
+
+class DriverPreferenceRoute {
+  final String id;
+  final String? code;
+  final String? name;
+  final String? type;
+  final int? stops;
+  final String? length;
+  final String? status;
+
+  const DriverPreferenceRoute({
+    required this.id,
+    this.code,
+    this.name,
+    this.type,
+    this.stops,
+    this.length,
+    this.status,
+  });
+
+  factory DriverPreferenceRoute.fromJson(Map<String, dynamic> j) =>
+      DriverPreferenceRoute(
+        id: j['id'] as String,
+        code: j['code'] as String?,
+        name: j['name'] as String?,
+        type: j['type'] as String?,
+        stops: (j['stops'] as num?)?.toInt(),
+        length: j['length'] as String?,
+        status: j['status'] as String?,
+      );
+}
+
+class DriverPreferences {
+  final DriverPreferenceVehicle? vehicle;
+  final DriverPreferenceRoute? route;
+
+  const DriverPreferences({this.vehicle, this.route});
+
+  factory DriverPreferences.fromJson(Map<String, dynamic> j) =>
+      DriverPreferences(
+        vehicle: j['vehicle'] != null
+            ? DriverPreferenceVehicle.fromJson(
+                j['vehicle'] as Map<String, dynamic>)
+            : null,
+        route: j['route'] != null
+            ? DriverPreferenceRoute.fromJson(
+                j['route'] as Map<String, dynamic>)
+            : null,
+      );
 }
 
 // ── Modelo de respuesta de fatiga ─────────────────────────────────────────────

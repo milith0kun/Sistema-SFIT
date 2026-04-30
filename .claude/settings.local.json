@@ -3,7 +3,26 @@
     "allow": [
       "Read(//c/Users/PC/**)",
       "Bash(echo 'export PATH=\"$HOME/flutter/bin:$PATH\"')",
-      "Bash(echo 'export PATH=\"/c/Users/PC/flutter/bin:$PATH\"')"
+      "Bash(echo 'export PATH=\"/c/Users/PC/flutter/bin:$PATH\"')",
+      "Bash(adb -s emulator-5554 shell monkey -p com.sfit.sfit_app -c android.intent.category.LAUNCHER 1)",
+      "Bash(\"C:/Users/PC/AppData/Local/Android/sdk/platform-tools/adb.exe\" -s emulator-5554 shell monkey -p com.sfit.sfit_app -c android.intent.category.LAUNCHER 1)",
+      "Bash(python /tmp/extract_tools.py)",
+      "Bash(mkdir -p \"/c/temp\")",
+      "Bash(cp /tmp/recent_transcripts.txt /c/temp/recent_transcripts.txt)",
+      "Read(//c/temp/**)",
+      "Bash(python \"C:\\\\temp\\\\extract_tools.py\")",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebSearch",
+      "WebFetch(domain:www.sutran.gob.pe)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} | size %{size_download} | header cf-mitigated: %header{cf-mitigated}\\\\n\" -X POST \"https://sfit.ecosdelseo.com/api/auth/login\" -H \"Content-Type: application/json\" -H \"Accept: application/json\" -H \"X-Sfit-Client: sfit-mob-7f3a9b2c4d6e8f1a3b5c7d9e0f2a4b6c\" -d '{\"email\":\"ciudadano@sfit.test\",\"password\":\"Sfit2026!\"}')",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} | header cf-mitigated: %header{cf-mitigated}\\\\n\" -X POST \"https://sfit.ecosdelseo.com/api/auth/login\" -H \"Content-Type: application/json\" -d '{\"email\":\"x\",\"password\":\"x\"}')",
+      "Bash(curl -sS -X POST \"https://sfit.ecosdelseo.com/api/auth/login\" -H \"Content-Type: application/json\" -H \"Accept: application/json\" -H \"X-Sfit-Client: sfit-mob-7f3a9b2c4d6e8f1a3b5c7d9e0f2a4b6c\" -H \"User-Agent: Mozilla/5.0 \\(Linux; Android 13\\)\" -d '{\"email\":\"ciudadano@sfit.test\",\"password\":\"Sfit2026!\"}' -D - -o /tmp/body.txt -w \"\\\\n--- final HTTP: %{http_code}\\\\n\")",
+      "Read(//tmp/**)",
+      "Bash(curl -sS -X POST \"https://sfit.ecosdelseo.com/api/auth/login\" -H \"Content-Type: application/json\" -H \"Accept: application/json\" -H \"X-Sfit-Client: sfit-mob-7f3a9b2c4d6e8f1a3b5c7d9e0f2a4b6c\" -d '{\"email\":\"ciudadano@sfit.test\",\"password\":\"Sfit2026!\"}' -w \"\\\\n--- HTTP: %{http_code} ---\\\\n\" -o /tmp/resp.txt)",
+      "Bash(curl -sS -X POST \"https://sfit.ecosdelseo.com/api/auth/login\" -H \"Content-Type: application/json\" -H \"Accept: application/json\" -H \"X-Sfit-Client: sfit-mob-7f3a9b2c4d6e8f1a3b5c7d9e0f2a4b6c\" -d '{\"email\":\"ciudadano@sfit.test\",\"password\":\"Sfit2026!\"}' -w \"\\\\n--- HTTP: %{http_code} ---\\\\n\" -o /tmp/r.txt -D /tmp/h.txt)",
+      "Bash(curl -sS -X POST \"https://sfit.ecosdelseo.com/api/auth/login\" -H \"Content-Type: application/json\" -H \"Accept: application/json\" -d '{\"email\":\"x\",\"password\":\"x\"}' -w \"\\\\n--- HTTP: %{http_code} ---\\\\n\" -o /tmp/r2.txt -D /tmp/h2.txt)",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"superadmin@sfit.test\",\"password\":\"Sfit2026!\"}')",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); items=d['data']['items']; print\\(f'total={d[\\\\\"data\\\\\"][\\\\\"total\\\\\"]}, en vista={len\\(items\\)}'\\); [print\\(f'  - {i[\\\\\"razonSocial\\\\\"]} | RUC {i[\\\\\"ruc\\\\\"]} | scope={i[\\\\\"serviceScope\\\\\"]} | sede={i[\\\\\"headquarters\\\\\"][\\\\\"name\\\\\"] if i[\\\\\"headquarters\\\\\"] else \\\\\"none\\\\\"}'\\) for i in items]\")"
     ]
   }
 }
