@@ -3,18 +3,28 @@
 import { useEffect, useRef } from "react";
 
 type LatLng = { lat: number; lng: number };
-type MapMarker = { lat: number; lng: number; label?: string; title?: string; color?: "gold" | "red" | "green" | "blue" };
+type MapMarker = {
+  lat: number; lng: number;
+  label?: string; title?: string;
+  color?: "gold" | "red" | "green" | "blue";
+  /** Permite arrastrar el marcador. Cuando termina el drag se llama onMarkerDragEnd con su índice. */
+  draggable?: boolean;
+};
 
 interface Props {
   center?: LatLng;
   zoom?: number;
   markers?: MapMarker[];
   polyline?: LatLng[];
+  /** Color del trazo de la polilínea. Default: negro institucional INK9. */
+  polylineColor?: string;
   height?: number | string;
   style?: React.CSSProperties;
   className?: string;
   apiKey?: string;
   onMapClick?: (lat: number, lng: number) => void;
+  /** Callback cuando el usuario suelta un marcador draggable. */
+  onMarkerDragEnd?: (index: number, lat: number, lng: number) => void;
 }
 
 const DEFAULT_CENTER: LatLng = { lat: -13.5178, lng: -71.9785 }; // Cusco
@@ -22,20 +32,63 @@ const DEFAULT_CENTER: LatLng = { lat: -13.5178, lng: -71.9785 }; // Cusco
 let _mapsLoaded = false;
 let _mapsLoading: Promise<void> | null = null;
 
+/**
+ * Carga el script de Google Maps y espera a que la clase `Map` esté lista.
+ *
+ * Con `loading=async`, el `script.onload` puede dispararse antes de que las
+ * librerías internas estén disponibles. Por eso después del onload usamos
+ * `importLibrary("maps")` cuando existe, o un poll de respaldo, para resolver
+ * sólo cuando `google.maps.Map` ya se puede instanciar. Esto elimina el bug
+ * intermitente de "a veces carga el mapa, a veces no".
+ */
 function loadMapsApi(key: string): Promise<void> {
   if (_mapsLoaded) return Promise.resolve();
   if (_mapsLoading) return _mapsLoading;
-  _mapsLoading = new Promise((resolve, reject) => {
-    if (typeof window === "undefined") { reject(new Error("SSR")); return; }
-    if ((window as unknown as Record<string, unknown>).google) { _mapsLoaded = true; resolve(); return; }
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=geometry`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => { _mapsLoaded = true; resolve(); };
-    script.onerror = () => reject(new Error("Error al cargar Google Maps"));
-    document.head.appendChild(script);
-  });
+
+  _mapsLoading = (async () => {
+    if (typeof window === "undefined") throw new Error("SSR");
+    const w = window as unknown as { google?: typeof google };
+
+    // Si ya está cargado por otra ruta o HMR, no volver a inyectar el script.
+    if (!w.google?.maps) {
+      await new Promise<void>((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=geometry&loading=async&v=weekly`;
+        script.async = true;
+        script.defer = true;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error("Error al cargar Google Maps"));
+        document.head.appendChild(script);
+      });
+    }
+
+    // Esperar a que las librerías internas estén listas.
+    // 1) Si la API expone `importLibrary` (loading=async), úsala.
+    const importLibrary = (w.google?.maps as { importLibrary?: (n: string) => Promise<unknown> } | undefined)?.importLibrary;
+    if (importLibrary) {
+      await importLibrary("maps");
+      // `geometry` ya viene en el query string, pero forzamos su carga por si llega tarde.
+      try { await importLibrary("geometry"); } catch { /* opcional */ }
+    }
+
+    // 2) Poll de respaldo (50 intentos × 50ms = 2.5s máx) por si la api antigua
+    //    aún no ha expuesto `Map` justo después del onload.
+    for (let i = 0; i < 50 && !w.google?.maps?.Map; i++) {
+      await new Promise(r => setTimeout(r, 50));
+    }
+    if (!w.google?.maps?.Map) {
+      // Si después de 2.5s aún no hay Map, marcamos el loader como fallido para
+      // que un nuevo intento pueda reintentarlo en lugar de devolver una promesa vieja.
+      _mapsLoading = null;
+      throw new Error("Google Maps no terminó de cargar a tiempo.");
+    }
+
+    _mapsLoaded = true;
+  })();
+
+  // Si la promesa se rechaza, limpiamos el cache para permitir reintentos.
+  _mapsLoading.catch(() => { _mapsLoading = null; });
+
   return _mapsLoading;
 }
 
@@ -53,11 +106,13 @@ export function GoogleMapView({
   zoom = 13,
   markers = [],
   polyline = [],
+  polylineColor = "#18181b",
   height = 280,
   style,
   className,
   apiKey,
   onMapClick,
+  onMarkerDragEnd,
 }: Props) {
   const divRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
@@ -66,6 +121,8 @@ export function GoogleMapView({
   const clickListenerRef = useRef<google.maps.MapsEventListener | null>(null);
   const onMapClickRef = useRef(onMapClick);
   onMapClickRef.current = onMapClick;
+  const onMarkerDragEndRef = useRef(onMarkerDragEnd);
+  onMarkerDragEndRef.current = onMarkerDragEnd;
   const key = apiKey ?? process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? "";
   const noKey = !key;
 
@@ -111,14 +168,23 @@ export function GoogleMapView({
       markersRef.current.forEach(m => m.setMap(null));
       markersRef.current = [];
 
-      markers.forEach(m => {
+      markers.forEach((m, idx) => {
         const marker = new g.maps.Marker({
           position: { lat: m.lat, lng: m.lng },
           map: mapRef.current!,
           title: m.title,
           icon: MARKER_COLORS[m.color ?? "gold"],
           label: m.label ? { text: m.label, color: "#fff", fontWeight: "bold", fontSize: "11px" } : undefined,
+          draggable: !!m.draggable,
+          cursor: m.draggable ? "grab" : undefined,
         });
+        if (m.draggable) {
+          marker.addListener("dragend", (e: google.maps.MapMouseEvent) => {
+            if (e.latLng && onMarkerDragEndRef.current) {
+              onMarkerDragEndRef.current(idx, e.latLng.lat(), e.latLng.lng());
+            }
+          });
+        }
         markersRef.current.push(marker);
       });
 
@@ -128,7 +194,7 @@ export function GoogleMapView({
         polylineRef.current = new g.maps.Polyline({
           path: polyline,
           geodesic: true,
-          strokeColor: "#6C0606",
+          strokeColor: polylineColor,
           strokeOpacity: 0.9,
           strokeWeight: 4,
           map: mapRef.current,

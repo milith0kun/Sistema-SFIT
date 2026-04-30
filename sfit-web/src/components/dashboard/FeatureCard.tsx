@@ -50,17 +50,22 @@ export function FeatureCard({
         <span
           style={{
             position: "absolute",
-            top: 14,
-            right: 14,
+            top: 12,
+            right: 12,
             background: "#FBEAEA",
             color: "#4A0303",
             border: "1px solid #D9B0B0",
             borderRadius: 999,
-            padding: "3px 9px",
+            minWidth: 22,
+            height: 22,
+            padding: "0 7px",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
             fontSize: "0.6875rem",
             fontWeight: 700,
-            letterSpacing: "0.04em",
-            textTransform: "uppercase",
+            letterSpacing: "0.02em",
+            lineHeight: 1,
             zIndex: 2,
           }}
         >
@@ -97,21 +102,21 @@ export function FeatureCard({
         {subtitle}
       </div>
 
-      {/* Ícono watermark — grande para llenar el card, overflow:hidden lo adapta */}
+      {/* Ícono watermark — paleta institucional unificada con la card de acción principal */}
       <div
         aria-hidden
         style={{
           position: "absolute",
-          right: -12,
-          bottom: -12,
-          color: hover ? "#6C0606" : "#C8971A",
-          opacity: hover ? 0.28 : 0.16,
+          right: -10,
+          bottom: -14,
+          color: "#6C0606",
+          opacity: hover ? 0.16 : 0.09,
           pointerEvents: "none",
           lineHeight: 0,
-          transition: "opacity 180ms ease, color 180ms ease",
+          transition: "opacity 180ms ease",
         }}
       >
-        <Icon size={88} strokeWidth={1.2} />
+        <Icon size={92} strokeWidth={1.5} absoluteStrokeWidth />
       </div>
     </Link>
   );

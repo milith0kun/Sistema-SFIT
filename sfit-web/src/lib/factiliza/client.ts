@@ -91,6 +91,28 @@ export function consultarDni(dni: string): Promise<FactilizaDni> {
   return fetchJson<FactilizaDni>(`/dni/info/${encodeURIComponent(dni)}`);
 }
 
+// ── RUC (SUNAT) ──────────────────────────────────────────────────────────────
+
+export interface FactilizaRuc {
+  numero: string;
+  razon_social: string;
+  nombre_comercial?: string;
+  estado: string;             // "ACTIVO", "BAJA DE OFICIO", etc.
+  condicion: string;          // "HABIDO", "NO HABIDO", etc.
+  tipo?: string;              // tipo de contribuyente
+  fecha_inscripcion?: string;
+  direccion?: string;
+  direccion_completa?: string;
+  departamento?: string;
+  provincia?: string;
+  distrito?: string;
+  ubigeo_sunat?: string;
+}
+
+export function consultarRuc(ruc: string): Promise<FactilizaRuc> {
+  return fetchJson<FactilizaRuc>(`/ruc/info/${encodeURIComponent(ruc)}`);
+}
+
 // ── Placa vehicular (SUNARP) ─────────────────────────────────────────────────
 
 export interface FactilizaPlaca {

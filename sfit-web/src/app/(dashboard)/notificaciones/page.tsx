@@ -10,13 +10,10 @@ import {
   refreshUnreadCount,
 } from "@/hooks/useUnreadCount";
 
-// ── Paleta zinc + gold institucional SFIT ─────────────────────────────────────
+// ── Paleta sobria — gris uniforme, sólo rojo para errores ────────────────────
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK3 = "#d4d4d8";
 const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 const ERR = "#DC2626"; const ERRBG = "#FFF5F5"; const ERRBD = "#FCA5A5";
-// Gold (acento institucional, design system SFIT)
-const GOLD = "#6C0606"; const GOLD_LIGHT = "#8B1414"; const GOLD_DARK = "#4A0303";
-const GOLD_BG = "#FBEAEA"; const GOLD_BORDER = "#D9B0B0";
 
 type Notification = {
   id: string; type?: string; category?: string;
@@ -28,6 +25,7 @@ type Tab = "all" | "unread" | "read";
 function getToken() { return typeof window === "undefined" ? "" : (localStorage.getItem("sfit_access_token") ?? ""); }
 
 // ── Utilidades ─────────────────────────────────────────────────────────────────
+const MONTH_ABBR = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 function timeAgo(iso: string): string {
   const diff = Math.max(0, Date.now() - new Date(iso).getTime());
   const sec = Math.floor(diff / 1000);
@@ -39,7 +37,8 @@ function timeAgo(iso: string): string {
   const d = Math.floor(hr / 24);
   if (d === 1) return "ayer";
   if (d < 7) return `hace ${d} días`;
-  return new Date(iso).toLocaleDateString("es-PE", { day: "2-digit", month: "short" });
+  const dt = new Date(iso);
+  return `${dt.getDate()} ${MONTH_ABBR[dt.getMonth()]}`;
 }
 
 function groupLabel(iso: string): string {
@@ -76,6 +75,36 @@ function priorityInfo(type?: string): { label: string; color: string; bg: string
   return { label: "INFO", color: INK6, bg: INK1, border: INK2 };
 }
 
+// Convierte slugs/snake_case del backend en labels legibles con tildes castellanas.
+const HUMANIZE_MAP: Record<string, string> = {
+  aprobacion: "Aprobación",
+  apelacion: "Apelación",
+  sancion: "Sanción",
+  inspeccion: "Inspección",
+  fatiga: "Fatiga",
+  reporte: "Reporte",
+  sistema: "Sistema",
+  conductor: "Conductor",
+  vehiculo: "Vehículo",
+  ruta: "Ruta",
+  action_required: "Acción requerida",
+  info: "Información",
+  warn: "Advertencia",
+  warning: "Advertencia",
+  alert: "Alerta",
+  error: "Error",
+  success: "Confirmación",
+  approved: "Aprobado",
+  rejected: "Rechazado",
+};
+function humanize(s?: string): string {
+  if (!s) return "";
+  const k = s.toLowerCase().trim();
+  if (HUMANIZE_MAP[k]) return HUMANIZE_MAP[k];
+  const cleaned = k.replace(/_/g, " ");
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
 // ── Detail Panel ───────────────────────────────────────────────────────────────
 function DetailPanel({ notif, onClose, onMarkRead }: {
   notif: Notification; onClose: () => void; onMarkRead: (id: string) => void;
@@ -87,18 +116,17 @@ function DetailPanel({ notif, onClose, onMarkRead }: {
   return (
     <div style={{
       background: "#fff",
-      border: `1.5px solid ${GOLD_BORDER}`,
+      border: `1.5px solid ${INK2}`,
       borderRadius: 14,
       position: "sticky",
       top: 16,
       overflow: "hidden",
-      boxShadow: "0 1px 3px rgba(108,6,6,0.06), 0 8px 24px -8px rgba(108,6,6,0.10)",
     }}>
-      {/* ── Header en banda gold suave ─────────────────────────────────── */}
+      {/* ── Header neutro ──────────────────────────────────────────────── */}
       <div style={{
-        background: `linear-gradient(180deg, ${GOLD_BG} 0%, #ffffff 100%)`,
-        borderBottom: `1px solid ${GOLD_BORDER}`,
-        padding: "16px 18px 14px",
+        background: "#fff",
+        borderBottom: `1px solid ${INK2}`,
+        padding: "14px 16px 12px",
         position: "relative",
       }}>
         {/* Fila superior: pills + cerrar */}
@@ -115,11 +143,11 @@ function DetailPanel({ notif, onClose, onMarkRead }: {
               <span style={{
                 display: "inline-flex", padding: "3px 9px", borderRadius: 6,
                 fontSize: "0.6875rem", fontWeight: 700,
-                background: "#ffffff", color: GOLD_DARK,
-                border: `1px solid ${GOLD_BORDER}`,
+                background: "#ffffff", color: INK9,
+                border: `1px solid ${INK2}`,
                 textTransform: "uppercase", letterSpacing: "0.04em",
               }}>
-                {notif.category}
+                {humanize(notif.category)}
               </span>
             )}
             {notif.type && (
@@ -128,7 +156,7 @@ function DetailPanel({ notif, onClose, onMarkRead }: {
                 fontSize: "0.6875rem", fontWeight: 600,
                 background: INK1, color: INK6, border: `1px solid ${INK2}`,
               }}>
-                {notif.type}
+                {humanize(notif.type)}
               </span>
             )}
           </div>
@@ -151,10 +179,9 @@ function DetailPanel({ notif, onClose, onMarkRead }: {
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
           <div style={{
             width: 44, height: 44, borderRadius: 12,
-            background: "#ffffff", border: `1px solid ${GOLD_BORDER}`,
-            color: GOLD_DARK,
+            background: "#ffffff", border: `1px solid ${INK2}`,
+            color: INK9,
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-            boxShadow: "0 1px 2px rgba(108,6,6,0.08)",
           }}>
             <TypeIcon type={notif.type} size={20} />
           </div>
@@ -176,12 +203,12 @@ function DetailPanel({ notif, onClose, onMarkRead }: {
             </div>
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 5, marginTop: 8,
-              fontSize: "0.6875rem", color: notif.read ? INK5 : GOLD_DARK,
+              fontSize: "0.6875rem", color: notif.read ? INK5 : INK9,
               fontWeight: 600, letterSpacing: "0.04em",
             }}>
               <span style={{
                 width: 6, height: 6, borderRadius: "50%",
-                background: notif.read ? INK3 : GOLD,
+                background: notif.read ? INK3 : INK9,
                 display: "inline-block",
               }} />
               {notif.read ? "LEÍDA" : "SIN LEER"}
@@ -203,23 +230,18 @@ function DetailPanel({ notif, onClose, onMarkRead }: {
           </div>
         )}
 
-        {/* Context table */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: INK5, marginBottom: 10 }}>Contexto</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 1, borderRadius: 10, overflow: "hidden", border: `1px solid ${INK2}` }}>
-            {[
-              { k: "ID", v: notif.id.slice(-8).toUpperCase() },
-              { k: "Tipo", v: notif.type ?? "—" },
-              { k: "Prioridad", v: prio.label },
-              { k: "Recibido", v: formatDate(notif.createdAt) },
-              { k: "Estado", v: notif.read ? "Leída" : "Sin leer" },
-            ].map((row, i) => (
-              <div key={row.k} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "8px 12px", background: i % 2 === 0 ? "#fff" : INK1 }}>
-                <span style={{ fontSize: "0.8125rem", color: INK5, fontWeight: 500 }}>{row.k}</span>
-                <span style={{ fontSize: "0.8125rem", color: INK9, fontWeight: 600, textAlign: "right" }}>{row.v}</span>
-              </div>
-            ))}
-          </div>
+        {/* Identificador de soporte — única información que no aparece arriba */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          gap: 8, padding: "8px 12px", borderRadius: 8,
+          border: `1px dashed ${INK2}`, background: INK1, marginBottom: 14,
+        }}>
+          <span style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: INK5 }}>
+            ID de soporte
+          </span>
+          <code style={{ fontSize: "0.75rem", color: INK9, fontWeight: 600, fontVariantNumeric: "tabular-nums", letterSpacing: "0.02em" }}>
+            {notif.id.slice(-8).toUpperCase()}
+          </code>
         </div>
 
         {/* Actions */}
@@ -229,15 +251,15 @@ function DetailPanel({ notif, onClose, onMarkRead }: {
               onClick={() => onMarkRead(notif.id)}
               style={{
                 flex: 1, height: 38, borderRadius: 9, border: "none",
-                background: GOLD, color: "#fff",
+                background: INK9, color: "#fff",
                 fontFamily: "inherit", fontWeight: 700, fontSize: "0.875rem",
                 cursor: "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                 transition: "background 120ms",
                 boxShadow: "0 1px 2px rgba(108,6,6,0.20)",
               }}
-              onMouseEnter={e => { e.currentTarget.style.background = GOLD_DARK; }}
-              onMouseLeave={e => { e.currentTarget.style.background = GOLD; }}
+              onMouseEnter={e => { e.currentTarget.style.background = INK9; }}
+              onMouseLeave={e => { e.currentTarget.style.background = INK9; }}
             >
               <Check size={14} strokeWidth={2.5} /> Marcar leída
             </button>
@@ -247,16 +269,16 @@ function DetailPanel({ notif, onClose, onMarkRead }: {
               href={notif.link}
               style={{
                 flex: 1, height: 38, borderRadius: 9,
-                border: `1.5px solid ${notif.read ? GOLD_BORDER : INK2}`,
-                background: "#fff", color: notif.read ? GOLD_DARK : INK6,
+                border: `1.5px solid ${notif.read ? INK2 : INK2}`,
+                background: "#fff", color: notif.read ? INK9 : INK6,
                 fontFamily: "inherit", fontWeight: 600, fontSize: "0.875rem",
                 cursor: "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                 textDecoration: "none",
                 transition: "background 120ms, border-color 120ms",
               }}
-              onMouseEnter={e => { e.currentTarget.style.background = GOLD_BG; e.currentTarget.style.borderColor = GOLD; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = notif.read ? GOLD_BORDER : INK2; }}
+              onMouseEnter={e => { e.currentTarget.style.background = INK1; e.currentTarget.style.borderColor = INK9; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = notif.read ? INK2 : INK2; }}
             >
               Ver detalle →
             </a>
@@ -491,7 +513,7 @@ export default function NotificacionesPage() {
                   onMouseEnter={e => { e.currentTarget.style.borderColor = INK9; e.currentTarget.style.color = INK9; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = INK2; e.currentTarget.style.color = INK6; }}
                 >
-                  {cat}
+                  {humanize(cat)}
                 </button>
               ))}
             </div>
@@ -559,11 +581,11 @@ export default function NotificacionesPage() {
                           style={{
                             display: "flex", alignItems: "flex-start", gap: 14,
                             padding: "14px 18px",
-                            background: isSelected ? GOLD_BG : (n.read ? "#fff" : "#FAFAFA"),
-                            borderTop:    `1.5px solid ${isSelected ? GOLD : INK2}`,
-                            borderRight:  `1.5px solid ${isSelected ? GOLD : INK2}`,
-                            borderBottom: `1.5px solid ${isSelected ? GOLD : INK2}`,
-                            borderLeft:   `4px solid ${isSelected ? GOLD : n.read ? INK2 : GOLD_LIGHT}`,
+                            background: isSelected ? INK1 : (n.read ? "#fff" : "#FAFAFA"),
+                            borderTop:    `1.5px solid ${isSelected ? INK9 : INK2}`,
+                            borderRight:  `1.5px solid ${isSelected ? INK9 : INK2}`,
+                            borderBottom: `1.5px solid ${isSelected ? INK9 : INK2}`,
+                            borderLeft:   `4px solid ${isSelected ? INK9 : n.read ? INK2 : INK6}`,
                             borderRadius: 13,
                             cursor: "pointer",
                             transition: "all 200ms ease",
@@ -582,8 +604,8 @@ export default function NotificacionesPage() {
                           <div style={{
                             width: 40, height: 40, borderRadius: 11,
                             background: isSelected ? "#FFFFFF" : INK1,
-                            border: `1px solid ${isSelected ? GOLD_BORDER : INK2}`,
-                            color: isSelected ? GOLD_DARK : INK6,
+                            border: `1px solid ${isSelected ? INK2 : INK2}`,
+                            color: isSelected ? INK9 : INK6,
                             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
                           }}>
                             <TypeIcon type={n.type} />
@@ -593,17 +615,17 @@ export default function NotificacionesPage() {
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: n.body ? 4 : 0 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                {!n.read && <span style={{ width: 6, height: 6, borderRadius: "50%", background: GOLD, display: "inline-block", flexShrink: 0 }} />}
+                                {!n.read && <span style={{ width: 6, height: 6, borderRadius: "50%", background: INK9, display: "inline-block", flexShrink: 0 }} />}
                                 <span style={{
                                   fontSize: "0.9375rem",
                                   fontWeight: n.read ? 500 : 700,
-                                  color: isSelected ? GOLD_DARK : INK9,
+                                  color: isSelected ? INK9 : INK9,
                                   lineHeight: 1.35,
                                 }}>{n.title}</span>
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                                 {n.category && (
-                                  <span style={{ fontSize: "0.6875rem", fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: INK1, color: INK6, border: `1px solid ${INK2}` }}>{n.category}</span>
+                                  <span style={{ fontSize: "0.6875rem", fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: INK1, color: INK6, border: `1px solid ${INK2}` }}>{humanize(n.category)}</span>
                                 )}
                                 <span style={{ fontSize: "0.6875rem", color: INK5, whiteSpace: "nowrap" }}>{timeAgo(n.createdAt)}</span>
                               </div>

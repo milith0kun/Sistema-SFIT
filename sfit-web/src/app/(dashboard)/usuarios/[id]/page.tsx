@@ -1,14 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Save, UserCog, MapPin, Trash2,
   CheckCircle2, Activity, KeyRound,
+  Loader2, CheckCircle, AlertTriangle, Search, Copy, Check,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 
 /* ── Types ── */
 type UserDetail = {
@@ -23,10 +25,16 @@ type UserDetail = {
 type Province     = { id: string; name: string };
 type Municipality = { id: string; name: string; provinceId: string };
 type StoredUser   = { id: string; role: string };
+type DniLookup =
+  | { state: "idle" }
+  | { state: "loading" }
+  | { state: "ok"; nombreCompleto: string }
+  | { state: "not_found" }
+  | { state: "error"; message: string };
 
 /* ── Design tokens ── */
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a";
-const INK6 = "#52525b"; const INK9 = "#18181b";
+const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK3 = "#d4d4d8";
+const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 const RED  = "#DC2626"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
 const GRN  = "#15803d"; const GRNBG = "#F0FDF4"; const GRNBD = "#86EFAC";
 
@@ -48,21 +56,30 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string; bd
 };
 
 const FIELD: React.CSSProperties = {
-  width: "100%", height: 44, padding: "0 14px", borderRadius: 10,
-  border: `1.5px solid ${INK2}`, fontSize: "0.9375rem",
+  width: "100%", height: 38, padding: "0 12px", borderRadius: 8,
+  border: `1px solid ${INK2}`, fontSize: "0.875rem",
   color: INK9, fontFamily: "inherit", outline: "none",
   background: "#fff", transition: "border-color 0.15s", boxSizing: "border-box",
 };
 const LABEL_S: React.CSSProperties = {
   display: "block", fontSize: "0.6875rem", fontWeight: 700,
-  letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, marginBottom: 8,
+  letterSpacing: "0.06em", textTransform: "uppercase", color: INK5, marginBottom: 6,
 };
 const BTN_PRIMARY: React.CSSProperties = {
-  display: "inline-flex", alignItems: "center", gap: 7,
-  height: 40, padding: "0 20px", borderRadius: 10,
+  display: "inline-flex", alignItems: "center", gap: 6,
+  height: 32, padding: "0 14px", borderRadius: 7,
   border: "none", background: INK9, color: "#fff",
-  fontSize: "0.875rem", fontWeight: 700, cursor: "pointer",
+  fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
   fontFamily: "inherit", transition: "opacity 0.15s",
+};
+// Botón de selección uniforme — usado en grids de Estado y Rol
+const PILL_BTN_BASE: React.CSSProperties = {
+  height: 34, padding: "0 10px", borderRadius: 7,
+  fontSize: "0.8125rem", fontWeight: 500,
+  cursor: "pointer", fontFamily: "inherit",
+  transition: "all 0.12s", textAlign: "center",
+  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
 };
 const SELECT_ARROW = (
   <svg viewBox="0 0 10 6" width="10" height="10"
@@ -83,21 +100,24 @@ function assignableRoles(actorRole: string): string[] {
   return [];
 }
 
-function SectionCard({ icon, title, subtitle, children }: {
-  icon: React.ReactNode; title: string; subtitle?: string; children: React.ReactNode;
+function SectionCard({ icon, title, subtitle, children, action }: {
+  icon: React.ReactNode; title: string; subtitle?: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
 }) {
   return (
-    <div style={{ background: "#fff", border: `1.5px solid ${INK2}`, borderRadius: 14, overflow: "hidden" }}>
-      <div style={{ padding: "16px 24px", borderBottom: `1px solid ${INK1}`, display: "flex", alignItems: "center", gap: 12 }}>
-        <div style={{ width: 34, height: 34, borderRadius: 9, background: INK1, border: `1.5px solid ${INK2}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+    <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
+      <div style={{ padding: "10px 16px", borderBottom: `1px solid ${INK1}`, display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ width: 26, height: 26, borderRadius: 6, background: INK1, border: `1px solid ${INK2}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           {icon}
         </div>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: "0.9375rem", color: INK9 }}>{title}</div>
-          {subtitle && <div style={{ fontSize: "0.75rem", color: INK5 }}>{subtitle}</div>}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9, lineHeight: 1.25 }}>{title}</div>
+          {subtitle && <div style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.3, marginTop: 1 }}>{subtitle}</div>}
         </div>
+        {action && <div style={{ flexShrink: 0 }}>{action}</div>}
       </div>
-      <div style={{ padding: "22px 24px" }}>{children}</div>
+      <div style={{ padding: "16px 18px" }}>{children}</div>
     </div>
   );
 }
@@ -145,6 +165,11 @@ export default function UsuarioDetallePage() {
   const [newPass,     setNewPass]     = useState("");
   const [confirmPass, setConfirmPass] = useState("");
   const [showPass,    setShowPass]    = useState(false);
+
+  /* RENIEC lookup */
+  const [dniLookup, setDniLookup] = useState<DniLookup>({ state: "idle" });
+  const [dniHover, setDniHover] = useState(false);
+  const lookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
@@ -199,6 +224,47 @@ export default function UsuarioDetallePage() {
   }, []);
 
   useEffect(() => { if (actor) { void fetchTarget(); void fetchRefs(); } }, [actor, fetchTarget, fetchRefs]);
+
+  // Reemplaza el ID crudo del breadcrumb por el nombre real del usuario.
+  // Mientras carga, el Topbar muestra el fallback estático "Detalle de usuario".
+  useSetBreadcrumbTitle(target?.name);
+
+  // Auto-lookup RENIEC al tipear los 8 dígitos del DNI.
+  // Si el DNI está vacío o incompleto, se vuelve a "idle".
+  // Si no aparece en RENIEC se permite igual completar los datos manualmente.
+  useEffect(() => {
+    if (lookupTimer.current) clearTimeout(lookupTimer.current);
+    if (!/^\d{8}$/.test(dni)) {
+      if (dniLookup.state !== "idle") setDniLookup({ state: "idle" });
+      return;
+    }
+    setDniLookup({ state: "loading" });
+    lookupTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/validar/dni", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+          body: JSON.stringify({ dni }),
+        });
+        const data = await res.json();
+        // 404 → DNI realmente no existe en RENIEC.
+        if (res.status === 404) { setDniLookup({ state: "not_found" }); return; }
+        // 5xx → token o dominio no autorizado en apiperu.dev (problema de servicio).
+        if (!res.ok || !data.success) {
+          setDniLookup({ state: "error", message: data.error ?? "El servicio RENIEC no está disponible." });
+          return;
+        }
+        const nombre = (data.data?.nombre_completo ?? "").toString().trim();
+        setDniLookup({ state: "ok", nombreCompleto: nombre });
+        // Auto-aplica el nombre SIEMPRE al verificar RENIEC.
+        setName(nombre);
+      } catch {
+        setDniLookup({ state: "error", message: "No se pudo verificar el DNI." });
+      }
+    }, 350);
+    return () => { if (lookupTimer.current) clearTimeout(lookupTimer.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dni]);
 
   const filteredMunis = useMemo(() =>
     selProv ? municipalities.filter(m => m.provinceId === selProv) : municipalities,
@@ -323,16 +389,156 @@ export default function UsuarioDetallePage() {
         {/* ─── Columna principal ─── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-          {/* Datos personales */}
-          <SectionCard icon={<Save size={16} color={INK6} />} title="Datos personales" subtitle="Nombre, teléfono y documento de identidad">
+          {/* Datos personales — DNI con verificación RENIEC, nombre y teléfono */}
+          <SectionCard
+            icon={<Save size={14} color={INK6} />}
+            title="Datos personales"
+            subtitle="Documento de identidad, nombre y teléfono"
+            action={
+              <button onClick={() => { void saveProfile(); }} disabled={saving}
+                style={{ ...BTN_PRIMARY, height: 28, padding: "0 10px", fontSize: "0.75rem",
+                  opacity: saving ? 0.6 : 1, cursor: saving ? "not-allowed" : "pointer",
+                }}>
+                <Save size={11} />{saving ? "…" : "Guardar"}
+              </button>
+            }
+          >
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              <div style={{ gridColumn: "span 2" }}>
-                <label style={LABEL_S}>Nombre completo <span style={{ color: RED }}>*</span></label>
-                <input value={name} onChange={e => setName(e.target.value)} style={FIELD}
-                  onFocus={e => { e.currentTarget.style.borderColor = INK9; }}
-                  onBlur={e => { e.currentTarget.style.borderColor = INK2; }}
-                />
+              {/* DNI primero — al validar autocompleta nombre */}
+              <div>
+                <label style={LABEL_S}>
+                  DNI / Documento
+                  <span style={{ color: INK5, fontWeight: 500, textTransform: "none", letterSpacing: 0, marginLeft: 6 }}>
+                    (verificación RENIEC)
+                  </span>
+                </label>
+                <div
+                  style={{ position: "relative" }}
+                  onMouseEnter={() => setDniHover(true)}
+                  onMouseLeave={() => setDniHover(false)}
+                >
+                  <input
+                    value={dni}
+                    onChange={e => setDni(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                    placeholder="12345678"
+                    inputMode="numeric"
+                    aria-describedby={dniLookup.state !== "idle" ? "dni-status" : undefined}
+                    style={{
+                      ...FIELD,
+                      fontFamily: "ui-monospace, monospace",
+                      paddingRight: 38,
+                      borderColor: dniLookup.state === "ok" ? GRN
+                        : dniLookup.state === "not_found" ? "#F59E0B"
+                        : dniLookup.state === "error" ? RED
+                        : INK2,
+                    }}
+                    onFocus={e => { e.currentTarget.style.borderColor = INK9; }}
+                    onBlur={e => {
+                      e.currentTarget.style.borderColor = dniLookup.state === "ok" ? GRN
+                        : dniLookup.state === "not_found" ? "#F59E0B"
+                        : dniLookup.state === "error" ? RED
+                        : INK2;
+                    }}
+                  />
+                  <div style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                    {dniLookup.state === "loading"   && <Loader2 size={15} color={INK5} style={{ animation: "spin 0.7s linear infinite" }} />}
+                    {dniLookup.state === "ok"        && <CheckCircle size={15} color={GRN} />}
+                    {dniLookup.state === "not_found" && <AlertTriangle size={15} color="#F59E0B" />}
+                    {dniLookup.state === "error"     && <AlertTriangle size={15} color={RED} />}
+                  </div>
+
+                  {/* Popover de estado RENIEC — aparece al hover sobre el campo */}
+                  {dniHover && dniLookup.state !== "idle" && (
+                    <div
+                      id="dni-status"
+                      role="status"
+                      aria-live="polite"
+                      style={{
+                        position: "absolute",
+                        top: "calc(100% + 6px)",
+                        left: 0,
+                        right: 0,
+                        zIndex: 50,
+                        background: "#fff",
+                        border: `1px solid ${
+                          dniLookup.state === "ok" ? GRNBD
+                          : dniLookup.state === "not_found" ? "#FDE68A"
+                          : dniLookup.state === "error" ? REDBD
+                          : INK2
+                        }`,
+                        borderRadius: 8,
+                        padding: "10px 12px",
+                        boxShadow: "0 8px 24px rgba(9,9,11,0.10), 0 1px 2px rgba(9,9,11,0.06)",
+                        animation: "fadeIn 120ms ease",
+                      }}
+                    >
+                      {dniLookup.state === "loading" && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <Loader2 size={13} color={INK5} style={{ animation: "spin 0.7s linear infinite" }} />
+                          <span style={{ fontSize: "0.8125rem", color: INK6 }}>Consultando RENIEC…</span>
+                        </div>
+                      )}
+
+                      {dniLookup.state === "ok" && (
+                        <>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                            <CheckCircle size={12} color={GRN} />
+                            <span style={{ fontSize: "0.625rem", fontWeight: 800, color: GRN, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                              RENIEC verificado
+                            </span>
+                          </div>
+                          <div style={{ fontSize: "0.8125rem", fontWeight: 600, color: INK9, lineHeight: 1.35, wordBreak: "break-word" }}>
+                            {dniLookup.nombreCompleto}
+                          </div>
+                          {name.trim().toLowerCase() !== dniLookup.nombreCompleto.toLowerCase() && (
+                            <button
+                              type="button"
+                              onClick={() => setName(dniLookup.nombreCompleto)}
+                              style={{
+                                marginTop: 8, width: "100%",
+                                height: 28, borderRadius: 6,
+                                border: `1px solid ${GRN}`, background: GRNBG, color: GRN,
+                                fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                              }}
+                            >
+                              Usar este nombre
+                            </button>
+                          )}
+                        </>
+                      )}
+
+                      {dniLookup.state === "not_found" && (
+                        <>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                            <AlertTriangle size={12} color="#92400E" />
+                            <span style={{ fontSize: "0.625rem", fontWeight: 800, color: "#92400E", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                              No registrado
+                            </span>
+                          </div>
+                          <div style={{ fontSize: "0.75rem", color: INK6, lineHeight: 1.5 }}>
+                            DNI no encontrado en RENIEC. Puedes completar el nombre manualmente.
+                          </div>
+                        </>
+                      )}
+
+                      {dniLookup.state === "error" && (
+                        <>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                            <AlertTriangle size={12} color={RED} />
+                            <span style={{ fontSize: "0.625rem", fontWeight: 800, color: RED, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                              Servicio no disponible
+                            </span>
+                          </div>
+                          <div style={{ fontSize: "0.75rem", color: INK6, lineHeight: 1.5 }}>
+                            {dniLookup.message} Ingresa el nombre manualmente.
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
+
               <div>
                 <label style={LABEL_S}>Teléfono</label>
                 <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="987 654 321" style={FIELD}
@@ -340,62 +546,114 @@ export default function UsuarioDetallePage() {
                   onBlur={e => { e.currentTarget.style.borderColor = INK2; }}
                 />
               </div>
-              <div>
-                <label style={LABEL_S}>DNI / Documento</label>
-                <input value={dni} onChange={e => setDni(e.target.value)} placeholder="12345678" style={FIELD}
+
+              <div style={{ gridColumn: "span 2" }}>
+                <label style={LABEL_S}>Nombre completo <span style={{ color: RED }}>*</span></label>
+                <input value={name} onChange={e => setName(e.target.value)} style={FIELD}
                   onFocus={e => { e.currentTarget.style.borderColor = INK9; }}
                   onBlur={e => { e.currentTarget.style.borderColor = INK2; }}
                 />
               </div>
             </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
-              <button onClick={() => { void saveProfile(); }} disabled={saving}
-                style={{ ...BTN_PRIMARY, opacity: saving ? 0.6 : 1, cursor: saving ? "not-allowed" : "pointer" }}>
-                <Save size={14} />{saving ? "Guardando…" : "Guardar datos"}
-              </button>
-            </div>
+
           </SectionCard>
 
-          {/* Estado de la cuenta */}
-          <SectionCard icon={<Activity size={16} color={INK6} />} title="Estado de la cuenta" subtitle="Activa, suspende o rechaza el acceso del usuario">
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
-              {(["activo", "pendiente", "suspendido", "rechazado"] as const).map(s => {
-                const m = STATUS_META[s];
-                const isSelected = selStatus === s;
-                return (
-                  <button key={s} onClick={() => setSelStatus(s)} style={{
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                    padding: "8px 16px", borderRadius: 9, cursor: "pointer", fontFamily: "inherit",
-                    fontSize: "0.8125rem", fontWeight: isSelected ? 700 : 500,
-                    border: isSelected ? `2px solid ${m.color}` : `1.5px solid ${INK2}`,
-                    background: isSelected ? m.bg : "#fff",
-                    color: isSelected ? m.color : INK6,
-                    transition: "all 0.15s",
+          {/* Estado + Rol — agrupados en 2 columnas, botones de acción en el header */}
+          <div
+            className={roles.length > 0 ? "grid grid-cols-1 md:grid-cols-2 gap-4" : ""}
+            style={roles.length > 0 ? undefined : { display: "block" }}
+          >
+            <SectionCard
+              icon={<Activity size={14} color={INK6} />}
+              title="Estado de la cuenta"
+              subtitle="Activa, suspende o rechaza el acceso"
+              action={
+                <button onClick={() => { void saveStatus(); }} disabled={saving || selStatus === target.status}
+                  style={{ ...BTN_PRIMARY, height: 28, padding: "0 10px", fontSize: "0.75rem",
+                    opacity: saving || selStatus === target.status ? 0.4 : 1,
+                    cursor: saving || selStatus === target.status ? "not-allowed" : "pointer",
                   }}>
-                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: isSelected ? m.color : INK2, flexShrink: 0 }} />
-                    {m.label}
+                  {saving ? "…" : "Aplicar"}
+                </button>
+              }
+            >
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6 }}>
+                {(["activo", "pendiente", "suspendido", "rechazado"] as const).map(s => {
+                  const m = STATUS_META[s];
+                  const isSelected = selStatus === s;
+                  return (
+                    <button key={s} onClick={() => setSelStatus(s)} style={{
+                      ...PILL_BTN_BASE,
+                      border: `1px solid ${isSelected ? m.color : INK2}`,
+                      background: isSelected ? m.bg : "#fff",
+                      color: isSelected ? m.color : INK6,
+                      fontWeight: isSelected ? 600 : 500,
+                      boxShadow: isSelected ? `inset 0 0 0 1px ${m.color}` : "none",
+                    }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: isSelected ? m.color : INK3, flexShrink: 0 }} />
+                      {m.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </SectionCard>
+
+            {/* Rol — solo si el actor puede asignar roles a este usuario */}
+            {roles.length > 0 && (
+              <SectionCard
+                icon={<UserCog size={14} color={INK6} />}
+                title="Rol del usuario"
+                subtitle="Define los permisos de acceso"
+                action={
+                  <button onClick={() => { void saveRole(); }} disabled={saving || selRole === target.role}
+                    style={{ ...BTN_PRIMARY, height: 28, padding: "0 10px", fontSize: "0.75rem",
+                      opacity: saving || selRole === target.role ? 0.4 : 1,
+                      cursor: saving || selRole === target.role ? "not-allowed" : "pointer",
+                    }}>
+                    {saving ? "…" : "Cambiar"}
                   </button>
-                );
-              })}
-            </div>
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button onClick={() => { void saveStatus(); }} disabled={saving || selStatus === target.status}
-                style={{ ...BTN_PRIMARY, opacity: saving || selStatus === target.status ? 0.4 : 1, cursor: saving || selStatus === target.status ? "not-allowed" : "pointer" }}>
-                <Activity size={14} />{saving ? "Guardando…" : "Aplicar estado"}
-              </button>
-            </div>
-          </SectionCard>
+                }
+              >
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6 }}>
+                  {roles.map(r => {
+                    const isSelected = selRole === r;
+                    return (
+                      <button key={r} onClick={() => setSelRole(r)} style={{
+                        ...PILL_BTN_BASE,
+                        border: `1px solid ${isSelected ? INK9 : INK2}`,
+                        background: isSelected ? INK1 : "#fff",
+                        color: isSelected ? INK9 : INK6,
+                        fontWeight: isSelected ? 600 : 500,
+                        boxShadow: isSelected ? `inset 0 0 0 1px ${INK9}` : "none",
+                      }}>
+                        {ROLE_LABELS[r] ?? r}
+                      </button>
+                    );
+                  })}
+                </div>
+              </SectionCard>
+            )}
+          </div>
 
           {/* Contraseña — solo super_admin */}
           {canPass && (
             <SectionCard
-              icon={<KeyRound size={16} color={INK6} />}
+              icon={<KeyRound size={14} color={INK6} />}
               title="Restablecer contraseña"
               subtitle={target.provider === "google"
                 ? "Este usuario usa Google — se establecerá una contraseña adicional"
                 : "Establece una nueva contraseña para este usuario"}
+              action={
+                <button onClick={() => { void savePassword(); }} disabled={saving || !newPass || !confirmPass}
+                  style={{ ...BTN_PRIMARY, height: 28, padding: "0 10px", fontSize: "0.75rem",
+                    opacity: saving || !newPass || !confirmPass ? 0.4 : 1,
+                    cursor: saving || !newPass || !confirmPass ? "not-allowed" : "pointer",
+                  }}>
+                  {saving ? "…" : "Restablecer"}
+                </button>
+              }
             >
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 10 }}>
                 <div>
                   <label style={LABEL_S}>Nueva contraseña <span style={{ color: RED }}>*</span></label>
                   <input
@@ -417,43 +675,11 @@ export default function UsuarioDetallePage() {
                   />
                 </div>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.8125rem", color: INK5, cursor: "pointer", userSelect: "none" }}>
-                  <input type="checkbox" checked={showPass} onChange={e => setShowPass(e.target.checked)}
-                    style={{ width: 14, height: 14, cursor: "pointer" }} />
-                  Mostrar contraseñas
-                </label>
-                <button onClick={() => { void savePassword(); }} disabled={saving || !newPass || !confirmPass}
-                  style={{ ...BTN_PRIMARY, opacity: saving || !newPass || !confirmPass ? 0.4 : 1, cursor: saving || !newPass || !confirmPass ? "not-allowed" : "pointer" }}>
-                  <KeyRound size={14} />{saving ? "Guardando…" : "Restablecer"}
-                </button>
-              </div>
-            </SectionCard>
-          )}
-
-          {/* Rol */}
-          {roles.length > 0 && (
-            <SectionCard icon={<UserCog size={16} color={INK6} />} title="Rol del usuario" subtitle="Define los permisos de acceso al sistema">
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
-                {roles.map(r => (
-                  <button key={r} onClick={() => setSelRole(r)} style={{
-                    padding: "8px 16px", borderRadius: 9, cursor: "pointer", fontFamily: "inherit",
-                    fontSize: "0.8125rem", fontWeight: selRole === r ? 700 : 500,
-                    border: selRole === r ? `2px solid ${INK9}` : `1.5px solid ${INK2}`,
-                    background: selRole === r ? INK1 : "#fff",
-                    color: selRole === r ? INK9 : INK6,
-                    transition: "all 0.15s",
-                  }}>
-                    {ROLE_LABELS[r] ?? r}
-                  </button>
-                ))}
-              </div>
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <button onClick={() => { void saveRole(); }} disabled={saving || selRole === target.role}
-                  style={{ ...BTN_PRIMARY, opacity: saving || selRole === target.role ? 0.4 : 1, cursor: saving || selRole === target.role ? "not-allowed" : "pointer" }}>
-                  <UserCog size={14} />{saving ? "Guardando…" : "Cambiar rol"}
-                </button>
-              </div>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.75rem", color: INK5, cursor: "pointer", userSelect: "none" }}>
+                <input type="checkbox" checked={showPass} onChange={e => setShowPass(e.target.checked)}
+                  style={{ width: 13, height: 13, cursor: "pointer" }} />
+                Mostrar contraseñas
+              </label>
             </SectionCard>
           )}
 
@@ -499,51 +725,6 @@ export default function UsuarioDetallePage() {
             )}
           </SectionCard>
 
-          {/* Zona de peligro */}
-          {canDelete && (
-            <div style={{ background: "#fff", border: `1.5px solid ${REDBD}`, borderRadius: 14, overflow: "hidden" }}>
-              <div style={{ padding: "14px 24px", borderBottom: `1px solid ${REDBG}`, display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 9, background: REDBG, border: `1.5px solid ${REDBD}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <Trash2 size={15} color={RED} />
-                </div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.9375rem", color: RED }}>Zona de peligro</div>
-                  <div style={{ fontSize: "0.75rem", color: INK5 }}>Esta acción es permanente e irreversible</div>
-                </div>
-              </div>
-              <div style={{ padding: "20px 24px" }}>
-                {!confirmDel ? (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: "0.875rem", color: INK9, marginBottom: 3 }}>Eliminar usuario permanentemente</div>
-                      <div style={{ fontSize: "0.8125rem", color: INK5 }}>Se borrarán todos los datos del usuario. No hay vuelta atrás.</div>
-                    </div>
-                    <button onClick={() => setConfirmDel(true)}
-                      style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 40, padding: "0 18px", borderRadius: 10, border: `1.5px solid ${REDBD}`, background: REDBG, color: RED, fontSize: "0.875rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
-                      <Trash2 size={14} />Eliminar usuario
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ background: REDBG, border: `1.5px solid ${REDBD}`, borderRadius: 10, padding: "16px 20px" }}>
-                    <div style={{ fontWeight: 700, color: RED, marginBottom: 6, fontSize: "0.9375rem" }}>¿Confirmar eliminación?</div>
-                    <p style={{ fontSize: "0.875rem", color: INK6, marginBottom: 16, lineHeight: 1.5 }}>
-                      Estás a punto de eliminar a <strong>{target.name}</strong> ({target.email}). Esta operación no se puede deshacer.
-                    </p>
-                    <div style={{ display: "flex", gap: 10 }}>
-                      <button onClick={() => { void deleteUser(); }} disabled={deleting}
-                        style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 40, padding: "0 20px", borderRadius: 10, border: "none", background: RED, color: "#fff", fontSize: "0.875rem", fontWeight: 700, cursor: deleting ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: deleting ? 0.7 : 1 }}>
-                        <Trash2 size={14} />{deleting ? "Eliminando…" : "Sí, eliminar"}
-                      </button>
-                      <button onClick={() => setConfirmDel(false)}
-                        style={{ display: "inline-flex", alignItems: "center", height: 40, padding: "0 18px", borderRadius: 10, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-                        Cancelar
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* ─── Barra lateral ─── */}
@@ -587,12 +768,7 @@ export default function UsuarioDetallePage() {
               Información del registro
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div>
-                <div style={{ fontSize: "0.6875rem", color: INK5, marginBottom: 4 }}>ID del sistema</div>
-                <div style={{ fontFamily: "monospace", fontSize: "0.7rem", color: INK6, background: INK1, padding: "6px 10px", borderRadius: 7, wordBreak: "break-all", letterSpacing: "0.01em", lineHeight: 1.5 }}>
-                  {target.id}
-                </div>
-              </div>
+              <SystemIdRow id={target.id} />
               <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 10px", background: INK1, borderRadius: 8 }}>
                 <span style={{ fontSize: "0.8125rem", color: INK5 }}>Registrado</span>
                 <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: INK9 }}>
@@ -602,8 +778,136 @@ export default function UsuarioDetallePage() {
             </div>
           </div>
 
+          {/* Acciones rápidas — eliminación al pie del sidebar */}
+          {canDelete && (
+            <DangerZoneSidebar
+              targetName={target.name}
+              targetEmail={target.email}
+              onDelete={() => { void deleteUser(); }}
+              deleting={deleting}
+              confirmDel={confirmDel}
+              setConfirmDel={setConfirmDel}
+            />
+          )}
+
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ── ID del sistema con copy-to-clipboard (legible y compacto) ── */
+function SystemIdRow({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false);
+  const shortId = id.slice(-8).toUpperCase();
+  return (
+    <div>
+      <div style={{ fontSize: "0.6875rem", color: INK5, marginBottom: 4 }}>ID del sistema</div>
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6,
+        background: INK1, padding: "6px 10px", borderRadius: 7,
+      }}>
+        <code title={id} style={{
+          fontFamily: "ui-monospace, monospace",
+          fontSize: "0.75rem",
+          color: INK9,
+          fontWeight: 600,
+          letterSpacing: "0.04em",
+          fontVariantNumeric: "tabular-nums",
+        }}>
+          {shortId}
+        </code>
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(id);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1400);
+            } catch { /* clipboard may be blocked */ }
+          }}
+          title="Copiar ID completo"
+          aria-label="Copiar ID completo"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            height: 24, padding: "0 8px", borderRadius: 6,
+            border: `1px solid ${INK2}`, background: "#fff", color: INK6,
+            fontSize: "0.6875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+            transition: "all 120ms",
+          }}
+        >
+          {copied ? <Check size={11} color={GRN} /> : <Copy size={11} />}
+          {copied ? "Copiado" : "Copiar"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Zona de peligro compacta para el sidebar ── */
+function DangerZoneSidebar({
+  targetName, targetEmail, onDelete, deleting, confirmDel, setConfirmDel,
+}: {
+  targetName: string; targetEmail: string;
+  onDelete: () => void; deleting: boolean;
+  confirmDel: boolean; setConfirmDel: (v: boolean) => void;
+}) {
+  return (
+    <div style={{
+      background: "#fff", border: `1.5px solid ${REDBD}`, borderRadius: 14,
+      padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <Trash2 size={13} color={RED} />
+        <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: RED }}>
+          Zona de peligro
+        </div>
+      </div>
+
+      {!confirmDel ? (
+        <>
+          <p style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.5, margin: 0 }}>
+            Eliminar este usuario es permanente. Se borrarán todos sus datos.
+          </p>
+          <button
+            onClick={() => setConfirmDel(true)}
+            style={{
+              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+              height: 34, padding: "0 12px", borderRadius: 8,
+              border: `1.5px solid ${REDBD}`, background: REDBG, color: RED,
+              fontSize: "0.8125rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
+            <Trash2 size={13} />Eliminar usuario
+          </button>
+        </>
+      ) : (
+        <div style={{ background: REDBG, border: `1.5px solid ${REDBD}`, borderRadius: 9, padding: "12px 14px" }}>
+          <div style={{ fontWeight: 700, color: RED, marginBottom: 4, fontSize: "0.8125rem" }}>¿Confirmar?</div>
+          <p style={{ fontSize: "0.75rem", color: INK6, marginBottom: 12, lineHeight: 1.5 }}>
+            Eliminarás a <strong>{targetName}</strong> ({targetEmail}). No hay vuelta atrás.
+          </p>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={onDelete} disabled={deleting}
+              style={{
+                flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
+                height: 32, borderRadius: 7, border: "none", background: RED, color: "#fff",
+                fontSize: "0.75rem", fontWeight: 700, cursor: deleting ? "not-allowed" : "pointer",
+                fontFamily: "inherit", opacity: deleting ? 0.7 : 1,
+              }}>
+              <Trash2 size={11} />{deleting ? "…" : "Sí, eliminar"}
+            </button>
+            <button onClick={() => setConfirmDel(false)}
+              style={{
+                flex: 1, height: 32, borderRadius: 7,
+                border: `1.5px solid ${INK2}`, background: "#fff", color: INK6,
+                fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+              }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

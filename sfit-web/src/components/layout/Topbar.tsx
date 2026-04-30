@@ -4,6 +4,7 @@ import { CalendarDays, ChevronDown, LogOut, Menu, Settings } from "lucide-react"
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { buildCrumbs, ROLE_BADGE, ROLE_LABELS } from "./nav";
 import type { StoredUser } from "./user-storage";
+import { useBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 
 function useNow() {
   const [now, setNow] = useState(() => new Date());
@@ -44,7 +45,15 @@ export function Topbar({
     setOpen(false);
   }, [pathname]);
 
-  const crumbs = useMemo(() => buildCrumbs(pathname), [pathname]);
+  const baseCrumbs = useMemo(() => buildCrumbs(pathname), [pathname]);
+  const dynamicTitle = useBreadcrumbTitle();
+  // Si la página de detalle inyecta un nombre real, reemplaza el último crumb.
+  const crumbs = useMemo(() => {
+    if (!dynamicTitle || baseCrumbs.length === 0) return baseCrumbs;
+    return baseCrumbs.map((c, i) =>
+      i === baseCrumbs.length - 1 ? { ...c, label: dynamicTitle } : c
+    );
+  }, [baseCrumbs, dynamicTitle]);
   const lastCrumb = crumbs[crumbs.length - 1]?.label ?? "Dashboard";
 
   const dateStr = now.toLocaleDateString("es-PE", {

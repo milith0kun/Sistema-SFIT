@@ -148,16 +148,28 @@ export async function consultarRuc(ruc: string): Promise<RucData> {
   }
 
   const d = json.data;
+  // apiperu.dev devuelve `nombre_o_razon_social` y `direccion_completa`.
+  // Algunos planes/cuentas pueden devolver `razon_social` directo, así que
+  // aceptamos ambos como fallback. `ubigeo` viene como array [depto, prov, dist].
+  const razonSocial =
+    (d.nombre_o_razon_social ?? d.razon_social ?? "").toString().trim();
+  const ubigeoSunat =
+    typeof d.ubigeo_sunat === "string"
+      ? d.ubigeo_sunat
+      : Array.isArray(d.ubigeo) && d.ubigeo.length > 0
+        ? d.ubigeo[d.ubigeo.length - 1]
+        : undefined;
+
   return {
     ruc: d.ruc ?? ruc,
-    razon_social: d.razon_social ?? "",
+    razon_social: razonSocial,
     nombre_comercial: d.nombre_comercial,
     estado: d.estado ?? "",
     condicion: d.condicion ?? "",
-    domicilio: d.domicilio,
+    domicilio: d.direccion_completa ?? d.direccion ?? d.domicilio,
     departamento: d.departamento,
     provincia: d.provincia,
     distrito: d.distrito,
-    ubigeo: d.ubigeo,
+    ubigeo: ubigeoSunat,
   };
 }

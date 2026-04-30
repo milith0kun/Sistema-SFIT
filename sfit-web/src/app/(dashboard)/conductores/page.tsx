@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, cloneElement } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Users, Check, Gauge, AlertTriangle, Download, Plus, Phone, Car, Eye } from "lucide-react";
-import { PageHeader } from "@/components/ui/PageHeader";
+import {
+  Users, Check, Gauge, AlertTriangle, Download, Plus, Phone, Car, Pencil, Eye,
+} from "lucide-react";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 
 type DriverStatus = "apto" | "riesgo" | "no_apto";
@@ -14,22 +17,29 @@ type Driver = {
   continuousHours: number; restHours: number; reputationScore: number; active: boolean;
 };
 
-const G = "#6C0606"; const GD = "#4A0303"; const GBG = "#FBEAEA";
-const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
-const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB"; const RIESGOBD = "#FCD34D";
-const NO = "#DC2626"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
+/* Paleta sobria — gris + verde/ámbar/rojo sólo como semántica de fatiga */
+const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK3 = "#d4d4d8";
+const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
+const APTO = "#15803d"; const APTO_BD = "#86EFAC";
+const RIESGO = "#B45309"; const RIESGO_BD = "#FDE68A";
+const NO = "#DC2626"; const NO_BG = "#FFF5F5"; const NO_BD = "#FCA5A5";
 
-const statusStyle = (s: DriverStatus) =>
-  s === "apto" ? { bg: APTOBG, color: APTO, border: APTOBD, label: "APTO" }
-  : s === "riesgo" ? { bg: RIESGOBG, color: RIESGO, border: RIESGOBD, label: "RIESGO" }
-  : { bg: NOBG, color: NO, border: NOBD, label: "NO APTO" };
+const STATUS_META = (s: DriverStatus) =>
+  s === "apto"   ? { color: APTO, bd: APTO_BD, label: "APTO" }
+  : s === "riesgo" ? { color: RIESGO, bd: RIESGO_BD, label: "RIESGO" }
+  : { color: NO, bd: NO_BD, label: "NO APTO" };
 
 function StatusBadge({ s }: { s: DriverStatus }) {
-  const st = statusStyle(s);
+  const m = STATUS_META(s);
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 999, fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", background: st.bg, color: st.color, border: `1px solid ${st.border}` }}>
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block" }} />{st.label}
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      padding: "2px 9px", borderRadius: 999,
+      background: "#fff", color: m.color, border: `1px solid ${m.bd}`,
+      fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
+    }}>
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: "currentColor" }} />
+      {m.label}
     </span>
   );
 }
@@ -37,30 +47,39 @@ function StatusBadge({ s }: { s: DriverStatus }) {
 function Avatar({ name, size = 34 }: { name: string; size?: number }) {
   const parts = name.split(" ");
   const ini = ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase();
-  return <div style={{ width: size, height: size, borderRadius: size > 40 ? 12 : 8, background: GBG, color: GD, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: size > 40 ? "1rem" : "0.8125rem", flexShrink: 0 }}>{ini}</div>;
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: "50%",
+      background: INK1, color: INK6,
+      border: `1px solid ${INK2}`,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontWeight: 700, fontSize: size > 40 ? "1rem" : "0.8125rem", flexShrink: 0,
+    }}>{ini || "?"}</div>
+  );
 }
 
 const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
-const btnInk: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: "none", background: INK9, color: "#fff", fontFamily: "inherit" };
-const btnOut: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontFamily: "inherit" };
+const CAN_EDIT = ["admin_municipal", "super_admin"];
+const CAN_CREATE = ["super_admin", "admin_municipal", "operador"];
 
-const selectStyle: React.CSSProperties = {
-  height: 34,
-  padding: "0 10px",
-  borderRadius: 8,
-  border: `1.5px solid ${INK2}`,
-  fontSize: "0.8125rem",
-  fontFamily: "inherit",
-  background: "#fff",
-  color: INK6,
-  cursor: "pointer",
+const btnPrimary: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 6,
+  height: 32, padding: "0 12px", borderRadius: 7,
+  border: "none", background: INK9, color: "#fff",
+  fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+};
+const btnOutline: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 6,
+  height: 32, padding: "0 12px", borderRadius: 7,
+  border: `1px solid ${INK2}`, background: "#fff", color: INK6,
+  fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
 };
 
 export default function ConductoresPage() {
   const router = useRouter();
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [items, setItems] = useState<Driver[]>([]);
-  const [filter, setFilter] = useState("todos");
+  const [filter, setFilter] = useState<"todos" | DriverStatus>("todos");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -81,102 +100,131 @@ export default function ConductoresPage() {
       const token = localStorage.getItem("sfit_access_token");
       const qs = new URLSearchParams({ limit: "100" });
       if (filter !== "todos") qs.set("status", filter);
-      const res = await fetch(`/api/conductores?${qs}`, { headers: { Authorization: `Bearer ${token ?? ""}` } });
+      const res = await fetch(`/api/conductores?${qs}`, {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
       if (res.status === 401) { router.replace("/login"); return; }
       const data = await res.json();
       if (!res.ok || !data.success) { setError(data.error ?? "Error al cargar conductores"); return; }
       setItems(data.data.items ?? []);
       setCounts(data.data.statusCounts ?? {});
+      // Auto-seleccionar el primero
       if (data.data.items?.length && !sel) setSel(data.data.items[0]);
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
-  }, [user, filter, router]); // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, filter, router]);
 
   useEffect(() => { void load(); }, [load]);
 
   const total = (counts.apto ?? 0) + (counts.riesgo ?? 0) + (counts.no_apto ?? 0) || items.length;
+  const canEdit = user ? CAN_EDIT.includes(user.role) : false;
+  const canCreate = user ? CAN_CREATE.includes(user.role) : false;
 
-  const columns = useMemo<ColumnDef<Driver, unknown>[]>(
-    () => [
-      {
-        id: "conductor",
-        header: "Conductor",
-        accessorFn: (d) => `${d.name} ${d.dni} ${d.licenseCategory}`,
-        cell: ({ row: r }) => {
-          const d = r.original;
-          const isSel = sel?.id === d.id;
-          return (
-            <div
-              style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}
-              onClick={() => setSel(d)}
-            >
-              <Avatar name={d.name} />
-              <div>
-                <div style={{ fontWeight: 600, color: isSel ? GD : INK9 }}>{d.name}</div>
-                <div style={{ fontSize: "0.75rem", color: INK5, fontFamily: "ui-monospace,monospace" }}>
-                  DNI {d.dni} · {d.licenseCategory}
-                </div>
+  const columns = useMemo<ColumnDef<Driver, unknown>[]>(() => [
+    {
+      id: "conductor",
+      header: "Conductor",
+      accessorFn: (d) => `${d.name ?? ""} ${d.dni ?? ""} ${d.licenseCategory ?? ""}`,
+      cell: ({ row: r }) => {
+        const d = r.original;
+        const isSel = sel?.id === d.id;
+        const dni = d.dni?.trim() || "—";
+        const cat = d.licenseCategory?.trim() || "—";
+        return (
+          <div
+            style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}
+            onClick={() => setSel(d)}
+          >
+            <Avatar name={d.name ?? "?"} />
+            <div>
+              <div style={{ fontWeight: 600, color: isSel ? INK9 : INK9, fontSize: "0.875rem" }}>
+                {d.name?.trim() || "Sin nombre"}
+              </div>
+              <div style={{ fontSize: "0.75rem", color: INK5, fontFamily: "ui-monospace,monospace" }}>
+                DNI {dni} · {cat}
               </div>
             </div>
-          );
-        },
-      },
-      {
-        id: "empresa",
-        header: "Empresa",
-        accessorFn: (d) => `${d.companyName ?? ""} ${d.licenseNumber}`,
-        cell: ({ row: r }) => (
-          <div style={{ cursor: "pointer" }} onClick={() => setSel(r.original)}>
-            <div style={{ fontWeight: 600 }}>{r.original.companyName ?? "—"}</div>
-            <div style={{ fontSize: "0.75rem", color: INK5 }}>Lic. {r.original.licenseNumber}</div>
           </div>
-        ),
+        );
       },
-      {
-        id: "estado",
-        header: "Estado",
-        accessorFn: (d) => statusStyle(d.status).label,
-        cell: ({ row: r }) => (
-          <div style={{ cursor: "pointer" }} onClick={() => setSel(r.original)}>
-            <StatusBadge s={r.original.status} />
+    },
+    {
+      id: "empresa",
+      header: "Empresa",
+      accessorFn: (d) => `${d.companyName ?? ""} ${d.licenseNumber ?? ""}`,
+      cell: ({ row: r }) => (
+        <div style={{ cursor: "pointer" }} onClick={() => setSel(r.original)}>
+          <div style={{ fontWeight: 600, fontSize: "0.875rem", color: INK9 }}>
+            {r.original.companyName?.trim() || <span style={{ color: INK5, fontWeight: 500 }}>Sin empresa</span>}
           </div>
-        ),
-      },
-      {
-        id: "fatiga",
-        header: "Fatiga",
-        accessorFn: (d) => d.continuousHours,
-        cell: ({ row: r }) => {
-          const d = r.original;
-          const pct = Math.min(100, (d.continuousHours / 10) * 100);
-          const barC = d.status === "riesgo" ? RIESGO : d.status === "no_apto" ? NO : APTO;
-          return (
-            <div style={{ width: 140, cursor: "pointer" }} onClick={() => setSel(d)}>
-              <div style={{ height: 6, background: INK1, borderRadius: 999, overflow: "hidden" }}>
-                <span style={{ display: "block", height: "100%", borderRadius: 999, background: barC, width: `${pct}%` }} />
-              </div>
-              <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 4 }}>{d.continuousHours} h conducción</div>
+          <div style={{ fontSize: "0.75rem", color: INK5 }}>
+            Lic. {r.original.licenseNumber?.trim() || "—"}
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "estado",
+      header: "Estado",
+      accessorFn: (d) => STATUS_META(d.status ?? "apto").label,
+      cell: ({ row: r }) => (
+        <div style={{ cursor: "pointer" }} onClick={() => setSel(r.original)}>
+          <StatusBadge s={r.original.status ?? "apto"} />
+        </div>
+      ),
+    },
+    {
+      id: "fatiga",
+      header: "Fatiga",
+      accessorFn: (d) => d.continuousHours ?? 0,
+      cell: ({ row: r }) => {
+        const d = r.original;
+        const hours = d.continuousHours ?? 0;
+        const pct = Math.min(100, (hours / 10) * 100);
+        const m = STATUS_META(d.status ?? "apto");
+        return (
+          <div style={{ width: 140, cursor: "pointer" }} onClick={() => setSel(d)}>
+            <div style={{ height: 4, background: INK2, borderRadius: 999, overflow: "hidden" }}>
+              <span style={{
+                display: "block", height: "100%", borderRadius: 999,
+                background: m.color, width: `${pct}%`,
+              }} />
             </div>
-          );
-        },
+            <div style={{ fontSize: "0.6875rem", color: INK5, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>
+              {hours} h conducción
+            </div>
+          </div>
+        );
       },
-      {
-        id: "reputacion",
-        header: "Rep.",
-        accessorFn: (d) => d.reputationScore,
-        cell: ({ row: r }) => (
+    },
+    {
+      id: "reputacion",
+      header: "Rep.",
+      accessorFn: (d) => d.reputationScore ?? 0,
+      cell: ({ row: r }) => {
+        const score = r.original.reputationScore ?? 0;
+        return (
           <div style={{ cursor: "pointer" }} onClick={() => setSel(r.original)}>
-            <span style={{ fontWeight: 700 }}>{r.original.reputationScore}</span>
+            <span style={{ fontWeight: 700, color: INK9, fontVariantNumeric: "tabular-nums" }}>{score}</span>
             <span style={{ color: INK5, fontSize: "0.75rem" }}>/100</span>
           </div>
-        ),
+        );
       },
-    ],
-    [sel] // eslint-disable-line react-hooks/exhaustive-deps
-  );
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [sel]);
 
   const toolbarEnd = (
-    <select style={selectStyle} value={filter} onChange={(e) => setFilter(e.target.value)}>
+    <select
+      value={filter}
+      onChange={(e) => setFilter(e.target.value as "todos" | DriverStatus)}
+      style={{
+        height: 32, padding: "0 10px", borderRadius: 7,
+        border: `1px solid ${INK2}`, fontSize: "0.8125rem",
+        fontFamily: "inherit", background: "#fff", color: INK6, cursor: "pointer",
+      }}
+    >
       <option value="todos">Todos ({total})</option>
       <option value="apto">Apto ({counts.apto ?? 0})</option>
       <option value="riesgo">Riesgo ({counts.riesgo ?? 0})</option>
@@ -187,31 +235,60 @@ export default function ConductoresPage() {
   if (!user) return null;
 
   return (
-    <div className="flex flex-col gap-3 animate-fade-in">
-      <PageHeader kicker="Operación · RF-05" title="Conductores"
-        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Exportar CSV</button>{["super_admin","admin_municipal","operador"].includes(user.role) && (<Link href="/conductores/nuevo"><button style={btnInk}><Plus size={16} />Nuevo conductor</button></Link>)}</div>} />
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
-        {[
-          { ico: <Users size={18} />, lbl: "Total registrados", val: total, ico_bg: INK1, ico_c: INK5 },
-          { ico: <Check size={18} />, lbl: "APTOS ahora", val: counts.apto ?? 0, ico_bg: APTOBG, ico_c: APTO },
-          { ico: <Gauge size={18} />, lbl: "En riesgo", val: counts.riesgo ?? 0, ico_bg: RIESGOBG, ico_c: RIESGO },
-          { ico: <AlertTriangle size={18} />, lbl: "NO APTOS", val: counts.no_apto ?? 0, ico_bg: NOBG, ico_c: NO },
-        ].map((m, i) => (
-          <div key={i} style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden" }}>
-            <div aria-hidden style={{ position: "absolute", right: -8, bottom: -8, color: m.ico_c, opacity: 0.16, pointerEvents: "none", lineHeight: 0 }}>
-              {cloneElement(m.ico as React.ReactElement<{ size?: number; strokeWidth?: number }>, { size: 80, strokeWidth: 1.4 })}
-            </div>
-            <div style={{ width: 36, height: 36, borderRadius: 9, background: m.ico_bg, color: m.ico_c, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>{m.ico}</div>
-            <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: INK5 }}>{m.lbl}</div>
-            <div style={{ fontSize: "2rem", fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.05, marginTop: 6, color: INK9 }}>{loading ? "—" : m.val}</div>
+    <div className="flex flex-col gap-4 animate-fade-in pb-10">
+      <DashboardHero
+        kicker="Operación · RF-05"
+        title="Conductores"
+        pills={[
+          { label: "Total", value: total },
+          { label: "Aptos", value: counts.apto ?? 0 },
+          { label: "Riesgo", value: counts.riesgo ?? 0, warn: (counts.riesgo ?? 0) > 0 },
+          { label: "No aptos", value: counts.no_apto ?? 0, warn: (counts.no_apto ?? 0) > 0 },
+        ]}
+        action={
+          <div style={{ display: "flex", gap: 6 }}>
+            <button style={{
+              display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
+              borderRadius: 7, border: "1px solid rgba(255,255,255,0.18)",
+              background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.85)",
+              fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+            }}>
+              <Download size={13} />Exportar CSV
+            </button>
+            {canCreate && (
+              <Link href="/conductores/nuevo">
+                <button style={{
+                  display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
+                  borderRadius: 7, border: "none",
+                  background: "#fff", color: INK9,
+                  fontSize: "0.8125rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                }}>
+                  <Plus size={13} />Nuevo conductor
+                </button>
+              </Link>
+            )}
           </div>
-        ))}
-      </div>
+        }
+      />
 
-      {error && <div style={{ padding: "12px 16px", background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 10, color: NO, fontSize: "0.875rem" }}>{error}</div>}
+      <KPIStrip cols={4} items={[
+        { label: "TOTAL REGISTRADOS", value: loading ? "—" : total, subtitle: "conductores", icon: Users },
+        { label: "APTOS AHORA", value: loading ? "—" : (counts.apto ?? 0), subtitle: "operativos", icon: Check, accent: APTO },
+        { label: "EN RIESGO", value: loading ? "—" : (counts.riesgo ?? 0), subtitle: "fatiga acumulada", icon: Gauge, accent: RIESGO },
+        { label: "NO APTOS", value: loading ? "—" : (counts.no_apto ?? 0), subtitle: "sin acceso", icon: AlertTriangle, accent: NO },
+      ]} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 20 }}>
+      {error && (
+        <div role="alert" style={{
+          padding: "10px 14px", background: NO_BG, border: `1px solid ${NO_BD}`,
+          borderRadius: 8, color: NO, fontSize: "0.8125rem",
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <AlertTriangle size={14} />{error}
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", gap: 16, alignItems: "start" }}>
         <DataTable<Driver>
           columns={columns}
           data={items}
@@ -224,49 +301,136 @@ export default function ConductoresPage() {
         />
 
         {sel ? (
-          <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14 }}>
-            <div style={{ padding: 22, borderBottom: `1px solid ${INK2}` }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                <Avatar name={sel.name} size={52} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: "0.95rem", fontWeight: 700, color: INK9 }}>{sel.name}</div>
-                  <div style={{ fontSize: "0.8125rem", color: INK5, fontFamily: "ui-monospace,monospace" }}>DNI {sel.dni} · Lic. {sel.licenseNumber}</div>
-                </div>
-                <StatusBadge s={sel.status} />
-              </div>
-              <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-                {sel.phone && <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 8, background: INK1, fontSize: "0.8125rem", fontWeight: 600, color: INK6 }}><Phone size={12} />{sel.phone}</span>}
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 8, background: INK1, fontSize: "0.8125rem", fontWeight: 600, color: INK6 }}><Car size={12} />{sel.licenseCategory}</span>
-              </div>
+          <DriverPreview driver={sel} canEdit={canEdit} />
+        ) : (
+          <div style={{
+            background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12,
+            padding: "60px 24px", textAlign: "center", color: INK5,
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+          }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: 12, background: INK1,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <Users size={20} color={INK5} strokeWidth={1.5} />
             </div>
-            <div style={{ padding: 22 }}>
-              <p className="kicker" style={{ marginBottom: 10 }}>FatigueEngine</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
-                {[["Conducción continua", sel.continuousHours, "h"], ["Descanso restante", sel.restHours, "h"]].map(([lbl, val, unit]) => (
-                  <div key={lbl as string} style={{ padding: 14, background: INK1, borderRadius: 10 }}>
-                    <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.1em", color: INK5, textTransform: "uppercase" }}>{lbl}</div>
-                    <div style={{ fontSize: "1.5rem", fontWeight: 800, marginTop: 4 }}>{val} <span style={{ fontSize: "0.8125rem", color: INK5, fontWeight: 500 }}>{unit}</span></div>
-                  </div>
-                ))}
-              </div>
-              <p className="kicker" style={{ marginBottom: 10 }}>Reputación</p>
-              <div style={{ padding: 14, background: INK1, borderRadius: 10, marginBottom: 20 }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: "0.875rem", color: INK6 }}>Score</span>
-                  <span style={{ fontWeight: 800, fontSize: "1.125rem", color: sel.reputationScore >= 80 ? APTO : sel.reputationScore >= 60 ? RIESGO : NO }}>{sel.reputationScore}/100</span>
-                </div>
-                <div style={{ height: 6, background: INK2, borderRadius: 999, marginTop: 8, overflow: "hidden" }}>
-                  <span style={{ display: "block", height: "100%", borderRadius: 999, background: sel.reputationScore >= 80 ? APTO : sel.reputationScore >= 60 ? RIESGO : NO, width: `${sel.reputationScore}%` }} />
-                </div>
-              </div>
-              <Link href={`/conductores/${sel.id}`}>
-                <button style={{ ...btnOut, width: "100%", height: 32, fontSize: "0.8125rem" }}><Eye size={14}/>Ver perfil completo</button>
-              </Link>
+            <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9 }}>
+              Selecciona un conductor
+            </div>
+            <div style={{ fontSize: "0.8125rem", color: INK5, maxWidth: 260, lineHeight: 1.5 }}>
+              Haz clic en cualquier conductor de la lista para ver su perfil resumido.
             </div>
           </div>
-        ) : (
-          <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", color: INK5, padding: 40 }}>Seleccione un conductor</div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function DriverPreview({ driver, canEdit }: { driver: Driver; canEdit: boolean }) {
+  const score = driver.reputationScore ?? 0;
+  const cont = driver.continuousHours ?? 0;
+  const rest = driver.restHours ?? 0;
+  const repColor = score >= 80 ? APTO : score >= 60 ? RIESGO : NO;
+  const status = driver.status ?? "apto";
+  return (
+    <div style={{
+      background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12,
+      position: "sticky", top: 16, overflow: "hidden",
+    }}>
+      <div style={{ padding: "14px 16px", borderBottom: `1px solid ${INK2}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Avatar name={driver.name ?? "?"} size={48} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: "0.9375rem", fontWeight: 700, color: INK9, lineHeight: 1.25, wordBreak: "break-word" }}>
+              {driver.name?.trim() || "Sin nombre"}
+            </div>
+            <div style={{ fontSize: "0.75rem", color: INK5, fontFamily: "ui-monospace,monospace", marginTop: 2 }}>
+              DNI {driver.dni?.trim() || "—"} · Lic. {driver.licenseNumber?.trim() || "—"}
+            </div>
+          </div>
+          <StatusBadge s={status} />
+        </div>
+        <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+          {driver.phone && (
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              padding: "3px 9px", borderRadius: 6,
+              background: INK1, fontSize: "0.75rem", fontWeight: 600, color: INK6,
+            }}>
+              <Phone size={11} />{driver.phone}
+            </span>
+          )}
+          {driver.licenseCategory && (
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              padding: "3px 9px", borderRadius: 6,
+              background: INK1, fontSize: "0.75rem", fontWeight: 600, color: INK6,
+            }}>
+              <Car size={11} />{driver.licenseCategory}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div style={{ padding: 16 }}>
+        <div style={{
+          fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em",
+          textTransform: "uppercase", color: INK5, marginBottom: 8,
+        }}>FatigueEngine</div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+          {[
+            { lbl: "Conducción continua", val: cont },
+            { lbl: "Descanso restante", val: rest },
+          ].map(x => (
+            <div key={x.lbl} style={{
+              padding: "10px 12px", background: INK1,
+              border: `1px solid ${INK2}`, borderRadius: 8,
+            }}>
+              <div style={{
+                fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.06em",
+                color: INK5, textTransform: "uppercase",
+              }}>{x.lbl}</div>
+              <div style={{
+                fontSize: "1.125rem", fontWeight: 800, color: INK9,
+                fontVariantNumeric: "tabular-nums", marginTop: 2,
+              }}>
+                {x.val}<span style={{ fontSize: "0.75rem", color: INK5, fontWeight: 500 }}> h</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{
+          fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em",
+          textTransform: "uppercase", color: INK5, marginBottom: 8,
+        }}>Reputación</div>
+
+        <div style={{
+          padding: "10px 12px", background: INK1,
+          border: `1px solid ${INK2}`, borderRadius: 8, marginBottom: 14,
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+            <span style={{ fontSize: "0.8125rem", color: INK6, fontWeight: 600 }}>Score</span>
+            <span style={{ fontWeight: 800, fontSize: "1rem", color: repColor, fontVariantNumeric: "tabular-nums" }}>
+              {score}/100
+            </span>
+          </div>
+          <div style={{ height: 4, background: INK2, borderRadius: 999, overflow: "hidden" }}>
+            <span style={{
+              display: "block", height: "100%", borderRadius: 999,
+              background: repColor, width: `${score}%`,
+            }} />
+          </div>
+        </div>
+
+        <Link href={`/conductores/${driver.id}`} style={{ display: "block" }}>
+          <button style={{ ...btnPrimary, width: "100%", height: 34 }}>
+            {canEdit ? <Pencil size={13} /> : <Eye size={13} />}
+            {canEdit ? "Editar conductor" : "Ver perfil completo"}
+          </button>
+        </Link>
       </div>
     </div>
   );

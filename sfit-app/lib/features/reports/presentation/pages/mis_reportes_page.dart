@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../data/datasources/report_api_service.dart';
+import '../../data/datasources/reports_api_service.dart';
 
 class MisReportesPage extends ConsumerStatefulWidget {
   const MisReportesPage({super.key});
@@ -30,7 +30,7 @@ class _MisReportesPageState extends ConsumerState<MisReportesPage> {
       _error = null;
     });
     try {
-      final result = await ref.read(reportApiServiceProvider).getMisReportes();
+      final result = await ref.read(reportsApiServiceProvider).getMisReportes();
       if (mounted) {
         setState(() {
           _items = List<Map<String, dynamic>>.from(result['items'] as List);

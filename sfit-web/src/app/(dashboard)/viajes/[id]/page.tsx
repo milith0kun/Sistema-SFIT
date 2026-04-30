@@ -3,14 +3,15 @@
 import { useEffect, useState, use as usePromise } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, MapPin, Clock, User, Truck, CheckCircle } from "lucide-react";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/button";
-import { LoadingState } from "@/components/ui/LoadingState";
-import { ErrorState } from "@/components/ui/ErrorState";
+import {
+  ArrowLeft, MapPin, Clock, User, Truck, CheckCircle, Save, AlertTriangle,
+  Loader2, Hash, Copy, Check, Calendar, Activity, Users as UsersIcon, Gauge,
+} from "lucide-react";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { KPIStrip } from "@/components/dashboard/KPIStrip";
+import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 
-type TripStatus = "en_curso" | "completado" | "auto_cierre";
+type TripStatus = "en_curso" | "completado" | "auto_cierre" | "cerrado_automatico";
 
 type Trip = {
   id: string;
@@ -23,15 +24,35 @@ type Trip = {
   km: number;
   passengers: number;
   status: TripStatus;
+  autoClosedReason?: string;
   createdAt: string;
 };
 
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
+/* Paleta sobria */
+const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
+const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
+const APTO = "#15803d"; const APTO_BG = "#F0FDF4"; const APTO_BD = "#86EFAC";
+const INFO = "#1E40AF"; const INFO_BD = "#BFDBFE";
+const RIESGO = "#B45309"; const RIESGO_BG = "#FFFBEB"; const RIESGO_BD = "#FDE68A";
+const NO = "#DC2626"; const NO_BG = "#FFF5F5"; const NO_BD = "#FCA5A5";
 
-const STATUS_STYLE: Record<TripStatus, { bg: string; color: string; border: string; label: string }> = {
-  en_curso:    { bg: "#EFF6FF", color: "#1e40af", border: "#BFDBFE", label: "En curso" },
-  completado:  { bg: "#F0FDF4", color: "#15803d", border: "#86EFAC", label: "Completado" },
-  auto_cierre: { bg: "#f4f4f5", color: "#71717a", border: "#e4e4e7", label: "Auto-cierre" },
+const STATUS_META: Record<TripStatus, { color: string; bg: string; bd: string; label: string }> = {
+  en_curso:           { color: INFO, bg: "#fff", bd: INFO_BD, label: "En curso" },
+  completado:         { color: APTO, bg: APTO_BG, bd: APTO_BD, label: "Completado" },
+  auto_cierre:        { color: RIESGO, bg: RIESGO_BG, bd: RIESGO_BD, label: "Auto-cierre" },
+  cerrado_automatico: { color: RIESGO, bg: RIESGO_BG, bd: RIESGO_BD, label: "Auto-cierre" },
+};
+
+const FIELD: React.CSSProperties = {
+  width: "100%", height: 38, padding: "0 12px", borderRadius: 8,
+  border: `1px solid ${INK2}`, fontSize: "0.875rem", color: INK9,
+  background: "#fff", outline: "none", boxSizing: "border-box",
+  fontFamily: "var(--font-inter), Inter, sans-serif",
+  transition: "border-color 150ms",
+};
+const LABEL: React.CSSProperties = {
+  display: "block", fontSize: "0.6875rem", fontWeight: 700,
+  letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, marginBottom: 6,
 };
 
 const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
@@ -39,27 +60,44 @@ const CAN_EDIT = ["operador", "admin_municipal", "super_admin"];
 
 interface Props { params: Promise<{ id: string }> }
 
-function fmt(iso: string | null | undefined) {
+function fmtDateTime(iso: string | null | undefined) {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("es-PE", { dateStyle: "medium", timeStyle: "short" });
+}
+function fmtTime(iso: string | null | undefined) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
+}
+function durationMinutes(start?: string | null, end?: string | null): number | null {
+  if (!start || !end) return null;
+  const s = new Date(start).getTime();
+  const e = new Date(end).getTime();
+  if (isNaN(s) || isNaN(e)) return null;
+  return Math.max(0, Math.floor((e - s) / 60000));
+}
+function fmtDuration(min: number | null): string {
+  if (min == null) return "—";
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
 export default function ViajeDetallePage({ params }: Props) {
   const { id } = usePromise(params);
   const router = useRouter();
 
-  const [trip,     setTrip]     = useState<Trip | null>(null);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState<string | null>(null);
+  const [trip, setTrip] = useState<Trip | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [userRole, setUserRole] = useState("");
 
-  // Edit state
-  const [km,        setKm]       = useState("");
+  const [km, setKm] = useState("");
   const [passengers, setPassengers] = useState("");
-  const [endTime,   setEndTime]  = useState("");
+  const [endTime, setEndTime] = useState("");
   const [newStatus, setNewStatus] = useState<TripStatus | "">("");
-  const [saving,    setSaving]   = useState(false);
+  const [saving, setSaving] = useState(false);
   const [finishing, setFinishing] = useState(false);
 
   useEffect(() => {
@@ -71,6 +109,11 @@ export default function ViajeDetallePage({ params }: Props) {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, router]);
+
+  // Breadcrumb dinámico — usa placa o ID corto como título
+  useSetBreadcrumbTitle(
+    trip ? (trip.vehicle?.plate || `Viaje ${trip.id.slice(-6).toUpperCase()}`) : null
+  );
 
   async function load() {
     setLoading(true);
@@ -90,20 +133,22 @@ export default function ViajeDetallePage({ params }: Props) {
         const d = new Date(t.endTime);
         d.setSeconds(0, 0);
         setEndTime(d.toISOString().slice(0, 16));
+      } else {
+        setEndTime("");
       }
     } catch { setError("Error de conexión."); }
     finally { setLoading(false); }
   }
 
   async function handleSave() {
-    setSaving(true); setError(null);
+    setSaving(true); setError(null); setSuccess(null);
     try {
       const token = localStorage.getItem("sfit_access_token");
       const payload: Record<string, unknown> = {};
-      if (km !== "")         payload.km         = Number(km);
-      if (passengers !== "") payload.passengers  = Number(passengers);
-      if (endTime)           payload.endTime     = new Date(endTime).toISOString();
-      if (newStatus)         payload.status      = newStatus;
+      if (km !== "") payload.km = Number(km);
+      if (passengers !== "") payload.passengers = Number(passengers);
+      if (endTime) payload.endTime = new Date(endTime).toISOString();
+      if (newStatus) payload.status = newStatus;
 
       const res = await fetch(`/api/viajes/${id}`, {
         method: "PUT",
@@ -113,13 +158,15 @@ export default function ViajeDetallePage({ params }: Props) {
       if (res.status === 401) { router.replace("/login"); return; }
       const data = await res.json();
       if (!res.ok || !data.success) { setError(data.error ?? "Error al actualizar."); return; }
+      setSuccess("Viaje actualizado correctamente.");
+      setTimeout(() => setSuccess(null), 3500);
       void load();
     } catch { setError("Error de conexión."); }
     finally { setSaving(false); }
   }
 
   async function handleFinish() {
-    setFinishing(true); setError(null);
+    setFinishing(true); setError(null); setSuccess(null);
     try {
       const token = localStorage.getItem("sfit_access_token");
       const res = await fetch(`/api/viajes/${id}`, {
@@ -130,6 +177,8 @@ export default function ViajeDetallePage({ params }: Props) {
       if (res.status === 401) { router.replace("/login"); return; }
       const data = await res.json();
       if (!res.ok || !data.success) { setError(data.error ?? "Error al finalizar."); return; }
+      setSuccess("Viaje finalizado.");
+      setTimeout(() => setSuccess(null), 3500);
       void load();
     } catch { setError("Error de conexión."); }
     finally { setFinishing(false); }
@@ -139,184 +188,438 @@ export default function ViajeDetallePage({ params }: Props) {
 
   if (loading) {
     return (
-      <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <PageHeader kicker="Viajes" title="Cargando viaje…" />
-        <LoadingState rows={5} />
+      <div className="flex flex-col gap-4 animate-fade-in">
+        <DashboardHero kicker="Viajes · RF-10" title="Cargando viaje…" />
+        <KPIStrip cols={4} items={[
+          { label: "ESTADO", value: "—", subtitle: "—", icon: Activity },
+          { label: "INICIO", value: "—", subtitle: "—", icon: Clock },
+          { label: "FIN", value: "—", subtitle: "—", icon: CheckCircle },
+          { label: "KM", value: "—", subtitle: "—", icon: Gauge },
+        ]} />
+        {[0, 1, 2].map(i => (
+          <div key={i} className="skeleton-shimmer" style={{ height: 140, borderRadius: 12 }} />
+        ))}
       </div>
     );
   }
-  if (notFound) return (
-    <ErrorState
-      title="Viaje no encontrado"
-      message="El viaje solicitado no existe o ya no está disponible. Verifique el enlace o regrese al listado."
-      action={<Link href="/viajes"><Button variant="primary" size="sm">Volver a Viajes</Button></Link>}
-    />
-  );
-  if (error && !trip) return (
-    <div style={{ padding: "12px 16px", background: "#FFF5F5", border: "1px solid #FCA5A5", borderRadius: 10, color: "#DC2626" }}>{error}</div>
-  );
-  if (!trip) return null;
 
-  const st = STATUS_STYLE[trip.status];
-
-  return (
-    <div className="space-y-8 animate-fade-in">
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <Link href="/viajes" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: INK5, textDecoration: "none", fontSize: "0.875rem" }}>
-          <ArrowLeft size={16} /> Viajes
+  if (notFound) {
+    return (
+      <div className="flex flex-col gap-4 animate-fade-in">
+        <DashboardHero kicker="Viajes · RF-10" title="Viaje no encontrado" />
+        <div style={{
+          padding: "32px 24px", background: "#fff", border: `1px solid ${INK2}`,
+          borderRadius: 12, color: INK6, textAlign: "center", fontSize: "0.875rem",
+        }}>
+          El viaje solicitado no existe o ya no está disponible.
+        </div>
+        <Link href="/viajes" style={{
+          alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 7,
+          height: 36, padding: "0 14px", borderRadius: 8,
+          border: `1px solid ${INK2}`, background: "#fff", color: INK6,
+          fontWeight: 600, fontSize: "0.8125rem", textDecoration: "none",
+        }}>
+          <ArrowLeft size={13} />Volver a viajes
         </Link>
       </div>
+    );
+  }
 
-      <PageHeader
-        kicker={`Viaje · ${trip.vehicle?.plate ?? "—"}`}
-        title={trip.route ? `${trip.route.code} · ${trip.route.name}` : "Sin ruta asignada"}
-        subtitle={`Registrado el ${fmt(trip.createdAt)}`}
-        action={
-          canEdit && trip.status === "en_curso" ? (
-            <Button variant="primary" size="md" loading={finishing} onClick={handleFinish}>
-              <CheckCircle size={16} />
-              Finalizar viaje
-            </Button>
-          ) : undefined
-        }
+  if (!trip) return null;
+
+  const stMeta = STATUS_META[trip.status] ?? STATUS_META.en_curso;
+  const titleLine = trip.route
+    ? `${trip.route.code} · ${trip.route.name}`
+    : `Viaje ${trip.id.slice(-6).toUpperCase()}`;
+  const subtitleLine = trip.route ? "Sin ruta asignada" : null;
+  const duration = durationMinutes(trip.startTime, trip.endTime);
+
+  const heroAction = (
+    <div style={{ display: "flex", gap: 6 }}>
+      <Link href="/viajes" style={{
+        display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
+        borderRadius: 7, border: "1px solid rgba(255,255,255,0.18)",
+        background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.85)",
+        fontWeight: 600, fontSize: "0.8125rem", textDecoration: "none",
+      }}>
+        <ArrowLeft size={12} />Volver
+      </Link>
+      {canEdit && trip.status === "en_curso" && (
+        <button onClick={handleFinish} disabled={finishing}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 14px",
+            borderRadius: 7, border: "none", background: "#fff", color: INK9,
+            fontWeight: 700, fontSize: "0.8125rem", cursor: finishing ? "not-allowed" : "pointer",
+            fontFamily: "inherit", opacity: finishing ? 0.7 : 1,
+          }}>
+          {finishing ? <Loader2 size={12} style={{ animation: "spin 0.7s linear infinite" }} /> : <CheckCircle size={12} />}
+          {finishing ? "Finalizando…" : "Finalizar viaje"}
+        </button>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-4 animate-fade-in pb-10">
+      <DashboardHero
+        kicker="Viajes · RF-10"
+        title={titleLine}
+        pills={[
+          { label: "Vehículo", value: trip.vehicle?.plate || "—" },
+          { label: "Conductor", value: trip.driver?.name?.split(" ")[0] || "—" },
+          { label: "Estado", value: stMeta.label, warn: trip.status !== "en_curso" && trip.status !== "completado" },
+        ]}
+        action={heroAction}
       />
 
-      {error && (
-        <div role="alert" style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5", borderRadius: 12, padding: 16, color: "#DC2626", fontSize: "0.9375rem", fontWeight: 500 }}>
-          {error}
+      <KPIStrip cols={4} items={[
+        {
+          label: "ESTADO", value: stMeta.label,
+          subtitle: trip.status === "en_curso" ? "operando" : trip.status === "completado" ? "finalizado" : "cerrado por sistema",
+          icon: Activity, accent: stMeta.color,
+        },
+        {
+          label: "INICIO", value: fmtTime(trip.startTime),
+          subtitle: trip.startTime ? new Date(trip.startTime).toLocaleDateString("es-PE", { day: "2-digit", month: "short" }) : "—",
+          icon: Clock,
+        },
+        {
+          label: "FIN", value: fmtTime(trip.endTime),
+          subtitle: trip.endTime ? `duración ${fmtDuration(duration)}` : "en curso",
+          icon: CheckCircle,
+        },
+        {
+          label: "KM RECORRIDOS", value: trip.km > 0 ? trip.km.toLocaleString("es-PE") : "—",
+          subtitle: trip.passengers > 0 ? `${trip.passengers} pasajeros` : "sin pasajeros",
+          icon: Gauge,
+        },
+      ]} />
+
+      {trip.status === "auto_cierre" && trip.autoClosedReason && (
+        <div role="status" style={{
+          padding: "10px 14px", background: RIESGO_BG, border: `1px solid ${RIESGO_BD}`,
+          borderRadius: 8, color: RIESGO, fontSize: "0.8125rem", fontWeight: 500,
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <AlertTriangle size={14} />
+          <span><strong>Auto-cierre:</strong> {trip.autoClosedReason}</span>
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
-        {/* Left column */}
-        <div className="space-y-6">
-          <Card>
-            <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 16 }}>Información del viaje</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              {[
-                { icon: <Truck size={15} />, label: "Vehículo", value: trip.vehicle?.plate ?? "—" },
-                { icon: <User size={15} />,  label: "Conductor", value: trip.driver?.name ?? "—" },
-                { icon: <MapPin size={15} />, label: "Ruta", value: trip.route ? `${trip.route.code} · ${trip.route.name}` : "Sin ruta" },
-                { icon: <Clock size={15} />,  label: "Estado", value: st.label },
-              ].map(({ icon, label, value }) => (
-                <div key={label} style={{ padding: 14, background: INK1, borderRadius: 10 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: INK5, marginBottom: 6 }}>
-                    {icon} {label}
-                  </div>
-                  <div style={{ fontWeight: 600, color: INK9 }}>{value}</div>
-                </div>
-              ))}
-            </div>
-          </Card>
+      {error && (
+        <div role="alert" style={{
+          padding: "10px 14px", background: NO_BG, border: `1px solid ${NO_BD}`,
+          borderRadius: 8, color: NO, fontSize: "0.8125rem", fontWeight: 500,
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <AlertTriangle size={14} />{error}
+        </div>
+      )}
+      {success && (
+        <div role="status" style={{
+          padding: "10px 14px", background: APTO_BG, border: `1px solid ${APTO_BD}`,
+          borderRadius: 8, color: APTO, fontSize: "0.8125rem", fontWeight: 600,
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <CheckCircle size={14} />{success}
+        </div>
+      )}
 
-          <Card>
-            <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 16 }}>Tiempos y métricas</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 14 }}>
-              {[
-                { label: "Hora inicio", value: fmt(trip.startTime) },
-                { label: "Hora fin",    value: fmt(trip.endTime) },
-                { label: "Kilómetros",  value: trip.km ? `${trip.km} km` : "—" },
-                { label: "Pasajeros",   value: trip.passengers ? String(trip.passengers) : "—" },
-              ].map(({ label, value }) => (
-                <div key={label} style={{ padding: 14, background: INK1, borderRadius: 10 }}>
-                  <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: INK5, marginBottom: 4 }}>{label}</div>
-                  <div style={{ fontWeight: 700, color: INK9, fontVariantNumeric: "tabular-nums" }}>{value}</div>
-                </div>
-              ))}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 12, alignItems: "start" }}>
+
+        {/* Columna principal */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+
+          <SectionCard
+            icon={<Activity size={14} color={INK6} />}
+            title="Información del viaje"
+            subtitle={subtitleLine ?? "Vehículo, conductor y ruta"}
+          >
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <InfoBlock
+                icon={<Truck size={12} />}
+                label="Vehículo"
+                value={trip.vehicle?.plate || "—"}
+                sub={trip.vehicle ? `${trip.vehicle.brand ?? ""} ${trip.vehicle.model ?? ""}`.trim() || undefined : undefined}
+                mono
+              />
+              <InfoBlock
+                icon={<User size={12} />}
+                label="Conductor"
+                value={trip.driver?.name?.trim() || "Sin conductor"}
+              />
+              <InfoBlock
+                icon={<MapPin size={12} />}
+                label="Ruta / Zona"
+                value={trip.route ? `${trip.route.code} · ${trip.route.name}` : "Sin ruta asignada"}
+              />
+              <InfoBlock
+                icon={<Activity size={12} />}
+                label="Estado"
+                value={stMeta.label}
+                accent={stMeta.color}
+              />
             </div>
-          </Card>
+          </SectionCard>
+
+          <SectionCard
+            icon={<Clock size={14} color={INK6} />}
+            title="Tiempos y métricas"
+            subtitle={duration != null ? `Duración total: ${fmtDuration(duration)}` : "Viaje en curso"}
+          >
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
+              <InfoBlock
+                icon={<Calendar size={12} />}
+                label="Inicio"
+                value={trip.startTime ? fmtTime(trip.startTime) : "—"}
+                sub={trip.startTime ? new Date(trip.startTime).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" }) : undefined}
+              />
+              <InfoBlock
+                icon={<CheckCircle size={12} />}
+                label="Fin"
+                value={trip.endTime ? fmtTime(trip.endTime) : "En curso"}
+                sub={trip.endTime ? new Date(trip.endTime).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" }) : undefined}
+              />
+              <InfoBlock
+                icon={<Gauge size={12} />}
+                label="Kilómetros"
+                value={trip.km > 0 ? `${trip.km.toLocaleString("es-PE")} km` : "—"}
+              />
+              <InfoBlock
+                icon={<UsersIcon size={12} />}
+                label="Pasajeros"
+                value={trip.passengers > 0 ? trip.passengers.toLocaleString("es-PE") : "—"}
+              />
+            </div>
+          </SectionCard>
         </div>
 
-        {/* Right column */}
-        <div className="space-y-6">
-          {/* Status badge */}
-          <Card>
-            <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 14 }}>Estado</h3>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 999, background: st.bg, border: `1.5px solid ${st.border}`, marginBottom: canEdit ? 18 : 0 }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: st.color }} />
-              <span style={{ fontWeight: 700, fontSize: "0.8125rem", color: st.color }}>{st.label}</span>
-            </div>
+        {/* Sidebar */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, position: "sticky", top: 16 }}>
 
-            {canEdit && (
-              <>
-                <label style={{ display: "block", marginBottom: 8, fontSize: "0.875rem", fontWeight: 500 }}>Cambiar estado</label>
-                <select
-                  value={newStatus}
-                  onChange={e => setNewStatus(e.target.value as TripStatus)}
-                  className="field"
-                  style={{ marginBottom: 12 }}
-                >
-                  <option value="en_curso">En curso</option>
-                  <option value="completado">Completado</option>
-                  <option value="auto_cierre">Auto-cierre</option>
-                </select>
-              </>
-            )}
-          </Card>
-
-          {/* Edit fields */}
-          {canEdit && (
-            <Card>
-              <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 16 }}>Editar datos</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Editar datos */}
+          {canEdit ? (
+            <SectionCard
+              icon={<Save size={14} color={INK6} />}
+              title="Editar datos del viaje"
+              subtitle="Estado, métricas y hora de fin"
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div>
-                  <label htmlFor="km" style={{ display: "block", marginBottom: 8, fontSize: "0.875rem", fontWeight: 500 }}>Kilómetros recorridos</label>
+                  <label style={LABEL}>Cambiar estado</label>
+                  <select
+                    value={newStatus}
+                    onChange={e => setNewStatus(e.target.value as TripStatus)}
+                    style={{ ...FIELD, appearance: "none", paddingRight: 30, cursor: "pointer" }}
+                  >
+                    <option value="en_curso">En curso</option>
+                    <option value="completado">Completado</option>
+                    <option value="auto_cierre">Auto-cierre</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="km" style={LABEL}>Kilómetros recorridos</label>
                   <input
-                    id="km"
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={km}
-                    onChange={e => setKm(e.target.value)}
-                    className="field"
+                    id="km" type="number" min="0" step="0.1"
+                    value={km} onChange={e => setKm(e.target.value)}
                     placeholder="0"
+                    style={{ ...FIELD, fontVariantNumeric: "tabular-nums" }}
                   />
                 </div>
                 <div>
-                  <label htmlFor="passengers" style={{ display: "block", marginBottom: 8, fontSize: "0.875rem", fontWeight: 500 }}>Pasajeros</label>
+                  <label htmlFor="passengers" style={LABEL}>Pasajeros</label>
                   <input
-                    id="passengers"
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={passengers}
-                    onChange={e => setPassengers(e.target.value)}
-                    className="field"
+                    id="passengers" type="number" min="0" step="1"
+                    value={passengers} onChange={e => setPassengers(e.target.value)}
                     placeholder="0"
+                    style={{ ...FIELD, fontVariantNumeric: "tabular-nums" }}
                   />
                 </div>
                 <div>
-                  <label htmlFor="endTime" style={{ display: "block", marginBottom: 8, fontSize: "0.875rem", fontWeight: 500 }}>Hora de fin</label>
+                  <label htmlFor="endTime" style={LABEL}>Hora de fin</label>
                   <input
-                    id="endTime"
-                    type="datetime-local"
-                    value={endTime}
-                    onChange={e => setEndTime(e.target.value)}
-                    className="field"
+                    id="endTime" type="datetime-local"
+                    value={endTime} onChange={e => setEndTime(e.target.value)}
+                    style={FIELD}
                   />
                 </div>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleSave}
-                  loading={saving}
-                  style={{ width: "100%" }}
+                <button
+                  onClick={handleSave} disabled={saving}
+                  style={{
+                    display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    height: 36, borderRadius: 8, border: "none",
+                    background: INK9, color: "#fff",
+                    fontSize: "0.8125rem", fontWeight: 700,
+                    cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit",
+                    opacity: saving ? 0.7 : 1, marginTop: 4,
+                  }}
                 >
-                  Guardar cambios
-                </Button>
+                  {saving ? <Loader2 size={13} style={{ animation: "spin 0.7s linear infinite" }} /> : <Save size={13} />}
+                  {saving ? "Guardando…" : "Guardar cambios"}
+                </button>
               </div>
-            </Card>
-          )}
+            </SectionCard>
+          ) : null}
 
-          {/* Trip ID info */}
-          <Card>
-            <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 12 }}>Identificador</h3>
-            <div style={{ padding: "10px 12px", background: INK1, borderRadius: 8, fontFamily: "ui-monospace, monospace", fontSize: "0.75rem", fontWeight: 700, color: INK6, wordBreak: "break-all" }}>
-              {trip.id}
+          {/* Información de registro */}
+          <div style={{
+            background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, overflow: "hidden",
+          }}>
+            <div style={{ padding: "10px 16px", borderBottom: `1px solid ${INK1}` }}>
+              <div style={{
+                fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em",
+                textTransform: "uppercase", color: INK5,
+              }}>Información del registro</div>
             </div>
-          </Card>
+            <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <SystemIdRow id={trip.id} />
+              <Row k="Registrado" v={fmtDateTime(trip.createdAt)} />
+              {trip.fleetEntryId && (
+                <Row k="Flota del día" v={trip.fleetEntryId.slice(-8).toUpperCase()} mono />
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {!canEdit && (
+        <div style={{
+          padding: "10px 14px", background: INK1, border: `1px solid ${INK2}`,
+          borderRadius: 8, color: INK6, fontSize: "0.8125rem",
+        }}>
+          Solo operadores, administradores municipales y superadministradores pueden editar este viaje.
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Subcomponentes ─── */
+
+function SectionCard({
+  icon, title, subtitle, children,
+}: {
+  icon: React.ReactNode; title: string; subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{
+      background: "#fff", border: `1px solid ${INK2}`,
+      borderRadius: 12, overflow: "hidden",
+    }}>
+      <div style={{
+        padding: "10px 16px", borderBottom: `1px solid ${INK1}`,
+        display: "flex", alignItems: "center", gap: 10,
+      }}>
+        <div style={{
+          width: 26, height: 26, borderRadius: 6,
+          background: INK1, border: `1px solid ${INK2}`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0,
+        }}>
+          {icon}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9, lineHeight: 1.25 }}>
+            {title}
+          </div>
+          {subtitle && (
+            <div style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.3, marginTop: 1 }}>
+              {subtitle}
+            </div>
+          )}
+        </div>
+      </div>
+      <div style={{ padding: "14px 16px" }}>{children}</div>
+    </div>
+  );
+}
+
+function InfoBlock({ icon, label, value, sub, accent, mono }: {
+  icon: React.ReactNode; label: string; value: string; sub?: string;
+  accent?: string; mono?: boolean;
+}) {
+  return (
+    <div style={{
+      padding: "10px 12px", borderRadius: 8,
+      background: INK1, border: `1px solid ${INK2}`,
+    }}>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 5,
+        fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.06em",
+        color: INK5, textTransform: "uppercase", marginBottom: 3,
+      }}>
+        {icon}{label}
+      </div>
+      <div style={{
+        fontSize: "0.875rem", fontWeight: 700, color: accent ?? INK9,
+        lineHeight: 1.25, wordBreak: "break-word",
+        fontFamily: mono ? "ui-monospace, monospace" : "inherit",
+        letterSpacing: mono ? "0.04em" : 0,
+      }}>{value}</div>
+      {sub && (
+        <div style={{ fontSize: "0.6875rem", color: INK5, marginTop: 2 }}>
+          {sub}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Row({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
+  return (
+    <div style={{
+      display: "flex", justifyContent: "space-between", alignItems: "center",
+      padding: "6px 10px", borderRadius: 6, background: INK1, gap: 8,
+    }}>
+      <span style={{ fontSize: "0.75rem", color: INK5, flexShrink: 0 }}>{k}</span>
+      <span style={{
+        fontSize: "0.8125rem", fontWeight: 600, color: INK9,
+        textAlign: "right",
+        fontFamily: mono ? "ui-monospace, monospace" : "inherit",
+        letterSpacing: mono ? "0.04em" : 0,
+        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+      }}>{v}</span>
+    </div>
+  );
+}
+
+function SystemIdRow({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false);
+  const shortId = id.slice(-8).toUpperCase();
+  return (
+    <div style={{
+      background: "#fff", border: `1px dashed ${INK2}`, borderRadius: 7,
+      padding: "7px 10px",
+      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+        <Hash size={11} color={INK5} />
+        <span style={{
+          fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.08em",
+          textTransform: "uppercase", color: INK5,
+        }}>ID</span>
+        <code title={id} style={{
+          fontFamily: "ui-monospace, monospace", fontSize: "0.75rem",
+          color: INK9, fontWeight: 600, letterSpacing: "0.04em",
+          fontVariantNumeric: "tabular-nums",
+        }}>{shortId}</code>
+      </div>
+      <button type="button" onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(id);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1400);
+        } catch { /* */ }
+      }} title="Copiar ID completo" style={{
+        display: "inline-flex", alignItems: "center", gap: 3,
+        height: 22, padding: "0 7px", borderRadius: 5,
+        border: `1px solid ${INK2}`, background: "#fff", color: INK6,
+        fontSize: "0.625rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+      }}>
+        {copied ? <Check size={10} color={APTO} /> : <Copy size={10} />}
+        {copied ? "Copiado" : "Copiar"}
+      </button>
     </div>
   );
 }

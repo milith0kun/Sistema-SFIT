@@ -108,10 +108,40 @@ export const ROLE_BADGE: Record<string, RoleBadgeStyle> = {
   ciudadano:        { bg: "#F4F4F5", color: "#52525B", border: "#E4E4E7" },
 };
 
-/** Convierte un segmento de URL a una etiqueta legible. IDs/UUIDs se devuelven sin modificar. */
-export function prettySegment(seg: string): string {
+/** Mapa de "padre del segmento detalle" → etiqueta legible cuando el segmento
+ * actual es un ID/UUID. Se usa para que /usuarios/abc123... muestre
+ * "Detalle de usuario" en lugar del UUID crudo. */
+const PARENT_DETAIL_LABELS: Record<string, string> = {
+  usuarios:           "Detalle de usuario",
+  empresas:           "Detalle de empresa",
+  municipalidades:    "Detalle de municipalidad",
+  conductores:        "Detalle de conductor",
+  vehiculos:          "Detalle de vehículo",
+  rutas:              "Detalle de ruta",
+  inspecciones:       "Detalle de inspección",
+  reportes:           "Detalle de reporte",
+  apelaciones:        "Detalle de apelación",
+  sanciones:          "Detalle de sanción",
+  viajes:             "Detalle de viaje",
+  notificaciones:     "Detalle de notificación",
+  recompensas:        "Detalle de recompensa",
+  flota:              "Detalle de flota",
+  "tipos-vehiculo":   "Detalle de tipo",
+  users:              "Detalle de aprobación",
+};
+
+function isIdSegment(seg: string): boolean {
+  return /^[0-9a-f]{8,}$/i.test(seg) || /^\d+$/.test(seg);
+}
+
+/** Convierte un segmento de URL a una etiqueta legible.
+ *  Para IDs sin contexto de padre devuelve "Detalle" como fallback. */
+export function prettySegment(seg: string, parent?: string): string {
   if (SEG_LABELS[seg]) return SEG_LABELS[seg];
-  if (/^[0-9a-f]{8,}$/i.test(seg) || /^\d+$/.test(seg)) return seg;
+  if (isIdSegment(seg)) {
+    if (parent && PARENT_DETAIL_LABELS[parent]) return PARENT_DETAIL_LABELS[parent];
+    return "Detalle";
+  }
   return seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, " ");
 }
 
@@ -128,7 +158,8 @@ export function buildCrumbs(pathname: string | null): Crumb[] {
   parts.forEach((part, idx) => {
     acc += `/${part}`;
     const navItem = NAV_ITEM_MAP.get(acc);
-    const label = navItem?.label ?? prettySegment(part);
+    const parent = idx > 0 ? parts[idx - 1] : undefined;
+    const label = navItem?.label ?? prettySegment(part, parent);
     const isLast = idx === parts.length - 1;
     const isLink = !isLast && (Boolean(navItem) || Boolean(SEG_LABELS[part]));
     crumbs.push({ label, href: acc, isLink });

@@ -435,15 +435,15 @@ function QuickModuleLink({ icon: Icon, title, subtitle, href }: QuickActionDef) 
         aria-hidden
         style={{
           position: "absolute",
-          right: -18,
-          bottom: -22,
+          right: -10,
+          bottom: -16,
           color: "#6C0606",
-          opacity: 0.13,
+          opacity: 0.11,
           pointerEvents: "none",
           lineHeight: 0,
         }}
       >
-        <Icon size={130} strokeWidth={1.1} />
+        <Icon size={138} strokeWidth={1.5} absoluteStrokeWidth />
       </div>
 
       {/* Chip de ícono — más prominente */}

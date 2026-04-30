@@ -71,4 +71,60 @@ class ReportsApiService {
         'rejectionReason': rejectionReason,
     });
   }
+
+  /// GET /reportes/mis-reportes — lista reportes del ciudadano autenticado.
+  Future<Map<String, dynamic>> getMisReportes({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final resp = await _dio.get('/reportes/mis-reportes', queryParameters: {
+      'page': page,
+      'limit': limit,
+    });
+    final data = (resp.data as Map)['data'] as Map;
+    return {
+      'items': (data['items'] as List)
+          .map((e) => e as Map<String, dynamic>)
+          .toList(),
+      'total': data['total'] ?? 0,
+    };
+  }
+
+  /// GET /reportes/feed — feed público de reportes validados con filtros.
+  /// [region] = 'all' | 'province' | 'municipality'
+  /// [order] = 'recent' | 'supported' | 'nearby'
+  Future<Map<String, dynamic>> getFeed({
+    String region = 'municipality',
+    String? category,
+    String order = 'recent',
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final resp = await _dio.get('/reportes/feed', queryParameters: {
+      'region': region,
+      if (category != null && category.isNotEmpty) 'category': category,
+      'order': order,
+      'page': page,
+      'limit': limit,
+    });
+    final data = (resp.data as Map)['data'] as Map;
+    return {
+      'items': (data['items'] as List)
+          .map((e) => e as Map<String, dynamic>)
+          .toList(),
+      'total': data['total'] ?? 0,
+      'hasMore': data['hasMore'] ?? false,
+    };
+  }
+
+  /// POST /reportes/:id/apoyar — alterna apoyo del ciudadano a un reporte.
+  /// Retorna el nuevo conteo y si el usuario apoya o no.
+  Future<Map<String, dynamic>> toggleApoyo(String reportId) async {
+    final resp = await _dio.post('/reportes/$reportId/apoyar');
+    final data = (resp.data as Map)['data'] as Map;
+    return {
+      'apoyado': data['apoyado'] as bool,
+      'totalApoyos': data['totalApoyos'] as int,
+    };
+  }
 }

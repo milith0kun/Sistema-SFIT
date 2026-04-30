@@ -1,32 +1,67 @@
 "use client";
 
-import { useEffect, useState, useCallback, cloneElement, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Calendar, Route, Check, Clock, Download, Plus } from "lucide-react";
-import { PageHeader } from "@/components/ui/PageHeader";
+import {
+  Calendar, Route, Check, Clock, Download, Plus, AlertTriangle, Inbox,
+} from "lucide-react";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
-import { Badge } from "@/components/ui/Badge";
 
-type TripStatus = "en_curso" | "completado" | "auto_cierre";
+type TripStatus = "en_curso" | "completado" | "auto_cierre" | "cerrado_automatico";
 type Trip = {
   id: string;
   vehicle: { plate: string };
   driver: { name: string };
   route?: { code: string; name: string } | null;
-  startTime: string; endTime?: string | null;
-  km: number; passengers: number; status: TripStatus;
+  startTime: string;
+  endTime?: string | null;
+  km: number;
+  passengers: number;
+  status: TripStatus;
 };
 
-const APTO = "#15803d"; const APTOBG = "#F0FDF4";
-const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB";
-const INFO = "#1e40af"; const INFOBG = "#EFF6FF";
-const NO = "#DC2626"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
+/* Paleta sobria */
+const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
+const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
+const APTO = "#15803d"; const APTO_BD = "#86EFAC";
+const INFO = "#1E40AF"; const INFO_BD = "#BFDBFE";
+const RIESGO = "#B45309"; const RIESGO_BD = "#FDE68A";
+const NO = "#DC2626"; const NO_BG = "#FFF5F5"; const NO_BD = "#FCA5A5";
+
+const STATUS_META: Record<TripStatus, { color: string; bd: string; label: string }> = {
+  en_curso:           { color: INFO,   bd: INFO_BD,   label: "EN CURSO" },
+  completado:         { color: APTO,   bd: APTO_BD,   label: "COMPLETADO" },
+  auto_cierre:        { color: RIESGO, bd: RIESGO_BD, label: "AUTO-CIERRE" },
+  cerrado_automatico: { color: RIESGO, bd: RIESGO_BD, label: "AUTO-CIERRE" },
+};
+
+function StatusBadge({ s }: { s: TripStatus | undefined }) {
+  const m = STATUS_META[s ?? "en_curso"] ?? { color: INK6, bd: INK2, label: "—" };
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      padding: "2px 9px", borderRadius: 999,
+      background: "#fff", color: m.color, border: `1px solid ${m.bd}`,
+      fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
+    }}>
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: "currentColor" }} />
+      {m.label}
+    </span>
+  );
+}
+
+const PERIODS: { key: string; label: string }[] = [
+  { key: "hoy", label: "Hoy" },
+  { key: "semana", label: "Esta semana" },
+  { key: "mes", label: "Este mes" },
+  { key: "todos", label: "Histórico" },
+];
 
 const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
-const btnInk: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: "none", background: INK9, color: "#fff", fontFamily: "inherit" };
-const btnOut: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontFamily: "inherit" };
+const CAN_CREATE = ["operador", "admin_municipal", "super_admin"];
 
 export default function ViajesPage() {
   const router = useRouter();
@@ -50,10 +85,12 @@ export default function ViajesPage() {
     try {
       const token = localStorage.getItem("sfit_access_token");
       const qs = new URLSearchParams({ period, limit: "100" });
-      const res = await fetch(`/api/viajes?${qs}`, { headers: { Authorization: `Bearer ${token ?? ""}` } });
+      const res = await fetch(`/api/viajes?${qs}`, {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
       if (res.status === 401) { router.replace("/login"); return; }
       const data = await res.json();
-      if (!res.ok || !data.success) { setError(data.error ?? "Error"); return; }
+      if (!res.ok || !data.success) { setError(data.error ?? "Error al cargar"); return; }
       setItems(data.data.items ?? []);
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
@@ -62,17 +99,26 @@ export default function ViajesPage() {
   useEffect(() => { void load(); }, [load]);
 
   const enCurso = items.filter(t => t.status === "en_curso").length;
-  const totalKm = items.reduce((s, t) => s + t.km, 0);
-  const autoCierre = items.filter(t => t.status === "auto_cierre").length;
+  const completados = items.filter(t => t.status === "completado").length;
+  const totalKm = items.reduce((s, t) => s + (t.km ?? 0), 0);
+  const autoCierre = items.filter(
+    t => t.status === "auto_cierre" || t.status === "cerrado_automatico"
+  ).length;
+  const totalPasajeros = items.reduce((s, t) => s + (t.passengers ?? 0), 0);
+
+  const canCreate = user ? CAN_CREATE.includes(user.role) : false;
 
   const columns = useMemo<ColumnDef<Trip, unknown>[]>(() => [
     {
       id: "id_viaje",
       header: "ID",
-      accessorFn: (row) => row.id.slice(-8).toUpperCase(),
+      accessorFn: (row) => row.id?.slice(-8).toUpperCase() ?? "",
       cell: ({ getValue }) => (
-        <span style={{ fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.75rem" }}>
-          {getValue() as string}
+        <span style={{
+          fontFamily: "ui-monospace, monospace", fontWeight: 700, fontSize: "0.75rem",
+          color: INK9, letterSpacing: "0.04em",
+        }}>
+          {(getValue() as string) || "—"}
         </span>
       ),
     },
@@ -81,8 +127,14 @@ export default function ViajesPage() {
       header: "Vehículo",
       accessorFn: (row) => row.vehicle?.plate ?? "",
       cell: ({ getValue }) => (
-        <span style={{ display: "inline-flex", padding: "4px 10px", borderRadius: 6, background: INK9, color: "#fff", fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.8125rem" }}>
-          {(getValue() as string) || "—"}
+        <span style={{
+          display: "inline-flex", alignItems: "center",
+          padding: "3px 9px", borderRadius: 5,
+          background: INK9, color: "#fff",
+          fontFamily: "ui-monospace, monospace", fontWeight: 700,
+          fontSize: "0.75rem", letterSpacing: "0.04em",
+        }}>
+          {(getValue() as string)?.trim() || "—"}
         </span>
       ),
     },
@@ -90,27 +142,33 @@ export default function ViajesPage() {
       id: "conductor",
       header: "Conductor",
       accessorFn: (row) => row.driver?.name ?? "",
-      cell: ({ getValue }) => <span>{(getValue() as string) || "—"}</span>,
+      cell: ({ getValue }) => (
+        <span style={{ fontSize: "0.8125rem", color: INK9 }}>
+          {(getValue() as string)?.trim() || <span style={{ color: INK5 }}>Sin conductor</span>}
+        </span>
+      ),
     },
     {
       id: "ruta",
-      header: "Ruta/Zona",
+      header: "Ruta / Zona",
       accessorFn: (row) => row.route ? `${row.route.code} ${row.route.name}` : "",
-      cell: ({ row }) => (
-        <span style={{ fontWeight: 600 }}>
-          {row.original.route ? `${row.original.route.code} ${row.original.route.name}` : "—"}
+      cell: ({ row: r }) => (
+        <span style={{ fontSize: "0.8125rem", color: INK9, fontWeight: 600 }}>
+          {r.original.route
+            ? `${r.original.route.code} · ${r.original.route.name}`
+            : <span style={{ color: INK5, fontWeight: 500 }}>Sin asignar</span>}
         </span>
       ),
     },
     {
       id: "inicio",
       header: "Inicio",
-      accessorFn: (row) => row.startTime,
+      accessorFn: (row) => row.startTime ?? "",
       sortingFn: "datetime",
-      cell: ({ row }) => (
-        <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
-          {row.original.startTime
-            ? new Date(row.original.startTime).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })
+      cell: ({ row: r }) => (
+        <span style={{ fontSize: "0.8125rem", color: INK9, fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
+          {r.original.startTime
+            ? new Date(r.original.startTime).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })
             : "—"}
         </span>
       ),
@@ -120,10 +178,13 @@ export default function ViajesPage() {
       header: "Fin",
       accessorFn: (row) => row.endTime ?? "",
       sortingFn: "datetime",
-      cell: ({ row }) => (
-        <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums", color: row.original.endTime ? INK9 : INK5 }}>
-          {row.original.endTime
-            ? new Date(row.original.endTime).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })
+      cell: ({ row: r }) => (
+        <span style={{
+          fontSize: "0.8125rem", fontVariantNumeric: "tabular-nums", fontWeight: 600,
+          color: r.original.endTime ? INK9 : INK5,
+        }}>
+          {r.original.endTime
+            ? new Date(r.original.endTime).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })
             : "—"}
         </span>
       ),
@@ -131,70 +192,128 @@ export default function ViajesPage() {
     {
       id: "km",
       header: "Km",
-      accessorFn: (row) => row.km,
-      cell: ({ getValue }) => <span style={{ fontVariantNumeric: "tabular-nums" }}>{getValue() as number}</span>,
+      accessorFn: (row) => row.km ?? 0,
+      cell: ({ getValue }) => (
+        <span style={{ fontSize: "0.8125rem", fontVariantNumeric: "tabular-nums", color: INK9 }}>
+          {((getValue() as number) ?? 0).toLocaleString("es-PE")}
+        </span>
+      ),
     },
     {
       id: "pasajeros",
       header: "Pasaj.",
-      accessorFn: (row) => row.passengers,
-      cell: ({ getValue }) => <span style={{ fontVariantNumeric: "tabular-nums" }}>{(getValue() as number) || "—"}</span>,
+      accessorFn: (row) => row.passengers ?? 0,
+      cell: ({ getValue }) => {
+        const n = (getValue() as number) ?? 0;
+        return (
+          <span style={{ fontSize: "0.8125rem", fontVariantNumeric: "tabular-nums", color: n > 0 ? INK9 : INK5 }}>
+            {n > 0 ? n.toLocaleString("es-PE") : "—"}
+          </span>
+        );
+      },
     },
     {
       id: "estado",
       header: "Estado",
       accessorFn: (row) => row.status,
-      cell: ({ row }) => {
-        const s = row.original.status;
-        const variantMap: Record<TripStatus, React.ComponentProps<typeof Badge>["variant"]> = {
-          completado: "activo",
-          en_curso: "info",
-          auto_cierre: "pendiente",
-        };
-        const labelMap: Record<TripStatus, string> = {
-          completado: "COMPLETADO",
-          en_curso: "EN CURSO",
-          auto_cierre: "AUTO-CIERRE",
-        };
-        return <Badge variant={variantMap[s]}>{labelMap[s]}</Badge>;
-      },
-    },
-    {
-      id: "acciones",
-      header: "",
-      enableSorting: false,
-      cell: ({ row }) => (
-        <Link href={`/viajes/${row.original.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
-      ),
+      cell: ({ row: r }) => <StatusBadge s={r.original.status} />,
     },
   ], []);
 
   if (!user) return null;
 
   return (
-    <div className="flex flex-col gap-3 animate-fade-in">
-      <PageHeader kicker="Operación · RF-10" title="Viajes"
-        action={<div style={{ display: "flex", gap: 8 }}><button style={btnOut}><Download size={16} />Exportar CSV</button>{user.role === "operador" && (<button style={btnInk}><Plus size={16} />Iniciar viaje</button>)}</div>} />
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
-        {[
-          { ico: <Calendar size={18} />, lbl: "Total", val: items.length, bg: INK1, ic: INK5 },
-          { ico: <Route size={18} />, lbl: "En curso", val: enCurso, bg: INFOBG, ic: INFO },
-          { ico: <Check size={18} />, lbl: "Km acumulados", val: totalKm.toLocaleString(), bg: APTOBG, ic: APTO },
-          { ico: <Clock size={18} />, lbl: "Auto-cierres", val: autoCierre, bg: RIESGOBG, ic: RIESGO },
-        ].map((m, i) => (
-          <div key={i} style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden" }}>
-            <div aria-hidden style={{ position: "absolute", right: -8, bottom: -8, color: m.ic, opacity: 0.16, pointerEvents: "none", lineHeight: 0 }}>
-              {cloneElement(m.ico as React.ReactElement<{ size?: number; strokeWidth?: number }>, { size: 80, strokeWidth: 1.4 })}
-            </div>
-            <div style={{ width: 36, height: 36, borderRadius: 9, background: m.bg, color: m.ic, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>{m.ico}</div>
-            <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: INK5 }}>{m.lbl}</div>
-            <div style={{ fontSize: "2rem", fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.05, marginTop: 6, color: INK9 }}>{loading ? "—" : m.val}</div>
+    <div className="flex flex-col gap-4 animate-fade-in pb-10">
+      <DashboardHero
+        kicker="Operación · RF-10"
+        title="Viajes"
+        pills={[
+          { label: "Total", value: items.length },
+          { label: "En curso", value: enCurso },
+          { label: "Auto-cierres", value: autoCierre, warn: autoCierre > 0 },
+        ]}
+        action={
+          <div style={{ display: "flex", gap: 6 }}>
+            <button style={{
+              display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
+              borderRadius: 7, border: "1px solid rgba(255,255,255,0.18)",
+              background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.85)",
+              fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+            }}>
+              <Download size={13} />Exportar CSV
+            </button>
+            {canCreate && (
+              <Link href="/viajes/nueva">
+                <button style={{
+                  display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
+                  borderRadius: 7, border: "none",
+                  background: "#fff", color: INK9,
+                  fontSize: "0.8125rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                }}>
+                  <Plus size={13} />Iniciar viaje
+                </button>
+              </Link>
+            )}
           </div>
-        ))}
-      </div>
+        }
+      />
 
-      {error && <div style={{ padding: "12px 16px", background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 10, color: NO, marginBottom: 16 }}>{error}</div>}
+      <KPIStrip cols={4} items={[
+        { label: "TOTAL VIAJES", value: loading ? "—" : items.length, subtitle: PERIODS.find(p => p.key === period)?.label.toLowerCase() ?? "del período", icon: Calendar },
+        { label: "EN CURSO", value: loading ? "—" : enCurso, subtitle: "operando ahora", icon: Route, accent: INFO },
+        { label: "KM ACUMULADOS", value: loading ? "—" : totalKm.toLocaleString("es-PE"), subtitle: "del período", icon: Check, accent: APTO },
+        { label: "AUTO-CIERRES", value: loading ? "—" : autoCierre, subtitle: "cerrados por sistema", icon: Clock, accent: autoCierre > 0 ? RIESGO : undefined },
+      ]} />
+
+      {error && (
+        <div role="alert" style={{
+          padding: "10px 14px", background: NO_BG, border: `1px solid ${NO_BD}`,
+          borderRadius: 8, color: NO, fontSize: "0.8125rem",
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <AlertTriangle size={14} />{error}
+        </div>
+      )}
+
+      {/* Toolbar de período */}
+      <div style={{
+        background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10,
+        padding: "8px 10px",
+        display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
+      }}>
+        <div style={{
+          fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em",
+          textTransform: "uppercase", color: INK5, marginRight: 4,
+        }}>
+          Período
+        </div>
+        {PERIODS.map(p => {
+          const active = period === p.key;
+          return (
+            <button
+              key={p.key}
+              onClick={() => setPeriod(p.key)}
+              style={{
+                padding: "5px 11px", borderRadius: 6,
+                fontSize: "0.75rem", fontWeight: active ? 700 : 600,
+                cursor: "pointer", fontFamily: "inherit",
+                background: active ? INK9 : "#fff",
+                color: active ? "#fff" : INK6,
+                border: `1px solid ${active ? INK9 : INK2}`,
+                transition: "all 120ms",
+              }}
+            >
+              {p.label}
+            </button>
+          );
+        })}
+        <span style={{
+          marginLeft: "auto", fontSize: "0.75rem", color: INK5,
+          fontVariantNumeric: "tabular-nums",
+        }}>
+          {items.length} viajes · {totalPasajeros.toLocaleString("es-PE")} pasajeros · {completados} completados
+        </span>
+      </div>
 
       <DataTable
         columns={columns}
@@ -202,15 +321,31 @@ export default function ViajesPage() {
         loading={loading}
         searchPlaceholder="Buscar por placa, conductor, ruta…"
         emptyTitle="Sin viajes en este período"
-        emptyDescription="No se encontraron registros de viajes."
-        toolbarEnd={
-          <div style={{ display: "flex", gap: 6 }}>
-            {[["hoy","Hoy"],["semana","Esta semana"],["mes","Este mes"],["todos","Histórico"]].map(([k,l]) => (
-              <button key={k} onClick={() => setPeriod(k)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 7, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: period === k ? INK9 : "#fff", color: period === k ? "#fff" : INK6, border: period === k ? `1.5px solid ${INK9}` : `1.5px solid ${INK2}` }}>{l}</button>
-            ))}
-          </div>
+        emptyDescription={
+          period === "hoy"
+            ? "No se encontraron viajes registrados hoy. Cambia de período o inicia un viaje."
+            : "No se encontraron registros para el período seleccionado."
         }
+        onRowClick={(row) => router.push(`/viajes/${row.id}`)}
       />
+
+      {/* Empty hint cuando hay datos pero filtro restringe — opcional */}
+      {!loading && items.length === 0 && (
+        <div style={{
+          background: "#fff", border: `1px dashed ${INK2}`, borderRadius: 10,
+          padding: "16px 20px",
+          display: "flex", alignItems: "center", gap: 12,
+          fontSize: "0.8125rem", color: INK5,
+        }}>
+          <Inbox size={16} color={INK5} />
+          <span>
+            Si esperabas ver viajes aquí, ejecuta <code style={{
+              fontFamily: "ui-monospace, monospace", padding: "1px 6px", borderRadius: 4,
+              background: INK1, border: `1px solid ${INK2}`, color: INK9,
+            }}>npx tsx scripts/seed-viajes-hoy.ts</code> en la terminal.
+          </span>
+        </div>
+      )}
     </div>
   );
 }

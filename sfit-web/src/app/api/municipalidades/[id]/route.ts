@@ -19,6 +19,8 @@ const UpdateMunicipalitySchema = z.object({
   name: z.string().min(2).max(160).optional(),
   logoUrl: z.string().url().optional(),
   active: z.boolean().optional(),
+  ruc: z.string().regex(/^\d{11}$/, "RUC debe tener 11 dígitos").optional(),
+  razonSocial: z.string().min(2).max(200).optional(),
 });
 
 /**
@@ -54,6 +56,12 @@ export async function GET(
       provinceId: unknown;
       logoUrl?: string;
       active: boolean;
+      ubigeoCode?: string;
+      departmentCode?: string;
+      provinceCode?: string;
+      ruc?: string;
+      razonSocial?: string;
+      dataCompleted: boolean;
       createdAt: Date;
       updatedAt: Date;
     } | null>();
@@ -65,6 +73,12 @@ export async function GET(
       provinceId: String(muni.provinceId),
       logoUrl: muni.logoUrl,
       active: muni.active,
+      ubigeoCode: muni.ubigeoCode,
+      departmentCode: muni.departmentCode,
+      provinceCode: muni.provinceCode,
+      ruc: muni.ruc,
+      razonSocial: muni.razonSocial,
+      dataCompleted: muni.dataCompleted,
       createdAt: muni.createdAt,
       updatedAt: muni.updatedAt,
     });
@@ -107,7 +121,13 @@ export async function PATCH(
       return apiForbidden();
     }
 
-    const updated = await Municipality.findByIdAndUpdate(id, parsed.data, {
+    // Si se completaron RUC y razón social, marcamos dataCompleted automáticamente.
+    const patch: Record<string, unknown> = { ...parsed.data };
+    if (parsed.data.ruc !== undefined && parsed.data.razonSocial !== undefined) {
+      patch.dataCompleted = true;
+    }
+
+    const updated = await Municipality.findByIdAndUpdate(id, patch, {
       new: true,
     }).lean<{
       _id: unknown;
@@ -115,6 +135,12 @@ export async function PATCH(
       provinceId: unknown;
       logoUrl?: string;
       active: boolean;
+      ubigeoCode?: string;
+      departmentCode?: string;
+      provinceCode?: string;
+      ruc?: string;
+      razonSocial?: string;
+      dataCompleted: boolean;
       createdAt: Date;
       updatedAt: Date;
     } | null>();
@@ -126,6 +152,12 @@ export async function PATCH(
       provinceId: String(updated.provinceId),
       logoUrl: updated.logoUrl,
       active: updated.active,
+      ubigeoCode: updated.ubigeoCode,
+      departmentCode: updated.departmentCode,
+      provinceCode: updated.provinceCode,
+      ruc: updated.ruc,
+      razonSocial: updated.razonSocial,
+      dataCompleted: updated.dataCompleted,
       createdAt: updated.createdAt,
       updatedAt: updated.updatedAt,
     });

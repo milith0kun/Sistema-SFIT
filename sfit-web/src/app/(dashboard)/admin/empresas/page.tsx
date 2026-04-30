@@ -7,7 +7,6 @@ import { Building2, Globe2, MapPin, Plus } from "lucide-react";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Badge } from "@/components/ui/Badge";
 
 type ServiceScope =
   | "urbano_distrital"
@@ -43,8 +42,7 @@ const ALLOWED_ROLES = ["super_admin", "admin_provincial"];
 
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a";
 const INK6 = "#52525b"; const INK9 = "#18181b";
-const RED  = "#b91c1c"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
-const G    = "#B8860B";
+const RED = "#DC2626"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
 
 const SCOPE_LABEL: Record<ServiceScope, string> = {
   urbano_distrital:         "Urbano distrital",
@@ -53,11 +51,11 @@ const SCOPE_LABEL: Record<ServiceScope, string> = {
   interregional_nacional:   "Nacional",
 };
 
-const SCOPE_ACCENT: Record<ServiceScope, { bg: string; bd: string; fg: string }> = {
-  urbano_distrital:         { bg: "#F0FDF4", bd: "#86EFAC", fg: "#15803d" },
-  urbano_provincial:        { bg: "#EFF6FF", bd: "#BFDBFE", fg: "#1D4ED8" },
-  interprovincial_regional: { bg: "#FDF8EC", bd: "#E8D090", fg: "#B8860B" },
-  interregional_nacional:   { bg: "#FEF2F2", bd: "#FECACA", fg: "#b91c1c" },
+// Paleta sobria — todos los chips comparten estilo neutro, sólo varía el texto.
+const SCOPE_CHIP: React.CSSProperties = {
+  display: "inline-flex", padding: "2px 9px", borderRadius: 5,
+  background: "#fff", border: `1px solid ${INK2}`, color: INK6,
+  fontSize: "0.6875rem", fontWeight: 600, letterSpacing: "0.02em",
 };
 
 export default function AdminEmpresasPage() {
@@ -163,16 +161,7 @@ export default function AdminEmpresasPage() {
       cell: ({ row: r }) => {
         const s = r.original.serviceScope;
         if (!s) return <span style={{ color: INK5 }}>—</span>;
-        const t = SCOPE_ACCENT[s];
-        return (
-          <span style={{
-            display: "inline-flex", padding: "3px 9px", borderRadius: 999,
-            background: t.bg, border: `1px solid ${t.bd}`, color: t.fg,
-            fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.02em",
-          }}>
-            {SCOPE_LABEL[s]}
-          </span>
-        );
+        return <span style={SCOPE_CHIP}>{SCOPE_LABEL[s]}</span>;
       },
     },
     {
@@ -215,11 +204,21 @@ export default function AdminEmpresasPage() {
       id: "estado",
       header: "Estado",
       accessorFn: (c) => c.active ? "activa" : "suspendida",
-      cell: ({ row: r }) => (
-        <Badge variant={r.original.active ? "activo" : "suspendido"}>
-          {r.original.active ? "Activa" : "Suspendida"}
-        </Badge>
-      ),
+      cell: ({ row: r }) => {
+        const ok = r.original.active;
+        return (
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 5,
+            padding: "2px 8px", borderRadius: 999,
+            background: "#fff", border: `1px solid ${ok ? "#86EFAC" : REDBD}`,
+            color: ok ? "#15803d" : RED,
+            fontSize: "0.6875rem", fontWeight: 700,
+          }}>
+            <span style={{ width: 5, height: 5, borderRadius: "50%", background: "currentColor" }} />
+            {ok ? "Activa" : "Suspendida"}
+          </span>
+        );
+      },
     },
     {
       id: "rep",
@@ -273,9 +272,9 @@ export default function AdminEmpresasPage() {
   const headerAction = isSA ? (
     <Link href="/admin/empresas/nueva">
       <button style={{
-        display: "inline-flex", alignItems: "center", gap: 6, height: 34,
-        padding: "0 14px", borderRadius: 8, border: `1.5px solid ${G}`,
-        background: G, color: "#fff", fontSize: "0.8125rem", fontWeight: 700,
+        display: "inline-flex", alignItems: "center", gap: 6, height: 32,
+        padding: "0 14px", borderRadius: 7, border: "none",
+        background: INK9, color: "#fff", fontSize: "0.8125rem", fontWeight: 600,
         cursor: "pointer", fontFamily: "inherit",
       }}>
         <Plus size={13}/> Nueva interprovincial
@@ -295,8 +294,8 @@ export default function AdminEmpresasPage() {
       <KPIStrip cols={4} items={[
         { label: "TOTAL EN VISTA", value: items.length, subtitle: `${total} en total`, icon: Building2 },
         { label: "URBANAS",        value: byScope.urbano_distrital + byScope.urbano_provincial, subtitle: "distrital + provincial", icon: MapPin },
-        { label: "INTERPROVINCIALES", value: byScope.interprovincial_regional, subtitle: "regionales", icon: Globe2, accent: G },
-        { label: "NACIONALES",     value: byScope.interregional_nacional, subtitle: "interregionales", icon: Globe2, accent: "#b91c1c" },
+        { label: "INTERPROVINCIALES", value: byScope.interprovincial_regional, subtitle: "regionales", icon: Globe2 },
+        { label: "NACIONALES",     value: byScope.interregional_nacional, subtitle: "interregionales", icon: Globe2 },
       ]} />
 
       {error && (
