@@ -423,18 +423,18 @@ export default function ConductorDetallePage({ params }: Props) {
         {
           label: "ESTADO", value: st.label,
           subtitle: safeStatus === "apto" ? "operativo" : "revisar",
-          icon: User, accent: st.color,
+          icon: User,
         },
         {
           label: "REPUTACIÓN", value: `${rep}`,
           subtitle: "de 100 puntos",
-          icon: TrendingUp, accent: repColor,
+          icon: TrendingUp,
         },
         {
           label: "HORAS CONT.", value: `${continuous}h`,
           subtitle: continuous >= 8 ? "límite excedido"
             : continuous >= 5 ? "cerca del límite" : "dentro del rango",
-          icon: Clock, accent: fatigaColor,
+          icon: Clock,
         },
         {
           label: "DESCANSO", value: `${conductor.restHours ?? 0}h`,
@@ -767,13 +767,13 @@ export default function ConductorDetallePage({ params }: Props) {
         {/* Sidebar */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
-          {/* Tarjeta de identidad — estilo usuarios/[id] */}
+          {/* Tarjeta de identidad (sobria) */}
           <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
             <div style={{ padding: "20px 16px 16px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 10 }}>
               <div style={{
                 width: 64, height: 64, borderRadius: "50%",
-                background: st.bg, border: `2px solid ${st.bd}`,
-                color: st.color,
+                background: INK1, border: `1px solid ${INK2}`,
+                color: INK6,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontWeight: 800, fontSize: "1.375rem",
               }}>
@@ -788,7 +788,7 @@ export default function ConductorDetallePage({ params }: Props) {
                     {conductor.phone}
                   </div>
                 )}
-                <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 6, fontSize: "0.6875rem", fontWeight: 700, background: st.bg, color: st.color, border: `1px solid ${st.bd}` }}>
+                <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 10px", borderRadius: 6, fontSize: "0.6875rem", fontWeight: 700, background: "#fff", color: INK9, border: `1px solid ${INK2}`, letterSpacing: "0.04em" }}>
                   <span style={{ width: 6, height: 6, borderRadius: "50%", background: st.color }} />
                   {st.label.toUpperCase()}
                 </div>
@@ -811,17 +811,17 @@ export default function ConductorDetallePage({ params }: Props) {
             <div style={{
               display: "flex", alignItems: "center", gap: 10,
               padding: "10px 12px", borderRadius: 8,
-              background: st.bg, border: `1px solid ${st.bd}`,
+              background: INK1, border: `1px solid ${INK2}`,
             }}>
-              <StIcon size={16} color={st.color} strokeWidth={2} />
+              <StIcon size={16} color={st.color} strokeWidth={1.8} />
               <div style={{ flex: 1 }}>
                 <div style={{
                   fontSize: "0.625rem", fontWeight: 800, letterSpacing: "0.08em",
-                  textTransform: "uppercase", color: st.color, marginBottom: 1,
+                  textTransform: "uppercase", color: INK5, marginBottom: 1,
                 }}>
                   Estado
                 </div>
-                <div style={{ fontSize: "0.9375rem", fontWeight: 700, color: st.color, lineHeight: 1 }}>
+                <div style={{ fontSize: "0.9375rem", fontWeight: 700, color: INK9, lineHeight: 1 }}>
                   {st.label}
                 </div>
               </div>
@@ -829,7 +829,7 @@ export default function ConductorDetallePage({ params }: Props) {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 8 }}>
               <MiniRow label="Conducción continua" value={`${continuous}h`} />
               <MiniRow label="Descanso restante" value={`${conductor.restHours ?? 0}h`} />
-              <MiniRow label="Reputación" value={`${rep}/100`} accent={repColor} />
+              <MiniRow label="Reputación" value={`${rep}/100`} />
               <MiniRow label="Activo" value={conductor.active ? "Sí" : "No"} />
             </div>
           </SectionCard>

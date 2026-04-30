@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback, cloneElement, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Shield, Check, AlertTriangle, X, Plus, Sparkles, Download } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
-import { Badge } from "@/components/ui/Badge";
 
 type InspectionResult = "aprobada" | "observada" | "rechazada";
 type Inspection = {
@@ -161,17 +160,29 @@ export default function InspeccionesPage() {
       accessorFn: (row) => row.result,
       cell: ({ row }) => {
         const r = row.original.result;
-        const variantMap: Record<InspectionResult, React.ComponentProps<typeof Badge>["variant"]> = {
-          aprobada: "activo",
-          observada: "pendiente",
-          rechazada: "suspendido",
-        };
         const labelMap: Record<InspectionResult, string> = {
-          aprobada: "APROBADA",
-          observada: "OBSERVADA",
-          rechazada: "RECHAZADA",
+          aprobada: "Aprobada",
+          observada: "Observada",
+          rechazada: "Rechazada",
         };
-        return <Badge variant={variantMap[r]}>{labelMap[r]}</Badge>;
+        // Estilo sobrio: sin fondos saturados; solo un punto + texto y borde gris.
+        // El indicador visual es el punto coloreado pequeño.
+        const dotColor: Record<InspectionResult, string> = {
+          aprobada: APTO,
+          observada: RIESGO,
+          rechazada: NO,
+        };
+        return (
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "3px 10px", borderRadius: 6,
+            background: "#fff", border: `1px solid ${INK2}`,
+            fontSize: "0.75rem", fontWeight: 600, color: INK9,
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor[r], flexShrink: 0 }} />
+            {labelMap[r]}
+          </span>
+        );
       },
     },
   ], []);
@@ -190,20 +201,21 @@ export default function InspeccionesPage() {
           </div>
         } />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
         {[
-          { ico: <Shield size={18} />, lbl: "Este mes", val: stats.mes, bg: INK1, ic: INK5 },
-          { ico: <Check size={18} />, lbl: "Aprobadas", val: aprobadas, bg: APTOBG, ic: APTO },
-          { ico: <AlertTriangle size={18} />, lbl: "Observadas", val: observadas, bg: RIESGOBG, ic: RIESGO },
-          { ico: <X size={18} />, lbl: "Rechazadas", val: rechazadas, bg: NOBG, ic: NO },
+          { ico: <Shield size={16} />, lbl: "Este mes",   val: stats.mes },
+          { ico: <Check size={16} />,  lbl: "Aprobadas",  val: aprobadas },
+          { ico: <AlertTriangle size={16} />, lbl: "Observadas", val: observadas },
+          { ico: <X size={16} />,      lbl: "Rechazadas", val: rechazadas },
         ].map((m, i) => (
-          <div key={i} style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden" }}>
-            <div aria-hidden style={{ position: "absolute", right: -8, bottom: -8, color: m.ic, opacity: 0.16, pointerEvents: "none", lineHeight: 0 }}>
-              {cloneElement(m.ico as React.ReactElement<{ size?: number; strokeWidth?: number }>, { size: 80, strokeWidth: 1.4 })}
+          <div key={i} style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, padding: "14px 16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 7, background: INK1, border: `1px solid ${INK2}`, color: INK6, display: "flex", alignItems: "center", justifyContent: "center" }}>{m.ico}</div>
+              <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: INK5 }}>{m.lbl}</div>
             </div>
-            <div style={{ width: 36, height: 36, borderRadius: 9, background: m.bg, color: m.ic, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>{m.ico}</div>
-            <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: INK5 }}>{m.lbl}</div>
-            <div style={{ fontSize: "2rem", fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.05, marginTop: 6, color: INK9 }}>{loading ? "—" : m.val}</div>
+            <div style={{ fontSize: "1.75rem", fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1.05, color: INK9, fontVariantNumeric: "tabular-nums" }}>
+              {loading ? "—" : m.val}
+            </div>
           </div>
         ))}
       </div>
@@ -230,48 +242,66 @@ export default function InspeccionesPage() {
           />
         </div>
 
-        {/* Panel de análisis: puntos críticos + tasa aprobación (datos reales) */}
-        <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14 }}>
-          <div style={{ padding: "16px 22px", borderBottom: `1px solid ${INK2}`, background: `linear-gradient(135deg,${GBG},#fff)` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: "0.9375rem" }}><Sparkles size={16} color={G} />Puntos críticos</div>
-            <div style={{ fontSize: "0.8125rem", color: INK5, marginTop: 2 }}>Ítems con mayor tasa de fallo en su jurisdicción</div>
+        {/* Panel de análisis: puntos críticos + tasa aprobación (sobrio) */}
+        <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
+          <div style={{ padding: "10px 16px", borderBottom: `1px solid ${INK1}`, display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 26, height: 26, borderRadius: 6, background: INK1, border: `1px solid ${INK2}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Sparkles size={13} color={INK6} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9, lineHeight: 1.25 }}>Puntos críticos</div>
+              <div style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.3, marginTop: 1 }}>Ítems con mayor tasa de fallo</div>
+            </div>
           </div>
-          <div style={{ padding: 18 }}>
+          <div style={{ padding: 16 }}>
             {loadingSug ? (
-              <div style={{ fontSize: "0.875rem", color: INK5, textAlign: "center", padding: 20 }}>Calculando…</div>
+              <div style={{ fontSize: "0.8125rem", color: INK5, textAlign: "center", padding: 20 }}>Calculando…</div>
             ) : sugerencias.length === 0 ? (
-              <div style={{ padding: 14, background: INK1, borderRadius: 10, fontSize: "0.875rem", color: INK6 }}>
-                Sin patrones de fallo detectados. La flota muestra resultados estables.
+              <div style={{ padding: 12, background: INK1, borderRadius: 8, fontSize: "0.8125rem", color: INK6 }}>
+                Sin patrones de fallo detectados.
               </div>
             ) : (
               <>
-                <p className="kicker" style={{ marginBottom: 10 }}>Top {sugerencias.length} fallas frecuentes</p>
-                {sugerencias.map((s, i) => {
-                  const pct = Math.round(s.tasaFallo * 100);
-                  return (
-                    <div key={i} style={{ padding: 12, border: `1px solid ${INK2}`, borderRadius: 10, marginBottom: 8, display: "flex", gap: 10, alignItems: "center" }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 8, background: GBG, color: GD, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.75rem", flexShrink: 0 }}>{pct}%</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: "0.875rem", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}>{s.item}</div>
-                        <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 2 }}>{s.fallos} de {s.total} inspecciones falladas</div>
+                <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: INK5, marginBottom: 8 }}>
+                  Top {sugerencias.length} fallas frecuentes
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {sugerencias.map((s, i) => {
+                    const pct = Math.round(s.tasaFallo * 100);
+                    return (
+                      <div key={i} style={{ padding: "10px 12px", border: `1px solid ${INK2}`, borderRadius: 8, display: "flex", gap: 10, alignItems: "center" }}>
+                        <div style={{
+                          width: 38, height: 38, borderRadius: 7,
+                          background: INK1, border: `1px solid ${INK2}`,
+                          color: INK9,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontWeight: 800, fontSize: "0.75rem", flexShrink: 0,
+                          fontVariantNumeric: "tabular-nums",
+                        }}>{pct}%</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: "0.8125rem", fontWeight: 600, color: INK9, overflow: "hidden", textOverflow: "ellipsis" }}>{s.item}</div>
+                          <div style={{ fontSize: "0.6875rem", color: INK5, marginTop: 1 }}>{s.fallos} de {s.total} fallaron</div>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </>
             )}
 
-            <div style={{ marginTop: 16, padding: 14, background: GBG, borderRadius: 10, border: `1px solid ${GBR}` }}>
-              <div style={{ fontSize: "0.8125rem", color: GD, fontWeight: 600 }}>Tasa de aprobación global</div>
-              <div style={{ fontSize: "1.5rem", fontWeight: 800, color: G, marginTop: 4 }}>
-                {totalGlobal ? `${Math.round((aprobadas / totalGlobal) * 100)}%` : "—"}
+            <div style={{ marginTop: 14, padding: "12px 14px", background: INK1, borderRadius: 8, border: `1px solid ${INK2}` }}>
+              <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: INK5 }}>Tasa de aprobación global</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 4 }}>
+                <span style={{ fontSize: "1.5rem", fontWeight: 800, color: INK9, fontVariantNumeric: "tabular-nums" }}>
+                  {totalGlobal ? `${Math.round((aprobadas / totalGlobal) * 100)}%` : "—"}
+                </span>
+                {stats.avgScore > 0 && (
+                  <span style={{ fontSize: "0.75rem", color: INK5 }}>· Score {stats.avgScore}/100</span>
+                )}
               </div>
-              <div style={{ height: 6, background: "rgba(108,6,6,.15)", borderRadius: 999, marginTop: 8, overflow: "hidden" }}>
-                <span style={{ display: "block", height: "100%", borderRadius: 999, background: G, width: totalGlobal ? `${(aprobadas / totalGlobal) * 100}%` : "0%" }} />
+              <div style={{ height: 5, background: "#fff", border: `1px solid ${INK2}`, borderRadius: 999, marginTop: 8, overflow: "hidden" }}>
+                <span style={{ display: "block", height: "100%", borderRadius: 999, background: INK9, width: totalGlobal ? `${(aprobadas / totalGlobal) * 100}%` : "0%" }} />
               </div>
-              {stats.avgScore > 0 && (
-                <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 8 }}>Score promedio: {stats.avgScore}/100</div>
-              )}
             </div>
           </div>
         </div>

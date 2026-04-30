@@ -92,13 +92,14 @@ function StatusBadge({ s }: { s: ApelacionStatus }) {
   const m = STATUS_META[s];
   return (
     <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
+      display: "inline-flex", alignItems: "center", gap: 6,
       padding: "3px 10px", borderRadius: 6,
-      fontSize: "0.6875rem", fontWeight: 700,
-      background: m.bg, color: m.color, border: `1px solid ${m.bd}`,
+      fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
+      background: "#fff", color: INK9, border: `1px solid ${INK2}`,
+      textTransform: "uppercase",
     }}>
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
-      {m.label.toUpperCase()}
+      {m.label}
     </span>
   );
 }
@@ -318,8 +319,7 @@ export default function ApelacionDetailPage({ params }: { params: Promise<{ id: 
             >
               <div style={{
                 padding: "12px 14px", borderRadius: 8,
-                background: apel.status === "aprobada" ? GRNBG : REDBG,
-                border: `1px solid ${apel.status === "aprobada" ? GRNBD : REDBD}`,
+                background: INK1, border: `1px solid ${INK2}`,
               }}>
                 <p style={{ margin: 0, fontSize: "0.875rem", color: INK9, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
                   {apel.resolution}
@@ -356,21 +356,23 @@ export default function ApelacionDetailPage({ params }: { params: Promise<{ id: 
                   disabled={resolving}
                   style={{
                     ...BTN_PRIMARY, flex: 1, justifyContent: "center", height: 36,
-                    background: GRN, opacity: resolving ? 0.6 : 1,
+                    opacity: resolving ? 0.6 : 1,
                   }}
                 >
-                  <CheckCircle size={14} />Aprobar
+                  <CheckCircle size={14} color="#fff" />Aprobar
                 </button>
                 <button
                   onClick={() => { void handleResolve("rechazada"); }}
                   disabled={resolving}
                   style={{
-                    ...BTN_PRIMARY, flex: 1, justifyContent: "center", height: 36,
-                    background: "#fff", color: RED, border: `1.5px solid ${REDBD}`,
-                    opacity: resolving ? 0.6 : 1,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    flex: 1, height: 36, padding: "0 14px", borderRadius: 7,
+                    border: `1px solid ${INK2}`, background: "#fff", color: INK6,
+                    fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
+                    fontFamily: "inherit", opacity: resolving ? 0.6 : 1,
                   }}
                 >
-                  <XCircle size={14} />Rechazar
+                  <XCircle size={14} color={RED} />Rechazar
                 </button>
               </div>
             </SectionCard>
@@ -396,14 +398,13 @@ export default function ApelacionDetailPage({ params }: { params: Promise<{ id: 
         {/* ─── Sidebar derecha ─── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-          {/* Tarjeta de identidad — operador que presentó */}
+          {/* Tarjeta de identidad (sobria) */}
           <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
             <div style={{ padding: "20px 16px 16px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 10 }}>
               <div style={{
                 width: 64, height: 64, borderRadius: "50%",
-                background: STATUS_META[apel.status].bg,
-                border: `2px solid ${STATUS_META[apel.status].bd}`,
-                color: STATUS_META[apel.status].color,
+                background: INK1, border: `1px solid ${INK2}`,
+                color: INK6,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontWeight: 800, fontSize: "1.375rem",
               }}>

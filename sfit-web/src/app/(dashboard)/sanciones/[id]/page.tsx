@@ -122,13 +122,14 @@ function StatusBadge({ s }: { s: SanctionStatus }) {
   const m = STATUS_META[s];
   return (
     <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
+      display: "inline-flex", alignItems: "center", gap: 6,
       padding: "3px 10px", borderRadius: 6,
-      fontSize: "0.6875rem", fontWeight: 700,
-      background: m.bg, color: m.color, border: `1px solid ${m.bd}`,
+      fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
+      background: "#fff", color: INK9, border: `1px solid ${INK2}`,
+      textTransform: "uppercase",
     }}>
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
-      {m.label.toUpperCase()}
+      {m.label}
     </span>
   );
 }
@@ -324,9 +325,9 @@ export default function SancionDetallePage({ params }: Props) {
             subtitle="Importe en soles y equivalencia UIT"
           >
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div style={{ padding: 16, background: GBG, border: `1.5px solid ${GBR}`, borderRadius: 10 }}>
-                <div style={{ ...LABEL_S, color: G, marginBottom: 4 }}>Monto en soles</div>
-                <div style={{ fontSize: "1.5rem", fontWeight: 800, color: G, fontVariantNumeric: "tabular-nums" }}>
+              <div style={{ padding: 16, background: INK1, border: `1px solid ${INK2}`, borderRadius: 10 }}>
+                <div style={{ ...LABEL_S, marginBottom: 4 }}>Monto en soles</div>
+                <div style={{ fontSize: "1.5rem", fontWeight: 800, color: INK9, fontVariantNumeric: "tabular-nums" }}>
                   S/ {sanction.amountSoles.toLocaleString("es-PE")}
                 </div>
               </div>
@@ -424,16 +425,16 @@ export default function SancionDetallePage({ params }: Props) {
                       onClick={() => setNewStatus(s)}
                       style={{
                         padding: "8px 10px", borderRadius: 7,
-                        border: active ? `1.5px solid ${m.color}` : `1px solid ${INK2}`,
-                        background: active ? m.bg : "#fff",
-                        color: active ? m.color : INK6,
+                        border: active ? `1.5px solid ${INK9}` : `1px solid ${INK2}`,
+                        background: active ? INK9 : "#fff",
+                        color: active ? "#fff" : INK6,
                         fontSize: "0.75rem", fontWeight: active ? 700 : 500,
                         cursor: "pointer", fontFamily: "inherit",
                         textAlign: "center",
                         display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
                       }}
                     >
-                      <span style={{ width: 5, height: 5, borderRadius: "50%", background: m.color }} />
+                      <span style={{ width: 5, height: 5, borderRadius: "50%", background: active ? "#fff" : m.color }} />
                       {m.label}
                     </button>
                   );
@@ -446,16 +447,16 @@ export default function SancionDetallePage({ params }: Props) {
         {/* ─── Sidebar derecha ─── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-          {/* Tarjeta de identidad — vehículo y estado */}
+          {/* Tarjeta de identidad (sobria) */}
           <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
             <div style={{ padding: "20px 16px 16px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 10 }}>
               <div style={{
                 width: 64, height: 64, borderRadius: 12,
-                background: sanctionMeta.bg, border: `2px solid ${sanctionMeta.bd}`,
-                color: sanctionMeta.color,
+                background: INK1, border: `1px solid ${INK2}`,
+                color: INK6,
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
-                <Gavel size={28} strokeWidth={2} />
+                <Gavel size={28} strokeWidth={1.8} />
               </div>
               <div style={{ minWidth: 0, width: "100%" }}>
                 <div style={{ fontFamily: "ui-monospace,monospace", fontWeight: 800, fontSize: "0.9375rem", color: INK9 }}>
@@ -541,7 +542,7 @@ export default function SancionDetallePage({ params }: Props) {
                 )}
                 {sanction.status === "apelada" && (
                   <button onClick={() => { setNewStatus("confirmada"); void handleStatusUpdate(); }} disabled={updating}
-                    style={{ ...BTN_PRIMARY, height: 36, justifyContent: "center", background: GRN, opacity: updating ? 0.6 : 1 }}>
+                    style={{ ...BTN_PRIMARY, height: 36, justifyContent: "center", opacity: updating ? 0.6 : 1 }}>
                     <CheckCircle size={14} />Confirmar
                   </button>
                 )}
@@ -549,11 +550,11 @@ export default function SancionDetallePage({ params }: Props) {
                   style={{
                     display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
                     height: 36, padding: "0 14px", borderRadius: 7,
-                    border: `1.5px solid ${REDBD}`, background: "#fff", color: RED,
+                    border: `1px solid ${INK2}`, background: "#fff", color: INK6,
                     fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
                     fontFamily: "inherit", opacity: updating ? 0.6 : 1,
                   }}>
-                  <XCircle size={14} />Anular sanción
+                  <XCircle size={14} color={RED} />Anular sanción
                 </button>
               </div>
             </SectionCard>

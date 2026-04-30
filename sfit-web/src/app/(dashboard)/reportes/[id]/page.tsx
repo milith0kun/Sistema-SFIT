@@ -117,13 +117,14 @@ function StatusBadge({ s }: { s: ReportStatus }) {
   const m = STATUS_META[s];
   return (
     <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
+      display: "inline-flex", alignItems: "center", gap: 6,
       padding: "3px 10px", borderRadius: 6,
-      fontSize: "0.6875rem", fontWeight: 700,
-      background: m.bg, color: m.color, border: `1px solid ${m.bd}`,
+      fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
+      background: "#fff", color: INK9, border: `1px solid ${INK2}`,
+      textTransform: "uppercase",
     }}>
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
-      {m.label.toUpperCase()}
+      {m.label}
     </span>
   );
 }
@@ -314,7 +315,7 @@ export default function ReporteDetallePage({ params }: Props) {
                 <button style={{
                   display: "inline-flex", alignItems: "center", gap: 6,
                   height: 36, padding: "0 14px", borderRadius: 9,
-                  border: "none", background: RED, color: "#fff",
+                  border: "none", background: INK9, color: "#fff",
                   fontSize: "0.875rem", fontWeight: 600,
                   cursor: "pointer", fontFamily: "inherit",
                 }}>
@@ -427,18 +428,18 @@ export default function ReporteDetallePage({ params }: Props) {
             )}
           </SectionCard>
 
-          {/* Score de fraude */}
+          {/* Score de fraude (sobrio) */}
           <SectionCard
             icon={<BarChart3 size={14} color={INK6} />}
             title="Puntuación de fraude"
             subtitle={`Riesgo ${fraudLabel(report.fraudScore)}`}
             action={
-              <span style={{ fontSize: "1rem", fontWeight: 800, color: fColor, fontVariantNumeric: "tabular-nums" }}>
+              <span style={{ fontSize: "1rem", fontWeight: 800, color: INK9, fontVariantNumeric: "tabular-nums" }}>
                 {report.fraudScore}<span style={{ fontSize: "0.75rem", color: INK5, fontWeight: 400 }}>/100</span>
               </span>
             }
           >
-            <div style={{ height: 8, background: INK1, borderRadius: 999, overflow: "hidden", marginBottom: 14 }}>
+            <div style={{ height: 6, background: INK1, border: `1px solid ${INK2}`, borderRadius: 999, overflow: "hidden", marginBottom: 14 }}>
               <div style={{ height: "100%", width: `${report.fraudScore}%`, background: fColor, borderRadius: 999, transition: "width 0.4s ease" }} />
             </div>
 
@@ -450,16 +451,15 @@ export default function ReporteDetallePage({ params }: Props) {
                     <div key={i} style={{
                       display: "flex", alignItems: "center", gap: 10,
                       padding: "10px 12px", borderRadius: 8,
-                      background: INK1, border: `1px solid ${INK2}`,
+                      background: "#fff", border: `1px solid ${INK2}`,
                     }}>
                       <div style={{
-                        width: 28, height: 28, borderRadius: 7,
-                        background: l.passed ? GRNBG : REDBG,
-                        border: `1px solid ${l.passed ? GRNBD : REDBD}`,
+                        width: 24, height: 24, borderRadius: 6,
+                        background: INK1, border: `1px solid ${INK2}`,
                         color: l.passed ? GRN : RED,
                         display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
                       }}>
-                        {l.passed ? <Check size={14} /> : <X size={14} />}
+                        {l.passed ? <Check size={13} /> : <X size={13} />}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 700, color: INK9, fontSize: "0.8125rem" }}>{l.layer}</div>
@@ -469,7 +469,7 @@ export default function ReporteDetallePage({ params }: Props) {
                         fontSize: "0.625rem", fontWeight: 800, padding: "2px 8px", borderRadius: 999,
                         background: "#fff",
                         color: l.passed ? GRN : RED,
-                        border: `1px solid ${l.passed ? GRNBD : REDBD}`,
+                        border: `1px solid ${INK2}`,
                         textTransform: "uppercase", letterSpacing: "0.06em", flexShrink: 0,
                       }}>
                         {l.passed ? "Pasó" : "Falló"}
@@ -508,12 +508,12 @@ export default function ReporteDetallePage({ params }: Props) {
                     style={{
                       flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
                       height: 36, padding: "0 12px", borderRadius: 8,
-                      border: `1.5px solid ${REDBD}`, background: "#fff", color: RED,
+                      border: `1px solid ${INK2}`, background: "#fff", color: INK6,
                       fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
                       fontFamily: "inherit", opacity: updating ? 0.6 : 1,
                     }}
                   >
-                    <X size={14} />Rechazar
+                    <X size={14} color={RED} />Rechazar
                   </button>
                   <button
                     disabled={updating}
@@ -521,7 +521,7 @@ export default function ReporteDetallePage({ params }: Props) {
                     style={{
                       flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
                       height: 36, padding: "0 12px", borderRadius: 8,
-                      border: "none", background: GRN, color: "#fff",
+                      border: "none", background: INK9, color: "#fff",
                       fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
                       fontFamily: "inherit", opacity: updating ? 0.6 : 1,
                     }}
@@ -573,16 +573,16 @@ export default function ReporteDetallePage({ params }: Props) {
         {/* ─── Sidebar derecha ─── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-          {/* Tarjeta de identidad */}
+          {/* Tarjeta de identidad (sobria) */}
           <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
             <div style={{ padding: "20px 16px 16px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 10 }}>
               <div style={{
                 width: 64, height: 64, borderRadius: 12,
-                background: reportMeta.bg, border: `2px solid ${reportMeta.bd}`,
-                color: reportMeta.color,
+                background: INK1, border: `1px solid ${INK2}`,
+                color: INK6,
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
-                <Flag size={28} strokeWidth={2} />
+                <Flag size={28} strokeWidth={1.8} />
               </div>
               <div style={{ minWidth: 0, width: "100%" }}>
                 <div style={{ fontFamily: "ui-monospace,monospace", fontWeight: 800, fontSize: "0.9375rem", color: INK9 }}>
@@ -622,8 +622,8 @@ export default function ReporteDetallePage({ params }: Props) {
               {[1, 2, 3, 4, 5].map(n => (
                 <div key={n} style={{
                   width: 32, height: 32, borderRadius: 7,
-                  background: n <= report.citizenReputationLevel ? G : INK1,
-                  border: `1.5px solid ${n <= report.citizenReputationLevel ? GD : INK2}`,
+                  background: n <= report.citizenReputationLevel ? INK9 : "#fff",
+                  border: `1px solid ${n <= report.citizenReputationLevel ? INK9 : INK2}`,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: "0.75rem", fontWeight: 800,
                   color: n <= report.citizenReputationLevel ? "#fff" : INK5,

@@ -102,13 +102,14 @@ function ResultBadge({ r }: { r: InspectionResult }) {
   const m = RESULT_META[r];
   return (
     <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
+      display: "inline-flex", alignItems: "center", gap: 6,
       padding: "3px 10px", borderRadius: 6,
-      fontSize: "0.6875rem", fontWeight: 700,
-      background: m.bg, color: m.color, border: `1px solid ${m.bd}`,
+      fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
+      background: "#fff", color: INK9, border: `1px solid ${INK2}`,
+      textTransform: "uppercase",
     }}>
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
-      {m.label.toUpperCase()}
+      {m.label}
     </span>
   );
 }
@@ -231,7 +232,7 @@ export default function InspeccionDetallePage({ params }: { params: Promise<{ id
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 6,
                   height: 36, padding: "0 14px", borderRadius: 9,
-                  border: "none", background: RED, color: "#fff",
+                  border: "none", background: INK9, color: "#fff",
                   fontSize: "0.875rem", fontWeight: 600,
                   cursor: "pointer", fontFamily: "inherit",
                 }}
@@ -248,35 +249,29 @@ export default function InspeccionDetallePage({ params }: { params: Promise<{ id
         {/* ─── Columna principal ─── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-          {/* Resultado y score */}
+          {/* Resultado y score (sobrio) */}
           <SectionCard
             icon={<Shield size={14} color={INK6} />}
             title="Resultado de inspección"
             subtitle={`${passedItems} de ${totalItems} ítems aprobados`}
             action={<ResultBadge r={insp.result} />}
           >
-            <div style={{
-              padding: "16px 18px", borderRadius: 10,
-              background: resultMeta.bg, border: `1px solid ${resultMeta.bd}`,
-              display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                {insp.result === "aprobada"  && <CheckCircle2 size={32} color={GRN} strokeWidth={2} />}
-                {insp.result === "observada" && <AlertCircle  size={32} color={AMB} strokeWidth={2} />}
-                {insp.result === "rechazada" && <XCircle      size={32} color={RED} strokeWidth={2} />}
-                <div>
-                  <div style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: resultMeta.color }}>Resultado</div>
-                  <div style={{ fontSize: "1rem", fontWeight: 800, color: INK9, marginTop: 2 }}>{resultMeta.label}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ padding: 12, background: INK1, borderRadius: 8, border: `1px solid ${INK2}` }}>
+                <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: INK5, marginBottom: 6 }}>Resultado</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: resultMeta.color, flexShrink: 0 }} />
+                  <span style={{ fontSize: "1rem", fontWeight: 700, color: INK9 }}>{resultMeta.label}</span>
                 </div>
               </div>
-              <div style={{ flex: 1, minWidth: 200 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ fontSize: "0.75rem", color: resultMeta.color, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" }}>Score</span>
-                  <span style={{ fontWeight: 800, fontSize: "1.25rem", color: scoreColor(insp.score), fontVariantNumeric: "tabular-nums" }}>
-                    {insp.score}/100
+              <div style={{ padding: 12, background: INK1, borderRadius: 8, border: `1px solid ${INK2}` }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: INK5 }}>Score</span>
+                  <span style={{ fontWeight: 800, fontSize: "1.125rem", color: INK9, fontVariantNumeric: "tabular-nums" }}>
+                    {insp.score}<span style={{ color: INK5, fontWeight: 500, fontSize: "0.75rem" }}>/100</span>
                   </span>
                 </div>
-                <div style={{ height: 8, background: "rgba(0,0,0,0.08)", borderRadius: 999, overflow: "hidden" }}>
+                <div style={{ height: 5, background: "#fff", border: `1px solid ${INK2}`, borderRadius: 999, overflow: "hidden" }}>
                   <div style={{ height: "100%", borderRadius: 999, background: scoreColor(insp.score), width: `${insp.score}%` }} />
                 </div>
               </div>
@@ -292,31 +287,38 @@ export default function InspeccionDetallePage({ params }: { params: Promise<{ id
             {insp.checklistResults.length === 0 ? (
               <p style={{ color: INK5, fontSize: "0.875rem", margin: 0 }}>Sin ítems de checklist registrados.</p>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {insp.checklistResults.map((row, idx) => (
                   <div
                     key={idx}
                     style={{
-                      display: "flex", alignItems: "flex-start", gap: 12,
+                      display: "flex", alignItems: "flex-start", gap: 10,
                       padding: "10px 12px", borderRadius: 8,
-                      border: `1px solid ${row.passed ? GRNBD : REDBD}`,
-                      background: row.passed ? GRNBG : REDBG,
+                      border: `1px solid ${INK2}`,
+                      background: "#fff",
                     }}
                   >
-                    <div style={{ color: row.passed ? GRN : RED, flexShrink: 0, marginTop: 1 }}>
-                      {row.passed ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+                    <div style={{
+                      width: 24, height: 24, borderRadius: 6,
+                      background: INK1, border: `1px solid ${INK2}`,
+                      color: row.passed ? GRN : RED,
+                      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                    }}>
+                      {row.passed ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ fontWeight: 600, color: INK9, fontSize: "0.875rem" }}>{row.item}</span>
                       {row.notes && (
-                        <p style={{ margin: "4px 0 0", fontSize: "0.8125rem", color: INK6, lineHeight: 1.5 }}>{row.notes}</p>
+                        <p style={{ margin: "3px 0 0", fontSize: "0.8125rem", color: INK6, lineHeight: 1.5 }}>{row.notes}</p>
                       )}
                     </div>
                     <span style={{
-                      fontSize: "0.625rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em",
-                      color: row.passed ? GRN : RED, flexShrink: 0, marginTop: 2,
+                      fontSize: "0.6875rem", fontWeight: 700, padding: "2px 8px", borderRadius: 999,
+                      background: "#fff", border: `1px solid ${INK2}`,
+                      color: row.passed ? GRN : RED, flexShrink: 0,
+                      textTransform: "uppercase", letterSpacing: "0.04em",
                     }}>
-                      {row.passed ? "OK" : "FALLA"}
+                      {row.passed ? "OK" : "Falla"}
                     </span>
                   </div>
                 ))}
@@ -370,16 +372,16 @@ export default function InspeccionDetallePage({ params }: { params: Promise<{ id
         {/* ─── Sidebar derecha ─── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-          {/* Tarjeta de identidad */}
+          {/* Tarjeta de identidad (sobria) */}
           <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
             <div style={{ padding: "20px 16px 16px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 10 }}>
               <div style={{
                 width: 64, height: 64, borderRadius: 12,
-                background: resultMeta.bg, border: `2px solid ${resultMeta.bd}`,
-                color: resultMeta.color,
+                background: INK1, border: `1px solid ${INK2}`,
+                color: INK6,
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
-                <Shield size={28} strokeWidth={2} />
+                <Shield size={28} strokeWidth={1.8} />
               </div>
               <div style={{ minWidth: 0, width: "100%" }}>
                 <div style={{ fontFamily: "ui-monospace,monospace", fontWeight: 800, fontSize: "0.9375rem", color: INK9, lineHeight: 1.3 }}>

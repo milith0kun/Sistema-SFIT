@@ -422,14 +422,12 @@ export default function VehiculoDetallePage({ params }: Props) {
             : vehicle.lastInspectionStatus === "observada" ? "con observaciones"
             : vehicle.lastInspectionStatus === "aprobada" ? "vigente" : "sin registro",
           icon: ClipboardCheck,
-          accent: inspMeta.color,
         },
         {
           label: "REPUTACIÓN",
           value: `${vehicle.reputationScore}`,
           subtitle: "de 100 puntos",
           icon: TrendingUp,
-          accent: repColor,
         },
         {
           label: "CONDUCTOR ACTUAL",
@@ -781,16 +779,16 @@ export default function VehiculoDetallePage({ params }: Props) {
           {/* Sidebar */}
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
-            {/* Tarjeta de identidad (estilo usuarios/[id]) */}
+            {/* Tarjeta de identidad (sobria) */}
             <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
               <div style={{ padding: "20px 16px 16px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 10 }}>
                 <div style={{
                   width: 64, height: 64, borderRadius: 12,
-                  background: INK1, border: `2px solid ${INK2}`,
-                  color: stMeta.color,
+                  background: INK1, border: `1px solid ${INK2}`,
+                  color: INK6,
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
-                  <Car size={28} strokeWidth={2} />
+                  <Car size={28} strokeWidth={1.8} />
                 </div>
                 <div style={{ minWidth: 0, width: "100%" }}>
                   <div style={{ fontFamily: "ui-monospace,monospace", fontWeight: 800, fontSize: "1rem", color: INK9, letterSpacing: "0.04em" }}>
@@ -799,7 +797,7 @@ export default function VehiculoDetallePage({ params }: Props) {
                   <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 2 }}>
                     {vehicle.brand} {vehicle.model}
                   </div>
-                  <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 6, fontSize: "0.6875rem", fontWeight: 700, background: INK1, color: stMeta.color, border: `1px solid ${stMeta.bd}` }}>
+                  <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 10px", borderRadius: 6, fontSize: "0.6875rem", fontWeight: 700, background: "#fff", color: INK9, border: `1px solid ${INK2}`, letterSpacing: "0.04em" }}>
                     <span style={{ width: 6, height: 6, borderRadius: "50%", background: stMeta.color }} />
                     {stMeta.label.toUpperCase()}
                   </div>
