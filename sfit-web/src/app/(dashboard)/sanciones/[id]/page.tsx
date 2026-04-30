@@ -3,13 +3,13 @@
 import { useEffect, useState, use as usePromise } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, AlertTriangle, CheckCircle, Clock, XCircle } from "lucide-react";
+import {
+  ArrowLeft, Gavel, Mail, Phone, Bell, FileText,
+  Car, User as UserIcon, Building2, Hash, CheckCircle, XCircle,
+} from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/button";
-import { LoadingState } from "@/components/ui/LoadingState";
-import { ErrorState } from "@/components/ui/ErrorState";
 
+/* ── Tipos ── */
 type SanctionStatus = "emitida" | "notificada" | "apelada" | "confirmada" | "anulada";
 type Notification = { channel: string; target: string; status: string; sentAt?: string };
 
@@ -30,14 +30,21 @@ type Sanction = {
   createdAt: string;
 };
 
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
+/* ── Tokens ── */
+const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
+const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
+const RED  = "#DC2626"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
+const GRN  = "#15803d"; const GRNBG = "#F0FDF4"; const GRNBD = "#86EFAC";
+const AMB  = "#b45309"; const AMBBG = "#FFFBEB"; const AMBBD = "#FCD34D";
+const INFO = "#1d4ed8"; const INFOBG = "#EFF6FF"; const INFOBD = "#93C5FD";
+const G    = "#6C0606"; const GBG = "#FBEAEA"; const GBR = "#D9B0B0";
 
-const STATUS_STYLE: Record<SanctionStatus, { bg: string; color: string; border: string; label: string }> = {
-  emitida:    { bg: "#FFF5F5", color: "#DC2626", border: "#FCA5A5", label: "Emitida" },
-  notificada: { bg: "#FFFBEB", color: "#b45309", border: "#FCD34D", label: "Notificada" },
-  apelada:    { bg: "#EFF6FF", color: "#1d4ed8", border: "#93C5FD", label: "Apelada" },
-  confirmada: { bg: "#F0FDF4", color: "#15803d", border: "#86EFAC", label: "Confirmada" },
-  anulada:    { bg: INK1, color: INK5, border: INK2, label: "Anulada" },
+const STATUS_META: Record<SanctionStatus, { label: string; color: string; bg: string; bd: string }> = {
+  emitida:    { label: "Emitida",    color: G,    bg: GBG,    bd: GBR    },
+  notificada: { label: "Notificada", color: AMB,  bg: AMBBG,  bd: AMBBD  },
+  apelada:    { label: "Apelada",    color: INFO, bg: INFOBG, bd: INFOBD },
+  confirmada: { label: "Confirmada", color: GRN,  bg: GRNBG,  bd: GRNBD  },
+  anulada:    { label: "Anulada",    color: INK5, bg: INK1,   bd: INK2   },
 };
 
 const FAULT_LABELS: Record<string, string> = {
@@ -54,6 +61,91 @@ const FAULT_LABELS: Record<string, string> = {
 };
 
 const ALLOWED = ["fiscal", "admin_municipal", "admin_provincial", "super_admin"];
+
+const LABEL_S: React.CSSProperties = {
+  display: "block", fontSize: "0.6875rem", fontWeight: 700,
+  letterSpacing: "0.06em", textTransform: "uppercase", color: INK5, marginBottom: 6,
+};
+const BTN_PRIMARY: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 6,
+  height: 32, padding: "0 14px", borderRadius: 7,
+  border: "none", background: INK9, color: "#fff",
+  fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
+  fontFamily: "inherit",
+};
+
+/* ── Helpers ── */
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" });
+}
+function fmtDateShort(iso: string) {
+  return new Date(iso).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" });
+}
+function faultLabel(t: string) {
+  return FAULT_LABELS[t] ?? t;
+}
+function notifIcon(ch: string, size = 14) {
+  if (ch === "email") return <Mail size={size} />;
+  if (ch === "whatsapp") return <Phone size={size} />;
+  return <Bell size={size} />;
+}
+function notifChannelLabel(ch: string) {
+  if (ch === "email") return "Correo a empresa";
+  if (ch === "whatsapp") return "WhatsApp al operador";
+  return "Push al conductor";
+}
+
+/* ── SectionCard ── */
+function SectionCard({ icon, title, subtitle, children, action }: {
+  icon: React.ReactNode; title: string; subtitle?: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
+      <div style={{ padding: "10px 16px", borderBottom: `1px solid ${INK1}`, display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ width: 26, height: 26, borderRadius: 6, background: INK1, border: `1px solid ${INK2}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          {icon}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9, lineHeight: 1.25 }}>{title}</div>
+          {subtitle && <div style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.3, marginTop: 1 }}>{subtitle}</div>}
+        </div>
+        {action && <div style={{ flexShrink: 0 }}>{action}</div>}
+      </div>
+      <div style={{ padding: "16px 18px" }}>{children}</div>
+    </div>
+  );
+}
+
+function StatusBadge({ s }: { s: SanctionStatus }) {
+  const m = STATUS_META[s];
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      padding: "3px 10px", borderRadius: 6,
+      fontSize: "0.6875rem", fontWeight: 700,
+      background: m.bg, color: m.color, border: `1px solid ${m.bd}`,
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
+      {m.label.toUpperCase()}
+    </span>
+  );
+}
+
+function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      gap: 12, padding: "9px 14px", borderTop: `1px solid ${INK1}`,
+    }}>
+      <span style={{ fontSize: "0.75rem", color: INK5, fontWeight: 500 }}>{label}</span>
+      <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: INK9, textAlign: "right", wordBreak: "break-word" }}>
+        {value}
+      </span>
+    </div>
+  );
+}
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -99,7 +191,7 @@ export default function SancionDetallePage({ params }: Props) {
     try {
       const token = localStorage.getItem("sfit_access_token");
       const res = await fetch(`/api/sanciones/${id}`, {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({ status: newStatus }),
       });
@@ -113,134 +205,391 @@ export default function SancionDetallePage({ params }: Props) {
 
   const canEdit = ["fiscal", "admin_municipal", "super_admin"].includes(userRole);
 
+  const backBtn = (
+    <Link href="/sanciones">
+      <button style={{
+        display: "inline-flex", alignItems: "center", gap: 6,
+        height: 36, padding: "0 14px", borderRadius: 9,
+        border: `1.5px solid ${INK2}`, background: "#fff",
+        color: INK6, fontSize: "0.875rem", fontWeight: 600,
+        cursor: "pointer", fontFamily: "inherit",
+      }}>
+        <ArrowLeft size={15} />Volver
+      </button>
+    </Link>
+  );
+
   if (loading) {
     return (
-      <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <PageHeader kicker="Sanciones" title="Cargando sanción…" />
-        <LoadingState rows={5} />
+      <div className="animate-fade-in flex flex-col gap-4">
+        <PageHeader kicker="Ciudadanía · RF-13" title="Cargando sanción…" action={backBtn} />
+        <div className="sfit-aside-layout">
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {[140, 180, 160].map((h, i) => (
+              <div key={i} style={{ height: h, borderRadius: 10, background: "#fff", border: `1px solid ${INK2}`, overflow: "hidden", position: "relative" }}>
+                <div className="skeleton-shimmer" style={{ position: "absolute", inset: 0 }} />
+              </div>
+            ))}
+          </div>
+          <div style={{ height: 280, borderRadius: 10, background: "#fff", border: `1px solid ${INK2}`, overflow: "hidden", position: "relative" }}>
+            <div className="skeleton-shimmer" style={{ position: "absolute", inset: 0 }} />
+          </div>
+        </div>
       </div>
     );
   }
-  if (notFound) return (
-    <ErrorState
-      title="Sanción no encontrada"
-      message="La sanción solicitada no existe o ya no está disponible. Verifique el enlace o regrese al listado."
-      action={<Link href="/sanciones"><Button variant="primary" size="sm">Volver a Sanciones</Button></Link>}
-    />
-  );
-  if (error && !sanction) return <div style={{ padding: "12px 16px", background: "#FFF5F5", border: "1px solid #FCA5A5", borderRadius: 10, color: "#DC2626" }}>{error}</div>;
+
+  if (notFound) {
+    return (
+      <div className="animate-fade-in flex flex-col gap-4">
+        <PageHeader kicker="Ciudadanía · RF-13" title="Sanción no encontrada" action={backBtn} />
+        <div role="alert" style={{ background: REDBG, border: `1.5px solid ${REDBD}`, borderRadius: 10, padding: 14, color: RED, fontSize: "0.875rem", fontWeight: 500 }}>
+          La sanción solicitada no existe o ya no está disponible.
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !sanction) {
+    return (
+      <div className="animate-fade-in flex flex-col gap-4">
+        <PageHeader kicker="Ciudadanía · RF-13" title="Error" action={backBtn} />
+        <div role="alert" style={{ background: REDBG, border: `1.5px solid ${REDBD}`, borderRadius: 10, padding: 14, color: RED, fontSize: "0.875rem", fontWeight: 500 }}>
+          {error}
+        </div>
+      </div>
+    );
+  }
   if (!sanction) return null;
 
-  const st = STATUS_STYLE[sanction.status];
+  const sanctionMeta = STATUS_META[sanction.status];
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <Link href="/sanciones" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: INK5, textDecoration: "none", fontSize: "0.875rem" }}>
-          <ArrowLeft size={16} /> Sanciones
-        </Link>
-      </div>
-
+    <div className="animate-fade-in flex flex-col gap-4" style={{ color: INK9 }}>
       <PageHeader
         kicker={`Sanción · ${sanction.vehicle?.plate ?? "—"}`}
-        title={FAULT_LABELS[sanction.faultType] ?? sanction.faultType}
-        subtitle={`Emitida el ${new Date(sanction.createdAt).toLocaleDateString("es-PE", { dateStyle: "long" })}`}
+        title={faultLabel(sanction.faultType)}
+        subtitle={`Emitida el ${fmtDate(sanction.createdAt)}`}
+        action={backBtn}
       />
 
-      {error && <div role="alert" style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5", borderRadius: 12, padding: 16, color: "#DC2626", fontSize: "0.9375rem", fontWeight: 500 }}>{error}</div>}
+      {error && (
+        <div style={{ padding: "11px 16px", background: REDBG, border: `1.5px solid ${REDBD}`, borderRadius: 10, color: RED, fontSize: "0.875rem", fontWeight: 500 }}>
+          {error}
+        </div>
+      )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
-        <div className="space-y-6">
-          <Card>
-            <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 16 }}>Infractor</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              {[
-                ["Vehículo",  sanction.vehicle?.plate ?? "—"],
-                ["Conductor", sanction.driver?.name ?? "No especificado"],
-                ["Empresa",   sanction.company?.razonSocial ?? "No especificada"],
-                ["Tipo de infracción", FAULT_LABELS[sanction.faultType] ?? sanction.faultType],
-              ].map(([label, value]) => (
-                <div key={label} style={{ padding: 14, background: INK1, borderRadius: 10 }}>
-                  <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: INK5, marginBottom: 4 }}>{label}</div>
-                  <div style={{ fontWeight: 600, color: INK9 }}>{value}</div>
+      <div className="sfit-aside-layout">
+        {/* ─── Columna principal ─── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Infractor */}
+          <SectionCard
+            icon={<Gavel size={14} color={INK6} />}
+            title="Datos del infractor"
+            subtitle="Vehículo, conductor y empresa"
+          >
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ padding: 12, background: INK1, borderRadius: 8, border: `1px solid ${INK2}` }}>
+                <div style={LABEL_S}>Vehículo</div>
+                <div style={{ fontSize: "0.875rem", fontWeight: 700, color: INK9 }}>
+                  <span style={{ fontFamily: "ui-monospace,monospace", background: INK9, color: "#fff", padding: "2px 8px", borderRadius: 5, fontSize: "0.75rem" }}>
+                    {sanction.vehicle?.plate ?? "—"}
+                  </span>
                 </div>
-              ))}
-            </div>
-          </Card>
-
-          <Card>
-            <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 16 }}>Monto de la sanción</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <div style={{ padding: 20, background: "#FFF5F5", border: "1.5px solid #FCA5A5", borderRadius: 12 }}>
-                <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#DC2626", marginBottom: 6 }}>Monto en soles</div>
-                <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "#DC2626" }}>S/ {sanction.amountSoles.toLocaleString("es-PE")}</div>
               </div>
-              <div style={{ padding: 20, background: INK1, borderRadius: 12 }}>
-                <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: INK5, marginBottom: 6 }}>Equivalente UIT</div>
-                <div style={{ fontSize: "1.75rem", fontWeight: 800, color: INK9 }}>{sanction.amountUIT}</div>
+              <div style={{ padding: 12, background: INK1, borderRadius: 8, border: `1px solid ${INK2}` }}>
+                <div style={LABEL_S}>Conductor</div>
+                <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9, wordBreak: "break-word" }}>
+                  {sanction.driver?.name ?? <span style={{ color: INK5, fontWeight: 400 }}>No especificado</span>}
+                </div>
+              </div>
+              <div style={{ padding: 12, background: INK1, borderRadius: 8, border: `1px solid ${INK2}`, gridColumn: "span 2" }}>
+                <div style={LABEL_S}>Empresa</div>
+                <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9, wordBreak: "break-word" }}>
+                  {sanction.company?.razonSocial ?? <span style={{ color: INK5, fontWeight: 400 }}>No especificada</span>}
+                </div>
+              </div>
+              <div style={{ padding: 12, background: INK1, borderRadius: 8, border: `1px solid ${INK2}`, gridColumn: "span 2" }}>
+                <div style={LABEL_S}>Tipo de infracción</div>
+                <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9 }}>{faultLabel(sanction.faultType)}</div>
               </div>
             </div>
-          </Card>
+          </SectionCard>
 
+          {/* Monto */}
+          <SectionCard
+            icon={<FileText size={14} color={INK6} />}
+            title="Monto de la sanción"
+            subtitle="Importe en soles y equivalencia UIT"
+          >
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ padding: 16, background: GBG, border: `1.5px solid ${GBR}`, borderRadius: 10 }}>
+                <div style={{ ...LABEL_S, color: G, marginBottom: 4 }}>Monto en soles</div>
+                <div style={{ fontSize: "1.5rem", fontWeight: 800, color: G, fontVariantNumeric: "tabular-nums" }}>
+                  S/ {sanction.amountSoles.toLocaleString("es-PE")}
+                </div>
+              </div>
+              <div style={{ padding: 16, background: INK1, border: `1px solid ${INK2}`, borderRadius: 10 }}>
+                <div style={{ ...LABEL_S, marginBottom: 4 }}>Equivalente UIT</div>
+                <div style={{ fontSize: "1.5rem", fontWeight: 800, color: INK9 }}>
+                  {sanction.amountUIT}
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+
+          {/* Notificaciones */}
+          {sanction.notifications.length > 0 && (
+            <SectionCard
+              icon={<Bell size={14} color={INK6} />}
+              title="Notificaciones"
+              subtitle={`${sanction.notifications.length} canal${sanction.notifications.length !== 1 ? "es" : ""} configurado${sanction.notifications.length !== 1 ? "s" : ""}`}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {sanction.notifications.map((n, i) => {
+                  const sent = n.status === "enviado" || n.status === "entregado" || n.status === "leido";
+                  return (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: INK1, borderRadius: 8, border: `1px solid ${INK2}` }}>
+                      <div style={{
+                        width: 30, height: 30, borderRadius: 7, background: "#fff",
+                        border: `1px solid ${INK2}`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        color: INK6, flexShrink: 0,
+                      }}>
+                        {notifIcon(n.channel)}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "0.8125rem", fontWeight: 700, color: INK9 }}>{notifChannelLabel(n.channel)}</div>
+                        <div style={{ fontSize: "0.75rem", color: INK5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {n.target}
+                        </div>
+                      </div>
+                      <span style={{
+                        fontSize: "0.625rem", fontWeight: 800, padding: "2px 8px", borderRadius: 999,
+                        background: sent ? GRNBG : INK1,
+                        color: sent ? GRN : INK5,
+                        border: `1px solid ${sent ? GRNBD : INK2}`,
+                        textTransform: "uppercase", letterSpacing: "0.06em", flexShrink: 0,
+                      }}>
+                        {n.status}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </SectionCard>
+          )}
+
+          {/* Notas de apelación */}
           {sanction.appealNotes && (
-            <Card>
-              <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 12 }}>Notas de apelación</h3>
-              <p style={{ color: INK6, fontSize: "0.875rem", lineHeight: 1.6 }}>{sanction.appealNotes}</p>
-            </Card>
+            <SectionCard
+              icon={<FileText size={14} color={INK6} />}
+              title="Notas de apelación"
+              subtitle="Aporte del operador"
+            >
+              <p style={{ margin: 0, color: INK6, lineHeight: 1.65, fontSize: "0.9375rem", whiteSpace: "pre-wrap" }}>
+                {sanction.appealNotes}
+              </p>
+            </SectionCard>
+          )}
+
+          {/* Cambio de estado */}
+          {canEdit && (
+            <SectionCard
+              icon={<Gavel size={14} color={INK6} />}
+              title="Cambiar estado"
+              subtitle="Avanza la sanción en el flujo (notificada → apelada → confirmada/anulada)"
+              action={
+                <button
+                  onClick={handleStatusUpdate}
+                  disabled={updating || !newStatus || newStatus === sanction.status}
+                  style={{
+                    ...BTN_PRIMARY, height: 28, padding: "0 12px", fontSize: "0.75rem",
+                    opacity: (updating || newStatus === sanction.status) ? 0.5 : 1,
+                    cursor: (updating || newStatus === sanction.status) ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {updating ? "Guardando…" : "Aplicar"}
+                </button>
+              }
+            >
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 6 }}>
+                {(["emitida", "notificada", "apelada", "confirmada", "anulada"] as SanctionStatus[]).map(s => {
+                  const active = newStatus === s;
+                  const m = STATUS_META[s];
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => setNewStatus(s)}
+                      style={{
+                        padding: "8px 10px", borderRadius: 7,
+                        border: active ? `1.5px solid ${m.color}` : `1px solid ${INK2}`,
+                        background: active ? m.bg : "#fff",
+                        color: active ? m.color : INK6,
+                        fontSize: "0.75rem", fontWeight: active ? 700 : 500,
+                        cursor: "pointer", fontFamily: "inherit",
+                        textAlign: "center",
+                        display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
+                      }}
+                    >
+                      <span style={{ width: 5, height: 5, borderRadius: "50%", background: m.color }} />
+                      {m.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </SectionCard>
           )}
         </div>
 
-        <div className="space-y-6">
-          <Card>
-            <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 14 }}>Estado</h3>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 999, background: st.bg, border: `1.5px solid ${st.border}`, marginBottom: 18 }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: st.color }} />
-              <span style={{ fontWeight: 700, fontSize: "0.8125rem", color: st.color }}>{st.label}</span>
-            </div>
+        {/* ─── Sidebar derecha ─── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-            {canEdit && (
-              <>
-                <label style={{ display: "block", marginBottom: 8, fontSize: "0.875rem", fontWeight: 500 }}>Cambiar estado</label>
-                <select value={newStatus} onChange={e => setNewStatus(e.target.value as SanctionStatus)} className="field" style={{ marginBottom: 12 }}>
-                  <option value="emitida">Emitida</option>
-                  <option value="notificada">Notificada</option>
-                  <option value="apelada">Apelada</option>
-                  <option value="confirmada">Confirmada</option>
-                  <option value="anulada">Anulada</option>
-                </select>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleStatusUpdate}
-                  loading={updating}
-                  style={{ width: "100%" }}
-                >
-                  Actualizar estado
-                </Button>
-              </>
-            )}
-          </Card>
-
-          <Card>
-            <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 14 }}>Notificaciones</h3>
-            {sanction.notifications.length === 0 ? (
-              <p style={{ color: INK5, fontSize: "0.875rem" }}>Sin notificaciones registradas.</p>
-            ) : (
-              <div className="space-y-3">
-                {sanction.notifications.map((n, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: INK1, borderRadius: 8 }}>
-                    <span style={{ fontFamily: "ui-monospace, monospace", fontSize: "0.75rem", fontWeight: 700, color: INK6, textTransform: "uppercase" }}>{n.channel}</span>
-                    <span style={{ flex: 1, fontSize: "0.8125rem", color: INK6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.target}</span>
-                    <span style={{ fontSize: "0.6875rem", fontWeight: 700, color: n.status === "enviado" || n.status === "entregado" ? "#15803d" : INK5 }}>{n.status.toUpperCase()}</span>
-                  </div>
-                ))}
+          {/* Tarjeta de identidad — vehículo y estado */}
+          <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
+            <div style={{ padding: "20px 16px 16px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 10 }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: 12,
+                background: sanctionMeta.bg, border: `2px solid ${sanctionMeta.bd}`,
+                color: sanctionMeta.color,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <Gavel size={28} strokeWidth={2} />
               </div>
-            )}
-          </Card>
+              <div style={{ minWidth: 0, width: "100%" }}>
+                <div style={{ fontFamily: "ui-monospace,monospace", fontWeight: 800, fontSize: "0.9375rem", color: INK9 }}>
+                  S-{sanction.id.slice(-10).toUpperCase()}
+                </div>
+                <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 2 }}>
+                  Sanción
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  <StatusBadge s={sanction.status} />
+                </div>
+              </div>
+            </div>
+            <div>
+              <MetaRow label="Placa" value={
+                <span style={{ fontFamily: "ui-monospace,monospace", background: INK9, color: "#fff", padding: "2px 8px", borderRadius: 5, fontWeight: 700, fontSize: "0.75rem" }}>
+                  {sanction.vehicle?.plate ?? "—"}
+                </span>
+              } />
+              <MetaRow label="Monto" value={`S/ ${sanction.amountSoles.toLocaleString("es-PE")}`} />
+              <MetaRow label="UIT" value={sanction.amountUIT} />
+              <MetaRow label="Emitida" value={fmtDateShort(sanction.createdAt)} />
+              {sanction.resolvedAt && <MetaRow label="Resuelta" value={fmtDateShort(sanction.resolvedAt)} />}
+            </div>
+          </div>
 
-          {sanction.inspectionId && (
-            <Link href={`/inspecciones/${sanction.inspectionId}`} style={{ display: "block" }}>
-              <Button variant="outline" size="sm" style={{ width: "100%" }}>Ver inspección vinculada</Button>
+          {/* Personas y empresa */}
+          <SectionCard
+            icon={<UserIcon size={14} color={INK6} />}
+            title="Relacionados"
+            subtitle="Conductor, empresa y origen"
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {sanction.driver && (
+                <div style={{ padding: "10px 12px", background: INK1, borderRadius: 8, border: `1px solid ${INK2}` }}>
+                  <div style={{ ...LABEL_S, marginBottom: 3 }}>Conductor</div>
+                  <div style={{ fontWeight: 600, color: INK9, fontSize: "0.875rem" }}>{sanction.driver.name}</div>
+                </div>
+              )}
+              {sanction.company && (
+                <div style={{ padding: "10px 12px", background: INK1, borderRadius: 8, border: `1px solid ${INK2}` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                    <Building2 size={11} color={INK5} />
+                    <span style={{ ...LABEL_S, marginBottom: 0 }}>Empresa</span>
+                  </div>
+                  <div style={{ fontWeight: 600, color: INK9, fontSize: "0.875rem" }}>{sanction.company.razonSocial}</div>
+                </div>
+              )}
+              {sanction.inspectionId && (
+                <Link href={`/inspecciones/${sanction.inspectionId}`}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "10px 12px", borderRadius: 8,
+                    background: "#fff", border: `1px solid ${INK2}`,
+                    color: INK6, fontSize: "0.8125rem", fontWeight: 600,
+                    textDecoration: "none",
+                  }}>
+                  <FileText size={14} />Ver inspección vinculada →
+                </Link>
+              )}
+            </div>
+          </SectionCard>
+
+          {/* Acciones rápidas según estado */}
+          {canEdit && sanction.status !== "confirmada" && sanction.status !== "anulada" && (
+            <SectionCard
+              icon={<CheckCircle size={14} color={INK6} />}
+              title="Acciones rápidas"
+              subtitle="Avanzar el flujo o anular"
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {sanction.status === "emitida" && (
+                  <button onClick={() => { setNewStatus("notificada"); void handleStatusUpdate(); }} disabled={updating}
+                    style={{ ...BTN_PRIMARY, height: 36, justifyContent: "center", opacity: updating ? 0.6 : 1 }}>
+                    <Bell size={14} />Marcar notificada
+                  </button>
+                )}
+                {sanction.status === "notificada" && (
+                  <button onClick={() => { setNewStatus("apelada"); void handleStatusUpdate(); }} disabled={updating}
+                    style={{ ...BTN_PRIMARY, height: 36, justifyContent: "center", opacity: updating ? 0.6 : 1 }}>
+                    <FileText size={14} />Registrar apelación
+                  </button>
+                )}
+                {sanction.status === "apelada" && (
+                  <button onClick={() => { setNewStatus("confirmada"); void handleStatusUpdate(); }} disabled={updating}
+                    style={{ ...BTN_PRIMARY, height: 36, justifyContent: "center", background: GRN, opacity: updating ? 0.6 : 1 }}>
+                    <CheckCircle size={14} />Confirmar
+                  </button>
+                )}
+                <button onClick={() => { setNewStatus("anulada"); void handleStatusUpdate(); }} disabled={updating}
+                  style={{
+                    display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    height: 36, padding: "0 14px", borderRadius: 7,
+                    border: `1.5px solid ${REDBD}`, background: "#fff", color: RED,
+                    fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
+                    fontFamily: "inherit", opacity: updating ? 0.6 : 1,
+                  }}>
+                  <XCircle size={14} />Anular sanción
+                </button>
+              </div>
+            </SectionCard>
+          )}
+
+          {/* Información del registro */}
+          <SectionCard
+            icon={<Hash size={14} color={INK6} />}
+            title="Información del registro"
+            subtitle="Trazabilidad"
+          >
+            <div>
+              <div style={LABEL_S}>ID interno</div>
+              <code style={{
+                display: "block", padding: "6px 10px", background: INK1,
+                border: `1px solid ${INK2}`, borderRadius: 6,
+                fontSize: "0.75rem", color: INK9,
+                fontFamily: "ui-monospace,monospace",
+                wordBreak: "break-all",
+              }}>
+                {sanction.id}
+              </code>
+            </div>
+          </SectionCard>
+
+          {/* Link al vehículo */}
+          {sanction.vehicle?._id && (
+            <Link href={`/vehiculos/${sanction.vehicle._id}`}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "10px 14px", borderRadius: 9,
+                border: `1px solid ${INK2}`, background: "#fff",
+                color: INK6, fontSize: "0.8125rem", fontWeight: 600,
+                textDecoration: "none",
+              }}>
+              <Car size={14} />Ver vehículo {sanction.vehicle.plate ?? ""} →
             </Link>
           )}
         </div>

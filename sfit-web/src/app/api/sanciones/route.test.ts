@@ -6,18 +6,46 @@ import { ROLES, type Role } from "@/lib/constants";
 
 vi.mock("@/lib/db/mongoose", () => ({ connectDB: vi.fn() }));
 vi.mock("@/lib/auth/rbac", () => ({ canAccessMunicipality: vi.fn().mockResolvedValue(true) }));
+vi.mock("@/lib/reputation/updateReputation", () => ({
+  adjustVehicleReputation: vi.fn(),
+  adjustDriverReputation: vi.fn(),
+}));
+vi.mock("@/lib/email/email_service", () => ({ sendEmail: vi.fn() }));
 vi.mock("@/models/Sanction", () => ({
   Sanction: {
     find: vi.fn(),
     countDocuments: vi.fn(),
     create: vi.fn(),
+    aggregate: vi.fn().mockResolvedValue([]),
   },
+}));
+vi.mock("@/models/Vehicle", () => ({
+  Vehicle: { findById: vi.fn() },
+}));
+vi.mock("@/models/Driver", () => ({
+  Driver: { findById: vi.fn() },
+}));
+vi.mock("@/models/Company", () => ({
+  Company: { findById: vi.fn() },
+}));
+vi.mock("@/models/User", () => ({
+  User: { findOne: vi.fn() },
 }));
 
 import { Sanction } from "@/models/Sanction";
+import { Vehicle } from "@/models/Vehicle";
+import { Driver } from "@/models/Driver";
+import { Company } from "@/models/Company";
+import { User } from "@/models/User";
 
 const MUNI_ID = "664f0000000000000000001a";
 const VEH_ID = "664f0000000000000000002b";
+const DRV_ID = "664f0000000000000000003c";
+const CMP_ID = "664f0000000000000000004d";
+
+function leanChain<T>(result: T) {
+  return { select: vi.fn().mockReturnThis(), lean: vi.fn().mockResolvedValue(result) };
+}
 
 function makeChain(result: unknown[]) {
   return {
@@ -100,8 +128,24 @@ describe("POST /api/sanciones", () => {
   };
 
   beforeEach(() => {
+    vi.mocked(Vehicle.findById).mockReturnValue(
+      leanChain({ _id: VEH_ID, plate: "ABC-123", companyId: CMP_ID, currentDriverId: DRV_ID }) as never
+    );
+    vi.mocked(Driver.findById).mockReturnValue(
+      leanChain({ name: "Juan", phone: "+51999111222", userId: "user_drv" }) as never
+    );
+    vi.mocked(Company.findById).mockReturnValue(
+      leanChain({ razonSocial: "Trans Test SAC", representanteLegal: { phone: "+51988888888" } }) as never
+    );
+    vi.mocked(User.findOne).mockReturnValue(
+      leanChain({ email: "operador@test.com" }) as never
+    );
     vi.mocked(Sanction.create).mockResolvedValue({
       _id: { toString: () => "newSanc" },
+      vehicleId: VEH_ID,
+      driverId: DRV_ID,
+      faultType: validBody.faultType,
+      amountSoles: validBody.amountSoles,
       toObject: () => ({ ...validBody, status: "emitida" }),
     } as never);
   });
@@ -116,11 +160,18 @@ describe("POST /api/sanciones", () => {
     expect(res.status).toBe(422);
   });
 
-  it("crea sanción con 3 notificaciones automáticas", async () => {
+  it("crea sanción con notificaciones derivadas de empresa, conductor y operador", async () => {
     await POST(req("POST", token(), validBody));
     const createCall = vi.mocked(Sanction.create).mock.calls.at(-1)?.[0] as unknown as Record<string, unknown>;
-    expect((createCall.notifications as unknown[]).length).toBe(3);
+    const notifs = createCall.notifications as { channel: string; target: string }[];
+    expect(notifs.length).toBe(3);
+    expect(notifs.find(n => n.channel === "email")?.target).toBe("operador@test.com");
+    expect(notifs.find(n => n.channel === "whatsapp")?.target).toBe("+51999111222");
+    expect(notifs.find(n => n.channel === "push")?.target).toBe("user_drv");
     expect(createCall.status).toBe("emitida");
+    // companyId y driverId derivados del vehículo cuando no se envían
+    expect(createCall.companyId).toBe(CMP_ID);
+    expect(createCall.driverId).toBe(DRV_ID);
   });
 
   it("retorna 201 con sanción creada", async () => {
@@ -128,5 +179,11 @@ describe("POST /api/sanciones", () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.data.id).toBe("newSanc");
+  });
+
+  it("retorna 404 si el vehículo no existe", async () => {
+    vi.mocked(Vehicle.findById).mockReturnValue(leanChain(null) as never);
+    const res = await POST(req("POST", token(), validBody));
+    expect(res.status).toBe(404);
   });
 });

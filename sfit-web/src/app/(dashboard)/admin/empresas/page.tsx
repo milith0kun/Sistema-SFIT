@@ -244,8 +244,26 @@ export default function AdminEmpresasPage() {
     cursor: "pointer", minWidth: 160,
   };
 
+  const pillBtn = (active: boolean): React.CSSProperties => ({
+    display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px",
+    borderRadius: 7, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
+    fontFamily: "inherit",
+    background: active ? INK9 : "#fff",
+    color: active ? "#fff" : INK6,
+    border: active ? `1.5px solid ${INK9}` : `1.5px solid ${INK2}`,
+  });
+
   const toolbarEnd = (
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+      {/* Estado: pills binarios */}
+      <div style={{ display: "flex", gap: 4 }}>
+        {([["", "Todas"], ["true", "Activas"], ["false", "Suspendidas"]] as const).map(([k, l]) => (
+          <button key={k} onClick={() => setActiveFilter(k as "" | "true" | "false")} style={pillBtn(activeFilter === k)}>
+            {l}
+          </button>
+        ))}
+      </div>
+      <div style={{ width: 1, height: 22, background: INK2 }} />
       <select value={scopeFilter} onChange={(e) => setScopeFilter(e.target.value as "" | ServiceScope)} style={selectStyle}>
         <option value="">Todas las modalidades</option>
         <option value="urbano_distrital">Urbano distrital</option>
@@ -261,11 +279,6 @@ export default function AdminEmpresasPage() {
           ))}
         </select>
       )}
-      <select value={activeFilter} onChange={(e) => setActiveFilter(e.target.value as "" | "true" | "false")} style={{ ...selectStyle, minWidth: 130 }}>
-        <option value="">Todas</option>
-        <option value="true">Activas</option>
-        <option value="false">Suspendidas</option>
-      </select>
     </div>
   );
 

@@ -36,7 +36,27 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!report) return apiNotFound("Reporte no encontrado");
   if (!(await canAccessMunicipality(auth.session, String(report.municipalityId)))) return apiForbidden();
 
-  return apiResponse({ id: String(report._id), ...report });
+  return apiResponse({
+    id: String(report._id),
+    municipalityId: String(report.municipalityId),
+    vehicle: report.vehicleId,
+    citizen: report.citizenId,
+    category: report.category,
+    vehicleTypeKey: report.vehicleTypeKey,
+    citizenReputationLevel: report.citizenReputationLevel,
+    status: report.status,
+    description: report.description,
+    evidenceUrl: report.evidenceUrl,
+    imageUrls: report.imageUrls,
+    qrVerified: report.qrVerified,
+    fraudScore: report.fraudScore,
+    fraudLayers: report.fraudLayers,
+    latitude: report.latitude,
+    longitude: report.longitude,
+    assignedFiscalId: report.assignedFiscalId,
+    createdAt: report.createdAt,
+    updatedAt: report.updatedAt,
+  });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

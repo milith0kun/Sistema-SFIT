@@ -8,7 +8,7 @@ import {
   Loader2, CheckCircle, AlertTriangle, Hash, Copy, Check, FileText, Plus,
   Briefcase,
 } from "lucide-react";
-import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 
@@ -281,11 +281,25 @@ export default function EmpresaDetallePage({ params }: Props) {
     finally { setToggling(false); setConfirm(null); }
   }
 
+  const backBtnPlain = (
+    <Link href="/empresas">
+      <button style={{
+        display: "inline-flex", alignItems: "center", gap: 6,
+        height: 36, padding: "0 14px", borderRadius: 9,
+        border: `1.5px solid ${INK2}`, background: "#fff",
+        color: INK6, fontSize: "0.875rem", fontWeight: 600,
+        cursor: "pointer", fontFamily: "inherit",
+      }}>
+        <ArrowLeft size={15} />Volver
+      </button>
+    </Link>
+  );
+
   if (loading || !company) {
     if (notFound) return null;
     return (
       <div className="flex flex-col gap-4 animate-fade-in">
-        <DashboardHero kicker="Empresas · Detalle" title="Cargando empresa…" />
+        <PageHeader kicker="Empresas · Detalle" title="Cargando empresa…" action={backBtnPlain} />
         <KPIStrip cols={3} items={[
           { label: "ESTADO", value: "—", subtitle: "cargando", icon: Building2 },
           { label: "REPUTACIÓN", value: "—", subtitle: "cargando", icon: TrendingUp },
@@ -310,21 +324,13 @@ export default function EmpresaDetallePage({ params }: Props) {
   if (notFound) {
     return (
       <div className="flex flex-col gap-4 animate-fade-in">
-        <DashboardHero kicker="Empresas · Detalle" title="Empresa no encontrada" />
+        <PageHeader kicker="Empresas · Detalle" title="Empresa no encontrada" action={backBtnPlain} />
         <div style={{
           padding: "32px 24px", background: "#fff", border: `1px solid ${INK2}`,
           borderRadius: 12, color: INK6, textAlign: "center", fontSize: "0.875rem",
         }}>
           La empresa solicitada no existe o fue eliminada.
         </div>
-        <Link href="/empresas" style={{
-          alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 7,
-          height: 36, padding: "0 14px", borderRadius: 8,
-          border: `1px solid ${INK2}`, background: "#fff", color: INK6,
-          fontWeight: 600, fontSize: "0.8125rem", textDecoration: "none",
-        }}>
-          <ArrowLeft size={13} />Volver a empresas
-        </Link>
       </div>
     );
   }
@@ -334,34 +340,27 @@ export default function EmpresaDetallePage({ params }: Props) {
   const canManage = user?.role === "admin_municipal" || user?.role === "super_admin";
   const isSuspended = !company.active || company.status === "suspendido";
 
-  const heroAction = (
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-      <Link href="/empresas" style={{
-        display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-        borderRadius: 7, border: "1px solid rgba(255,255,255,0.18)",
-        background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.85)",
-        fontWeight: 600, fontSize: "0.8125rem", textDecoration: "none",
-      }}>
-        <ArrowLeft size={12} />Volver
-      </Link>
+  const headerAction = (
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      {backBtnPlain}
       {canManage && !editing && (
         <>
           <button onClick={startEdit} style={{
-            display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-            borderRadius: 7, border: "1px solid rgba(255,255,255,0.18)",
-            background: "rgba(255,255,255,0.06)", color: "#fff",
-            fontWeight: 600, fontSize: "0.8125rem", cursor: "pointer", fontFamily: "inherit",
+            display: "inline-flex", alignItems: "center", gap: 6,
+            height: 36, padding: "0 14px", borderRadius: 9,
+            border: `1.5px solid ${INK2}`, background: "#fff", color: INK6,
+            fontWeight: 600, fontSize: "0.875rem", cursor: "pointer", fontFamily: "inherit",
           }}>
-            <Pencil size={12} />Editar
+            <Pencil size={14} />Editar
           </button>
           <button onClick={() => setConfirm(isSuspended ? "reactivate" : "suspend")} disabled={toggling}
             style={{
-              display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-              borderRadius: 7,
-              border: `1px solid ${isSuspended ? "rgba(134,239,172,0.4)" : "rgba(252,165,165,0.4)"}`,
-              background: isSuspended ? "rgba(21,128,61,0.18)" : "rgba(220,38,38,0.18)",
-              color: isSuspended ? "#86EFAC" : "#FCA5A5",
-              fontWeight: 600, fontSize: "0.8125rem", cursor: "pointer", fontFamily: "inherit",
+              display: "inline-flex", alignItems: "center", gap: 6,
+              height: 36, padding: "0 14px", borderRadius: 9,
+              border: `1.5px solid ${isSuspended ? GRN_BD : RED_BD}`,
+              background: isSuspended ? GRN_BG : RED_BG,
+              color: isSuspended ? GRN : RED,
+              fontWeight: 600, fontSize: "0.875rem", cursor: "pointer", fontFamily: "inherit",
             }}>
             {isSuspended ? "Reactivar" : "Suspender"}
           </button>
@@ -370,20 +369,21 @@ export default function EmpresaDetallePage({ params }: Props) {
       {editing && (
         <>
           <button onClick={cancelEdit} style={{
-            display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-            borderRadius: 7, border: "1px solid rgba(255,255,255,0.18)",
-            background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.85)",
-            fontWeight: 600, fontSize: "0.8125rem", cursor: "pointer", fontFamily: "inherit",
+            display: "inline-flex", alignItems: "center", gap: 6,
+            height: 36, padding: "0 14px", borderRadius: 9,
+            border: `1.5px solid ${INK2}`, background: "#fff", color: INK6,
+            fontWeight: 600, fontSize: "0.875rem", cursor: "pointer", fontFamily: "inherit",
           }}>
-            <X size={12} />Cancelar
+            <X size={14} />Cancelar
           </button>
           <button form="empresa-form" type="submit" disabled={saving} style={{
-            display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 14px",
-            borderRadius: 7, border: "none", background: "#fff", color: INK9,
-            fontWeight: 700, fontSize: "0.8125rem", cursor: saving ? "not-allowed" : "pointer",
+            display: "inline-flex", alignItems: "center", gap: 6,
+            height: 36, padding: "0 14px", borderRadius: 9,
+            border: "none", background: INK9, color: "#fff",
+            fontWeight: 700, fontSize: "0.875rem", cursor: saving ? "not-allowed" : "pointer",
             fontFamily: "inherit", opacity: saving ? 0.7 : 1,
           }}>
-            {saving ? <Loader2 size={12} style={{ animation: "spin 0.7s linear infinite" }} /> : <Save size={12} />}
+            {saving ? <Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} /> : <Save size={14} />}
             {saving ? "Guardando…" : "Guardar"}
           </button>
         </>
@@ -407,14 +407,11 @@ export default function EmpresaDetallePage({ params }: Props) {
         />
       )}
 
-      <DashboardHero
-        kicker="Empresas · Detalle"
+      <PageHeader
+        kicker="Empresas · RF-04 · Detalle"
         title={company.razonSocial}
-        pills={[
-          { label: "RUC", value: company.ruc },
-          { label: "Estado", value: isSuspended ? "Suspendida" : "Activa", warn: isSuspended },
-        ]}
-        action={heroAction}
+        subtitle={`RUC ${company.ruc} · ${isSuspended ? "Suspendida" : "Activa"}`}
+        action={headerAction}
       />
 
       <KPIStrip cols={3} items={[

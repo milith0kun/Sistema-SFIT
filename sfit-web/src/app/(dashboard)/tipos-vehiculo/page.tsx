@@ -103,6 +103,7 @@ export default function TiposVehiculoPage() {
 
   async function togglePredefined(key: string, name: string) {
     setActivating(key);
+    setError(null);
     try {
       const token = localStorage.getItem("sfit_access_token");
       const existing = items.find((t) => t.key === key);
@@ -118,7 +119,7 @@ export default function TiposVehiculoPage() {
         if (res.status === 401) return router.replace("/login");
         const data = await res.json();
         if (!res.ok || !data.success) {
-          window.alert(data.error ?? "No se pudo actualizar.");
+          setError(data.error ?? "No se pudo actualizar el tipo.");
           return;
         }
         setItems((prev) => prev.map((t) => (t.id === existing.id ? data.data : t)));
@@ -142,13 +143,13 @@ export default function TiposVehiculoPage() {
         if (res.status === 401) return router.replace("/login");
         const data = await res.json();
         if (!res.ok || !data.success) {
-          window.alert(data.error ?? "No se pudo activar.");
+          setError(data.error ?? "No se pudo activar el tipo.");
           return;
         }
         setItems((prev) => [...prev, data.data]);
       }
     } catch {
-      window.alert("Error de conexión.");
+      setError("Error de conexión.");
     } finally {
       setActivating(null);
     }

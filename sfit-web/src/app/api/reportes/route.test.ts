@@ -6,13 +6,38 @@ import { ROLES, type Role } from "@/lib/constants";
 
 vi.mock("@/lib/db/mongoose", () => ({ connectDB: vi.fn() }));
 vi.mock("@/lib/auth/rbac", () => ({ canAccessMunicipality: vi.fn().mockResolvedValue(true) }));
-vi.mock("@/lib/coins/awardCoins", () => ({ awardCoins: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@/lib/coins/awardCoins", () => ({
+  awardCoins: vi.fn().mockResolvedValue(undefined),
+  getNivel: vi.fn().mockReturnValue({ nivel: 1 }),
+}));
+vi.mock("@/lib/qr/hmac", () => ({ verifyQrPayload: vi.fn().mockReturnValue(false) }));
 vi.mock("@/models/User", () => ({
   User: {
     findById: vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ status: "activo" }) }),
     }),
   },
+}));
+vi.mock("@/models/Vehicle", () => ({
+  Vehicle: {
+    findOne: vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        lean: vi.fn().mockResolvedValue({ _id: "veh1", municipalityId: "664f0000000000000000001a" }),
+      }),
+    }),
+  },
+}));
+vi.mock("@/models/SfitCoin", () => ({
+  SfitCoin: {
+    findOne: vi.fn().mockReturnValue({
+      sort: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ balance: 0 }) }),
+      }),
+    }),
+  },
+}));
+vi.mock("@/models/AuditLog", () => ({
+  AuditLog: { create: vi.fn().mockResolvedValue(undefined) },
 }));
 vi.mock("@/models/CitizenReport", () => ({
   CitizenReport: {
@@ -102,6 +127,7 @@ describe("POST /api/reportes", () => {
   const validBody = {
     category: "Conductor agresivo",
     description: "El conductor insultó a los pasajeros durante el recorrido.",
+    vehiclePlate: "ABC-123",
   };
 
   beforeEach(() => {

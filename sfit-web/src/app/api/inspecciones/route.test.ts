@@ -8,19 +8,37 @@ vi.mock("@/lib/db/mongoose", () => ({ connectDB: vi.fn() }));
 vi.mock("@/lib/auth/rbac", () => ({ canAccessMunicipality: vi.fn().mockResolvedValue(true) }));
 vi.mock("@/lib/notifications/fcm", () => ({ sendPushToTokens: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/lib/audit/logAction", () => ({ logAction: vi.fn() }));
+vi.mock("@/lib/webhooks/triggerWebhook", () => ({ triggerWebhook: vi.fn() }));
 vi.mock("@/lib/reputation/updateReputation", () => ({ adjustVehicleReputation: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/models/User", () => ({
   User: { find: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([]) }) }) },
+}));
+vi.mock("@/models/Vehicle", () => ({
+  Vehicle: { findById: vi.fn() },
+}));
+vi.mock("@/models/Company", () => ({
+  Company: { findById: vi.fn() },
+}));
+vi.mock("@/models/Municipality", () => ({
+  Municipality: { findById: vi.fn() },
 }));
 vi.mock("@/models/Inspection", () => ({
   Inspection: {
     find: vi.fn(),
     countDocuments: vi.fn(),
     create: vi.fn(),
+    aggregate: vi.fn().mockResolvedValue([]),
   },
 }));
 
 import { Inspection } from "@/models/Inspection";
+import { Vehicle } from "@/models/Vehicle";
+import { Company } from "@/models/Company";
+import { Municipality } from "@/models/Municipality";
+
+function leanChain<T>(result: T) {
+  return { select: vi.fn().mockReturnThis(), lean: vi.fn().mockResolvedValue(result) };
+}
 
 const MUNI_ID = "664f0000000000000000001a";
 
@@ -105,6 +123,11 @@ describe("POST /api/inspecciones", () => {
   };
 
   beforeEach(() => {
+    vi.mocked(Vehicle.findById).mockReturnValue(
+      leanChain({ companyId: undefined, plate: "ABC-123" }) as never
+    );
+    vi.mocked(Company.findById).mockReturnValue(leanChain(null) as never);
+    vi.mocked(Municipality.findById).mockReturnValue(leanChain(null) as never);
     vi.mocked(Inspection.create).mockResolvedValue({
       _id: { toString: () => "newInsp" },
       toObject: () => ({ ...validBody }),

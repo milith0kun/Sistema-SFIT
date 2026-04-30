@@ -267,7 +267,13 @@ export default function EditarMunicipalidadPage({ params }: Props) {
         subtitle="Edita los datos y configura el estado de la municipalidad."
         action={
           <Link href="/municipalidades">
-            <button style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 14px", borderRadius: 9, border: "1.5px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.08)", color: "#fff", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+            <button style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              height: 36, padding: "0 14px", borderRadius: 9,
+              border: `1.5px solid ${INK2}`, background: "#fff",
+              color: INK6, fontSize: "0.875rem", fontWeight: 600,
+              cursor: "pointer", fontFamily: "inherit",
+            }}>
               <ArrowLeft size={15} />Volver
             </button>
           </Link>
@@ -593,31 +599,36 @@ export default function EditarMunicipalidadPage({ params }: Props) {
 
         {/* ── Sidebar ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, overflow: "hidden" }}>
-            <div style={{ padding: "10px 16px", borderBottom: `1px solid ${INK1}` }}>
-              <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: INK5 }}>Información</div>
-            </div>
-            <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-              {/* ID — botón copiar */}
-              <SystemIdRow id={municipality.id} />
-              {currentProvince && (
-                <div style={META_ROW}>
-                  <Globe size={13} color={INK5} style={{ marginTop: 2, flexShrink: 0 }} />
-                  <div>
-                    <div style={{ fontSize: "0.6875rem", color: INK5, fontWeight: 600, marginBottom: 3 }}>Provincia</div>
-                    <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9 }}>{currentProvince.name}</div>
-                  </div>
+
+          {/* Tarjeta de identidad — estilo usuarios/[id] */}
+          <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
+            <div style={{ padding: "20px 16px 16px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 10 }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: 12,
+                background: isActive ? GRN_BG : RED_BG,
+                border: `2px solid ${isActive ? GRN_BD : RED_BD}`,
+                color: isActive ? GRN : RED,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <Globe size={28} strokeWidth={2} />
+              </div>
+              <div style={{ minWidth: 0, width: "100%" }}>
+                <div style={{ fontWeight: 800, fontSize: "0.9375rem", color: INK9, lineHeight: 1.3, wordBreak: "break-word" }}>
+                  {municipality.name}
                 </div>
-              )}
-              <div style={{ ...META_ROW, borderBottom: "none", paddingBottom: 0 }}>
-                <Globe size={13} color={INK5} style={{ marginTop: 2, flexShrink: 0 }} />
-                <div>
-                  <div style={{ fontSize: "0.6875rem", color: INK5, fontWeight: 600, marginBottom: 4 }}>Estado actual</div>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 999, fontSize: "0.75rem", fontWeight: 700, background: "#fff", color: isActive ? GRN : RED, border: `1px solid ${isActive ? GRN_BD : RED_BD}` }}>
-                    <span style={{ width: 5, height: 5, borderRadius: "50%", background: "currentColor" }} />{isActive ? "Activa" : "Suspendida"}
-                  </span>
+                {currentProvince && (
+                  <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 2 }}>
+                    {currentProvince.name}
+                  </div>
+                )}
+                <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 6, fontSize: "0.6875rem", fontWeight: 700, background: isActive ? GRN_BG : RED_BG, color: isActive ? GRN : RED, border: `1px solid ${isActive ? GRN_BD : RED_BD}` }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor" }} />
+                  {isActive ? "ACTIVA" : "SUSPENDIDA"}
                 </div>
               </div>
+            </div>
+            <div style={{ padding: "0 16px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <SystemIdRow id={municipality.id} />
             </div>
           </div>
 

@@ -202,6 +202,7 @@ export default function ApelacionesPage() {
   const router = useRouter();
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [items, setItems] = useState<Apelacion[]>([]);
+  const [stats, setStats] = useState({ pendiente: 0, aprobada: 0, rechazada: 0, total: 0 });
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -230,6 +231,7 @@ export default function ApelacionesPage() {
       const data = await res.json();
       if (!res.ok || !data.success) { setError(data.error ?? "Error al cargar"); return; }
       setItems(data.data.items ?? []);
+      if (data.data.stats) setStats(data.data.stats);
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
   }, [user, statusFilter, router]);
@@ -253,9 +255,10 @@ export default function ApelacionesPage() {
     void load();
   }
 
-  const pendientes = useMemo(() => items.filter((a) => a.status === "pendiente").length, [items]);
-  const aprobadas  = useMemo(() => items.filter((a) => a.status === "aprobada").length, [items]);
-  const rechazadas = useMemo(() => items.filter((a) => a.status === "rechazada").length, [items]);
+  const pendientes = stats.pendiente;
+  const aprobadas  = stats.aprobada;
+  const rechazadas = stats.rechazada;
+  const totalGlobal = stats.total;
 
   const columns = useMemo<ColumnDef<Apelacion, unknown>[]>(
     () => [
@@ -429,7 +432,7 @@ export default function ApelacionesPage() {
       <KPIStrip
         cols={4}
         items={[
-          { label: "TOTAL", value: loading ? "—" : items.length, subtitle: "registradas", accent: "#52525b", icon: MessageSquareWarning },
+          { label: "TOTAL", value: loading ? "—" : totalGlobal, subtitle: "registradas", accent: "#52525b", icon: MessageSquareWarning },
           { label: "PENDIENTES", value: loading ? "—" : pendientes, subtitle: "por resolver", accent: "#b45309", icon: Clock },
           { label: "APROBADAS", value: loading ? "—" : aprobadas, subtitle: "confirmadas", accent: "#15803d", icon: CheckCircle },
           { label: "RECHAZADAS", value: loading ? "—" : rechazadas, subtitle: "denegadas", accent: "#DC2626", icon: XCircle },

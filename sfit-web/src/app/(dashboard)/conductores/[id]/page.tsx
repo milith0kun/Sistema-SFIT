@@ -7,8 +7,8 @@ import {
   ArrowLeft, Save, Trash2, User, Phone, CreditCard, Award, Clock, TrendingUp,
   AlertTriangle, CheckCircle, Loader2, Hash, Copy, Check, Building2, Pencil,
 } from "lucide-react";
-import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 
 /* Paleta sobria */
@@ -328,10 +328,24 @@ export default function ConductorDetallePage({ params }: Props) {
 
   if (!authorized) return null;
 
+  const backBtnPlain = (
+    <Link href="/conductores">
+      <button style={{
+        display: "inline-flex", alignItems: "center", gap: 6,
+        height: 36, padding: "0 14px", borderRadius: 9,
+        border: `1.5px solid ${INK2}`, background: "#fff",
+        color: INK6, fontSize: "0.875rem", fontWeight: 600,
+        cursor: "pointer", fontFamily: "inherit",
+      }}>
+        <ArrowLeft size={15} />Volver
+      </button>
+    </Link>
+  );
+
   if (loadingConductor) {
     return (
       <div className="flex flex-col gap-4 animate-fade-in">
-        <DashboardHero kicker="Conductores · Detalle" title="Cargando conductor…" />
+        <PageHeader kicker="Conductores · Detalle" title="Cargando conductor…" action={backBtnPlain} />
         <KPIStrip cols={4} items={[
           { label: "ESTADO", value: "—", subtitle: "—", icon: User },
           { label: "REPUTACIÓN", value: "—", subtitle: "—", icon: TrendingUp },
@@ -348,21 +362,13 @@ export default function ConductorDetallePage({ params }: Props) {
   if (notFound) {
     return (
       <div className="flex flex-col gap-4 animate-fade-in">
-        <DashboardHero kicker="Conductores · Detalle" title="Conductor no encontrado" />
+        <PageHeader kicker="Conductores · Detalle" title="Conductor no encontrado" action={backBtnPlain} />
         <div style={{
           padding: "32px 24px", background: "#fff", border: `1px solid ${INK2}`,
           borderRadius: 12, color: INK6, textAlign: "center", fontSize: "0.875rem",
         }}>
           El conductor solicitado no existe o fue eliminado.
         </div>
-        <Link href="/conductores" style={{
-          alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 7,
-          height: 36, padding: "0 14px", borderRadius: 8,
-          border: `1px solid ${INK2}`, background: "#fff", color: INK6,
-          fontWeight: 600, fontSize: "0.8125rem", textDecoration: "none",
-        }}>
-          <ArrowLeft size={13} />Volver a conductores
-        </Link>
       </div>
     );
   }
@@ -381,43 +387,36 @@ export default function ConductorDetallePage({ params }: Props) {
   const continuous = conductor.continuousHours ?? 0;
   const fatigaColor = continuous >= 8 ? NO : continuous >= 5 ? RIESGO : INK6;
 
-  const heroAction = (
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-      <Link href="/conductores" style={{
-        display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-        borderRadius: 7, border: "1px solid rgba(255,255,255,0.18)",
-        background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.85)",
-        fontWeight: 600, fontSize: "0.8125rem", textDecoration: "none",
-      }}>
-        <ArrowLeft size={12} />Volver
-      </Link>
+  const headerAction = (
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      {backBtnPlain}
       {canEdit && (
         <button form="conductor-form" type="submit" disabled={submitting || deleting}
           style={{
-            display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 14px",
-            borderRadius: 7, border: "none", background: "#fff", color: INK9,
-            fontWeight: 700, fontSize: "0.8125rem",
+            display: "inline-flex", alignItems: "center", gap: 6,
+            height: 36, padding: "0 14px", borderRadius: 9,
+            border: "none", background: INK9, color: "#fff",
+            fontWeight: 700, fontSize: "0.875rem",
             cursor: submitting ? "not-allowed" : "pointer", fontFamily: "inherit",
             opacity: submitting ? 0.7 : 1,
           }}>
-          {submitting ? <Loader2 size={12} style={{ animation: "spin 0.7s linear infinite" }} /> : <Save size={12} />}
+          {submitting ? <Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} /> : <Save size={14} />}
           {submitting ? "Guardando…" : "Guardar"}
         </button>
       )}
     </div>
   );
 
+  const conductorInitials = (conductor.name ?? "—")
+    .split(" ").map(w => w[0] ?? "").slice(0, 2).join("").toUpperCase();
+
   return (
-    <div className="flex flex-col gap-4 animate-fade-in pb-10">
-      <DashboardHero
-        kicker={`Conductores · ${canEdit ? "Editar" : "Detalle"}`}
+    <div className="flex flex-col gap-4 animate-fade-in pb-10" style={{ color: INK9 }}>
+      <PageHeader
+        kicker={`Conductores · RF-08 · ${canEdit ? "Editar" : "Detalle"}`}
         title={conductor.name}
-        pills={[
-          { label: "DNI", value: conductor.dni ?? "—" },
-          { label: "Licencia", value: conductor.licenseCategory ?? "—" },
-          { label: "Estado", value: st.label, warn: safeStatus !== "apto" },
-        ]}
-        action={heroAction}
+        subtitle={`DNI ${conductor.dni ?? "—"} · Licencia ${conductor.licenseCategory ?? "—"} · ${st.label}`}
+        action={headerAction}
       />
 
       <KPIStrip cols={4} items={[
@@ -458,7 +457,7 @@ export default function ConductorDetallePage({ params }: Props) {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 14, alignItems: "start" }}>
+      <div className="sfit-aside-layout">
         <form id="conductor-form" onSubmit={handleSave} noValidate
           style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
@@ -766,10 +765,47 @@ export default function ConductorDetallePage({ params }: Props) {
         </form>
 
         {/* Sidebar */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, position: "sticky", top: 16 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+          {/* Tarjeta de identidad — estilo usuarios/[id] */}
+          <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
+            <div style={{ padding: "20px 16px 16px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 10 }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: "50%",
+                background: st.bg, border: `2px solid ${st.bd}`,
+                color: st.color,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontWeight: 800, fontSize: "1.375rem",
+              }}>
+                {conductorInitials || "—"}
+              </div>
+              <div style={{ minWidth: 0, width: "100%" }}>
+                <div style={{ fontWeight: 800, fontSize: "0.9375rem", color: INK9, lineHeight: 1.3, wordBreak: "break-word" }}>
+                  {conductor.name}
+                </div>
+                {conductor.phone && (
+                  <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 2 }}>
+                    {conductor.phone}
+                  </div>
+                )}
+                <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 6, fontSize: "0.6875rem", fontWeight: 700, background: st.bg, color: st.color, border: `1px solid ${st.bd}` }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: st.color }} />
+                  {st.label.toUpperCase()}
+                </div>
+              </div>
+            </div>
+            <div style={{ padding: "0 16px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <Row k="DNI" v={conductor.dni ?? "—"} mono />
+              <Row k="Licencia" v={conductor.licenseNumber ?? "—"} mono />
+              <Row k="Categoría" v={conductor.licenseCategory ?? "—"} />
+              <Row k="Empresa" v={conductor.companyName?.trim() || "—"} />
+              <Row k="Activo" v={conductor.active ? "Sí" : "No"} />
+            </div>
+          </div>
+
           <SectionCard
             icon={<TrendingUp size={14} color={INK6} />}
-            title="Estado actual"
+            title="Estado operativo"
             subtitle="Datos del FatigueEngine"
           >
             <div style={{
@@ -979,14 +1015,19 @@ function MiniRow({ label, value, accent }: { label: string; value: string; accen
   );
 }
 
-function Row({ k, v }: { k: string; v: string }) {
+function Row({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
   return (
     <div style={{
       display: "flex", justifyContent: "space-between", alignItems: "center",
-      padding: "6px 10px", borderRadius: 6, background: INK1,
+      padding: "6px 10px", borderRadius: 6, background: INK1, gap: 8,
     }}>
-      <span style={{ fontSize: "0.75rem", color: INK5 }}>{k}</span>
-      <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: INK9 }}>{v}</span>
+      <span style={{ fontSize: "0.75rem", color: INK5, flexShrink: 0 }}>{k}</span>
+      <span style={{
+        fontSize: "0.8125rem", fontWeight: 600, color: INK9, textAlign: "right",
+        fontFamily: mono ? "ui-monospace, monospace" : "inherit",
+        letterSpacing: mono ? "0.04em" : 0,
+        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+      }}>{v}</span>
     </div>
   );
 }

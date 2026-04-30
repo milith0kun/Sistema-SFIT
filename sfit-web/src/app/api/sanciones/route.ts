@@ -12,8 +12,10 @@ import { sendEmail } from "@/lib/email/email_service";
 import { sanctionEmailHtml } from "@/lib/email/templates";
 import { Company } from "@/models/Company";
 import { Vehicle } from "@/models/Vehicle";
+import { Driver } from "@/models/Driver";
+import { User } from "@/models/User";
 
-const SANCTION_STATUS_VALUES = ["emitida", "apelada", "resuelta", "anulada"] as const;
+const SANCTION_STATUS_VALUES = ["emitida", "notificada", "apelada", "confirmada", "anulada"] as const;
 
 const CreateSchema = z.object({
   municipalityId: z.string().refine(isValidObjectId).optional(),
@@ -60,7 +62,12 @@ export async function GET(request: NextRequest) {
 
     if (statusParam) filter.status = statusParam;
 
-    const [items, total] = await Promise.all([
+    // Filtro global (sin status) para los KPIs — se mantienen consistentes
+    // aunque el usuario aplique un filtro de estado en la UI.
+    const globalFilter: Record<string, unknown> = { ...filter };
+    delete globalFilter.status;
+
+    const [items, total, statsAgg] = await Promise.all([
       Sanction.find(filter)
         .populate("vehicleId", "plate")
         .populate("driverId", "name")
@@ -70,7 +77,20 @@ export async function GET(request: NextRequest) {
         .limit(limit)
         .lean(),
       Sanction.countDocuments(filter),
+      Sanction.aggregate([
+        { $match: globalFilter },
+        { $group: { _id: "$status", count: { $sum: 1 }, montoTotal: { $sum: "$amountSoles" } } },
+      ]),
     ]);
+
+    const stats = {
+      emitida: 0, notificada: 0, apelada: 0, confirmada: 0, anulada: 0,
+      montoConfirmado: 0,
+    };
+    for (const row of statsAgg as { _id: string; count: number; montoTotal: number }[]) {
+      if (row._id in stats) (stats as unknown as Record<string, number>)[row._id] = row.count;
+      if (row._id === "confirmada") stats.montoConfirmado = row.montoTotal;
+    }
 
     return apiResponse({
       items: items.map((s) => ({
@@ -91,6 +111,7 @@ export async function GET(request: NextRequest) {
       total,
       page,
       limit,
+      stats,
     });
   } catch (error) {
     console.error("[sanciones GET]", error);
@@ -123,11 +144,40 @@ export async function POST(request: NextRequest) {
 
     await connectDB();
 
+    // Derivar companyId, driverId y datos para notificaciones desde el vehículo
+    const vehicle = await Vehicle.findById(parsed.data.vehicleId).select("plate companyId currentDriverId").lean() as { _id: unknown; plate?: string; companyId?: unknown; currentDriverId?: unknown } | null;
+    if (!vehicle) return apiError("Vehículo no encontrado", 404);
+
+    const companyId = parsed.data.companyId ?? (vehicle.companyId ? String(vehicle.companyId) : undefined);
+    const driverId = parsed.data.driverId ?? (vehicle.currentDriverId ? String(vehicle.currentDriverId) : undefined);
+
+    const [driver, company] = await Promise.all([
+      driverId ? Driver.findById(driverId).select("name phone userId").lean() as Promise<{ name?: string; phone?: string; userId?: unknown } | null> : Promise.resolve(null),
+      companyId ? Company.findById(companyId).select("razonSocial representanteLegal").lean() as Promise<{ razonSocial?: string; representanteLegal?: { phone?: string } } | null> : Promise.resolve(null),
+    ]);
+
+    // Buscar email del operador asociado a la empresa (si existe usuario operador en la municipalidad)
+    const operadorUser = companyId
+      ? await User.findOne({ municipalityId, role: "operador", status: "activo" }).select("email").lean() as { email?: string } | null
+      : null;
+
+    const notifications: { channel: "email" | "whatsapp" | "push"; target: string; status: "pendiente" }[] = [];
+    if (operadorUser?.email) {
+      notifications.push({ channel: "email", target: operadorUser.email, status: "pendiente" });
+    }
+    const whatsappTarget = driver?.phone ?? company?.representanteLegal?.phone;
+    if (whatsappTarget) {
+      notifications.push({ channel: "whatsapp", target: whatsappTarget, status: "pendiente" });
+    }
+    if (driver?.userId) {
+      notifications.push({ channel: "push", target: String(driver.userId), status: "pendiente" });
+    }
+
     const created = await Sanction.create({
       municipalityId,
       vehicleId: parsed.data.vehicleId,
-      driverId: parsed.data.driverId,
-      companyId: parsed.data.companyId,
+      driverId,
+      companyId,
       reportId: parsed.data.reportId,
       inspectionId: parsed.data.inspectionId,
       faultType: parsed.data.faultType,
@@ -135,39 +185,30 @@ export async function POST(request: NextRequest) {
       amountUIT: parsed.data.amountUIT,
       status: "emitida",
       issuedBy: auth.session.userId,
-      notifications: [
-        { channel: "email", target: "empresa@empresa.com", status: "pendiente" },
-        { channel: "whatsapp", target: "+51 984 000 000", status: "pendiente" },
-        { channel: "push", target: "conductor_id", status: "pendiente" },
-      ],
+      notifications,
     });
 
     // RF-15: Sanciones reducen reputación del vehículo y conductor
     if (created.vehicleId) void adjustVehicleReputation(created.vehicleId, -8);
     if (created.driverId) void adjustDriverReputation(created.driverId, -5);
 
-    // RF-18: Email de notificación — void, no bloqueante
-    void (async () => {
-      try {
-        const company = created.companyId
-          ? await Company.findById(created.companyId).select('name email').lean()
-          : null;
-        if (!company) return;
-        const companyDoc = company as { name?: string; email?: string };
-        if (!companyDoc.email) return;
-        const vehicle = created.vehicleId
-          ? await Vehicle.findById(created.vehicleId).select('plate').lean()
-          : null;
-        const vehicleDoc = vehicle as { plate?: string } | null;
-        const html = sanctionEmailHtml({
-          companyName: companyDoc.name ?? 'Empresa',
-          plate: vehicleDoc?.plate ?? '—',
-          faultType: created.faultType,
-          amountSoles: created.amountSoles,
-        });
-        await sendEmail(companyDoc.email, `[SFIT] Sanción emitida — ${vehicleDoc?.plate ?? 'Vehículo'}`, html);
-      } catch (e) { console.error('[sanciones email]', e); }
-    })();
+    // RF-18: Email de notificación al operador de la empresa — void, no bloqueante
+    if (operadorUser?.email && company?.razonSocial) {
+      const operadorEmail = operadorUser.email;
+      const companyName = company.razonSocial;
+      const plate = vehicle.plate ?? "—";
+      void (async () => {
+        try {
+          const html = sanctionEmailHtml({
+            companyName,
+            plate,
+            faultType: created.faultType,
+            amountSoles: created.amountSoles,
+          });
+          await sendEmail(operadorEmail, `[SFIT] Sanción emitida — ${plate}`, html);
+        } catch (e) { console.error('[sanciones email]', e); }
+      })();
+    }
 
     return apiResponse({ id: String(created._id), ...created.toObject() }, 201);
   } catch (error) {

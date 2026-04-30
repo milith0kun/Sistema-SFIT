@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, cloneElement, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, FileText, Check, X, Download, Plus, Filter, Mail, Phone, Bell } from "lucide-react";
+import { AlertTriangle, FileText, Check, X, Download, Plus, Mail, Phone, Bell } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
@@ -25,6 +25,7 @@ type Sanction = {
 };
 type VehicleOpt = { id: string; plate: string };
 type DriverOpt = { id: string; name: string };
+type Stats = { emitida: number; notificada: number; apelada: number; confirmada: number; anulada: number; montoConfirmado: number };
 
 const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
 const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB"; const RIESGOBD = "#FCD34D";
@@ -94,10 +95,12 @@ export default function SancionesPage() {
   const router = useRouter();
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [items, setItems] = useState<Sanction[]>([]);
+  const [stats, setStats] = useState<Stats>({ emitida: 0, notificada: 0, apelada: 0, confirmada: 0, anulada: 0, montoConfirmado: 0 });
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sel, setSel] = useState<Sanction | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -129,11 +132,20 @@ export default function SancionesPage() {
       if (res.status === 401) { router.replace("/login"); return; }
       const data = await res.json();
       if (!res.ok || !data.success) { setError(data.error ?? "Error"); return; }
-      setItems(data.data.items ?? []);
-      if (data.data.items?.length && !sel) setSel(data.data.items[0]);
+      const newItems: Sanction[] = data.data.items ?? [];
+      setItems(newItems);
+      if (data.data.stats) setStats(data.data.stats as Stats);
+      // Mantener selección si sigue presente; si no, seleccionar la primera
+      setSel((prev) => {
+        if (prev) {
+          const refreshed = newItems.find((i) => i.id === prev.id);
+          if (refreshed) return refreshed;
+        }
+        return newItems[0] ?? null;
+      });
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
-  }, [user, statusFilter, router]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, statusFilter, router]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -189,16 +201,54 @@ export default function SancionesPage() {
   };
 
   const updateStatus = async (id: string, status: SanctionStatus) => {
-    const token = localStorage.getItem("sfit_access_token");
-    await fetch(`/api/sanciones/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` }, body: JSON.stringify({ status }) });
-    void load();
+    setActionError(null);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/sanciones/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setActionError(data.error ?? "No se pudo actualizar la sanción");
+        return;
+      }
+      void load();
+    } catch { setActionError("Error de conexión"); }
   };
 
-  const emitidas = items.filter(s => s.status === "emitida").length;
-  const apeladas = items.filter(s => s.status === "apelada").length;
-  const confirmadas = items.filter(s => s.status === "confirmada").length;
-  const anuladas = items.filter(s => s.status === "anulada").length;
-  const totalMonto = items.filter(s => s.status === "confirmada").reduce((acc, s) => acc + s.amountSoles, 0);
+  const exportCSV = () => {
+    if (items.length === 0) return;
+    const header = ["ID", "Placa", "Conductor", "Empresa", "Infracción", "Monto S/", "UIT", "Estado", "Fecha"];
+    const rows = items.map(s => [
+      `S-${(s.id ?? "").slice(-10).toUpperCase()}`,
+      s.vehicle?.plate ?? "",
+      s.driver?.name ?? "",
+      s.company?.razonSocial ?? "",
+      s.faultType,
+      s.amountSoles.toString(),
+      s.amountUIT,
+      s.status,
+      new Date(s.createdAt).toISOString().slice(0, 10),
+    ]);
+    const csv = [header, ...rows].map(r =>
+      r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")
+    ).join("\r\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sanciones_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const emitidas = stats.emitida;
+  const apeladas = stats.apelada;
+  const confirmadas = stats.confirmada;
+  const anuladas = stats.anulada;
+  const totalMonto = stats.montoConfirmado;
 
   const columns = useMemo<ColumnDef<Sanction, unknown>[]>(() => [
     {
@@ -291,7 +341,7 @@ export default function SancionesPage() {
     <div className="flex flex-col gap-3 animate-fade-in">
       <PageHeader kicker="Ciudadanía · RF-13" title="Sanciones"
         action={<div style={{ display: "flex", gap: 8 }}>
-          <button style={btnOut}><Download size={16} />Exportar CSV</button>
+          <button style={{ ...btnOut, opacity: items.length === 0 ? 0.5 : 1, cursor: items.length === 0 ? "not-allowed" : "pointer" }} onClick={exportCSV} disabled={items.length === 0}><Download size={16} />Exportar CSV</button>
           {canCreate && <button style={btnInk} onClick={openModal}><Plus size={16} />Emitir sanción</button>}
         </div>} />
 
@@ -322,20 +372,18 @@ export default function SancionesPage() {
             columns={columns}
             data={items}
             loading={loading}
+            onRowClick={(s) => setSel(s)}
             searchPlaceholder="Buscar por placa, infracción…"
             emptyTitle="Sin sanciones registradas"
             emptyDescription="No se encontraron sanciones en este período."
             toolbarEnd={
               <div style={{ display: "flex", gap: 6 }}>
-                {[["", "Todas"], ["emitida", "Emitidas"], ["apelada", "Apeladas"], ["confirmada", "Confirmadas"], ["anulada", "Anuladas"]].map(([k, l]) => (
+                {[["", "Todas"], ["emitida", "Emitidas"], ["notificada", "Notificadas"], ["apelada", "Apeladas"], ["confirmada", "Confirmadas"], ["anulada", "Anuladas"]].map(([k, l]) => (
                   <button key={k} onClick={() => setStatusFilter(k)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 7, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: statusFilter === k ? INK9 : "#fff", color: statusFilter === k ? "#fff" : INK6, border: statusFilter === k ? `1.5px solid ${INK9}` : `1.5px solid ${INK2}` }}>{l}</button>
                 ))}
-                <button style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 7, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: "#fff", color: INK6, border: `1.5px solid ${INK2}` }}><Filter size={13} />Más filtros</button>
               </div>
             }
           />
-          {/* Row click bridge */}
-          <style>{`.dt-row-click tr[data-row] { cursor: pointer; }`}</style>
         </div>
 
         {sel ? (
@@ -383,10 +431,24 @@ export default function SancionesPage() {
                 </>
               )}
 
-              {sel.status === "apelada" && (
-                <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-                  <button style={{ ...btnSm, flex: 1 }} onClick={() => updateStatus(sel.id, "confirmada")}><Check size={14} />Confirmar</button>
-                  <button style={{ ...btnInk, flex: 1, height: 32, fontSize: "0.8125rem" }} onClick={() => updateStatus(sel.id, "anulada")}><X size={14} />Anular</button>
+              {actionError && (
+                <div style={{ marginTop: 14, padding: "8px 12px", background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 8, color: NO, fontSize: "0.8125rem" }}>
+                  {actionError}
+                </div>
+              )}
+
+              {canCreate && sel.status !== "confirmada" && sel.status !== "anulada" && (
+                <div style={{ display: "flex", gap: 8, marginTop: 18, flexWrap: "wrap" }}>
+                  {sel.status === "emitida" && (
+                    <button style={{ ...btnSm, flex: 1, minWidth: 130 }} onClick={() => updateStatus(sel.id, "notificada")}><Bell size={14} />Marcar notificada</button>
+                  )}
+                  {sel.status === "notificada" && (
+                    <button style={{ ...btnSm, flex: 1, minWidth: 130 }} onClick={() => updateStatus(sel.id, "apelada")}><FileText size={14} />Registrar apelación</button>
+                  )}
+                  {sel.status === "apelada" && (
+                    <button style={{ ...btnSm, flex: 1, minWidth: 130 }} onClick={() => updateStatus(sel.id, "confirmada")}><Check size={14} />Confirmar</button>
+                  )}
+                  <button style={{ ...btnInk, flex: 1, minWidth: 130, height: 32, fontSize: "0.8125rem" }} onClick={() => updateStatus(sel.id, "anulada")}><X size={14} />Anular</button>
                 </div>
               )}
             </div>

@@ -3,13 +3,13 @@
 import { useEffect, useState, use as usePromise } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, X, ExternalLink, ShieldAlert, Camera } from "lucide-react";
+import {
+  ArrowLeft, Check, X, ExternalLink, ShieldAlert, Camera,
+  Flag, FileText, User as UserIcon, Hash, Car, Eye, BarChart3,
+} from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/button";
-import { LoadingState } from "@/components/ui/LoadingState";
-import { ErrorState } from "@/components/ui/ErrorState";
 
+/* ── Tipos ── */
 type ReportStatus = "pendiente" | "revision" | "validado" | "rechazado";
 type FraudLayer = { layer: string; passed: boolean; detail: string };
 
@@ -26,45 +26,123 @@ type CitizenReport = {
   evidenceUrl?: string;
   fraudScore: number;
   fraudLayers: FraudLayer[];
+  assignedFiscalId?: string;
   assignedFiscal?: { _id: string; name: string } | null;
   createdAt: string;
 };
 
 type FiscalItem = { id: string; name: string };
 
-// Color tokens
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const FRAUD_BAJO  = "#15803d";
-const FRAUD_MEDIO = "#b45309";
-const FRAUD_ALTO  = "#DC2626";
+/* ── Tokens ── */
+const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
+const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
+const RED  = "#DC2626"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
+const GRN  = "#15803d"; const GRNBG = "#F0FDF4"; const GRNBD = "#86EFAC";
+const AMB  = "#b45309"; const AMBBG = "#FFFBEB"; const AMBBD = "#FCD34D";
+const G    = "#6C0606"; const GD = "#4A0303";
 
-const STATUS_STYLE: Record<ReportStatus, { bg: string; color: string; border: string; label: string }> = {
-  pendiente: { bg: "#f4f4f5", color: "#71717a", border: "#e4e4e7", label: "Pendiente" },
-  revision:  { bg: "#FFFBEB", color: "#b45309", border: "#FCD34D", label: "En revisión" },
-  validado:  { bg: "#F0FDF4", color: "#15803d", border: "#86EFAC", label: "Validado" },
-  rechazado: { bg: "#FFF5F5", color: "#DC2626", border: "#FCA5A5", label: "Rechazado" },
+const STATUS_META: Record<ReportStatus, { label: string; color: string; bg: string; bd: string }> = {
+  pendiente: { label: "Pendiente",   color: INK5, bg: INK1,  bd: INK2  },
+  revision:  { label: "En revisión", color: AMB,  bg: AMBBG, bd: AMBBD },
+  validado:  { label: "Validado",    color: GRN,  bg: GRNBG, bd: GRNBD },
+  rechazado: { label: "Rechazado",   color: RED,  bg: REDBG, bd: REDBD },
 };
 
 const ALLOWED = ["fiscal", "admin_municipal", "admin_provincial", "super_admin"];
-const CAN_ACT  = ["fiscal", "admin_municipal", "super_admin"];
+const CAN_ACT = ["fiscal", "admin_municipal", "super_admin"];
 
-interface Props { params: Promise<{ id: string }> }
+const LABEL_S: React.CSSProperties = {
+  display: "block", fontSize: "0.6875rem", fontWeight: 700,
+  letterSpacing: "0.06em", textTransform: "uppercase", color: INK5, marginBottom: 6,
+};
+const FIELD: React.CSSProperties = {
+  width: "100%", height: 38, padding: "0 12px", borderRadius: 8,
+  border: `1px solid ${INK2}`, fontSize: "0.875rem",
+  color: INK9, fontFamily: "inherit", outline: "none",
+  background: "#fff", boxSizing: "border-box",
+};
+const BTN_PRIMARY: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 6,
+  height: 32, padding: "0 14px", borderRadius: 7,
+  border: "none", background: INK9, color: "#fff",
+  fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
+  fontFamily: "inherit",
+};
 
+/* ── Helpers ── */
 function fraudColor(score: number) {
-  if (score < 40)  return FRAUD_BAJO;
-  if (score <= 70) return FRAUD_MEDIO;
-  return FRAUD_ALTO;
+  if (score < 40) return GRN;
+  if (score <= 70) return AMB;
+  return RED;
 }
-
 function fraudLabel(score: number) {
-  if (score < 40)  return "Bajo";
+  if (score < 40) return "Bajo";
   if (score <= 70) return "Medio";
   return "Alto";
 }
-
 function isImageUrl(url: string) {
   return /\.(jpg|jpeg|png|webp|gif|bmp)(\?.*)?$/i.test(url);
 }
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" });
+}
+function fmtDateShort(iso: string) {
+  return new Date(iso).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+/* ── SectionCard ── */
+function SectionCard({ icon, title, subtitle, children, action }: {
+  icon: React.ReactNode; title: string; subtitle?: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
+      <div style={{ padding: "10px 16px", borderBottom: `1px solid ${INK1}`, display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ width: 26, height: 26, borderRadius: 6, background: INK1, border: `1px solid ${INK2}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          {icon}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9, lineHeight: 1.25 }}>{title}</div>
+          {subtitle && <div style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.3, marginTop: 1 }}>{subtitle}</div>}
+        </div>
+        {action && <div style={{ flexShrink: 0 }}>{action}</div>}
+      </div>
+      <div style={{ padding: "16px 18px" }}>{children}</div>
+    </div>
+  );
+}
+
+function StatusBadge({ s }: { s: ReportStatus }) {
+  const m = STATUS_META[s];
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      padding: "3px 10px", borderRadius: 6,
+      fontSize: "0.6875rem", fontWeight: 700,
+      background: m.bg, color: m.color, border: `1px solid ${m.bd}`,
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
+      {m.label.toUpperCase()}
+    </span>
+  );
+}
+
+function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      gap: 12, padding: "9px 14px", borderTop: `1px solid ${INK1}`,
+    }}>
+      <span style={{ fontSize: "0.75rem", color: INK5, fontWeight: 500 }}>{label}</span>
+      <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: INK9, textAlign: "right", wordBreak: "break-word" }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+interface Props { params: Promise<{ id: string }> }
 
 export default function ReporteDetallePage({ params }: Props) {
   const { id } = usePromise(params);
@@ -77,11 +155,10 @@ export default function ReporteDetallePage({ params }: Props) {
   const [notFound, setNotFound] = useState(false);
   const [userRole, setUserRole] = useState("");
 
-  // Action state
-  const [newStatus,      setNewStatus]      = useState<ReportStatus | "">("");
-  const [fiscalId,       setFiscalId]       = useState("");
-  const [updating,       setUpdating]       = useState(false);
-  const [updateSuccess,  setUpdateSuccess]  = useState(false);
+  const [newStatus,     setNewStatus]     = useState<ReportStatus | "">("");
+  const [fiscalId,      setFiscalId]      = useState("");
+  const [updating,      setUpdating]      = useState(false);
+  const [updateSuccess, setUpdateSuccess] = useState(false);
 
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
@@ -100,7 +177,7 @@ export default function ReporteDetallePage({ params }: Props) {
       const h = { Authorization: `Bearer ${token ?? ""}` };
       const [rRes, fRes] = await Promise.all([
         fetch(`/api/reportes/${id}`, { headers: h }),
-        fetch("/api/conductores?limit=100", { headers: h }), // reuse conductor endpoint or use /api/usuarios?role=fiscal if available
+        fetch("/api/conductores?limit=100", { headers: h }),
       ]);
       if (rRes.status === 401) { router.replace("/login"); return; }
       if (rRes.status === 404) { setNotFound(true); return; }
@@ -109,9 +186,8 @@ export default function ReporteDetallePage({ params }: Props) {
       const r: CitizenReport = data.data;
       setReport(r);
       setNewStatus(r.status);
-      setFiscalId(r.assignedFiscal?._id ?? "");
+      setFiscalId(r.assignedFiscal?._id ?? r.assignedFiscalId ?? "");
 
-      // Try to get fiscales list (best-effort)
       if (fRes.ok) {
         const fData = await fRes.json();
         if (fData.success && Array.isArray(fData.data?.items)) {
@@ -144,7 +220,7 @@ export default function ReporteDetallePage({ params }: Props) {
     finally { setUpdating(false); }
   }
 
-  async function handleUpdateStatus(status: ReportStatus) {
+  async function handleQuickStatus(status: ReportStatus) {
     setUpdating(true); setError(null); setUpdateSuccess(false);
     try {
       const token = localStorage.getItem("sfit_access_token");
@@ -164,97 +240,159 @@ export default function ReporteDetallePage({ params }: Props) {
 
   const canAct = CAN_ACT.includes(userRole);
 
+  const backBtn = (
+    <Link href="/reportes">
+      <button style={{
+        display: "inline-flex", alignItems: "center", gap: 6,
+        height: 36, padding: "0 14px", borderRadius: 9,
+        border: `1.5px solid ${INK2}`, background: "#fff",
+        color: INK6, fontSize: "0.875rem", fontWeight: 600,
+        cursor: "pointer", fontFamily: "inherit",
+      }}>
+        <ArrowLeft size={15} />Volver
+      </button>
+    </Link>
+  );
+
   if (loading) {
     return (
-      <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <PageHeader kicker="Reportes" title="Cargando reporte…" />
-        <LoadingState rows={5} />
+      <div className="animate-fade-in flex flex-col gap-4">
+        <PageHeader kicker="Ciudadanía · RF-12" title="Cargando reporte…" action={backBtn} />
+        <div className="sfit-aside-layout">
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {[140, 180, 220].map((h, i) => (
+              <div key={i} style={{ height: h, borderRadius: 10, background: "#fff", border: `1px solid ${INK2}`, overflow: "hidden", position: "relative" }}>
+                <div className="skeleton-shimmer" style={{ position: "absolute", inset: 0 }} />
+              </div>
+            ))}
+          </div>
+          <div style={{ height: 280, borderRadius: 10, background: "#fff", border: `1px solid ${INK2}`, overflow: "hidden", position: "relative" }}>
+            <div className="skeleton-shimmer" style={{ position: "absolute", inset: 0 }} />
+          </div>
+        </div>
       </div>
     );
   }
-  if (notFound) return (
-    <ErrorState
-      title="Reporte no encontrado"
-      message="El reporte ciudadano solicitado no existe o ya no está disponible. Verifique el enlace o regrese al listado."
-      action={<Link href="/reportes"><Button variant="primary" size="sm">Volver a Reportes</Button></Link>}
-    />
-  );
-  if (error && !report) return (
-    <div style={{ padding: "12px 16px", background: "#FFF5F5", border: "1px solid #FCA5A5", borderRadius: 10, color: "#DC2626" }}>{error}</div>
-  );
+
+  if (notFound) {
+    return (
+      <div className="animate-fade-in flex flex-col gap-4">
+        <PageHeader kicker="Ciudadanía · RF-12" title="Reporte no encontrado" action={backBtn} />
+        <div role="alert" style={{ background: REDBG, border: `1.5px solid ${REDBD}`, borderRadius: 10, padding: 14, color: RED, fontSize: "0.875rem", fontWeight: 500 }}>
+          El reporte ciudadano solicitado no existe o ya no está disponible.
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !report) {
+    return (
+      <div className="animate-fade-in flex flex-col gap-4">
+        <PageHeader kicker="Ciudadanía · RF-12" title="Error" action={backBtn} />
+        <div role="alert" style={{ background: REDBG, border: `1.5px solid ${REDBD}`, borderRadius: 10, padding: 14, color: RED, fontSize: "0.875rem", fontWeight: 500 }}>
+          {error}
+        </div>
+      </div>
+    );
+  }
   if (!report) return null;
 
-  const st = STATUS_STYLE[report.status];
   const fColor = fraudColor(report.fraudScore);
   const vehicleId = report.vehicle?._id ?? "";
+  const reportMeta = STATUS_META[report.status];
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <Link href="/reportes" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: INK5, textDecoration: "none", fontSize: "0.875rem" }}>
-          <ArrowLeft size={16} /> Reportes ciudadanos
-        </Link>
-      </div>
-
+    <div className="animate-fade-in flex flex-col gap-4" style={{ color: INK9 }}>
       <PageHeader
         kicker={`Reporte · RC-${report.id.slice(-6).toUpperCase()}`}
         title={report.category}
-        subtitle={`Ciudadano nivel ${report.citizenReputationLevel} de reputación · ${new Date(report.createdAt).toLocaleDateString("es-PE", { dateStyle: "long" })}`}
+        subtitle={`Ciudadano nivel ${report.citizenReputationLevel} · ${fmtDate(report.createdAt)}`}
         action={
-          vehicleId ? (
-            <Link href={`/sanciones/nueva?vehicleId=${vehicleId}&reportId=${id}`}>
-              <Button variant="danger" size="md">
-                <ShieldAlert size={16} />
-                Generar sanción
-              </Button>
-            </Link>
-          ) : undefined
+          <div style={{ display: "flex", gap: 8 }}>
+            {vehicleId && (
+              <Link href={`/sanciones/nueva?vehicleId=${vehicleId}&reportId=${id}`}>
+                <button style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  height: 36, padding: "0 14px", borderRadius: 9,
+                  border: "none", background: RED, color: "#fff",
+                  fontSize: "0.875rem", fontWeight: 600,
+                  cursor: "pointer", fontFamily: "inherit",
+                }}>
+                  <ShieldAlert size={14} />Generar sanción
+                </button>
+              </Link>
+            )}
+            {backBtn}
+          </div>
         }
       />
 
       {error && (
-        <div role="alert" style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5", borderRadius: 12, padding: 16, color: "#DC2626", fontSize: "0.9375rem", fontWeight: 500 }}>
+        <div style={{ padding: "11px 16px", background: REDBG, border: `1.5px solid ${REDBD}`, borderRadius: 10, color: RED, fontSize: "0.875rem", fontWeight: 500 }}>
           {error}
         </div>
       )}
       {updateSuccess && (
-        <div style={{ background: "#F0FDF4", border: "1.5px solid #86EFAC", borderRadius: 12, padding: 16, color: "#15803d", fontSize: "0.9375rem", fontWeight: 500 }}>
+        <div style={{ padding: "11px 16px", background: GRNBG, border: `1.5px solid ${GRNBD}`, borderRadius: 10, color: GRN, fontSize: "0.875rem", fontWeight: 600 }}>
           Reporte actualizado correctamente.
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
-        {/* Left column */}
-        <div className="space-y-6">
-          {/* Info summary */}
-          <Card>
-            <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 16 }}>Información del reporte</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              {[
-                { label: "Vehículo (placa)", value: report.vehicle?.plate ?? "No especificado" },
-                { label: "Categoría",        value: report.category },
-                { label: "Tipo vehículo",    value: report.vehicleTypeKey ?? "—" },
-                { label: "Fiscal asignado",  value: report.assignedFiscal?.name ?? "Sin asignar" },
-              ].map(({ label, value }) => (
-                <div key={label} style={{ padding: 14, background: INK1, borderRadius: 10 }}>
-                  <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: INK5, marginBottom: 4 }}>{label}</div>
-                  <div style={{ fontWeight: 600, color: INK9 }}>{value}</div>
-                </div>
-              ))}
-            </div>
-          </Card>
+      <div className="sfit-aside-layout">
+        {/* ─── Columna principal ─── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-          {/* Description */}
-          <Card>
-            <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 12 }}>Descripción</h3>
-            <p style={{ color: INK6, fontSize: "0.9375rem", lineHeight: 1.65, margin: 0 }}>
+          {/* Información del reporte */}
+          <SectionCard
+            icon={<Flag size={14} color={INK6} />}
+            title="Información del reporte"
+            subtitle="Datos principales y contexto"
+          >
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ padding: 12, background: INK1, borderRadius: 8, border: `1px solid ${INK2}` }}>
+                <div style={LABEL_S}>Vehículo (placa)</div>
+                <div style={{ fontSize: "0.875rem", fontWeight: 700, color: INK9 }}>
+                  {report.vehicle?.plate ? (
+                    <span style={{ fontFamily: "ui-monospace,monospace", background: INK9, color: "#fff", padding: "2px 8px", borderRadius: 5, fontSize: "0.75rem" }}>
+                      {report.vehicle.plate}
+                    </span>
+                  ) : <span style={{ color: INK5, fontWeight: 400 }}>No especificado</span>}
+                </div>
+              </div>
+              <div style={{ padding: 12, background: INK1, borderRadius: 8, border: `1px solid ${INK2}` }}>
+                <div style={LABEL_S}>Categoría</div>
+                <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9 }}>{report.category}</div>
+              </div>
+              <div style={{ padding: 12, background: INK1, borderRadius: 8, border: `1px solid ${INK2}` }}>
+                <div style={LABEL_S}>Tipo vehículo</div>
+                <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9 }}>{report.vehicleTypeKey ?? "—"}</div>
+              </div>
+              <div style={{ padding: 12, background: INK1, borderRadius: 8, border: `1px solid ${INK2}` }}>
+                <div style={LABEL_S}>Fiscal asignado</div>
+                <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9 }}>
+                  {report.assignedFiscal?.name ?? <span style={{ color: INK5, fontWeight: 400 }}>Sin asignar</span>}
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+
+          {/* Descripción */}
+          <SectionCard
+            icon={<FileText size={14} color={INK6} />}
+            title="Descripción del ciudadano"
+            subtitle="Texto enviado al reportar"
+          >
+            <p style={{ margin: 0, color: INK6, fontSize: "0.9375rem", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
               &ldquo;{report.description}&rdquo;
             </p>
-          </Card>
+          </SectionCard>
 
-          {/* Evidence */}
-          <Card>
-            <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 14 }}>Evidencia</h3>
+          {/* Evidencia */}
+          <SectionCard
+            icon={<Camera size={14} color={INK6} />}
+            title="Evidencia"
+            subtitle={report.evidenceUrl ? "Adjuntada por el ciudadano" : "Sin evidencia"}
+          >
             {report.evidenceUrl ? (
               <div>
                 {isImageUrl(report.evidenceUrl) ? (
@@ -262,131 +400,144 @@ export default function ReporteDetallePage({ params }: Props) {
                   <img
                     src={report.evidenceUrl}
                     alt="Evidencia del reporte"
-                    style={{ width: "100%", maxHeight: 320, objectFit: "contain", borderRadius: 10, border: `1px solid ${INK2}`, background: INK1 }}
+                    style={{ width: "100%", maxHeight: 360, objectFit: "contain", borderRadius: 8, border: `1px solid ${INK2}`, background: INK1 }}
                   />
                 ) : (
-                  <div style={{ aspectRatio: "16/9", borderRadius: 10, background: "repeating-linear-gradient(135deg,#E8EEF5 0 10px,#DCE5EF 10px 20px)", border: `1px solid ${INK2}`, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8, color: INK5 }}>
+                  <a href={report.evidenceUrl} target="_blank" rel="noopener noreferrer"
+                    style={{
+                      display: "flex", aspectRatio: "16/9", borderRadius: 8,
+                      background: INK1, border: `1px solid ${INK2}`,
+                      alignItems: "center", justifyContent: "center", color: INK6,
+                      flexDirection: "column", gap: 8, textDecoration: "none",
+                    }}>
                     <Camera size={28} />
-                    <div style={{ fontSize: "0.75rem", fontFamily: "ui-monospace,monospace" }}>evidencia_RC-{report.id.slice(-6).toUpperCase()}</div>
-                  </div>
+                    <div style={{ fontSize: "0.75rem", fontWeight: 600 }}>Ver evidencia adjunta</div>
+                  </a>
                 )}
-                <a
-                  href={report.evidenceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 12, color: "#1e40af", fontSize: "0.875rem", fontWeight: 500, textDecoration: "none" }}
-                >
-                  <ExternalLink size={14} /> Ver evidencia original
+                <a href={report.evidenceUrl} target="_blank" rel="noopener noreferrer"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 10, color: INK9, fontSize: "0.8125rem", fontWeight: 500, textDecoration: "underline" }}>
+                  <ExternalLink size={12} />Abrir original
                 </a>
               </div>
             ) : (
-              <div style={{ padding: "28px 0", textAlign: "center", color: INK5, fontSize: "0.875rem" }}>
-                <Camera size={24} style={{ margin: "0 auto 8px", display: "block" }} />
+              <div style={{ padding: "28px 0", textAlign: "center", color: INK5, fontSize: "0.8125rem" }}>
+                <Camera size={24} style={{ margin: "0 auto 8px", display: "block", color: INK5 }} />
                 Sin evidencia adjunta
               </div>
             )}
-          </Card>
+          </SectionCard>
 
-          {/* Fraud score */}
-          <Card>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, margin: 0 }}>Puntuación de fraude</h3>
-              <span style={{ fontSize: "1.5rem", fontWeight: 800, color: fColor, fontVariantNumeric: "tabular-nums" }}>
-                {report.fraudScore}<span style={{ fontSize: "0.875rem", color: INK5, fontWeight: 400 }}>/100</span>
+          {/* Score de fraude */}
+          <SectionCard
+            icon={<BarChart3 size={14} color={INK6} />}
+            title="Puntuación de fraude"
+            subtitle={`Riesgo ${fraudLabel(report.fraudScore)}`}
+            action={
+              <span style={{ fontSize: "1rem", fontWeight: 800, color: fColor, fontVariantNumeric: "tabular-nums" }}>
+                {report.fraudScore}<span style={{ fontSize: "0.75rem", color: INK5, fontWeight: 400 }}>/100</span>
               </span>
-            </div>
-
-            {/* Bar */}
-            <div style={{ height: 10, background: INK1, borderRadius: 999, overflow: "hidden", marginBottom: 8 }}>
+            }
+          >
+            <div style={{ height: 8, background: INK1, borderRadius: 999, overflow: "hidden", marginBottom: 14 }}>
               <div style={{ height: "100%", width: `${report.fraudScore}%`, background: fColor, borderRadius: 999, transition: "width 0.4s ease" }} />
             </div>
-            <p style={{ fontSize: "0.8125rem", color: fColor, fontWeight: 600, marginBottom: 20 }}>
-              Riesgo {fraudLabel(report.fraudScore)}
-            </p>
 
-            {/* Fraud layers table */}
             {report.fraudLayers.length > 0 && (
               <>
-                <p className="kicker" style={{ marginBottom: 10 }}>Capas anti-fraude</p>
-                <div style={{ border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8125rem" }}>
-                    <thead>
-                      <tr style={{ background: "#FAFAFA" }}>
-                        {["Capa", "Resultado", "Detalle"].map(h => (
-                          <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, borderBottom: `1px solid ${INK2}` }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {report.fraudLayers.map((l, i) => (
-                        <tr key={i} style={{ background: i % 2 === 0 ? "#fff" : "#FAFAFA" }}>
-                          <td style={{ padding: "10px 14px", borderBottom: `1px solid ${INK1}`, fontWeight: 600, color: INK9 }}>{l.layer}</td>
-                          <td style={{ padding: "10px 14px", borderBottom: `1px solid ${INK1}` }}>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 8px", borderRadius: 999, fontSize: "0.6875rem", fontWeight: 700, background: l.passed ? "#F0FDF4" : "#FFF5F5", color: l.passed ? "#15803d" : "#DC2626", border: `1px solid ${l.passed ? "#86EFAC" : "#FCA5A5"}` }}>
-                              {l.passed ? <Check size={10} /> : <X size={10} />}
-                              {l.passed ? "Pasó" : "Falló"}
-                            </span>
-                          </td>
-                          <td style={{ padding: "10px 14px", borderBottom: `1px solid ${INK1}`, color: INK6 }}>{l.detail}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div style={{ ...LABEL_S, marginBottom: 8 }}>Capas anti-fraude</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {report.fraudLayers.map((l, i) => (
+                    <div key={i} style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "10px 12px", borderRadius: 8,
+                      background: INK1, border: `1px solid ${INK2}`,
+                    }}>
+                      <div style={{
+                        width: 28, height: 28, borderRadius: 7,
+                        background: l.passed ? GRNBG : REDBG,
+                        border: `1px solid ${l.passed ? GRNBD : REDBD}`,
+                        color: l.passed ? GRN : RED,
+                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                      }}>
+                        {l.passed ? <Check size={14} /> : <X size={14} />}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, color: INK9, fontSize: "0.8125rem" }}>{l.layer}</div>
+                        <div style={{ fontSize: "0.75rem", color: INK6, marginTop: 1 }}>{l.detail}</div>
+                      </div>
+                      <span style={{
+                        fontSize: "0.625rem", fontWeight: 800, padding: "2px 8px", borderRadius: 999,
+                        background: "#fff",
+                        color: l.passed ? GRN : RED,
+                        border: `1px solid ${l.passed ? GRNBD : REDBD}`,
+                        textTransform: "uppercase", letterSpacing: "0.06em", flexShrink: 0,
+                      }}>
+                        {l.passed ? "Pasó" : "Falló"}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </>
             )}
-          </Card>
-        </div>
+          </SectionCard>
 
-        {/* Right column */}
-        <div className="space-y-6">
-          {/* Status badge */}
-          <Card>
-            <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 14 }}>Estado del reporte</h3>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 999, background: st.bg, border: `1.5px solid ${st.border}`, marginBottom: canAct ? 20 : 0 }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: st.color }} />
-              <span style={{ fontWeight: 700, fontSize: "0.8125rem", color: st.color }}>{st.label}</span>
-            </div>
-
-            {/* Quick actions for actionable statuses */}
-            {canAct && (report.status === "pendiente" || report.status === "revision") && (
-              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          {/* Acciones del fiscal */}
+          {canAct && (
+            <SectionCard
+              icon={<Eye size={14} color={INK6} />}
+              title="Resolver reporte"
+              subtitle="Cambiar estado y asignar fiscal"
+              action={
                 <button
+                  onClick={handleUpdate}
                   disabled={updating}
-                  onClick={() => { setNewStatus("rechazado"); void handleUpdateStatus("rechazado"); }}
                   style={{
-                    flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-                    height: 36, padding: "0 12px", borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600,
-                    cursor: "pointer", border: "1.5px solid #FCA5A5", background: "#FFF5F5", color: "#DC2626",
-                    fontFamily: "inherit", opacity: updating ? 0.6 : 1,
+                    ...BTN_PRIMARY, height: 28, padding: "0 12px", fontSize: "0.75rem",
+                    opacity: updating ? 0.6 : 1, cursor: updating ? "not-allowed" : "pointer",
                   }}
                 >
-                  <X size={14} /> Rechazar
+                  {updating ? "Guardando…" : "Guardar"}
                 </button>
-                <button
-                  disabled={updating}
-                  onClick={() => { setNewStatus("validado"); void handleUpdateStatus("validado"); }}
-                  style={{
-                    flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-                    height: 36, padding: "0 12px", borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600,
-                    cursor: "pointer", border: "none", background: "#15803d", color: "#fff",
-                    fontFamily: "inherit", opacity: updating ? 0.6 : 1,
-                  }}
-                >
-                  <Check size={14} /> Validar reporte (+20 coins)
-                </button>
-              </div>
-            )}
+              }
+            >
+              {(report.status === "pendiente" || report.status === "revision") && (
+                <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                  <button
+                    disabled={updating}
+                    onClick={() => void handleQuickStatus("rechazado")}
+                    style={{
+                      flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+                      height: 36, padding: "0 12px", borderRadius: 8,
+                      border: `1.5px solid ${REDBD}`, background: "#fff", color: RED,
+                      fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
+                      fontFamily: "inherit", opacity: updating ? 0.6 : 1,
+                    }}
+                  >
+                    <X size={14} />Rechazar
+                  </button>
+                  <button
+                    disabled={updating}
+                    onClick={() => void handleQuickStatus("validado")}
+                    style={{
+                      flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+                      height: 36, padding: "0 12px", borderRadius: 8,
+                      border: "none", background: GRN, color: "#fff",
+                      fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
+                      fontFamily: "inherit", opacity: updating ? 0.6 : 1,
+                    }}
+                  >
+                    <Check size={14} />Validar (+20 coins)
+                  </button>
+                </div>
+              )}
 
-            {/* Action panel — full form for advanced updates */}
-            {canAct && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
-                  <label style={{ display: "block", marginBottom: 8, fontSize: "0.875rem", fontWeight: 500 }}>Cambiar estado</label>
+                  <label style={LABEL_S}>Cambiar estado</label>
                   <select
                     value={newStatus}
                     onChange={e => setNewStatus(e.target.value as ReportStatus)}
-                    className="field"
+                    style={{ ...FIELD, paddingRight: 36, appearance: "auto" }}
                   >
                     <option value="pendiente">Pendiente</option>
                     <option value="revision">En revisión</option>
@@ -394,96 +545,133 @@ export default function ReporteDetallePage({ params }: Props) {
                     <option value="rechazado">Rechazado</option>
                   </select>
                 </div>
-
                 <div>
-                  <label htmlFor="fiscalId" style={{ display: "block", marginBottom: 8, fontSize: "0.875rem", fontWeight: 500 }}>
-                    Asignar fiscal <span style={{ color: INK5, fontSize: "0.8125rem", fontWeight: 400 }}>(opcional)</span>
-                  </label>
+                  <label style={LABEL_S}>Asignar fiscal <span style={{ color: INK5, fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>(opcional)</span></label>
                   {fiscales.length > 0 ? (
                     <select
-                      id="fiscalId"
                       value={fiscalId}
                       onChange={e => setFiscalId(e.target.value)}
-                      className="field"
+                      style={{ ...FIELD, paddingRight: 36, appearance: "auto" }}
                     >
                       <option value="">— Sin asignar —</option>
-                      {fiscales.map(f => (
-                        <option key={f.id} value={f.id}>{f.name}</option>
-                      ))}
+                      {fiscales.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                     </select>
                   ) : (
                     <input
-                      id="fiscalId"
-                      type="text"
                       value={fiscalId}
                       onChange={e => setFiscalId(e.target.value)}
-                      className="field"
                       placeholder="ID del fiscal"
+                      style={FIELD}
                     />
                   )}
                 </div>
+              </div>
+            </SectionCard>
+          )}
+        </div>
 
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleUpdate}
-                  loading={updating}
-                  style={{ width: "100%" }}
-                >
-                  Guardar cambios
-                </Button>
+        {/* ─── Sidebar derecha ─── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Tarjeta de identidad */}
+          <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
+            <div style={{ padding: "20px 16px 16px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 10 }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: 12,
+                background: reportMeta.bg, border: `2px solid ${reportMeta.bd}`,
+                color: reportMeta.color,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <Flag size={28} strokeWidth={2} />
+              </div>
+              <div style={{ minWidth: 0, width: "100%" }}>
+                <div style={{ fontFamily: "ui-monospace,monospace", fontWeight: 800, fontSize: "0.9375rem", color: INK9 }}>
+                  RC-{report.id.slice(-6).toUpperCase()}
+                </div>
+                <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 2 }}>
+                  Reporte ciudadano
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  <StatusBadge s={report.status} />
+                </div>
+              </div>
+            </div>
+            <div>
+              <MetaRow label="Vehículo" value={
+                report.vehicle?.plate ? (
+                  <span style={{ fontFamily: "ui-monospace,monospace", background: INK9, color: "#fff", padding: "2px 8px", borderRadius: 5, fontWeight: 700, fontSize: "0.75rem" }}>
+                    {report.vehicle.plate}
+                  </span>
+                ) : <span style={{ color: INK5 }}>—</span>
+              } />
+              <MetaRow label="Categoría" value={report.category} />
+              <MetaRow label="Score fraude" value={
+                <span style={{ color: fColor, fontWeight: 800 }}>{report.fraudScore}/100</span>
+              } />
+              <MetaRow label="Reportado" value={fmtDateShort(report.createdAt)} />
+            </div>
+          </div>
+
+          {/* Reputación del ciudadano */}
+          <SectionCard
+            icon={<UserIcon size={14} color={INK6} />}
+            title="Reputación del ciudadano"
+            subtitle={`Nivel ${report.citizenReputationLevel} de 5`}
+          >
+            <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
+              {[1, 2, 3, 4, 5].map(n => (
+                <div key={n} style={{
+                  width: 32, height: 32, borderRadius: 7,
+                  background: n <= report.citizenReputationLevel ? G : INK1,
+                  border: `1.5px solid ${n <= report.citizenReputationLevel ? GD : INK2}`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: "0.75rem", fontWeight: 800,
+                  color: n <= report.citizenReputationLevel ? "#fff" : INK5,
+                }}>
+                  {n}
+                </div>
+              ))}
+            </div>
+            {report.citizen?.name && (
+              <div style={{ textAlign: "center", marginTop: 10, fontSize: "0.8125rem", fontWeight: 600, color: INK9 }}>
+                {report.citizen.name}
               </div>
             )}
-          </Card>
+          </SectionCard>
 
-          {/* Citizen reputation */}
-          <Card>
-            <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 14 }}>Reputación del ciudadano</h3>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ display: "flex", gap: 4 }}>
-                {[1, 2, 3, 4, 5].map(n => (
-                  <div
-                    key={n}
-                    style={{
-                      width: 28, height: 28, borderRadius: 7,
-                      background: n <= report.citizenReputationLevel ? "#6C0606" : INK1,
-                      border: `1.5px solid ${n <= report.citizenReputationLevel ? "#4A0303" : INK2}`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: "0.6875rem", fontWeight: 800,
-                      color: n <= report.citizenReputationLevel ? "#fff" : INK5,
-                    }}
-                  >
-                    {n}
-                  </div>
-                ))}
-              </div>
-              <span style={{ fontSize: "0.875rem", fontWeight: 600, color: INK6 }}>Nivel {report.citizenReputationLevel}</span>
+          {/* Información del registro */}
+          <SectionCard
+            icon={<Hash size={14} color={INK6} />}
+            title="Información del registro"
+            subtitle="Trazabilidad"
+          >
+            <div>
+              <div style={LABEL_S}>ID interno</div>
+              <code style={{
+                display: "block", padding: "6px 10px", background: INK1,
+                border: `1px solid ${INK2}`, borderRadius: 6,
+                fontSize: "0.75rem", color: INK9,
+                fontFamily: "ui-monospace,monospace",
+                wordBreak: "break-all",
+              }}>
+                {report.id}
+              </code>
             </div>
-          </Card>
+          </SectionCard>
 
-          {/* Generate sanction CTA */}
+          {/* Link al vehículo */}
           {vehicleId && (
-            <Card style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5" }}>
-              <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 8, color: "#DC2626" }}>Acción disciplinaria</h3>
-              <p style={{ fontSize: "0.8125rem", color: "#DC2626", marginBottom: 14, lineHeight: 1.5 }}>
-                Si el reporte es válido, puedes generar una sanción formal al vehículo infractor.
-              </p>
-              <Link href={`/sanciones/nueva?vehicleId=${vehicleId}&reportId=${id}`} style={{ display: "block" }}>
-                <Button variant="danger" size="sm" style={{ width: "100%" }}>
-                  <ShieldAlert size={14} />
-                  Generar sanción
-                </Button>
-              </Link>
-            </Card>
+            <Link href={`/vehiculos/${vehicleId}`}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "10px 14px", borderRadius: 9,
+                border: `1px solid ${INK2}`, background: "#fff",
+                color: INK6, fontSize: "0.8125rem", fontWeight: 600,
+                textDecoration: "none",
+              }}>
+              <Car size={14} />Ver vehículo {report.vehicle?.plate ?? ""} →
+            </Link>
           )}
-
-          {/* Report ID */}
-          <Card>
-            <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 12 }}>Identificador</h3>
-            <div style={{ padding: "10px 12px", background: INK1, borderRadius: 8, fontFamily: "ui-monospace, monospace", fontSize: "0.75rem", fontWeight: 700, color: INK6, wordBreak: "break-all" }}>
-              {report.id}
-            </div>
-          </Card>
         </div>
       </div>
     </div>

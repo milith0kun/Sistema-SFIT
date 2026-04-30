@@ -107,7 +107,7 @@ export default function LoginPage() {
       localStorage.setItem("sfit_access_token", data.data.accessToken);
       localStorage.setItem("sfit_refresh_token", data.data.refreshToken);
       localStorage.setItem("sfit_user", JSON.stringify(data.data.user));
-      document.cookie = `sfit_access_token=${data.data.accessToken}; path=/; max-age=900; SameSite=Lax`;
+      document.cookie = `sfit_access_token=${data.data.accessToken}; path=/; max-age=7200; SameSite=Lax`;
       router.push(destForStatus(data.data.user.status));
     } catch {
       setError("Error de conexión con Google. Intente nuevamente.");
@@ -149,7 +149,7 @@ export default function LoginPage() {
       localStorage.setItem("sfit_access_token",  data.data.accessToken);
       localStorage.setItem("sfit_refresh_token", data.data.refreshToken);
       localStorage.setItem("sfit_user",          JSON.stringify(data.data.user));
-      document.cookie = `sfit_access_token=${data.data.accessToken}; path=/; max-age=900; SameSite=Lax`;
+      document.cookie = `sfit_access_token=${data.data.accessToken}; path=/; max-age=7200; SameSite=Lax`;
       router.push(destForStatus(data.data.user.status));
     } catch {
       setError("Error de conexión. Intente nuevamente.");

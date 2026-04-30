@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, cloneElement, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Shield, Check, AlertTriangle, X, QrCode, Plus, Sparkles, Download } from "lucide-react";
+import { Shield, Check, AlertTriangle, X, Plus, Sparkles, Download } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
@@ -21,6 +21,8 @@ type Inspection = {
   observations?: string;
   createdAt: string;
 };
+type Stats = { aprobada: number; observada: number; rechazada: number; avgScore: number; mes: number };
+type Sugerencia = { item: string; fallos: number; total: number; tasaFallo: number };
 
 const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
 const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB"; const RIESGOBD = "#FCD34D";
@@ -32,12 +34,6 @@ function fmtDate(d: string) {
   return new Date(d).toLocaleDateString("es-PE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
-const AI_SUGGESTIONS = [
-  { t: "Sistema de frenos", r: "Historial de reportes ciudadanos", p: 92 },
-  { t: "Luces traseras", r: "Observación en última inspección", p: 78 },
-  { t: "Cinturones de seguridad", r: "Vehículo con alto kilometraje", p: 64 },
-];
-
 const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin"];
 const btnInk: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: "none", background: INK9, color: "#fff", fontFamily: "inherit" };
 const btnOut: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontFamily: "inherit" };
@@ -46,6 +42,9 @@ export default function InspeccionesPage() {
   const router = useRouter();
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [items, setItems] = useState<Inspection[]>([]);
+  const [stats, setStats] = useState<Stats>({ aprobada: 0, observada: 0, rechazada: 0, avgScore: 0, mes: 0 });
+  const [sugerencias, setSugerencias] = useState<Sugerencia[]>([]);
+  const [loadingSug, setLoadingSug] = useState(true);
   const [resultFilter, setResultFilter] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,15 +69,49 @@ export default function InspeccionesPage() {
       const data = await res.json();
       if (!res.ok || !data.success) { setError(data.error ?? "Error"); return; }
       setItems(data.data.items ?? []);
+      if (data.data.stats) setStats(data.data.stats as Stats);
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
   }, [user, resultFilter, router]);
 
   useEffect(() => { void load(); }, [load]);
 
-  const aprobadas = items.filter(i => i.result === "aprobada").length;
-  const observadas = items.filter(i => i.result === "observada").length;
-  const rechazadas = items.filter(i => i.result === "rechazada").length;
+  // Carga sugerencias agregadas por municipalidad (solo una vez al montar)
+  useEffect(() => {
+    if (!user) return;
+    void (async () => {
+      setLoadingSug(true);
+      try {
+        const token = localStorage.getItem("sfit_access_token");
+        const res = await fetch("/api/inspecciones/sugerencias", { headers: { Authorization: `Bearer ${token ?? ""}` } });
+        const data = await res.json();
+        if (res.ok && data.success) setSugerencias(data.data.sugerencias ?? []);
+      } catch { /* silencioso */ }
+      finally { setLoadingSug(false); }
+    })();
+  }, [user]);
+
+  const aprobadas = stats.aprobada;
+  const observadas = stats.observada;
+  const rechazadas = stats.rechazada;
+  const totalGlobal = stats.aprobada + stats.observada + stats.rechazada;
+
+  const exportCSV = async () => {
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const qs = new URLSearchParams();
+      if (resultFilter) qs.set("result", resultFilter);
+      const res = await fetch(`/api/admin/exportar/inspecciones?${qs}`, { headers: { Authorization: `Bearer ${token ?? ""}` } });
+      if (!res.ok) { setError("No se pudo exportar el CSV"); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `inspecciones_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { setError("Error de conexión al exportar"); }
+  };
 
   const columns = useMemo<ColumnDef<Inspection, unknown>[]>(() => [
     {
@@ -150,25 +183,16 @@ export default function InspeccionesPage() {
       <PageHeader kicker="Operación · RF-11" title="Inspecciones"
         action={
           <div style={{ display: "flex", gap: 8 }}>
-            <button
-              style={btnOut}
-              onClick={() => {
-                const token = localStorage.getItem("sfit_access_token");
-                const qs = new URLSearchParams();
-                if (resultFilter) qs.set("result", resultFilter);
-                window.open(`/api/admin/exportar/inspecciones?${qs.toString()}`, "_blank");
-              }}
-            >
+            <button style={btnOut} onClick={exportCSV} disabled={items.length === 0}>
               <Download size={16} />Exportar CSV
             </button>
-            <button style={btnOut}><QrCode size={16} />Escanear QR</button>
             {user?.role === "fiscal" && (<Link href="/inspecciones/nueva"><button style={btnInk}><Plus size={16} />Nueva inspección</button></Link>)}
           </div>
         } />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
         {[
-          { ico: <Shield size={18} />, lbl: "Este mes", val: items.length, bg: INK1, ic: INK5 },
+          { ico: <Shield size={18} />, lbl: "Este mes", val: stats.mes, bg: INK1, ic: INK5 },
           { ico: <Check size={18} />, lbl: "Aprobadas", val: aprobadas, bg: APTOBG, ic: APTO },
           { ico: <AlertTriangle size={18} />, lbl: "Observadas", val: observadas, bg: RIESGOBG, ic: RIESGO },
           { ico: <X size={18} />, lbl: "Rechazadas", val: rechazadas, bg: NOBG, ic: NO },
@@ -192,6 +216,7 @@ export default function InspeccionesPage() {
             columns={columns}
             data={items}
             loading={loading}
+            onRowClick={(row) => router.push(`/inspecciones/${row.id}`)}
             searchPlaceholder="Buscar por placa, fiscal…"
             emptyTitle="Sin inspecciones registradas"
             emptyDescription="No se encontraron actas en este período."
@@ -205,36 +230,48 @@ export default function InspeccionesPage() {
           />
         </div>
 
-        {/* AI Suggestions Panel */}
+        {/* Panel de análisis: puntos críticos + tasa aprobación (datos reales) */}
         <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14 }}>
           <div style={{ padding: "16px 22px", borderBottom: `1px solid ${INK2}`, background: `linear-gradient(135deg,${GBG},#fff)` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: "0.9375rem" }}><Sparkles size={16} color={G} />Sugerencias de IA</div>
-            <div style={{ fontSize: "0.8125rem", color: INK5, marginTop: 2 }}>Análisis del historial de flota</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: "0.9375rem" }}><Sparkles size={16} color={G} />Puntos críticos</div>
+            <div style={{ fontSize: "0.8125rem", color: INK5, marginTop: 2 }}>Ítems con mayor tasa de fallo en su jurisdicción</div>
           </div>
           <div style={{ padding: 18 }}>
-            <div style={{ padding: 14, background: INK1, borderRadius: 10, marginBottom: 16 }}>
-              <div style={{ fontSize: "0.75rem", color: INK5 }}>Próximas inspecciones prioritarias</div>
-              <div style={{ fontWeight: 700, marginTop: 2 }}>Basado en historial y reportes ciudadanos</div>
-            </div>
-            <p className="kicker" style={{ marginBottom: 10 }}>Puntos prioritarios</p>
-            {AI_SUGGESTIONS.map((s, i) => (
-              <div key={i} style={{ padding: 12, border: `1px solid ${INK2}`, borderRadius: 10, marginBottom: 8, display: "flex", gap: 10, alignItems: "center" }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: GBG, color: GD, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.75rem", flexShrink: 0 }}>{s.p}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "0.875rem", fontWeight: 600 }}>{s.t}</div>
-                  <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 2 }}>{s.r}</div>
-                </div>
-                <button style={{ width: 28, height: 28, borderRadius: 7, border: `1px solid ${INK2}`, background: "#fff", color: INK6, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Check size={13} /></button>
+            {loadingSug ? (
+              <div style={{ fontSize: "0.875rem", color: INK5, textAlign: "center", padding: 20 }}>Calculando…</div>
+            ) : sugerencias.length === 0 ? (
+              <div style={{ padding: 14, background: INK1, borderRadius: 10, fontSize: "0.875rem", color: INK6 }}>
+                Sin patrones de fallo detectados. La flota muestra resultados estables.
               </div>
-            ))}
+            ) : (
+              <>
+                <p className="kicker" style={{ marginBottom: 10 }}>Top {sugerencias.length} fallas frecuentes</p>
+                {sugerencias.map((s, i) => {
+                  const pct = Math.round(s.tasaFallo * 100);
+                  return (
+                    <div key={i} style={{ padding: 12, border: `1px solid ${INK2}`, borderRadius: 10, marginBottom: 8, display: "flex", gap: 10, alignItems: "center" }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 8, background: GBG, color: GD, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.75rem", flexShrink: 0 }}>{pct}%</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "0.875rem", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}>{s.item}</div>
+                        <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 2 }}>{s.fallos} de {s.total} inspecciones falladas</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+
             <div style={{ marginTop: 16, padding: 14, background: GBG, borderRadius: 10, border: `1px solid ${GBR}` }}>
-              <div style={{ fontSize: "0.8125rem", color: GD, fontWeight: 600 }}>Tasa de aprobación</div>
+              <div style={{ fontSize: "0.8125rem", color: GD, fontWeight: 600 }}>Tasa de aprobación global</div>
               <div style={{ fontSize: "1.5rem", fontWeight: 800, color: G, marginTop: 4 }}>
-                {items.length ? `${Math.round((aprobadas / items.length) * 100)}%` : "—"}
+                {totalGlobal ? `${Math.round((aprobadas / totalGlobal) * 100)}%` : "—"}
               </div>
               <div style={{ height: 6, background: "rgba(108,6,6,.15)", borderRadius: 999, marginTop: 8, overflow: "hidden" }}>
-                <span style={{ display: "block", height: "100%", borderRadius: 999, background: G, width: items.length ? `${(aprobadas / items.length) * 100}%` : "0%" }} />
+                <span style={{ display: "block", height: "100%", borderRadius: 999, background: G, width: totalGlobal ? `${(aprobadas / totalGlobal) * 100}%` : "0%" }} />
               </div>
+              {stats.avgScore > 0 && (
+                <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 8 }}>Score promedio: {stats.avgScore}/100</div>
+              )}
             </div>
           </div>
         </div>

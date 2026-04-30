@@ -37,7 +37,13 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col font-sans antialiased">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        {/*
+         * El sistema está diseñado para tema claro (paleta INK1-INK9 con fondos
+         * blancos). enableSystem hacía que el usuario con modo oscuro en su SO
+         * heredara color:#fafafa en body, dejando los valores invisibles. Hasta
+         * que exista un dark mode real, forzamos light.
+         */}
+        <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light" enableSystem={false}>
           {children}
         </ThemeProvider>
       </body>

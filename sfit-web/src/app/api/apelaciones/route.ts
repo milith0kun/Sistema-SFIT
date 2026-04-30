@@ -114,7 +114,11 @@ export async function GET(request: NextRequest) {
       filter.status = statusParam;
     }
 
-    const [items, total] = await Promise.all([
+    // Stats globales (sin filtro de status)
+    const globalFilter: Record<string, unknown> = { ...filter };
+    delete globalFilter.status;
+
+    const [items, total, statsAgg] = await Promise.all([
       Apelacion.find(filter)
         .populate("inspectionId", "result date score observations")
         .populate("vehicleId", "plate vehicleTypeKey brand model")
@@ -125,7 +129,17 @@ export async function GET(request: NextRequest) {
         .limit(limit)
         .lean(),
       Apelacion.countDocuments(filter),
+      Apelacion.aggregate([
+        { $match: globalFilter },
+        { $group: { _id: "$status", count: { $sum: 1 } } },
+      ]),
     ]);
+
+    const stats = { pendiente: 0, aprobada: 0, rechazada: 0, total: 0 };
+    for (const row of statsAgg as { _id: string; count: number }[]) {
+      if (row._id in stats) (stats as unknown as Record<string, number>)[row._id] = row.count;
+      stats.total += row.count;
+    }
 
     return apiResponse({
       items: items.map((a) => ({
@@ -144,6 +158,7 @@ export async function GET(request: NextRequest) {
       total,
       page,
       limit,
+      stats,
     });
   } catch (error) {
     console.error("[apelaciones GET]", error);

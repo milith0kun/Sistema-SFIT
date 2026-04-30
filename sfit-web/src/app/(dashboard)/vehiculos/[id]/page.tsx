@@ -7,8 +7,8 @@ import {
   ArrowLeft, Save, Trash2, AlertTriangle, CheckCircle, Loader2, Hash, Copy, Check,
   Car, TrendingUp, ClipboardCheck, ShieldCheck, Building2, Calendar,
 } from "lucide-react";
-import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 
 type PlacaLookup =
@@ -333,24 +333,30 @@ export default function VehiculoDetallePage({ params }: Props) {
     }
   }
 
+  const backBtnPlain = (
+    <Link href="/vehiculos">
+      <button style={{
+        display: "inline-flex", alignItems: "center", gap: 6,
+        height: 36, padding: "0 14px", borderRadius: 9,
+        border: `1.5px solid ${INK2}`, background: "#fff",
+        color: INK6, fontSize: "0.875rem", fontWeight: 600,
+        cursor: "pointer", fontFamily: "inherit",
+      }}>
+        <ArrowLeft size={15} />Volver
+      </button>
+    </Link>
+  );
+
   if (notFound) {
     return (
       <div className="flex flex-col gap-4 animate-fade-in">
-        <DashboardHero kicker="Vehículos · RF-06" title="Vehículo no encontrado" />
+        <PageHeader kicker="Vehículos · RF-06" title="Vehículo no encontrado" action={backBtnPlain} />
         <div style={{
           padding: "32px 24px", background: "#fff", border: `1px solid ${INK2}`,
           borderRadius: 12, color: INK6, textAlign: "center", fontSize: "0.875rem",
         }}>
           El vehículo que buscas no existe o fue eliminado.
         </div>
-        <Link href="/vehiculos" style={{
-          alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 7,
-          height: 36, padding: "0 14px", borderRadius: 8,
-          border: `1px solid ${INK2}`, background: "#fff", color: INK6,
-          fontWeight: 600, fontSize: "0.8125rem", textDecoration: "none",
-        }}>
-          <ArrowLeft size={13} />Volver a vehículos
-        </Link>
       </div>
     );
   }
@@ -358,7 +364,7 @@ export default function VehiculoDetallePage({ params }: Props) {
   if (loading || !vehicle) {
     return (
       <div className="flex flex-col gap-4 animate-fade-in">
-        <DashboardHero kicker="Vehículos · RF-06" title="Cargando vehículo…" />
+        <PageHeader kicker="Vehículos · RF-06" title="Cargando vehículo…" action={backBtnPlain} />
         <KPIStrip cols={3} items={[
           { label: "ÚLTIMA INSPECCIÓN", value: "—", subtitle: "—", icon: ClipboardCheck },
           { label: "REPUTACIÓN", value: "—", subtitle: "—", icon: TrendingUp },
@@ -379,25 +385,20 @@ export default function VehiculoDetallePage({ params }: Props) {
   const soatWarn = soatDays != null && soatDays >= 0 && soatDays <= 30;
   const soatExpired = soatDays != null && soatDays < 0;
 
-  const heroAction = (
-    <div style={{ display: "flex", gap: 6 }}>
-      <Link href="/vehiculos" style={{
-        display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-        borderRadius: 7, border: "1px solid rgba(255,255,255,0.18)",
-        background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.85)",
-        fontWeight: 600, fontSize: "0.8125rem", textDecoration: "none",
-      }}>
-        <ArrowLeft size={12} />Volver
-      </Link>
+  const headerAction = (
+    <div style={{ display: "flex", gap: 8 }}>
+      {backBtnPlain}
       {canEdit && (
         <button form="vehiculo-form" type="submit" disabled={submitting || deleting}
           style={{
-            display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 14px",
-            borderRadius: 7, border: "none", background: "#fff", color: INK9,
-            fontWeight: 700, fontSize: "0.8125rem", cursor: submitting ? "not-allowed" : "pointer",
+            display: "inline-flex", alignItems: "center", gap: 6,
+            height: 36, padding: "0 14px", borderRadius: 9,
+            border: "none", background: INK9, color: "#fff",
+            fontWeight: 700, fontSize: "0.875rem",
+            cursor: submitting ? "not-allowed" : "pointer",
             fontFamily: "inherit", opacity: submitting ? 0.7 : 1,
           }}>
-          {submitting ? <Loader2 size={12} style={{ animation: "spin 0.7s linear infinite" }} /> : <Save size={12} />}
+          {submitting ? <Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} /> : <Save size={14} />}
           {submitting ? "Guardando…" : "Guardar"}
         </button>
       )}
@@ -405,16 +406,12 @@ export default function VehiculoDetallePage({ params }: Props) {
   );
 
   return (
-    <div className="flex flex-col gap-4 animate-fade-in pb-10">
-      <DashboardHero
-        kicker={`Vehículos · ${canEdit ? "Editar" : "Detalle"}`}
+    <div className="flex flex-col gap-4 animate-fade-in pb-10" style={{ color: INK9 }}>
+      <PageHeader
+        kicker={`Vehículos · RF-06 · ${canEdit ? "Editar" : "Detalle"}`}
         title={vehicle.plate}
-        pills={[
-          { label: "Modelo", value: `${vehicle.brand} ${vehicle.model}` },
-          { label: "Año", value: vehicle.year },
-          { label: "Estado", value: stMeta.label, warn: vehicle.status !== "disponible" && vehicle.status !== "en_ruta" },
-        ]}
-        action={heroAction}
+        subtitle={`${vehicle.brand} ${vehicle.model} · ${vehicle.year} · ${stMeta.label}`}
+        action={headerAction}
       />
 
       <KPIStrip cols={3} items={[
@@ -483,7 +480,7 @@ export default function VehiculoDetallePage({ params }: Props) {
       )}
 
       <form id="vehiculo-form" onSubmit={handleSave} noValidate>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 12, alignItems: "start" }}>
+        <div className="sfit-aside-layout">
 
           {/* Columna principal */}
           <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
@@ -782,27 +779,53 @@ export default function VehiculoDetallePage({ params }: Props) {
           </div>
 
           {/* Sidebar */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, position: "sticky", top: 16 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
-            {/* Resumen sidebar */}
-            <div style={{
-              background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12, overflow: "hidden",
-            }}>
-              <div style={{ padding: "10px 16px", borderBottom: `1px solid ${INK1}` }}>
+            {/* Tarjeta de identidad (estilo usuarios/[id]) */}
+            <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ padding: "20px 16px 16px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 10 }}>
                 <div style={{
-                  fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em",
-                  textTransform: "uppercase", color: INK5,
-                }}>Información</div>
+                  width: 64, height: 64, borderRadius: 12,
+                  background: INK1, border: `2px solid ${INK2}`,
+                  color: stMeta.color,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <Car size={28} strokeWidth={2} />
+                </div>
+                <div style={{ minWidth: 0, width: "100%" }}>
+                  <div style={{ fontFamily: "ui-monospace,monospace", fontWeight: 800, fontSize: "1rem", color: INK9, letterSpacing: "0.04em" }}>
+                    {vehicle.plate}
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 2 }}>
+                    {vehicle.brand} {vehicle.model}
+                  </div>
+                  <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 6, fontSize: "0.6875rem", fontWeight: 700, background: INK1, color: stMeta.color, border: `1px solid ${stMeta.bd}` }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: stMeta.color }} />
+                    {stMeta.label.toUpperCase()}
+                  </div>
+                </div>
               </div>
-              <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ padding: "0 16px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
                 <SystemIdRow id={vehicle.id} />
-                <Row k="Placa" v={vehicle.plate ?? "—"} mono />
                 <Row k="Tipo" v={tipoNombre} />
                 <Row k="Empresa" v={vehicle.companyName?.trim() || "—"} />
+                <Row k="Año" v={String(vehicle.year)} mono />
                 <Row k="Registrado" v={new Date(vehicle.createdAt).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })} />
                 <Row k="Activo" v={vehicle.active ? "Sí" : "No"} />
               </div>
             </div>
+
+            {/* Acciones rápidas: ver inspecciones del vehículo */}
+            <Link href={`/inspecciones?vehicleId=${vehicle.id}`}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "10px 14px", borderRadius: 9,
+                border: `1px solid ${INK2}`, background: "#fff",
+                color: INK6, fontSize: "0.8125rem", fontWeight: 600,
+                textDecoration: "none",
+              }}>
+              <ClipboardCheck size={14} />Ver inspecciones del vehículo →
+            </Link>
 
             {/* Zona de peligro */}
             {canEdit && (

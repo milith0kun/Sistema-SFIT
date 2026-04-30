@@ -25,5 +25,31 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!insp) return apiNotFound("Inspección no encontrada");
   if (!(await canAccessMunicipality(auth.session, String(insp.municipalityId)))) return apiForbidden();
 
-  return apiResponse({ id: String(insp._id), ...insp });
+  const vehicleObj = insp.vehicleId as unknown as { _id?: unknown; plate?: string; vehicleTypeKey?: string; brand?: string; model?: string } | null;
+  const fiscalObj = insp.fiscalId as unknown as { _id?: unknown; name?: string } | null;
+  const driverObj = insp.driverId as unknown as { _id?: unknown; name?: string } | null;
+
+  return apiResponse({
+    id: String(insp._id),
+    municipalityId: String(insp.municipalityId),
+    vehicleId: vehicleObj?._id ? String(vehicleObj._id) : undefined,
+    vehiclePlate: vehicleObj?.plate,
+    vehicle: vehicleObj,
+    fiscalId: fiscalObj?._id ? String(fiscalObj._id) : undefined,
+    fiscalName: fiscalObj?.name,
+    fiscal: fiscalObj,
+    driverId: driverObj?._id ? String(driverObj._id) : undefined,
+    driverName: driverObj?.name,
+    driver: driverObj,
+    vehicleTypeKey: insp.vehicleTypeKey,
+    checklistResults: insp.checklistResults,
+    score: insp.score,
+    result: insp.result,
+    observations: insp.observations,
+    evidenceUrls: insp.evidenceUrls,
+    qrCode: insp.qrCode,
+    date: insp.date,
+    createdAt: insp.createdAt,
+    updatedAt: insp.updatedAt,
+  });
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, cloneElement, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Flag, Eye, Check, X, Download, Sparkles, Camera, AlertTriangle } from "lucide-react";
+import { Flag, Eye, Check, X, Download, Camera, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
@@ -74,9 +74,17 @@ export default function ReportesPage() {
       if (res.status === 401) { router.replace("/login"); return; }
       const data = await res.json();
       if (!res.ok || !data.success) { setError(data.error ?? "Error"); return; }
-      setItems(data.data.items ?? []);
+      const newItems: Report[] = data.data.items ?? [];
+      setItems(newItems);
       setCounts(data.data.statusCounts ?? {});
-      if (data.data.items?.length) setSel(data.data.items[0]);
+      // Mantener selección si sigue presente
+      setSel((prev) => {
+        if (prev) {
+          const refreshed = newItems.find((r) => r.id === prev.id);
+          if (refreshed) return refreshed;
+        }
+        return newItems[0] ?? null;
+      });
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
   }, [user, tab, router]);
@@ -84,9 +92,35 @@ export default function ReportesPage() {
   useEffect(() => { void load(); }, [load]);
 
   const updateStatus = async (id: string, status: ReportStatus) => {
-    const token = localStorage.getItem("sfit_access_token");
-    await fetch(`/api/reportes/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` }, body: JSON.stringify({ status }) });
-    void load();
+    setError(null);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/reportes/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) { setError(data.error ?? "No se pudo actualizar el reporte"); return; }
+      void load();
+    } catch { setError("Error de conexión"); }
+  };
+
+  const exportCSV = async () => {
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const qs = new URLSearchParams();
+      if (tab) qs.set("status", tab);
+      const res = await fetch(`/api/admin/exportar/reportes?${qs}`, { headers: { Authorization: `Bearer ${token ?? ""}` } });
+      if (!res.ok) { setError("No se pudo exportar el CSV"); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `reportes_${tab}_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { setError("Error de conexión al exportar"); }
   };
 
   const columns = useMemo<ColumnDef<Report, unknown>[]>(() => [
@@ -173,17 +207,9 @@ export default function ReportesPage() {
       <PageHeader kicker="Ciudadanía · RF-12" title="Reportes ciudadanos"
         action={
           <div style={{ display: "flex", gap: 8 }}>
-            <button
-              style={btnOut}
-              onClick={() => {
-                const qs = new URLSearchParams();
-                if (tab) qs.set("status", tab);
-                window.open(`/api/admin/exportar/reportes?${qs.toString()}`, "_blank");
-              }}
-            >
+            <button style={btnOut} onClick={exportCSV} disabled={items.length === 0}>
               <Download size={16} />Exportar CSV
             </button>
-            <button style={btnInk}><Sparkles size={16} />Análisis IA</button>
           </div>
         } />
 
@@ -221,6 +247,7 @@ export default function ReportesPage() {
           columns={columns}
           data={items}
           loading={loading}
+          onRowClick={(row) => setSel(row)}
           searchPlaceholder="Buscar por placa, categoría, descripción…"
           emptyTitle={`Sin reportes ${TAB_LABELS[tab].toLowerCase()}`}
           emptyDescription="No se encontraron reportes en esta categoría."
@@ -236,10 +263,26 @@ export default function ReportesPage() {
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 999, fontSize: "0.6875rem", fontWeight: 700, background: GBG, color: GD, border: `1px solid ${GBR}` }}>Score {sel.fraudScore}</span>
             </div>
             <div style={{ padding: 18 }}>
-              <div style={{ aspectRatio: "16/9", borderRadius: 10, background: "repeating-linear-gradient(135deg,#E8EEF5 0 10px,#DCE5EF 10px 20px)", border: `1px solid ${INK2}`, display: "flex", alignItems: "center", justifyContent: "center", color: INK5, flexDirection: "column", gap: 8 }}>
-                <Camera size={28} />
-                <div style={{ fontSize: "0.75rem", fontFamily: "ui-monospace,monospace" }}>evidencia_RC-{sel.id.slice(-6).toUpperCase()}.jpg</div>
-              </div>
+              {sel.evidenceUrl ? (
+                /\.(jpg|jpeg|png|webp|gif|bmp)(\?.*)?$/i.test(sel.evidenceUrl) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={sel.evidenceUrl}
+                    alt={`Evidencia RC-${sel.id.slice(-6).toUpperCase()}`}
+                    style={{ width: "100%", aspectRatio: "16/9", objectFit: "cover", borderRadius: 10, border: `1px solid ${INK2}` }}
+                  />
+                ) : (
+                  <a href={sel.evidenceUrl} target="_blank" rel="noopener noreferrer" style={{ display: "flex", aspectRatio: "16/9", borderRadius: 10, background: INK1, border: `1px solid ${INK2}`, alignItems: "center", justifyContent: "center", color: INK6, flexDirection: "column", gap: 8, textDecoration: "none" }}>
+                    <Camera size={28} />
+                    <div style={{ fontSize: "0.75rem", fontWeight: 600 }}>Ver evidencia adjunta</div>
+                  </a>
+                )
+              ) : (
+                <div style={{ aspectRatio: "16/9", borderRadius: 10, background: INK1, border: `1px solid ${INK2}`, display: "flex", alignItems: "center", justifyContent: "center", color: INK5, flexDirection: "column", gap: 8 }}>
+                  <Camera size={28} />
+                  <div style={{ fontSize: "0.75rem" }}>Sin evidencia adjunta</div>
+                </div>
+              )}
               <div style={{ marginTop: 14, padding: 12, background: INK1, borderRadius: 10, fontSize: "0.8125rem", lineHeight: 1.5, color: INK6 }}>&ldquo;{sel.description}&rdquo;</div>
 
               {sel.fraudLayers.length > 0 && (
@@ -261,16 +304,22 @@ export default function ReportesPage() {
                 </>
               )}
 
-              {tab === "pendiente" && (
+              {sel.status === "pendiente" && (
+                <div style={{ display: "flex", gap: 8, marginTop: 18, flexWrap: "wrap" }}>
+                  <button style={{ ...btnSm, flex: 1, minWidth: 110 }} onClick={() => updateStatus(sel.id, "revision")}><Eye size={14} />Tomar para revisión</button>
+                  <button style={{ ...btnSm, flex: 1, minWidth: 100 }} onClick={() => updateStatus(sel.id, "rechazado")}><X size={14} />Rechazar</button>
+                  <button style={{ ...btnInk, flex: 1, minWidth: 100, height: 32, fontSize: "0.8125rem" }} onClick={() => updateStatus(sel.id, "validado")}><Check size={14} />Validar</button>
+                </div>
+              )}
+              {sel.status === "revision" && (
                 <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
                   <button style={{ ...btnSm, flex: 1 }} onClick={() => updateStatus(sel.id, "rechazado")}><X size={14} />Rechazar</button>
                   <button style={{ ...btnInk, flex: 1, height: 32, fontSize: "0.8125rem" }} onClick={() => updateStatus(sel.id, "validado")}><Check size={14} />Validar</button>
                 </div>
               )}
-              {tab === "revision" && (
-                <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-                  <button style={{ ...btnSm, flex: 1 }} onClick={() => updateStatus(sel.id, "rechazado")}><X size={14} />Rechazar</button>
-                  <button style={{ ...btnInk, flex: 1, height: 32, fontSize: "0.8125rem" }} onClick={() => updateStatus(sel.id, "validado")}><Check size={14} />Validar y sancionar</button>
+              {(sel.status === "validado" || sel.status === "rechazado") && (
+                <div style={{ marginTop: 18, padding: 12, background: INK1, borderRadius: 9, fontSize: "0.8125rem", color: INK5, textAlign: "center" }}>
+                  Reporte resuelto · estado: <strong style={{ color: INK9 }}>{sel.status}</strong>
                 </div>
               )}
             </div>

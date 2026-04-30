@@ -66,7 +66,15 @@ export async function GET(request: NextRequest) {
     if (resultParam) filter.result = resultParam;
     if (vehicleIdParam && isValidObjectId(vehicleIdParam)) filter.vehicleId = vehicleIdParam;
 
-    const [items, total] = await Promise.all([
+    // Filtro global (sin result) para los KPIs
+    const globalFilter: Record<string, unknown> = { ...filter };
+    delete globalFilter.result;
+
+    // Inicio del mes actual para "Este mes"
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [items, total, statsAgg, monthCount] = await Promise.all([
       Inspection.find(filter)
         .populate("vehicleId", "plate vehicleTypeKey brand model")
         .populate("fiscalId", "name")
@@ -76,7 +84,22 @@ export async function GET(request: NextRequest) {
         .limit(limit)
         .lean(),
       Inspection.countDocuments(filter),
+      Inspection.aggregate([
+        { $match: globalFilter },
+        { $group: { _id: "$result", count: { $sum: 1 }, avgScore: { $avg: "$score" } } },
+      ]),
+      Inspection.countDocuments({ ...globalFilter, date: { $gte: monthStart } }),
     ]);
+
+    const stats = { aprobada: 0, observada: 0, rechazada: 0, avgScore: 0, mes: monthCount };
+    let scoreSum = 0;
+    let scoreItems = 0;
+    for (const row of statsAgg as { _id: string; count: number; avgScore: number }[]) {
+      if (row._id in stats) (stats as unknown as Record<string, number>)[row._id] = row.count;
+      scoreSum += (row.avgScore ?? 0) * row.count;
+      scoreItems += row.count;
+    }
+    stats.avgScore = scoreItems > 0 ? Math.round(scoreSum / scoreItems) : 0;
 
     return apiResponse({
       items: items.map((i) => ({
@@ -97,6 +120,7 @@ export async function GET(request: NextRequest) {
       total,
       page,
       limit,
+      stats,
     });
   } catch (error) {
     console.error("[inspecciones GET]", error);

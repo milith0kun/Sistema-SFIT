@@ -33,7 +33,24 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!s) return apiNotFound("Sanción no encontrada");
   if (!(await canAccessMunicipality(auth.session, String(s.municipalityId)))) return apiForbidden();
 
-  return apiResponse({ id: String(s._id), ...s });
+  return apiResponse({
+    id: String(s._id),
+    municipalityId: String(s.municipalityId),
+    vehicle: s.vehicleId,
+    driver: s.driverId,
+    company: s.companyId,
+    inspectionId: s.inspectionId ? String(s.inspectionId) : undefined,
+    reportId: s.reportId ? String(s.reportId) : undefined,
+    faultType: s.faultType,
+    amountSoles: s.amountSoles,
+    amountUIT: s.amountUIT,
+    status: s.status,
+    notifications: s.notifications,
+    appealNotes: s.appealNotes,
+    resolvedAt: s.resolvedAt,
+    createdAt: s.createdAt,
+    updatedAt: s.updatedAt,
+  });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -62,7 +79,23 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (parsed.data.status === "confirmada" || parsed.data.status === "anulada") {
     (sanction as unknown as { resolvedAt: Date }).resolvedAt = new Date();
   }
+
+  // Cuando se marca como notificada, registrar el envío de las notificaciones
+  if (parsed.data.status === "notificada") {
+    const now = new Date();
+    sanction.notifications = sanction.notifications.map((n) => {
+      if (n.status === "pendiente") {
+        n.status = "enviado";
+        n.sentAt = now;
+      }
+      return n;
+    });
+  }
+
   Object.assign(sanction, parsed.data);
   await sanction.save();
   return apiResponse({ id: String(sanction._id), ...sanction.toObject() });
 }
+
+// Alias PUT → PATCH para tolerar clientes que envíen PUT
+export const PUT = PATCH;

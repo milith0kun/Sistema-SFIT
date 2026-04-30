@@ -11,6 +11,7 @@ vi.mock("@/models/Apelacion", () => ({
     findOne: vi.fn(),
     countDocuments: vi.fn(),
     create: vi.fn(),
+    aggregate: vi.fn().mockResolvedValue([]),
   },
 }));
 vi.mock("@/models/Inspection", () => ({

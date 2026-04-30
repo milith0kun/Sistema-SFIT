@@ -19,7 +19,6 @@ import { type ColumnDef, DataTable } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
 import { ComingSoon } from "@/components/ui/ComingSoon";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 
 // ── Paleta SFIT ────────────────────────────────────────────────────────────────
@@ -178,7 +177,6 @@ export default function EstadisticasPage() {
 
   if (!user) return (
     <div className="flex flex-col gap-3 animate-fade-in">
-      <PageHeader kicker="Cargando" title="Estadísticas" />
       <div style={{ padding: 24, color: INK5 }}>Cargando…</div>
     </div>
   );
@@ -203,7 +201,7 @@ export default function EstadisticasPage() {
         </div>
         <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
           <Button variant="outline" size="md" onClick={exportUsersCsv} style={{ background: "rgba(255,255,255,.08)", border: "1.5px solid rgba(255,255,255,.15)", color: "#fff" }}>
-            <Download size={15} strokeWidth={1.8} />Exportar CSV
+            <Download size={15} strokeWidth={1.8} />Exportar usuarios
           </Button>
         </div>
       </div>

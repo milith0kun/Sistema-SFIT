@@ -5,7 +5,15 @@ import { Inspection } from "@/models/Inspection";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
+import { canAccessMunicipality } from "@/lib/auth/rbac";
 
+/**
+ * Devuelve las fallas más frecuentes para sugerir puntos prioritarios de inspección.
+ *
+ *  - Si se pasa `vehicleId`: análisis del historial del vehículo (últimas 15 inspecciones).
+ *  - Si NO se pasa `vehicleId`: análisis agregado de la municipalidad del usuario
+ *    (últimas 200 inspecciones), útil para el dashboard de inspecciones.
+ */
 export async function GET(request: NextRequest) {
   const auth = requireRole(request, [
     ROLES.FISCAL,
@@ -18,21 +26,41 @@ export async function GET(request: NextRequest) {
 
   const url = new URL(request.url);
   const vehicleId = url.searchParams.get("vehicleId");
-
-  if (!vehicleId) return apiError("vehicleId requerido", 400);
-  if (!isValidObjectId(vehicleId)) return apiError("vehicleId inválido", 400);
+  const municipalityIdParam = url.searchParams.get("municipalityId");
 
   try {
     await connectDB();
 
-    const inspecciones = await Inspection.find({ vehicleId })
+    const filter: Record<string, unknown> = {};
+    let limit = 200;
+
+    if (vehicleId) {
+      if (!isValidObjectId(vehicleId)) return apiError("vehicleId inválido", 400);
+      filter.vehicleId = vehicleId;
+      limit = 15;
+    } else {
+      // Modo agregado por municipalidad
+      if (auth.session.role === ROLES.SUPER_ADMIN) {
+        if (municipalityIdParam) {
+          if (!isValidObjectId(municipalityIdParam)) return apiError("municipalityId inválido", 400);
+          filter.municipalityId = municipalityIdParam;
+        }
+      } else {
+        const targetId = municipalityIdParam ?? auth.session.municipalityId;
+        if (!targetId || !isValidObjectId(targetId)) return apiForbidden();
+        if (!(await canAccessMunicipality(auth.session, targetId))) return apiForbidden();
+        filter.municipalityId = targetId;
+      }
+    }
+
+    const inspecciones = await Inspection.find(filter)
       .sort({ date: -1 })
-      .limit(15)
+      .limit(limit)
       .select("checklistResults")
       .lean();
 
     if (inspecciones.length === 0) {
-      return apiResponse({ sugerencias: [], hayHistorial: false });
+      return apiResponse({ sugerencias: [], hayHistorial: false, totalInspecciones: 0 });
     }
 
     const fallos: Record<string, number> = {};
@@ -57,7 +85,7 @@ export async function GET(request: NextRequest) {
       }))
       .filter((s) => s.tasaFallo >= 0.3)
       .sort((a, b) => b.tasaFallo - a.tasaFallo)
-      .slice(0, 3);
+      .slice(0, 5);
 
     return apiResponse({
       hayHistorial: true,

@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Bell, Check, TriangleAlert, CircleX, Info, BellOff, BellRing,
+  Bell, Check, TriangleAlert, CircleX, Info, BellOff,
   Search, CheckCheck, RefreshCw, Inbox,
 } from "lucide-react";
 import {
   setUnreadCountValue,
   refreshUnreadCount,
 } from "@/hooks/useUnreadCount";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 // ── Paleta sobria — gris uniforme, sólo rojo para errores ────────────────────
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK3 = "#d4d4d8";
@@ -381,52 +382,29 @@ export default function NotificacionesPage() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 0 }} className="animate-fade-in">
+    <div className="flex flex-col gap-3 animate-fade-in">
 
-      {/* ── Hero header ───────────────────────────────────────────────────── */}
-      <div style={{ background: "linear-gradient(135deg, #0A1628 0%, #111F38 60%, #1A2D4A 100%)", borderRadius: 16, padding: "22px 28px", marginBottom: 20, position: "relative", overflow: "hidden" }}>
-        <div aria-hidden style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
-
-        <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-          <div>
-            <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)", marginBottom: 8 }}>
-              Centro de avisos
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "#fff", margin: 0, letterSpacing: "-0.03em", fontFamily: "var(--font-inter)" }}>Notificaciones</h1>
-              {unread > 0 && (
-                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 28, height: 24, borderRadius: 999, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", fontSize: "0.75rem", fontWeight: 800, padding: "0 8px" }}>
-                  {unread}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {!loading && (
-              <div style={{ display: "flex", gap: 8 }}>
-                {[
-                  { ico: <BellRing size={13} strokeWidth={2} />, val: unread, lbl: "sin leer" },
-                  { ico: <Bell size={13} strokeWidth={2} />, val: items.length, lbl: "total" },
-                ].map((s, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 999, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)" }}>
-                    {s.ico}
-                    <span style={{ fontSize: "0.8125rem", fontWeight: 700, fontVariantNumeric: "tabular-nums", color: "#fff" }}>{s.val}</span>
-                    <span style={{ fontSize: "0.6875rem", color: "rgba(255,255,255,0.4)" }}>{s.lbl}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+      <PageHeader
+        kicker="Centro de avisos"
+        title="Notificaciones"
+        subtitle={loading ? undefined : `${items.length} total · ${unread} sin leer`}
+        action={
+          <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={() => void load()}
               title="Actualizar"
-              style={{ width: 36, height: 36, borderRadius: 9, border: "1.5px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.65)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                height: 40, padding: "0 14px", borderRadius: 9,
+                border: `1.5px solid ${INK2}`, background: "#fff", color: INK6,
+                fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+              }}
             >
-              <RefreshCw size={15} strokeWidth={2} />
+              <RefreshCw size={15} strokeWidth={2} />Actualizar
             </button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* ── Grid: lista + detail panel ────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>

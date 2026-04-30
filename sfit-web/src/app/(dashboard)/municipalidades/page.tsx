@@ -34,7 +34,8 @@ const ALLOWED_ROLES = ["super_admin", "admin_provincial"];
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a";
 const INK6 = "#52525b"; const INK9 = "#18181b";
 const RED  = "#b91c1c"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
-const G    = "#B8860B";
+// Granate institucional SFIT (alineado con resto del dashboard)
+const G    = "#6C0606";
 const GREEN = "#15803d"; const GREENBG = "#F0FDF4"; const GREENBD = "#86EFAC";
 
 export default function MunicipalidadesPage() {
@@ -249,23 +250,6 @@ export default function MunicipalidadesPage() {
         );
       },
     },
-    {
-      id: "_nav",
-      header: "",
-      enableSorting: false,
-      cell: ({ row: r }) => (
-        <Link
-          href={`/municipalidades/${r.original.id}`}
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            fontSize: "0.75rem", color: INK6, textDecoration: "none",
-            padding: "4px 8px", borderRadius: 6, border: `1px solid ${INK2}`,
-          }}
-        >
-          Ver
-        </Link>
-      ),
-    },
   ], [togglingId]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!user) return null;
@@ -277,9 +261,27 @@ export default function MunicipalidadesPage() {
     minWidth: 160,
   };
 
+  const pillBtn = (active: boolean): React.CSSProperties => ({
+    display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px",
+    borderRadius: 7, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
+    fontFamily: "inherit",
+    background: active ? INK9 : "#fff",
+    color: active ? "#fff" : INK6,
+    border: active ? `1.5px solid ${INK9}` : `1.5px solid ${INK2}`,
+  });
+
   // ── Toolbar de filtros ──
   const toolbarEnd = (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+      {/* Estado: pills binarios */}
+      <div style={{ display: "flex", gap: 4 }}>
+        {([["", "Todas"], ["true", "Activas"], ["false", "Inactivas"]] as const).map(([k, l]) => (
+          <button key={k} onClick={() => setActiveFilter(k as "" | "true" | "false")} style={pillBtn(activeFilter === k)}>
+            {l}
+          </button>
+        ))}
+      </div>
+      <div style={{ width: 1, height: 22, background: INK2 }} />
       {isSA && (
         <select
           value={departmentFilter}
@@ -302,27 +304,18 @@ export default function MunicipalidadesPage() {
         <option value="">Todas las provincias</option>
         {provinces.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
       </select>
-      <select
-        value={activeFilter}
-        onChange={(e) => setActiveFilter(e.target.value as "" | "true" | "false")}
-        style={{ ...selectStyle, minWidth: 130 }}
-      >
-        <option value="">Todas</option>
-        <option value="true">Activas</option>
-        <option value="false">Inactivas</option>
-      </select>
     </div>
   );
 
   const headerAction = (
     <Link href="/municipalidades/nueva">
       <button style={{
-        display: "inline-flex", alignItems: "center", gap: 6, height: 34,
-        padding: "0 14px", borderRadius: 8, border: `1.5px solid ${G}`,
-        background: G, color: "#fff", fontSize: "0.8125rem", fontWeight: 700,
+        display: "inline-flex", alignItems: "center", gap: 8, height: 40,
+        padding: "0 16px", borderRadius: 9, border: "none",
+        background: INK9, color: "#fff", fontSize: "0.875rem", fontWeight: 600,
         cursor: "pointer", fontFamily: "inherit",
       }}>
-        <Plus size={13}/> Activar del catálogo
+        <Plus size={16}/> Activar del catálogo
       </button>
     </Link>
   );
@@ -367,6 +360,7 @@ export default function MunicipalidadesPage() {
         columns={columns}
         data={items}
         loading={loading}
+        onRowClick={(row) => router.push(`/municipalidades/${row.id}`)}
         searchPlaceholder="Buscar por nombre, UBIGEO, provincia…"
         emptyTitle="Sin resultados"
         emptyDescription={
