@@ -7,6 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/sfit_disclaimer_banner.dart';
 import '../../../auth/domain/entities/user_entity.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../drivers/data/datasources/driver_api_service.dart';
 
 /// Perfil del usuario autenticado — todos los roles.
 /// Modo lectura por defecto; botón de edición para nombre, teléfono y DNI.
@@ -26,6 +27,34 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   final _nameCtrl  = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _dniCtrl   = TextEditingController();
+
+  // Datos extendidos del conductor (empresa, licencia, fatiga, vehículo asignado).
+  // Se cargan sólo si el rol es "conductor".
+  Map<String, dynamic>? _driverProfile;
+  bool _loadingDriver = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Carga el perfil del conductor en background después del primer build,
+    // así no bloquea el render del perfil base.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadDriverProfile());
+  }
+
+  Future<void> _loadDriverProfile() async {
+    final user = ref.read(authProvider).user;
+    if (user?.role != 'conductor') return;
+    setState(() => _loadingDriver = true);
+    try {
+      final data = await ref.read(driverApiServiceProvider).getMyDriverProfile();
+      if (!mounted) return;
+      setState(() => _driverProfile = data);
+    } catch (_) {
+      // Silencioso — el perfil base se sigue mostrando.
+    } finally {
+      if (mounted) setState(() => _loadingDriver = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -160,6 +189,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 ),
               ]),
               const SizedBox(height: 22),
+
+              // ── Datos del conductor (solo rol conductor) ─────────
+              if (user.role == 'conductor') ...[
+                _DriverInfoSection(
+                  profile: _driverProfile,
+                  loading: _loadingDriver,
+                ),
+                const SizedBox(height: 22),
+              ],
             ],
 
             // ── Cuenta ────────────────────────────────────────────
@@ -767,4 +805,235 @@ class _ActionRow extends StatelessWidget {
           ),
         ),
       );
+}
+
+// ── Sección de info del conductor: empresa, licencia, fatiga, vehículo ───────
+
+class _DriverInfoSection extends StatelessWidget {
+  final Map<String, dynamic>? profile;
+  final bool loading;
+
+  const _DriverInfoSection({required this.profile, required this.loading});
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _SectionLabel('ASIGNACIÓN'),
+          const SizedBox(height: 8),
+          Container(
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: AppColors.ink2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Center(
+              child: SizedBox(
+                width: 18, height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.ink4),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (profile == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _SectionLabel('ASIGNACIÓN'),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: AppColors.ink2, style: BorderStyle.solid),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, size: 18, color: AppColors.ink4),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Aún no estás asignado a una empresa. Contacta al administrador municipal.',
+                    style: AppTheme.inter(
+                      fontSize: 13, color: AppColors.ink6, fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    final company = profile!['companyName'] as String?;
+    final licenseNumber = profile!['licenseNumber'] as String?;
+    final licenseCategory = profile!['licenseCategory'] as String?;
+    final status = (profile!['status'] as String?) ?? 'apto';
+    final continuousHours = (profile!['continuousHours'] as num?)?.toDouble() ?? 0.0;
+    final restHours = (profile!['restHours'] as num?)?.toDouble() ?? 0.0;
+    final reputation = (profile!['reputationScore'] as num?)?.toInt() ?? 0;
+    final hasVehicle = profile!['currentVehicleId'] != null;
+
+    final statusMeta = switch (status) {
+      'apto'    => (color: AppColors.apto,   label: 'Apto'),
+      'riesgo'  => (color: const Color(0xFFB45309), label: 'En riesgo'),
+      'no_apto' => (color: AppColors.noApto, label: 'No apto'),
+      _         => (color: AppColors.ink5,   label: status),
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _SectionLabel('ASIGNACIÓN'),
+        const SizedBox(height: 8),
+        _InfoCard(children: [
+          _InfoRow(
+            icon: Icons.business_outlined,
+            label: 'Empresa de transporte',
+            value: company?.isNotEmpty == true ? company! : 'Sin empresa asignada',
+          ),
+          if (licenseNumber != null && licenseNumber.isNotEmpty)
+            _InfoRow(
+              icon: Icons.credit_card_outlined,
+              label: 'Licencia',
+              value: '$licenseNumber${licenseCategory != null ? " · $licenseCategory" : ""}',
+            ),
+          _InfoRow(
+            icon: Icons.directions_bus_outlined,
+            label: 'Vehículo asignado',
+            value: hasVehicle ? 'Activo (ver Mi Flota)' : 'Sin vehículo asignado',
+          ),
+        ]),
+        const SizedBox(height: 12),
+
+        // FatigueEngine — estado actual destacado
+        const _SectionLabel('FATIGUE ENGINE'),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: AppColors.ink2),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 10, height: 10,
+                    decoration: BoxDecoration(
+                      color: statusMeta.color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Estado: ${statusMeta.label}',
+                    style: AppTheme.inter(
+                      fontSize: 14, fontWeight: FontWeight.w700,
+                      color: statusMeta.color,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '$reputation/100',
+                    style: AppTheme.inter(
+                      fontSize: 13, fontWeight: FontWeight.w700,
+                      color: AppColors.ink8,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _MiniStat(
+                      label: 'CONDUCCIÓN',
+                      value: '${continuousHours.toStringAsFixed(0)}h',
+                      color: continuousHours >= 8
+                          ? AppColors.noApto
+                          : continuousHours >= 5
+                              ? const Color(0xFFB45309)
+                              : AppColors.ink8,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _MiniStat(
+                      label: 'DESCANSO',
+                      value: '${restHours.toStringAsFixed(0)}h',
+                      color: AppColors.ink8,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _MiniStat(
+                      label: 'REPUTACIÓN',
+                      value: '$reputation',
+                      color: reputation >= 80
+                          ? AppColors.apto
+                          : reputation >= 50
+                              ? const Color(0xFFB45309)
+                              : AppColors.noApto,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MiniStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _MiniStat({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+      decoration: BoxDecoration(
+        color: AppColors.ink1,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.ink2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTheme.inter(
+              fontSize: 9, fontWeight: FontWeight.w700,
+              color: AppColors.ink5, letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: AppTheme.inter(
+              fontSize: 16, fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

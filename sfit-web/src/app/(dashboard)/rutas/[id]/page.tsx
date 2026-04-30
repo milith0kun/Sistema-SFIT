@@ -29,7 +29,8 @@ type StoredUser = { role: string };
 interface Props { params: Promise<{ id: string }> }
 
 const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
-const CAN_EDIT = ["admin_municipal", "super_admin"];
+// Operador (gestor de flota de empresa) también edita las rutas asignadas a su empresa.
+const CAN_EDIT = ["admin_municipal", "super_admin", "operador"];
 
 /* Paleta sobria */
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";

@@ -13,7 +13,8 @@ type Company = { id: string; razonSocial: string };
 type VehicleType = { id: string; key: string; name: string; active: boolean };
 type StoredUser = { role: string };
 
-const ALLOWED_CREATE = ["admin_municipal", "super_admin"];
+// Operador también puede crear rutas para su empresa.
+const ALLOWED_CREATE = ["admin_municipal", "super_admin", "operador"];
 
 /* Paleta sobria */
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";

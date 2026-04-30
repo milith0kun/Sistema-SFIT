@@ -25,8 +25,9 @@ const APTO = "#15803d"; const APTO_BD = "#86EFAC";
 const NO = "#DC2626"; const NO_BG = "#FFF5F5"; const NO_BD = "#FCA5A5";
 
 const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
-const CAN_CREATE = ["admin_municipal", "super_admin"];
-const CAN_EDIT = ["admin_municipal", "super_admin"];
+// Operador edita y crea rutas de su empresa además de los admins.
+const CAN_CREATE = ["admin_municipal", "super_admin", "operador"];
+const CAN_EDIT = ["admin_municipal", "super_admin", "operador"];
 
 function StatusBadge({ active }: { active: boolean }) {
   return (

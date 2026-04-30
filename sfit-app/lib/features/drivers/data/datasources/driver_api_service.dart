@@ -36,4 +36,17 @@ class DriverApiService {
     final resp = await _dio.get('/conductores/$id');
     return (resp.data as Map)['data'] as Map<String, dynamic>;
   }
+
+  /// Devuelve el registro de conductor del usuario autenticado.
+  /// Incluye empresa, licencia, fatiga, reputación y vehículo asignado.
+  /// Devuelve null si el usuario no tiene un registro de conductor (404).
+  Future<Map<String, dynamic>?> getMyDriverProfile() async {
+    try {
+      final resp = await _dio.get('/conductores/me');
+      return (resp.data as Map)['data'] as Map<String, dynamic>;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return null;
+      rethrow;
+    }
+  }
 }
