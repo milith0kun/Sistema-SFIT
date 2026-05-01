@@ -17,6 +17,7 @@ import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
+import { Municipality } from "@/models/Municipality";
 import { signAccessToken, signRefreshToken } from "@/lib/auth/jwt";
 import { apiResponse, apiError, apiUnauthorized, apiForbidden, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
@@ -50,7 +51,17 @@ export async function GET(request: NextRequest) {
     if (!session.provinceId) {
       return apiError("El admin provincial no tiene provincia asignada", 400);
     }
-    filter.provinceId = session.provinceId;
+    // Acepta tanto provinceId directo (denormalizado por el hook de User)
+    // como municipalityId IN munis-de-su-provincia, para tolerar datos
+    // pre-migración mientras corre el endpoint sync-province-ids.
+    await connectDB();
+    const muniIds = (
+      await Municipality.find({ provinceId: session.provinceId }).select("_id").lean()
+    ).map((m: { _id: unknown }) => m._id);
+    filter.$or = [
+      { provinceId: session.provinceId },
+      { municipalityId: { $in: muniIds } },
+    ];
   }
 
   const validRoles = Object.values(ROLES);

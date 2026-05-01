@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
 import { apiResponse, apiUnauthorized, apiForbidden, apiError, apiNotFound } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
+import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { ROLES, USER_STATUS } from "@/lib/constants";
 import { createNotification } from "@/lib/notifications/create";
 import { logAudit } from "@/lib/audit/log";
@@ -36,9 +37,18 @@ export async function POST(
       return apiError("La solicitud ya fue procesada", 400);
     }
 
-    if (
+    // RF-01-11: aislamiento por tenant via helper centralizado.
+    if (target.municipalityId) {
+      const allowed = await canAccessMunicipality(auth.session, String(target.municipalityId));
+      if (!allowed) return apiForbidden();
+    } else if (
+      auth.session.role === ROLES.ADMIN_PROVINCIAL &&
+      String(target.provinceId ?? "") !== String(auth.session.provinceId ?? "")
+    ) {
+      return apiForbidden();
+    } else if (
       auth.session.role === ROLES.ADMIN_MUNICIPAL &&
-      String(target.municipalityId) !== String(auth.session.municipalityId)
+      !target.municipalityId
     ) {
       return apiForbidden();
     }

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
+import { Municipality } from "@/models/Municipality";
 import { apiResponse, apiUnauthorized, apiForbidden, apiError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES, USER_STATUS } from "@/lib/constants";
@@ -9,6 +10,10 @@ import { ROLES, USER_STATUS } from "@/lib/constants";
  * RF-01-04: Admin Municipal ve solicitudes pendientes de su municipalidad.
  * Admin Provincial ve todas las pendientes de su provincia.
  * Super Admin ve todo.
+ *
+ * Para admin_provincial el filtro acepta dos formas para defenderse de
+ * datos pre-migración: `provinceId` directo (denormalizado por el hook
+ * pre-save de User) o `municipalityId IN munis-de-mi-provincia`.
  */
 export async function GET(request: NextRequest) {
   const auth = requireRole(request, [
@@ -27,11 +32,18 @@ export async function GET(request: NextRequest) {
 
     const filter: Record<string, unknown> = { status: USER_STATUS.PENDIENTE };
 
-    // RF-01-11: Aislamiento por tenant
-    if (role === ROLES.ADMIN_MUNICIPAL && municipalityId) {
+    if (role === ROLES.ADMIN_MUNICIPAL) {
+      if (!municipalityId) return apiError("Admin sin municipalidad asignada", 400);
       filter.municipalityId = municipalityId;
-    } else if (role === ROLES.ADMIN_PROVINCIAL && provinceId) {
-      filter.provinceId = provinceId;
+    } else if (role === ROLES.ADMIN_PROVINCIAL) {
+      if (!provinceId) return apiError("Admin sin provincia asignada", 400);
+      const muniIds = (
+        await Municipality.find({ provinceId }).select("_id").lean()
+      ).map((m: { _id: unknown }) => m._id);
+      filter.$or = [
+        { provinceId },
+        { municipalityId: { $in: muniIds } },
+      ];
     }
 
     const users = await User.find(filter)

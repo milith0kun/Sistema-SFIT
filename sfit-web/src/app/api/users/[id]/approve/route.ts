@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
 import { apiResponse, apiUnauthorized, apiForbidden, apiError, apiNotFound } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
+import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { ROLES, USER_STATUS, type Role } from "@/lib/constants";
 import { createNotification } from "@/lib/notifications/create";
 import { logAudit } from "@/lib/audit/log";
@@ -50,17 +51,25 @@ export async function POST(
       return apiError("La solicitud ya fue procesada", 400);
     }
 
-    // RF-01-11: aislamiento por tenant
-    if (
-      auth.session.role === ROLES.ADMIN_MUNICIPAL &&
-      String(target.municipalityId) !== String(auth.session.municipalityId)
-    ) {
-      return apiForbidden();
-    }
-    if (
+    // RF-01-11: aislamiento por tenant. canAccessMunicipality cubre tanto
+    // admin_municipal (debe coincidir muni) como admin_provincial (resuelve
+    // muni → province). Super_admin siempre pasa.
+    if (target.municipalityId) {
+      const allowed = await canAccessMunicipality(auth.session, String(target.municipalityId));
+      if (!allowed) return apiForbidden();
+    } else if (
       auth.session.role === ROLES.ADMIN_PROVINCIAL &&
-      String(target.provinceId) !== String(auth.session.provinceId)
+      String(target.provinceId ?? "") !== String(auth.session.provinceId ?? "")
     ) {
+      // Caso borde: usuario sin muni pero con provinceId (admin_municipal sin
+      // muni asignada todavía). El admin_provincial sólo puede operar sobre
+      // los suyos.
+      return apiForbidden();
+    } else if (
+      auth.session.role === ROLES.ADMIN_MUNICIPAL &&
+      !target.municipalityId
+    ) {
+      // Admin municipal nunca opera sobre usuarios sin municipalidad.
       return apiForbidden();
     }
 

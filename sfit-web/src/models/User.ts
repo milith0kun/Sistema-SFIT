@@ -150,6 +150,94 @@ const UserSchema = new Schema<IUser>(
 // Índices compuestos para multi-tenancy
 UserSchema.index({ municipalityId: 1, role: 1 });
 UserSchema.index({ municipalityId: 1, status: 1 });
+UserSchema.index({ provinceId: 1, status: 1 });
+
+/**
+ * Hooks de denormalización: cuando se setea o cambia `municipalityId`, el
+ * `provinceId` se llena automáticamente leyendo la municipalidad. Así los
+ * listados del admin_provincial pueden filtrar simplemente por `provinceId`
+ * sin necesidad de joins ni $or compuestos.
+ *
+ * Cubre dos rutas: documentos hidratados (`new User().save()` /
+ * `doc.save()`) vía pre("save"), y queries de actualización
+ * (`findOneAndUpdate` / `updateOne` / `updateMany`) vía pre de query.
+ */
+async function deriveProvinceFromMunicipality(
+  muniId: mongoose.Types.ObjectId | string | null | undefined,
+): Promise<mongoose.Types.ObjectId | null> {
+  if (!muniId) return null;
+  const Municipality = mongoose.models.Municipality;
+  if (!Municipality) return null;
+  const muni = await Municipality.findById(muniId)
+    .select("provinceId")
+    .lean<{ provinceId?: mongoose.Types.ObjectId } | null>();
+  return muni?.provinceId ?? null;
+}
+
+UserSchema.pre("save", async function () {
+  if (this.isModified("municipalityId")) {
+    if (this.municipalityId) {
+      const provinceId = await deriveProvinceFromMunicipality(this.municipalityId);
+      if (provinceId) this.provinceId = provinceId;
+    } else {
+      // Si se quita la muni y no se setea explícitamente otra provincia,
+      // limpiamos provinceId para evitar quedar con un dato inconsistente.
+      // El admin_provincial es la excepción: tiene provinceId pero no muni,
+      // y eso se setea explícitamente en el endpoint assign-admin-provincial.
+      if (!this.isModified("provinceId")) this.provinceId = undefined;
+    }
+  }
+});
+
+UserSchema.pre(["findOneAndUpdate", "updateOne", "updateMany"], async function () {
+  // El update de Mongoose puede venir como objeto plano o con operadores ($set, $unset).
+  // Solo nos interesa cuando se está modificando `municipalityId`.
+  const update = this.getUpdate();
+  if (!update || Array.isArray(update)) return; // pipelines no se manejan aquí
+
+  // Buscar municipalityId en update raíz o dentro de $set
+  let muniId: unknown;
+  let touched = false;
+  if ("municipalityId" in update) {
+    muniId = (update as Record<string, unknown>).municipalityId;
+    touched = true;
+  } else if (
+    "$set" in update &&
+    typeof (update as { $set?: Record<string, unknown> }).$set === "object" &&
+    (update as { $set: Record<string, unknown> }).$set &&
+    "municipalityId" in (update as { $set: Record<string, unknown> }).$set
+  ) {
+    muniId = (update as { $set: Record<string, unknown> }).$set.municipalityId;
+    touched = true;
+  }
+  if (!touched) return;
+
+  const provinceId = await deriveProvinceFromMunicipality(
+    muniId as mongoose.Types.ObjectId | string | null | undefined,
+  );
+
+  if (provinceId) {
+    if ("$set" in update) {
+      (update as { $set: Record<string, unknown> }).$set.provinceId = provinceId;
+    } else {
+      (update as Record<string, unknown>).provinceId = provinceId;
+    }
+  } else {
+    // Sin muni → limpiar provinceId también (a menos que ya se esté seteando explícitamente).
+    const setObj = (update as { $set?: Record<string, unknown> }).$set;
+    const explicitProv = setObj && "provinceId" in setObj
+      ? true
+      : "provinceId" in update;
+    if (!explicitProv) {
+      if ("$set" in update) {
+        (update as { $set: Record<string, unknown> }).$set.provinceId = undefined;
+      } else {
+        (update as Record<string, unknown>).provinceId = undefined;
+      }
+    }
+  }
+  this.setUpdate(update);
+});
 
 export const User: Model<IUser> =
   mongoose.models.User || mongoose.model<IUser>("User", UserSchema);

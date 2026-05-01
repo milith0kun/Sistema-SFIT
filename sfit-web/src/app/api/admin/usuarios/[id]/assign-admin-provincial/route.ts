@@ -97,7 +97,7 @@ export async function POST(
       provinceId: target.provinceId?.toString(),
     });
   } catch (error) {
-    console.error("[admin/users/:id/assign-admin-provincial]", error);
+    console.error("[admin/usuarios/:id/assign-admin-provincial]", error);
     return apiError("Error al asignar Admin Provincial", 500);
   }
 }
