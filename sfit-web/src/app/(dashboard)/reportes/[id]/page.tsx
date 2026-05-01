@@ -82,7 +82,12 @@ function fraudLabel(score: number) {
   return "Alto";
 }
 function isImageUrl(url: string) {
-  return /\.(jpg|jpeg|png|webp|gif|bmp)(\?.*)?$/i.test(url);
+  // Soporta tanto URLs con extensión (.jpg, .png, .webp...) como las del
+  // endpoint /api/uploads/files/<id> (sin extensión, siempre sirven imagen).
+  return (
+    /\.(jpg|jpeg|png|webp|gif|bmp)(\?.*)?$/i.test(url) ||
+    /\/api\/uploads\/files\//i.test(url)
+  );
 }
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" });

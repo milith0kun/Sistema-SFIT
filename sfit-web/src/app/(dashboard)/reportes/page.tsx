@@ -277,7 +277,9 @@ export default function ReportesPage() {
                   );
                 }
                 const first = imgs[0];
-                const isImage = /\.(jpg|jpeg|png|webp|gif|bmp)(\?.*)?$/i.test(first);
+                // Soporta URLs con extensión y del nuevo endpoint /api/uploads/files/<id>.
+                const isImage = /\.(jpg|jpeg|png|webp|gif|bmp)(\?.*)?$/i.test(first) ||
+                  /\/api\/uploads\/files\//i.test(first);
                 return (
                   <div>
                     {isImage ? (

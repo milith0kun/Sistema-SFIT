@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Car, Check, Route, Wrench, Plus, QrCode, Pencil, Eye, AlertTriangle, Loader2,
+  Car, Check, Route, Wrench, Plus, QrCode, Pencil, Eye, AlertTriangle, Loader2, Printer, Download, RefreshCw,
 } from "lucide-react";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -429,62 +429,91 @@ function VehiclePreview({
         </div>
       </div>
 
-      {/* QR */}
-      <div style={{ padding: 16 }}>
+      {/* QR — protagonista del panel */}
+      <div style={{ padding: "18px 16px 16px" }}>
+        {/* QR grande, ocupa todo el ancho del panel */}
         <div style={{
-          fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em",
-          textTransform: "uppercase", color: INK5, marginBottom: 10,
-        }}>QR firmado HMAC-SHA256</div>
-
-        <div style={{ maxWidth: 200, margin: "0 auto" }}>
+          background: "#fff", borderRadius: 10,
+          padding: 12, border: `1px solid ${INK2}`,
+        }}>
           {qrPng ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={qrPng}
               alt={`QR ${vehicle.plate}`}
-              style={{ width: "100%", borderRadius: 8, border: `1px solid ${INK2}`, display: "block" }}
+              style={{ width: "100%", display: "block", borderRadius: 6 }}
             />
           ) : (
             <div style={{
-              aspectRatio: "1/1", border: `1px solid ${INK2}`, borderRadius: 8,
+              aspectRatio: "1/1", borderRadius: 6,
               display: "flex", alignItems: "center", justifyContent: "center",
-              background: INK1, color: INK5, fontSize: "0.8rem", gap: 6,
+              background: INK1, color: INK5, fontSize: "0.8125rem", gap: 8,
+              flexDirection: "column",
             }}>
-              {qrLoading
-                ? <><Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} />Generando…</>
-                : "Sin QR"}
+              {qrLoading ? (
+                <>
+                  <Loader2 size={20} style={{ animation: "spin 0.7s linear infinite" }} />
+                  <span>Generando…</span>
+                </>
+              ) : (
+                <>
+                  <QrCode size={28} color={INK5} />
+                  <span>Sin QR</span>
+                </>
+              )}
             </div>
           )}
-          <div style={{
-            textAlign: "center", marginTop: 8, fontSize: "0.6875rem",
-            color: INK5, fontFamily: "ui-monospace,monospace",
-          }}>
-            sha256:{vehicle.qrHmac ? vehicle.qrHmac.slice(0, 12) + "…" : "pendiente"}
-          </div>
         </div>
 
-        <div style={{ display: "flex", gap: 6, marginTop: 14 }}>
+        {/* Instrucción para el ciudadano + firma */}
+        <div style={{
+          textAlign: "center", marginTop: 10,
+          fontSize: "0.8125rem", color: INK6, lineHeight: 1.4,
+        }}>
+          Apunta tu cámara para reportar este vehículo
+        </div>
+        <div style={{
+          textAlign: "center", marginTop: 4, fontSize: "0.6875rem",
+          color: INK5, fontFamily: "ui-monospace,monospace",
+        }}>
+          sha256:{vehicle.qrHmac ? vehicle.qrHmac.slice(0, 12) + "…" : "pendiente"}
+        </div>
+
+        {/* Acciones — imprimir es la principal (a tamaño real) */}
+        <Link
+          href={`/vehiculos/${vehicle.id}/qr/imprimir`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: "block", marginTop: 14 }}
+        >
+          <button style={{ ...btnPrimary, width: "100%", height: 36 }}>
+            <Printer size={14} />Imprimir etiqueta
+          </button>
+        </Link>
+
+        <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
           <button
             style={{
-              ...btnOutline, flex: 1,
+              ...btnOutline, flex: 1, height: 32,
               opacity: qrLoading ? 0.5 : 1, cursor: qrLoading ? "not-allowed" : "pointer",
             }}
             disabled={qrLoading}
             onClick={onDescargar}
           >
-            Descargar
+            <Download size={12} />PNG
           </button>
           <button
             style={{
-              ...btnPrimary, flex: 1,
+              ...btnOutline, flex: 1, height: 32,
               opacity: qrLoading ? 0.5 : 1, cursor: qrLoading ? "not-allowed" : "pointer",
             }}
             disabled={qrLoading}
             onClick={onReemitir}
           >
-            {qrLoading ? "…" : "Re-emitir"}
+            <RefreshCw size={12} />{qrLoading ? "…" : "Re-emitir"}
           </button>
         </div>
+
         {qrError && (
           <div role="alert" style={{
             marginTop: 8, padding: "7px 10px",
