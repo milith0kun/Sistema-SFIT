@@ -132,9 +132,13 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
       final resp = await dio.get('/public/vehiculo', queryParameters: {'plate': plate});
       final body = resp.data as Map;
       if (body['success'] == true) {
+        // El endpoint devuelve { qrSignatureValid, vehicle: {...}, driver: {...} }.
+        // _foundVehicle espera estructura plana del vehículo (plate, brand, etc.)
+        // — misma forma que se pasa desde la vista pública del QR.
         final data = body['data'] as Map<String, dynamic>;
+        final vehicle = (data['vehicle'] as Map<String, dynamic>?) ?? data;
         if (mounted) {
-          setState(() { _foundVehicle = data; _searching = false; _userPosition = null; _selectedLatLng = null; _locationError = null; });
+          setState(() { _foundVehicle = vehicle; _searching = false; _userPosition = null; _selectedLatLng = null; _locationError = null; });
           _captureLocation();
         }
       } else {
@@ -165,7 +169,10 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
       if (picked.isNotEmpty && mounted) {
         setState(() => _selectedImages.addAll(picked.take(remaining)));
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('gallery pick error: $e');
+      if (mounted) _showError('No se pudo abrir la galería. Verifica los permisos en ajustes.');
+    }
   }
 
   Future<void> _pickFromCamera() async {
@@ -178,7 +185,10 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
         maxHeight: _kMaxImageDim,
       );
       if (picked != null && mounted) setState(() => _selectedImages.add(picked));
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('camera pick error: $e');
+      if (mounted) _showError('No se pudo abrir la cámara. Verifica los permisos en ajustes.');
+    }
   }
 
   void _removeImage(int index) => setState(() => _selectedImages.removeAt(index));
