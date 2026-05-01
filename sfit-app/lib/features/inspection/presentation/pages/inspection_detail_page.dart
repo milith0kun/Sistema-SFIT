@@ -7,7 +7,6 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/datasources/inspection_api_service.dart';
 import '../../data/models/inspection_model.dart';
-import 'acta_inspeccion_page.dart';
 
 /// Detalle de una inspección — RF-11 / Operador.
 class InspectionDetailPage extends ConsumerStatefulWidget {
@@ -265,12 +264,9 @@ class _BodyState extends State<_Body> {
           ],
           const SizedBox(height: 12),
           OutlinedButton.icon(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                    ActaInspeccionPage(inspection: widget.inspection),
-              ),
+            onPressed: () => context.push(
+              '/acta-inspeccion',
+              extra: widget.inspection,
             ),
             icon: const Icon(Icons.description_outlined, size: 18),
             label: Text(

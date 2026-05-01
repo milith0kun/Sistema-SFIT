@@ -73,9 +73,64 @@ class _RolePreviewPageState extends ConsumerState<RolePreviewPage> {
     // nuevo rol automáticamente.
   }
 
+  Future<bool?> _confirmLogout(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: const BoxDecoration(color: AppColors.noAptoBg, shape: BoxShape.circle),
+              alignment: Alignment.center,
+              child: const Icon(Icons.logout_rounded, color: AppColors.noApto, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                '¿Cerrar sesión?',
+                style: AppTheme.inter(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.ink9),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Tendrás que volver a ingresar con tu correo o cuenta de Google la próxima vez.',
+          style: AppTheme.inter(fontSize: 13, color: AppColors.ink6, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Cancelar', style: AppTheme.inter(fontSize: 13.5, color: AppColors.ink6, fontWeight: FontWeight.w600)),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.noApto,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text('Cerrar sesión', style: AppTheme.inter(fontSize: 13.5, color: Colors.white, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final shouldLogout = await _confirmLogout(context);
+        if (shouldLogout == true && context.mounted) {
+          await ref.read(authProvider.notifier).logout();
+        }
+      },
+      child: Scaffold(
       backgroundColor: AppColors.paper,
       body: SafeArea(
         child: SingleChildScrollView(
@@ -160,6 +215,7 @@ class _RolePreviewPageState extends ConsumerState<RolePreviewPage> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

@@ -9,7 +9,10 @@ import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/rejected_page.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/fleet/presentation/pages/fleet_departure_page.dart';
+import '../../features/inspection/presentation/pages/acta_inspeccion_page.dart';
 import '../../features/inspection/presentation/pages/inspection_detail_page.dart';
+import '../../features/inspection/data/models/inspection_model.dart';
 import '../../features/inspection/presentation/pages/new_appeal_page.dart';
 import '../../features/inspection/presentation/pages/new_inspection_page.dart';
 import '../../features/inspection/presentation/pages/vehicle_inspections_page.dart';
@@ -204,6 +207,21 @@ GoRouter router(Ref ref) {
       // ── Alta de conductor y vehículo (RF-05-01 / RF-05-02) ───
       GoRoute(path: '/nuevo-conductor', builder: (_, __) => const NuevoConductorPage()),
       GoRoute(path: '/nuevo-vehiculo',  builder: (_, __) => const NuevoVehiculoPage()),
+
+      // ── Salida de flota (operador) ────────────────────────────
+      GoRoute(path: '/flota-salida', builder: (_, __) => const FleetDeparturePage()),
+
+      // ── Acta de inspección (fiscal) ──────────────────────────
+      // El InspectionModel se pasa como `extra` (objeto en memoria,
+      // no serializable a URL — está bien porque solo se navega desde
+      // InspectionDetailPage que ya lo tiene cargado).
+      GoRoute(
+        path: '/acta-inspeccion',
+        builder: (context, state) {
+          final inspection = state.extra as InspectionModel;
+          return ActaInspeccionPage(inspection: inspection);
+        },
+      ),
 
       // ── RF-09: Detalle de ruta (conductor) ───────────────────
       GoRoute(

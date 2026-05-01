@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/datasources/fleet_api_service.dart';
 import '../../data/models/fleet_entry_model.dart';
-import 'fleet_departure_page.dart';
 
 /// Panel de flota diario para el Operador — RF-07.
 class FleetPage extends ConsumerStatefulWidget {
@@ -146,11 +146,8 @@ class _FleetPageState extends ConsumerState<FleetPage> {
                 ),
                 FilledButton.icon(
                   onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const FleetDeparturePage()),
-                    );
-                    _load();
+                    await context.push('/flota-salida');
+                    if (mounted) _load();
                   },
                   icon: const Icon(Icons.add, size: 16),
                   label: const Text('Salida'),
@@ -187,10 +184,10 @@ class _FleetPageState extends ConsumerState<FleetPage> {
                 : _error != null
                     ? Center(child: Text(_error!, style: AppTheme.inter(color: AppColors.noApto)))
                     : _entries.isEmpty
-                        ? _EmptyFleet(onAdd: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const FleetDeparturePage()),
-                          ).then((_) => _load()))
+                        ? _EmptyFleet(onAdd: () async {
+                            await context.push('/flota-salida');
+                            if (mounted) _load();
+                          })
                         : RefreshIndicator(
                             onRefresh: _load,
                             color: AppColors.gold,
