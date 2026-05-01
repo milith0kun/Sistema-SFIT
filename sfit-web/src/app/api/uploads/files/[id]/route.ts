@@ -12,13 +12,15 @@ import { UploadedFile } from "@/models/UploadedFile";
  * Las imágenes se cargan vía `<img src>` que no envía Bearer tokens.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   if (!isValidObjectId(id)) {
     return new NextResponse("Invalid id", { status: 400 });
   }
+
+  const debug = new URL(request.url).searchParams.get("debug") === "1";
 
   try {
     await connectDB();
@@ -45,6 +47,33 @@ export async function GET(
     if (!buf || buf.byteLength === 0) {
       console.error("[uploads/files GET] empty buffer", { id, type: typeof raw });
       return new NextResponse("Empty file", { status: 500 });
+    }
+
+    // Modo diagnóstico: devuelve JSON con metadatos del archivo y los
+    // primeros 16 bytes en hex para validar que el binario almacenado
+    // tiene la firma del formato esperado (WebP: 52 49 46 46 ... 57 45 42 50).
+    if (debug) {
+      const head = Array.from(buf.subarray(0, 16))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join(" ");
+      const tail = Array.from(buf.subarray(Math.max(0, buf.byteLength - 8)))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join(" ");
+      const isWebP =
+        buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
+        buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50;
+      return NextResponse.json({
+        id,
+        mimeType: file.mimeType,
+        sizeStored: file.size,
+        bufferByteLength: buf.byteLength,
+        sizesMatch: file.size === buf.byteLength,
+        isWebP,
+        hexHead: head,
+        hexTail: tail,
+        rawType: typeof raw,
+        wasBuffer: Buffer.isBuffer(raw),
+      });
     }
 
     // Copiamos a un ArrayBuffer fresco e independiente del Buffer original.
