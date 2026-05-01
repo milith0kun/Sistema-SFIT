@@ -19,6 +19,8 @@ export interface KPIStripProps {
 }
 
 export function KPIStrip({ items, cols = 6 }: KPIStripProps) {
+  // El responsive lo manejan las reglas en globals.css `.sfit-kpi-grid`:
+  //   ≤768px → 3 cols, ≤640px → 2 cols (con !important sobrescriben este inline).
   return (
     <div
       className="sfit-kpi-grid"

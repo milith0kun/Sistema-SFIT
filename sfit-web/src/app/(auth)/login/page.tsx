@@ -58,9 +58,10 @@ export default function LoginPage() {
     if (error) errorRef.current?.focus();
   }, [error]);
 
-  // Inicialización de Google robusta
+  // Inicialización de Google robusta — re-renderiza al cambiar tamaño del
+  // contenedor (cambio de orientación, resize de ventana, etc.)
   useEffect(() => {
-    const initGoogle = () => {
+    const renderGoogleButton = () => {
       if (!GOOGLE_CLIENT_ID || !window.google || !googleBtnRef.current) return;
 
       try {
@@ -72,6 +73,15 @@ export default function LoginPage() {
           ux_mode: "popup",
         });
 
+        // Google Sign-In requiere width entre 200 y 400. Si el contenedor
+        // mide < 200 (mobile pequeño con padding) tomamos 280 como fallback.
+        // Si mide > 400 lo capeamos al máximo permitido por Google.
+        const containerWidth = googleBtnRef.current.offsetWidth;
+        const safeWidth = Math.max(
+          200,
+          Math.min(400, containerWidth > 0 ? containerWidth : 320),
+        );
+
         googleBtnRef.current.innerHTML = "";
         window.google.accounts.id.renderButton(googleBtnRef.current, {
           type: "standard",
@@ -80,16 +90,34 @@ export default function LoginPage() {
           text: "continue_with",
           shape: "rectangular",
           logo_alignment: "left",
-          width: googleBtnRef.current.offsetWidth || 376,
+          width: safeWidth,
         });
       } catch (err) {
         console.error("Error al inicializar Google Sign-In:", err);
       }
     };
 
-    if (gisReady) {
-      initGoogle();
-    }
+    if (!gisReady) return;
+
+    // Render inicial
+    renderGoogleButton();
+
+    // Re-render cuando cambia el tamaño del contenedor (responsive)
+    const target = googleBtnRef.current;
+    if (!target || typeof ResizeObserver === "undefined") return;
+
+    let lastWidth = target.offsetWidth;
+    const observer = new ResizeObserver((entries) => {
+      const newWidth = entries[0]?.contentRect.width ?? 0;
+      // Solo re-render si el cambio es significativo (>20px) para evitar
+      // re-renders constantes durante animaciones de fade-in.
+      if (Math.abs(newWidth - lastWidth) > 20) {
+        lastWidth = newWidth;
+        renderGoogleButton();
+      }
+    });
+    observer.observe(target);
+    return () => observer.disconnect();
   }, [gisReady, GOOGLE_CLIENT_ID]);
 
   async function handleGoogleCredential(response: { credential: string }) {
@@ -282,12 +310,15 @@ export default function LoginPage() {
       </div>
 
       {/* Google Login Container */}
-      <div className="flex flex-col items-center gap-4 animate-fade-up delay-400 min-h-[50px]">
+      <div className="flex flex-col items-center gap-4 animate-fade-up delay-400 min-h-[44px]">
         {GOOGLE_CLIENT_ID ? (
-          <div 
+          // Sin overflow-hidden ni rounded-xl: el iframe del botón de Google
+          // tiene su propio styling. Recortarlo bloqueaba los clicks en mobile.
+          // min-w para garantizar que Google Sign-In tenga un width válido (≥200px).
+          <div
             id="google-btn-parent"
-            className="w-full flex justify-center overflow-hidden rounded-xl" 
-            ref={googleBtnRef} 
+            className="w-full max-w-[400px] min-w-[200px] flex justify-center"
+            ref={googleBtnRef}
           />
         ) : (
           <p className="text-[10px] font-bold text-[#B45309] uppercase tracking-widest text-center px-4 py-2 bg-amber-50 rounded-lg border border-amber-200">
