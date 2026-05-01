@@ -7,7 +7,7 @@ class AppConstants {
   static const String appVersion = '1.2.0';
 
   // Actualización — versión mínima local (fallback si la API no responde)
-  static const String minimumVersion = '1.1.0';
+  static const String minimumVersion = '1.2.0';
   static const String playStoreUrl =
       'https://play.google.com/store/apps/details?id=com.sfit.sfit_app';
 

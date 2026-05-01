@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,13 +11,7 @@ import '../../../../core/widgets/sfit_mark.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../providers/auth_provider.dart';
 
-/// Usuarios de prueba precargados (solo visibles en modo debug).
-const _debugTestUsers = <({String label, String email, String password})>[
-  (label: 'Fiscal',     email: 'fiscal@sfit.test',     password: 'Sfit2026!'),
-  (label: 'Operador',   email: 'operador@sfit.test',   password: 'Sfit2026!'),
-  (label: 'Conductor',  email: 'conductor@sfit.test',  password: 'Sfit2026!'),
-  (label: 'Ciudadano',  email: 'ciudadano@sfit.test',  password: 'Sfit2026!'),
-];
+
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -283,15 +276,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             ),
                     ),
 
-                    if (kDebugMode) ...[
-                      const SizedBox(height: 22),
-                      _DebugAutofill(
-                        onPick: (email, password) {
-                          _emailCtrl.text = email;
-                          _passwordCtrl.text = password;
-                        },
-                      ),
-                    ],
+
                   ],
                 ),
                 ),
@@ -387,86 +372,7 @@ class _GoogleMark extends StatelessWidget {
       CustomPaint(size: const Size(18, 18), painter: _GooglePainter());
 }
 
-class _DebugAutofill extends StatelessWidget {
-  final void Function(String email, String password) onPick;
-  const _DebugAutofill({required this.onPick});
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.ink1,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.ink2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.bug_report_outlined,
-                  size: 14, color: AppColors.ink5),
-              const SizedBox(width: 6),
-              Text(
-                'AUTOFILL DE PRUEBA (debug)',
-                style: AppTheme.inter(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink5,
-                  letterSpacing: 1.4,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: _debugTestUsers
-                .map(
-                  (u) => _DebugPill(
-                    label: u.label,
-                    onTap: () => onPick(u.email, u.password),
-                  ),
-                )
-                .toList(),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DebugPill extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  const _DebugPill({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: AppColors.ink2, width: 1),
-        ),
-        child: Text(
-          label,
-          style: AppTheme.inter(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w600,
-            color: AppColors.ink7,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _GooglePainter extends CustomPainter {
   @override
