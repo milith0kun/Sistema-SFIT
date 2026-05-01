@@ -114,8 +114,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <span className="text-[9px] sm:text-[10px] font-bold text-[#71717A] uppercase tracking-widest px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-[#f4f4f5] border border-[#E4E4E7] whitespace-nowrap">Acceso Seguro</span>
         </div>
 
-        <div className="flex-1 flex flex-col items-center lg:justify-center px-4 sm:px-6 md:p-12 py-6 sm:py-8 lg:overflow-hidden">
-          <div className="w-full max-w-[420px] animate-fade-in flex flex-col">
+        <div className="flex-1 flex flex-col items-center lg:justify-center px-5 sm:px-8 md:p-12 py-5 sm:py-7 lg:overflow-hidden">
+          {/* Form wrapper con max-width reducido en mobile + card-style sutil
+              en mobile para que no quede edge-to-edge ni se vea monótono. */}
+          <div className="w-full max-w-[360px] sm:max-w-[400px] lg:max-w-[420px] animate-fade-in flex flex-col">
             {children}
           </div>
         </div>

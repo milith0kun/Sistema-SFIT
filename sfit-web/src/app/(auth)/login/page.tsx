@@ -197,11 +197,11 @@ export default function LoginPage() {
       />
 
       {/* Header del Formulario */}
-      <div className="mb-6 sm:mb-8 lg:mb-10">
-        <h1 className="text-[#0A1628] text-[1.5rem] sm:text-2xl lg:text-3xl font-bold tracking-tight mb-1.5 sm:mb-2 lg:mb-3 text-balance leading-tight">
+      <div className="mb-5 sm:mb-7 lg:mb-10">
+        <h1 className="text-[#0A1628] text-[1.375rem] sm:text-[1.625rem] lg:text-3xl font-bold tracking-tight mb-1.5 sm:mb-2 lg:mb-3 text-balance leading-[1.15]">
           Bienvenido de nuevo
         </h1>
-        <p className="text-[#52525B] text-[13px] sm:text-sm lg:text-base font-medium leading-relaxed">
+        <p className="text-[#52525B] text-[12.5px] sm:text-[13.5px] lg:text-base font-medium leading-relaxed">
           Inicie sesión con sus credenciales institucionales para acceder al sistema.
         </p>
       </div>
@@ -224,7 +224,7 @@ export default function LoginPage() {
       <form onSubmit={handleSubmit} noValidate className="space-y-4 sm:space-y-5 lg:space-y-7">
         {/* Email */}
         <div className="animate-fade-up delay-100">
-          <label htmlFor="email" className="block text-sm font-bold text-[#0A1628] mb-2 uppercase tracking-widest opacity-70">
+          <label htmlFor="email" className="block text-[11px] sm:text-xs lg:text-sm font-bold text-[#0A1628] mb-1.5 sm:mb-2 uppercase tracking-widest opacity-70">
             Correo Institucional
           </label>
           <input
@@ -237,18 +237,18 @@ export default function LoginPage() {
             className={`field transition-all ${fieldErrors.email ? "border-[#EF4444] bg-[#FFF5F5]" : "focus:border-[#0A1628] focus:ring-4 focus:ring-[#0A1628]/5"}`}
           />
           {fieldErrors.email && (
-            <p className="mt-2 text-xs font-bold text-[#DC2626] uppercase tracking-wider">{fieldErrors.email}</p>
+            <p className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-[#DC2626] uppercase tracking-wider">{fieldErrors.email}</p>
           )}
         </div>
 
         {/* Password */}
         <div className="animate-fade-up delay-150">
-          <div className="flex items-center justify-between mb-2">
-            <label htmlFor="password" className="text-sm font-bold text-[#0A1628] uppercase tracking-widest opacity-70">
+          <div className="flex items-center justify-between mb-1.5 sm:mb-2 gap-2">
+            <label htmlFor="password" className="text-[11px] sm:text-xs lg:text-sm font-bold text-[#0A1628] uppercase tracking-widest opacity-70">
               Contraseña
             </label>
-            <Link href="/reset-password" 
-                  className="text-xs font-bold text-[#8B1414] hover:underline tracking-wide">
+            <Link href="/reset-password"
+                  className="text-[10px] sm:text-[11px] lg:text-xs font-bold text-[#8B1414] hover:underline tracking-wide whitespace-nowrap">
               ¿Olvidó su contraseña?
             </Link>
           </div>
@@ -280,20 +280,19 @@ export default function LoginPage() {
           )}
         </div>
 
-        {/* Submit Button */}
-        <div className="pt-2 sm:pt-3 lg:pt-4 animate-fade-up delay-200">
+        {/* Submit Button — altura responsive sincronizada con .field */}
+        <div className="pt-1.5 sm:pt-2 lg:pt-4 animate-fade-up delay-200">
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#0A1628] text-white rounded-2xl font-bold text-[15px] sm:text-base lg:text-lg hover:bg-[#111F38] active:scale-[0.99] disabled:opacity-50 transition-all flex items-center justify-center gap-3 shadow-lg shadow-[#0A1628]/10 group"
-            style={{ minHeight: 52, height: 52 }}
+            className="w-full h-12 sm:h-[50px] lg:h-[52px] bg-[#0A1628] text-white rounded-xl sm:rounded-2xl font-bold text-[14.5px] sm:text-[15px] lg:text-lg hover:bg-[#111F38] active:scale-[0.99] disabled:opacity-50 transition-all flex items-center justify-center gap-2.5 sm:gap-3 shadow-lg shadow-[#0A1628]/10 group"
           >
             {loading ? (
               <span className="flex h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               <>
                 Entrar al Sistema
-                <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="group-hover:translate-x-1 transition-transform w-[18px] h-[18px] sm:w-5 sm:h-5" />
               </>
             )}
           </button>

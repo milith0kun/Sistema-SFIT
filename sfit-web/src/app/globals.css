@@ -270,19 +270,25 @@ body {
 /* ── Field (inputs) — más grandes y legibles ── */
 .field {
   width: 100%;
-  height: 52px;
-  padding: 0 18px;
+  height: 48px;
+  padding: 0 14px;
   border-radius: 10px;
   border: 1.5px solid var(--color-ink-2);
   background: #ffffff;
   color: var(--color-ink-9);
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-family: var(--font-inter), "Inter", sans-serif;
   font-weight: 500;
   line-height: 1.5;
   letter-spacing: -0.005em;
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+@media (min-width: 640px) {
+  .field { height: 50px; padding: 0 16px; font-size: 0.96875rem; }
+}
+@media (min-width: 1024px) {
+  .field { height: 52px; padding: 0 18px; font-size: 1rem; }
 }
 .field::placeholder {
   color: var(--color-ink-4);
