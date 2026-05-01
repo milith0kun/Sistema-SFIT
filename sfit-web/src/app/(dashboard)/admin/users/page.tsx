@@ -67,7 +67,6 @@ export default function AdminUsersPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [action, setAction] = useState<ActionMode>("approve");
   const [assignedRole, setAssignedRole] = useState("ciudadano");
-  const [approveNotes, setApproveNotes] = useState("");
   const [rejectReason, setRejectReason] = useState("");
   const [processing, setProcessing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -106,7 +105,6 @@ export default function AdminUsersPage() {
   useEffect(() => {
     setActionError(null);
     setActionSuccess(null);
-    setApproveNotes("");
     setRejectReason("");
     setAction("approve");
     const u = users.find(x => x.id === selectedId);
@@ -150,7 +148,7 @@ export default function AdminUsersPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(
           action === "approve"
-            ? { role: assignedRole, notes: approveNotes.trim() || undefined }
+            ? { role: assignedRole }
             : { reason: rejectReason.trim() }
         ),
       });
@@ -242,8 +240,6 @@ export default function AdminUsersPage() {
               setAction={setAction}
               assignedRole={assignedRole}
               setAssignedRole={setAssignedRole}
-              approveNotes={approveNotes}
-              setApproveNotes={setApproveNotes}
               rejectReason={rejectReason}
               setRejectReason={setRejectReason}
               processing={processing}
@@ -490,7 +486,6 @@ function DetailEmpty() {
 function DetailPanel({
   user, action, setAction,
   assignedRole, setAssignedRole,
-  approveNotes, setApproveNotes,
   rejectReason, setRejectReason,
   processing, error, success,
   onSubmit, onClose,
@@ -498,7 +493,6 @@ function DetailPanel({
   user: PendingUser;
   action: ActionMode; setAction: (a: ActionMode) => void;
   assignedRole: string; setAssignedRole: (v: string) => void;
-  approveNotes: string; setApproveNotes: (v: string) => void;
   rejectReason: string; setRejectReason: (v: string) => void;
   processing: boolean; error: string | null; success: string | null;
   onSubmit: () => void; onClose: () => void;
@@ -586,103 +580,60 @@ function DetailPanel({
 
       {/* Body */}
       <div style={{ padding: "16px 18px 18px" }}>
-        {/* Switcher de acción */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, padding: 3, background: INK1, borderRadius: 8, marginBottom: 14, border: `1px solid ${INK2}` }}>
-          <button
-            onClick={() => setAction("approve")}
+        {/* Rol definitivo (siempre visible) */}
+        <FormLabel>Rol definitivo</FormLabel>
+        <div style={{ position: "relative", marginBottom: action === "reject" ? 14 : 16 }}>
+          <select
+            value={assignedRole}
+            onChange={e => setAssignedRole(e.target.value)}
+            disabled={action === "reject"}
             style={{
-              padding: "6px 10px", borderRadius: 6,
-              background: action === "approve" ? "#fff" : "transparent",
-              color: action === "approve" ? INK9 : INK6,
-              fontWeight: action === "approve" ? 700 : 500,
-              fontSize: "0.8125rem", cursor: "pointer", fontFamily: "inherit",
-              border: action === "approve" ? `1px solid ${INK2}` : "1px solid transparent",
-              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-              transition: "background 120ms, color 120ms",
+              width: "100%", height: 38, padding: "0 36px 0 12px", borderRadius: 8,
+              border: `1px solid ${INK2}`, background: action === "reject" ? INK1 : "#fff",
+              fontSize: "0.875rem", color: action === "reject" ? INK5 : INK9, fontFamily: "inherit",
+              appearance: "none",
+              cursor: action === "reject" ? "not-allowed" : "pointer",
+              outline: "none",
             }}
           >
-            <Check size={13} /> Aprobar
-          </button>
-          <button
-            onClick={() => setAction("reject")}
-            style={{
-              padding: "6px 10px", borderRadius: 6,
-              background: action === "reject" ? "#fff" : "transparent",
-              color: action === "reject" ? INK9 : INK6,
-              fontWeight: action === "reject" ? 700 : 500,
-              fontSize: "0.8125rem", cursor: "pointer", fontFamily: "inherit",
-              border: action === "reject" ? `1px solid ${INK2}` : "1px solid transparent",
-              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-              transition: "background 120ms, color 120ms",
-            }}
-          >
-            <X size={13} /> Rechazar
-          </button>
+            {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+          </select>
+          <svg viewBox="0 0 10 6" width="10" height="10" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} fill="none">
+            <path d="M1 1l4 4 4-4" stroke={INK5} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </div>
 
-        {action === "approve" ? (
-          <>
-            <FormLabel>Rol definitivo</FormLabel>
-            <div style={{ position: "relative", marginBottom: 16 }}>
-              <select
-                value={assignedRole}
-                onChange={e => setAssignedRole(e.target.value)}
-                style={{
-                  width: "100%", height: 38, padding: "0 36px 0 12px", borderRadius: 8,
-                  border: `1px solid ${INK2}`, background: "#fff",
-                  fontSize: "0.875rem", color: INK9, fontFamily: "inherit",
-                  appearance: "none", cursor: "pointer", outline: "none",
-                }}
-              >
-                {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-              </select>
-              <svg viewBox="0 0 10 6" width="10" height="10" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} fill="none">
-                <path d="M1 1l4 4 4-4" stroke={INK5} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-
-            <FormLabel optional icon={<MessageSquare size={11} />}>Comentario (opcional)</FormLabel>
-            <textarea
-              value={approveNotes}
-              onChange={e => setApproveNotes(e.target.value)}
-              placeholder="Notas internas, ej. 'Verificado con la municipalidad de Cusco'…"
-              rows={3}
-              style={{
-                width: "100%", padding: "10px 12px", borderRadius: 8,
-                border: `1px solid ${INK2}`, background: "#fff",
-                fontSize: "0.8125rem", color: INK9, fontFamily: "inherit",
-                outline: "none", resize: "vertical", minHeight: 64, lineHeight: 1.5,
-              }}
-              onFocus={e => { e.target.style.borderColor = INK9; }}
-              onBlur={e => { e.target.style.borderColor = INK2; }}
-            />
-          </>
-        ) : (
-          <>
+        {/* Motivo del rechazo (solo cuando se está rechazando) */}
+        {action === "reject" && (
+          <div style={{
+            marginBottom: 14, padding: 12, borderRadius: 8,
+            background: INK1, border: `1px solid ${INK2}`,
+          }}>
             <FormLabel required>Motivo del rechazo</FormLabel>
             <textarea
               value={rejectReason}
               onChange={e => setRejectReason(e.target.value)}
               placeholder="Ej. Datos institucionales no verificables…"
-              rows={4}
+              rows={3}
+              autoFocus
               style={{
                 width: "100%", padding: "10px 12px", borderRadius: 8,
-                border: `1px solid ${rejectReason.trim() ? INK2 : INK2}`, background: "#fff",
+                border: `1px solid ${INK2}`, background: "#fff",
                 fontSize: "0.8125rem", color: INK9, fontFamily: "inherit",
-                outline: "none", resize: "vertical", minHeight: 96, lineHeight: 1.5,
+                outline: "none", resize: "vertical", minHeight: 84, lineHeight: 1.5,
               }}
               onFocus={e => { e.target.style.borderColor = INK9; }}
               onBlur={e => { e.target.style.borderColor = INK2; }}
             />
-            <p style={{ fontSize: "0.75rem", color: INK5, marginTop: 6, lineHeight: 1.5 }}>
+            <p style={{ fontSize: "0.6875rem", color: INK5, marginTop: 6, lineHeight: 1.4 }}>
               El usuario recibirá una notificación con este motivo y no podrá acceder a la plataforma.
             </p>
-          </>
+          </div>
         )}
 
         {error && (
           <div role="alert" style={{
-            marginTop: 12, padding: "9px 12px",
+            marginTop: 4, marginBottom: 12, padding: "9px 12px",
             background: REDBG, border: `1px solid ${REDBD}`, borderRadius: 8,
             color: RED, fontSize: "0.8125rem", display: "flex", alignItems: "center", gap: 7,
           }}>
@@ -691,7 +642,7 @@ function DetailPanel({
         )}
         {success && (
           <div role="status" style={{
-            marginTop: 12, padding: "9px 12px",
+            marginTop: 4, marginBottom: 12, padding: "9px 12px",
             background: GRNBG, border: `1px solid ${GRNBD}`, borderRadius: 8,
             color: GRN, fontSize: "0.8125rem", fontWeight: 600,
             display: "flex", alignItems: "center", gap: 7,
@@ -700,28 +651,74 @@ function DetailPanel({
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-          <button
-            onClick={onSubmit}
-            disabled={processing || (action === "reject" && !rejectReason.trim())}
-            style={{
-              flex: 1, height: 36, borderRadius: 8, border: "none",
-              background: INK9, color: "#fff",
-              fontFamily: "inherit", fontWeight: 700, fontSize: "0.875rem",
-              cursor: processing ? "not-allowed" : "pointer",
-              opacity: processing || (action === "reject" && !rejectReason.trim()) ? 0.5 : 1,
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-              transition: "opacity 120ms",
-            }}
-          >
-            {processing
-              ? <><Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} /> Procesando…</>
-              : action === "approve"
-                ? <><Check size={14} strokeWidth={2.5} color={GRN} /> Aprobar usuario</>
-                : <><X size={14} strokeWidth={2.5} color={RED} /> Rechazar solicitud</>
-            }
-          </button>
-        </div>
+        {/* Acciones finales: Aprobar (primario) y Rechazar (secundario) */}
+        {action === "approve" ? (
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => setAction("reject")}
+              disabled={processing}
+              style={{
+                display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+                height: 38, padding: "0 14px", borderRadius: 8,
+                border: `1px solid ${INK2}`, background: "#fff", color: INK6,
+                fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                opacity: processing ? 0.5 : 1,
+              }}
+            >
+              <X size={13} color={RED} />Rechazar
+            </button>
+            <button
+              onClick={onSubmit}
+              disabled={processing}
+              style={{
+                flex: 1, height: 38, borderRadius: 8, border: "none",
+                background: INK9, color: "#fff",
+                fontFamily: "inherit", fontWeight: 700, fontSize: "0.875rem",
+                cursor: processing ? "not-allowed" : "pointer",
+                opacity: processing ? 0.5 : 1,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+              }}
+            >
+              {processing
+                ? <><Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} /> Procesando…</>
+                : <><Check size={14} strokeWidth={2.5} />Aprobar usuario</>
+              }
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => { setAction("approve"); setRejectReason(""); }}
+              disabled={processing}
+              style={{
+                display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+                height: 38, padding: "0 14px", borderRadius: 8,
+                border: `1px solid ${INK2}`, background: "#fff", color: INK6,
+                fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                opacity: processing ? 0.5 : 1,
+              }}
+            >
+              Volver
+            </button>
+            <button
+              onClick={onSubmit}
+              disabled={processing || !rejectReason.trim()}
+              style={{
+                flex: 1, height: 38, borderRadius: 8, border: "none",
+                background: INK9, color: "#fff",
+                fontFamily: "inherit", fontWeight: 700, fontSize: "0.875rem",
+                cursor: processing ? "not-allowed" : "pointer",
+                opacity: processing || !rejectReason.trim() ? 0.5 : 1,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+              }}
+            >
+              {processing
+                ? <><Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} /> Procesando…</>
+                : <><X size={14} strokeWidth={2.5} color={RED} />Confirmar rechazo</>
+              }
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
