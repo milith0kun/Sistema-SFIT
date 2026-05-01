@@ -28,6 +28,8 @@ import '../../features/operator/presentation/pages/nuevo_vehiculo_page.dart';
 import '../../features/vista_publica/presentation/pages/vehicle_public_page.dart';
 import '../../features/trips/presentation/pages/route_detail_page.dart';
 import '../../features/rewards/presentation/pages/ranking_page.dart';
+import '../../features/feed/data/models/feed_report_model.dart';
+import '../../features/feed/presentation/pages/feed_detail_page.dart';
 import '../../features/reports/presentation/pages/mis_reportes_page.dart';
 import '../../features/reports/presentation/pages/submit_report_page.dart';
 
@@ -218,6 +220,15 @@ GoRouter router(Ref ref) {
 
       // ── RF-12: Historial de mis reportes (ciudadano) ──────────
       GoRoute(path: '/mis-reportes', builder: (_, __) => const MisReportesPage()),
+
+      // ── Detalle de un reporte del feed ciudadano ──────────────
+      GoRoute(
+        path: '/feed/:id',
+        builder: (context, state) {
+          final report = state.extra as FeedReport;
+          return FeedDetailPage(report: report);
+        },
+      ),
 
       // ── RF-12: Formulario de reporte desde vista pública ─────
       GoRoute(

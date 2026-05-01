@@ -200,6 +200,20 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               ],
             ],
 
+            // ── Mi actividad (solo ciudadano) ─────────────────────
+            if (user.role == 'ciudadano') ...[
+              const _SectionLabel('MI ACTIVIDAD'),
+              const SizedBox(height: 8),
+              _InfoCard(children: [
+                _ActionRow(
+                  icon: Icons.campaign_outlined,
+                  label: 'Mis reportes',
+                  onTap: () => context.push('/mis-reportes'),
+                ),
+              ]),
+              const SizedBox(height: 22),
+            ],
+
             // ── Cuenta ────────────────────────────────────────────
             const _SectionLabel('CUENTA'),
             const SizedBox(height: 8),

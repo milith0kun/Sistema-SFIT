@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dio/dio.dart' show FormData, MultipartFile;
+import 'package:dio/dio.dart' show DioException, DioExceptionType, FormData, MultipartFile;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -107,9 +107,24 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
   }
 
   // ── Búsqueda por placa ───────────────────────────────────────────
+  /// Formatos de placa peruana aceptados:
+  /// - Autos: ABC-123 o ABC123 (3 letras + 3 dígitos)
+  /// - Motos antiguas: A1B-234 o A1B234
+  /// - Categorías especiales: AB-1234 o AB1234
+  static final _plateRegex = RegExp(
+    r'^([A-Z]{3}-?\d{3}|[A-Z]\d[A-Z]-?\d{3}|[A-Z]{2}-?\d{4})$',
+  );
+
   Future<void> _searchVehicle() async {
     final plate = _plateCtrl.text.trim().toUpperCase();
-    if (plate.isEmpty) return;
+    if (plate.isEmpty) {
+      setState(() => _searchError = 'Ingresa una placa');
+      return;
+    }
+    if (!_plateRegex.hasMatch(plate)) {
+      setState(() => _searchError = 'Formato de placa inválido (ej: ABC-123)');
+      return;
+    }
     setState(() { _searching = true; _searchError = null; _foundVehicle = null; _selectedCategory = null; _descCtrl.clear(); });
     try {
       final dio = ref.read(dioClientProvider).dio;
@@ -151,23 +166,80 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
 
   void _removeImage(int index) => setState(() => _selectedImages.removeAt(index));
 
-  Future<List<String>> _uploadImages() async {
+  /// Sube las imágenes recibidas y devuelve `urls` exitosas + `failed` con
+  /// los `XFile` que fallaron junto al mensaje legible. Loggea cada error
+  /// con `debugPrint` para que sea visible en `flutter logs`.
+  Future<_UploadResult> _uploadImages(List<XFile> images) async {
     final urls = <String>[];
+    final failed = <_UploadFailure>[];
     final dio = ref.read(dioClientProvider).dio;
-    for (final img in _selectedImages) {
+    for (final img in images) {
       try {
         final bytes = await img.readAsBytes();
         final formData = FormData.fromMap({
           'file': MultipartFile.fromBytes(bytes, filename: img.name),
         });
         final resp = await dio.post('/uploads/reports', data: formData);
-        final url = (resp.data as Map)['data']['url'] as String?;
-        if (url != null) urls.add(url);
-      } catch (_) {
-        // Fallo silencioso — seguimos sin esa imagen
+        final data = (resp.data as Map)['data'];
+        final url = data is Map ? data['url'] as String? : null;
+        if (url != null) {
+          urls.add(url);
+        } else {
+          debugPrint('upload error: respuesta sin url para ${img.name}: ${resp.data}');
+          failed.add(_UploadFailure(file: img, message: 'Respuesta inesperada del servidor'));
+        }
+      } on DioException catch (e) {
+        final status = e.response?.statusCode;
+        final msg = _readableUploadError(e);
+        debugPrint('upload error [${img.name}] ($status): ${e.message}');
+        failed.add(_UploadFailure(file: img, message: msg));
+      } catch (e) {
+        debugPrint('upload error [${img.name}]: $e');
+        failed.add(_UploadFailure(file: img, message: 'No se pudo subir la foto'));
       }
     }
-    return urls;
+    return _UploadResult(urls: urls, failed: failed);
+  }
+
+  String _readableUploadError(DioException e) {
+    final status = e.response?.statusCode;
+    if (status == 401 || status == 403) return 'Sesión expirada — vuelve a iniciar sesión';
+    if (status == 413) return 'La foto es demasiado pesada (máx. 5 MB)';
+    if (status == 415) return 'Formato no permitido (JPG, PNG o WebP)';
+    if (status != null && status >= 500) return 'Error del servidor — intenta de nuevo';
+    if (e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout ||
+        e.type == DioExceptionType.sendTimeout) {
+      return 'La conexión tardó demasiado';
+    }
+    return 'No se pudo subir la foto';
+  }
+
+  /// Si hubo fallos en la subida, ofrece al usuario reintentar, continuar
+  /// o cancelar el envío. Devuelve el resultado final aceptado.
+  Future<_UploadResult?> _resolveUploadFailures(_UploadResult initial) async {
+    var current = initial;
+    while (current.failed.isNotEmpty && mounted) {
+      if (!mounted) return null;
+      final action = await showDialog<_UploadFailureAction>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => _UploadFailureDialog(failed: current.failed),
+      );
+      if (action == null || action == _UploadFailureAction.cancel) return null;
+      if (action == _UploadFailureAction.continueWithout) return current;
+      // Reintento: solo las que fallaron antes
+      if (!mounted) return null;
+      setState(() => _uploadingImages = true);
+      final retry = await _uploadImages(current.failed.map((f) => f.file).toList());
+      if (!mounted) return null;
+      setState(() => _uploadingImages = false);
+      current = _UploadResult(
+        urls: [...current.urls, ...retry.urls],
+        failed: retry.failed,
+      );
+    }
+    return current;
   }
 
   // ── Envío ────────────────────────────────────────────────────────
@@ -182,8 +254,20 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
       List<String> imageUrls = [];
       if (_selectedImages.isNotEmpty) {
         setState(() => _uploadingImages = true);
-        imageUrls = await _uploadImages();
+        final result = await _uploadImages(_selectedImages);
         if (mounted) setState(() => _uploadingImages = false);
+
+        if (result.failed.isNotEmpty) {
+          final resolved = await _resolveUploadFailures(result);
+          if (resolved == null) {
+            // Usuario canceló el envío
+            if (mounted) setState(() { _submitting = false; });
+            return;
+          }
+          imageUrls = resolved.urls;
+        } else {
+          imageUrls = result.urls;
+        }
       }
 
       final svc = ref.read(reportsApiServiceProvider);
@@ -198,7 +282,8 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
         imageUrls: imageUrls.isEmpty ? null : imageUrls,
       );
       if (mounted) setState(() { _submitting = false; _success = true; });
-    } catch (_) {
+    } catch (e) {
+      debugPrint('submit report error: $e');
       if (mounted) setState(() { _submitting = false; _uploadingImages = false; });
       _showError('No se pudo enviar el reporte. Intenta de nuevo.');
     }
@@ -408,7 +493,33 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
                   ),
                 ],
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 20),
+
+                // ── Advertencia suave si no hay fotos ───────────
+                if (_selectedImages.isEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.infoBg,
+                      border: Border.all(color: AppColors.infoBorder),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.lightbulb_outline_rounded, size: 16, color: AppColors.info),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Los reportes con evidencia fotográfica se validan más rápido.',
+                            style: AppTheme.inter(fontSize: 12, color: AppColors.info, height: 1.4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
 
                 // ── Botón enviar ─────────────────────────────────
                 SizedBox(
@@ -972,4 +1083,90 @@ class _SuccessScreen extends StatelessWidget {
           ),
         ),
       );
+}
+
+// ── Resultado de subida y diálogo de fallo ───────────────────────────────────
+
+enum _UploadFailureAction { retry, continueWithout, cancel }
+
+class _UploadFailure {
+  final XFile file;
+  final String message;
+  const _UploadFailure({required this.file, required this.message});
+}
+
+class _UploadResult {
+  final List<String> urls;
+  final List<_UploadFailure> failed;
+  const _UploadResult({required this.urls, required this.failed});
+}
+
+class _UploadFailureDialog extends StatelessWidget {
+  final List<_UploadFailure> failed;
+  const _UploadFailureDialog({required this.failed});
+
+  @override
+  Widget build(BuildContext context) {
+    final count = failed.length;
+    final plural = count == 1 ? 'foto' : 'fotos';
+    final firstMessage = failed.first.message;
+    return AlertDialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      title: Row(
+        children: [
+          const Icon(Icons.error_outline_rounded, color: AppColors.noApto, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'No se pudieron subir $count $plural',
+              style: AppTheme.inter(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.ink9),
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            firstMessage,
+            style: AppTheme.inter(fontSize: 13, color: AppColors.ink7, height: 1.4),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Puedes reintentar la subida o enviar el reporte sin esas evidencias.',
+            style: AppTheme.inter(fontSize: 12, color: AppColors.ink5, height: 1.4),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(_UploadFailureAction.cancel),
+          child: Text(
+            'Cancelar envío',
+            style: AppTheme.inter(fontSize: 13, color: AppColors.ink5, fontWeight: FontWeight.w600),
+          ),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(_UploadFailureAction.continueWithout),
+          child: Text(
+            'Continuar sin esas',
+            style: AppTheme.inter(fontSize: 13, color: AppColors.ink8, fontWeight: FontWeight.w600),
+          ),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_UploadFailureAction.retry),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.ink9,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          child: Text(
+            'Reintentar',
+            style: AppTheme.inter(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    );
+  }
 }

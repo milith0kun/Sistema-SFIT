@@ -230,16 +230,23 @@ class Auth extends _$Auth {
   // ── Helpers ───────────────────────────────────────────────────
   String _networkErrorMsg(Object e) {
     final s = e.toString();
-    if (s.contains('Connection refused') || s.contains('SocketException')) {
-      return 'Sin conexión al servidor.\n'
-          'Asegúrate de que el backend esté corriendo y ejecuta:\n'
-          'adb reverse tcp:3000 tcp:3000';
+    if (s.contains('TimeoutException') ||
+        s.contains('connectTimeout') ||
+        s.contains('receiveTimeout')) {
+      return 'Tiempo de espera agotado. Verifica tu conexión e inténtalo de nuevo.';
+    }
+    if (s.contains('Connection refused') ||
+        s.contains('SocketException') ||
+        s.contains('Failed host lookup')) {
+      return 'Sin conexión al servidor. Verifica tu Internet e inténtalo de nuevo.';
+    }
+    if (s.contains('HandshakeException') || s.contains('CERTIFICATE')) {
+      return 'No se pudo establecer una conexión segura con el servidor.';
     }
     if (s.contains('sign_in_failed') || s.contains('ApiException')) {
-      return 'Google Sign In falló ($s).\n'
-          'Verifica que el SHA-1 del keystore debug esté registrado en GCP.';
+      return 'No se pudo iniciar sesión con Google. Inténtalo más tarde.';
     }
-    return 'Error: $s';
+    return 'No se pudo iniciar sesión. Inténtalo de nuevo.';
   }
 
   // ── Actualizar perfil propio ──────────────────────────────────

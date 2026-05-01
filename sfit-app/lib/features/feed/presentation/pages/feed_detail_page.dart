@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../../core/navigation/navigation_key.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/feed_report_model.dart';
@@ -410,14 +411,12 @@ class _FeedDetailPageState extends ConsumerState<FeedDetailPage> {
     try {
       await ref.read(feedProvider.notifier).toggleApoyo(id);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('No se pudo registrar el apoyo: $e'),
-            backgroundColor: AppColors.noApto,
-          ),
-        );
-      }
+      showAppSnackBar(
+        SnackBar(
+          content: Text('No se pudo registrar el apoyo: $e'),
+          backgroundColor: AppColors.noApto,
+        ),
+      );
     }
   }
 

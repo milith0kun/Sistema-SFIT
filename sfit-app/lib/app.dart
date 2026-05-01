@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/navigation/navigation_key.dart';
 import 'core/router/app_router.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/update_service.dart';
@@ -22,6 +23,7 @@ class SfitApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
+      scaffoldMessengerKey: scaffoldMessengerKey,
       routerConfig: router,
       // El builder se ejecuta en cada ruta; _UpdateWrapper garantiza
       // que el check se dispare una sola vez al primer frame.

@@ -45,6 +45,7 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage> {
   int _index = 0;
   int _unreadNotifCount = 0;
+  String? _lastProcessedTabSlug;
   // Tabs que ya fueron visitados al menos una vez — se construyen de forma perezosa
   // para evitar que animaciones de carga en tabs ocultos disparen el crash de semantics.
   final Set<int> _visitedTabs = {0};
@@ -53,6 +54,29 @@ class _HomePageState extends ConsumerState<HomePage> {
   void initState() {
     super.initState();
     _loadUnreadCount();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Soporta deep-link `/home?tab=<slug>` para saltar al tab indicado
+    // (ej. "Reportar ahora" desde el empty state del feed).
+    final slug = GoRouterState.of(context).uri.queryParameters['tab'];
+    if (slug == null || slug == _lastProcessedTabSlug) return;
+    _lastProcessedTabSlug = slug;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final user = ref.read(authProvider).user;
+      if (user == null) return;
+      final tabs = _tabsForRole(user.role);
+      final i = tabs.indexWhere((t) => t.slug == slug);
+      if (i >= 0 && i != _index) {
+        setState(() {
+          _index = i;
+          _visitedTabs.add(i);
+        });
+      }
+    });
   }
 
   Future<void> _loadUnreadCount() async {
@@ -226,24 +250,28 @@ class _HomePageState extends ConsumerState<HomePage> {
     return switch (role) {
       'fiscal' => [
           const _Tab(
+            slug: 'inspecciones',
             label: 'Inspecciones',
             icon: Icons.assignment_outlined,
             iconFilled: Icons.assignment,
             page: InspectionsListPage(),
           ),
           const _Tab(
+            slug: 'qr',
             label: 'QR',
             icon: Icons.qr_code_scanner_outlined,
             iconFilled: Icons.qr_code_scanner,
             page: _QrLaunchTab(forInspection: true),
           ),
           const _Tab(
+            slug: 'reportes',
             label: 'Reportes',
             icon: Icons.flag_outlined,
             iconFilled: Icons.flag,
             page: ReportsReviewPage(),
           ),
           const _Tab(
+            slug: 'perfil',
             label: 'Perfil',
             icon: Icons.person_outline,
             iconFilled: Icons.person,
@@ -252,30 +280,35 @@ class _HomePageState extends ConsumerState<HomePage> {
         ],
       'operador' => const [
           _Tab(
+            slug: 'flota',
             label: 'Flota',
             icon: Icons.local_shipping_outlined,
             iconFilled: Icons.local_shipping,
             page: FleetPage(),
           ),
           _Tab(
+            slug: 'conductores',
             label: 'Conductores',
             icon: Icons.groups_2_outlined,
             iconFilled: Icons.groups_2,
             page: ConductoresTabPage(),
           ),
           _Tab(
+            slug: 'vehiculos',
             label: 'Vehículos',
             icon: Icons.directions_car_outlined,
             iconFilled: Icons.directions_car,
             page: VehiculosTabPage(),
           ),
           _Tab(
+            slug: 'analisis',
             label: 'Análisis',
             icon: Icons.bar_chart_outlined,
             iconFilled: Icons.bar_chart,
             page: FleetAnalyticsPage(),
           ),
           _Tab(
+            slug: 'perfil',
             label: 'Perfil',
             icon: Icons.person_outline,
             iconFilled: Icons.person,
@@ -284,30 +317,35 @@ class _HomePageState extends ConsumerState<HomePage> {
         ],
       'conductor' => [
           const _Tab(
+            slug: 'rutas',
             label: 'Mis rutas',
             icon: Icons.route_outlined,
             iconFilled: Icons.route,
             page: MyRoutesPage(),
           ),
           const _Tab(
+            slug: 'mapa',
             label: 'Mapa',
             icon: Icons.map_outlined,
             iconFilled: Icons.map,
             page: TripMapPage(),
           ),
           const _Tab(
+            slug: 'fatiga',
             label: 'Fatiga',
             icon: Icons.monitor_heart_outlined,
             iconFilled: Icons.monitor_heart,
             page: FatiguePage(),
           ),
           const _Tab(
+            slug: 'viajes',
             label: 'Viajes',
             icon: Icons.timeline_outlined,
             iconFilled: Icons.timeline,
             page: MyTripsPage(),
           ),
           const _Tab(
+            slug: 'perfil',
             label: 'Perfil',
             icon: Icons.person_outline,
             iconFilled: Icons.person,
@@ -316,30 +354,35 @@ class _HomePageState extends ConsumerState<HomePage> {
         ],
       'ciudadano' => const [
           _Tab(
+            slug: 'inicio',
             label: 'Inicio',
             icon: Icons.dynamic_feed_outlined,
             iconFilled: Icons.dynamic_feed,
             page: FeedPage(),
           ),
           _Tab(
+            slug: 'consulta',
             label: 'Consulta',
             icon: Icons.qr_code_2_outlined,
             iconFilled: Icons.qr_code_2,
             page: _QrLaunchTab(),
           ),
           _Tab(
+            slug: 'reportar',
             label: 'Reportar',
             icon: Icons.campaign_outlined,
             iconFilled: Icons.campaign,
             page: SubmitReportPage(),
           ),
           _Tab(
+            slug: 'premios',
             label: 'Premios',
             icon: Icons.emoji_events_outlined,
             iconFilled: Icons.emoji_events,
             page: RewardsPage(),
           ),
           _Tab(
+            slug: 'perfil',
             label: 'Perfil',
             icon: Icons.person_outline,
             iconFilled: Icons.person,
@@ -348,24 +391,28 @@ class _HomePageState extends ConsumerState<HomePage> {
         ],
       'admin_municipal' => const [
           _Tab(
+            slug: 'tablero',
             label: 'Tablero',
             icon: Icons.dashboard_outlined,
             iconFilled: Icons.dashboard,
             page: AdminDashboardPage(),
           ),
           _Tab(
+            slug: 'usuarios',
             label: 'Usuarios',
             icon: Icons.people_outline,
             iconFilled: Icons.people,
             page: AdminUsuariosPage(),
           ),
           _Tab(
+            slug: 'empresas',
             label: 'Empresas',
             icon: Icons.business_outlined,
             iconFilled: Icons.business,
             page: AdminEmpresasPage(),
           ),
           _Tab(
+            slug: 'perfil',
             label: 'Perfil',
             icon: Icons.person_outline,
             iconFilled: Icons.person,
@@ -374,6 +421,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         ],
       _ => const [
           _Tab(
+            slug: 'inicio',
             label: 'Inicio',
             icon: Icons.home_outlined,
             iconFilled: Icons.home,
@@ -384,6 +432,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
           ),
           _Tab(
+            slug: 'perfil',
             label: 'Perfil',
             icon: Icons.person_outline,
             iconFilled: Icons.person,
@@ -414,10 +463,12 @@ class _Tab {
   final IconData icon;
   final IconData? iconFilled;
   final Widget page;
+  final String slug;
   const _Tab({
     required this.label,
     required this.icon,
     required this.page,
+    required this.slug,
     this.iconFilled,
   });
 }

@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/navigation/navigation_key.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/widgets.dart';
 import '../../../reports/data/models/report_model.dart';
 import '../../data/models/feed_report_model.dart';
 import '../providers/feed_provider.dart';
 import '../widgets/feed_post_card.dart';
-import 'feed_detail_page.dart';
 
 class FeedPage extends ConsumerStatefulWidget {
   const FeedPage({super.key});
@@ -126,21 +127,17 @@ class _FeedPageState extends ConsumerState<FeedPage> {
     try {
       await ref.read(feedProvider.notifier).toggleApoyo(id);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('No se pudo registrar el apoyo: $e'),
-            backgroundColor: AppColors.noApto,
-          ),
-        );
-      }
+      showAppSnackBar(
+        SnackBar(
+          content: Text('No se pudo registrar el apoyo: $e'),
+          backgroundColor: AppColors.noApto,
+        ),
+      );
     }
   }
 
   void _openDetail(FeedReport r) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => FeedDetailPage(report: r)),
-    );
+    context.push('/feed/${r.id}', extra: r);
   }
 }
 
@@ -377,14 +374,11 @@ class _FeedEmpty extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          FilledButton.icon(
+          SfitPrimaryButton(
+            label: 'Reportar ahora',
+            icon: Icons.campaign_outlined,
+            expand: false,
             onPressed: () => context.go('/home?tab=reportar'),
-            icon: const Icon(Icons.campaign_outlined, size: 18),
-            label: const Text('Reportar ahora'),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
           ),
         ],
       ),

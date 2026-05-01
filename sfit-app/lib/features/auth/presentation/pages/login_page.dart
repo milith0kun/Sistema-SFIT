@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/navigation/navigation_key.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/sfit_mark.dart';
@@ -47,7 +49,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         .read(authProvider.notifier)
         .login(_emailCtrl.text.trim(), _passwordCtrl.text);
     if (mounted) setState(() => _loading = false);
-    if (!ok && mounted) {
+    if (!mounted) return;
+    if (ok) {
+      // Notifica al sistema de autofill (Google Password Manager / 1Password /
+      // Bitwarden / LastPass) que el flujo terminó bien y debe ofrecer guardar
+      // o actualizar la credencial. Sin esta llamada el SO no muestra el prompt
+      // "¿Guardar contraseña?".
+      TextInput.finishAutofillContext();
+      final user = ref.read(authProvider).user;
+      _showSuccess(user?.name);
+    } else {
       final err = ref.read(authProvider).errorMessage;
       _showError(err ?? 'Error al iniciar sesión');
     }
@@ -57,18 +68,51 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     setState(() => _googleLoading = true);
     final ok = await ref.read(authProvider.notifier).loginWithGoogle();
     if (mounted) setState(() => _googleLoading = false);
-    if (!ok && mounted) {
+    if (!mounted) return;
+    if (ok) {
+      final user = ref.read(authProvider).user;
+      _showSuccess(user?.name);
+    } else {
       final err = ref.read(authProvider).errorMessage;
       if (err != null) _showError(err);
     }
   }
 
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
+  void _showSuccess(String? userName) {
+    final greeting = userName != null && userName.isNotEmpty
+        ? 'Bienvenido, ${userName.split(' ').first}'
+        : 'Sesión iniciada correctamente';
+    showAppSnackBar(
       SnackBar(
-        content: Text(msg),
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_rounded,
+                color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Text(greeting)),
+          ],
+        ),
+        backgroundColor: AppColors.apto,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showError(String msg) {
+    showAppSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded,
+                color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Text(msg)),
+          ],
+        ),
         backgroundColor: AppColors.noApto,
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -122,6 +166,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
               Form(
                 key: _formKey,
+                // AutofillGroup permite que Google Password Manager / Bitwarden /
+                // 1Password / LastPass ofrezcan guardar y autocompletar email +
+                // contraseña como un par. Sin esto el SO trata cada campo de
+                // forma aislada y no ofrece guardar.
+                child: AutofillGroup(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -131,6 +180,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
+                      autofillHints: const [
+                        AutofillHints.username,
+                        AutofillHints.email,
+                      ],
                       decoration: const InputDecoration(
                         hintText: 'nombre@municipalidad.gob.pe',
                       ),
@@ -161,6 +214,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       controller: _passwordCtrl,
                       obscureText: _obscure,
                       textInputAction: TextInputAction.done,
+                      autofillHints: const [AutofillHints.password],
                       onFieldSubmitted: (_) => _submit(),
                       decoration: InputDecoration(
                         hintText: '••••••••',
@@ -239,6 +293,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       ),
                     ],
                   ],
+                ),
                 ),
               ),
 

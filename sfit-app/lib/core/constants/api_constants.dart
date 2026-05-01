@@ -21,9 +21,10 @@ class ApiConstants {
     return 'http://$_devHost:3000/api';
   }
 
-  // Timeouts (ms)
-  static const int connectTimeout = 15000;
-  static const int receiveTimeout = 15000;
+  // Timeouts (ms) — 10s es suficiente para login en redes razonables;
+  // por encima de eso es mejor avisar al usuario que reintente.
+  static const int connectTimeout = 10000;
+  static const int receiveTimeout = 10000;
 
   // Auth endpoints
   static const String login        = '/auth/login';
