@@ -319,13 +319,13 @@ export default function RecompensasPage() {
         action={
           <button
             style={{
-              display: "inline-flex", alignItems: "center", gap: 8, height: 38, padding: "0 16px",
+              display: "inline-flex", alignItems: "center", gap: 8, height: 36, padding: "0 14px",
               borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer",
-              border: "1.5px solid #D9B0B0", background: "#FBEAEA", color: "#6C0606", fontFamily: "inherit",
+              border: "none", background: "#18181b", color: "#fff", fontFamily: "inherit",
             }}
             onClick={() => setShowModal(true)}
           >
-            <Plus size={16} />Nueva recompensa
+            <Plus size={14} />Nueva recompensa
           </button>
         }
       />
@@ -333,10 +333,10 @@ export default function RecompensasPage() {
       <KPIStrip
         cols={4}
         items={[
-          { label: "TOTAL CANJES", value: kpi?.totalCanjes ?? "—", subtitle: "histórico", accent: "#52525b", icon: ShoppingBag },
-          { label: "COINS CIRC.", value: kpi?.coinsEnCirculacion ?? "—", subtitle: "en circulación", accent: "#6C0606", icon: Coins },
-          { label: "USUARIOS", value: kpi?.usuariosConCoins ?? "—", subtitle: "con saldo", accent: "#15803d", icon: Users },
-          { label: "EN CATÁLOGO", value: loading ? "—" : items.length, subtitle: "recompensas", accent: "#6C0606", icon: Gift },
+          { label: "TOTAL CANJES", value: kpi?.totalCanjes ?? "—", subtitle: "histórico", icon: ShoppingBag },
+          { label: "COINS CIRC.", value: kpi?.coinsEnCirculacion ?? "—", subtitle: "en circulación", icon: Coins },
+          { label: "USUARIOS", value: kpi?.usuariosConCoins ?? "—", subtitle: "con saldo", icon: Users },
+          { label: "EN CATÁLOGO", value: loading ? "—" : items.length, subtitle: "recompensas", icon: Gift },
         ]}
       />
 

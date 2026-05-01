@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { GroupedSection } from "@/components/dashboard/GroupedSection";
 
@@ -171,35 +171,33 @@ export default function TiposVehiculoPage() {
 
   return (
     <div className="flex flex-col gap-3 animate-fade-in">
-      <DashboardHero
-        kicker="Panel municipal"
-        rfCode="RF-04"
+      <PageHeader
+        kicker="Panel municipal · RF-04"
         title="Tipos de vehículo"
-        pills={[
-          { label: "Activos", value: totalActive },
-          { label: "Predefinidos", value: predefActive },
-          { label: "Personalizados", value: customs.length },
-        ]}
+        subtitle={`${totalActive} activos · ${predefActive} predefinidos · ${customs.length} personalizados`}
+        action={
+          <Link href="/tipos-vehiculo/nuevo">
+            <button style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              height: 36, padding: "0 14px", borderRadius: 9,
+              border: "none", background: "#18181b", color: "#fff",
+              fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+            }}>
+              <Plus size={14} />Nuevo tipo
+            </button>
+          </Link>
+        }
       />
 
       <KPIStrip
         cols={4}
         items={[
-          { label: "ACTIVOS", value: totalActive, subtitle: "en uso", accent: "#15803d", icon: Car },
-          { label: "PREDEFINIDOS", value: predefActive, subtitle: `de ${PREDEFINED.length} disponibles`, accent: "#6C0606", icon: Boxes },
-          { label: "PERSONALIZADOS", value: customs.length, subtitle: "creados por la municipalidad", accent: "#0A1628", icon: Sparkles },
-          { label: "CON CHECKLIST", value: withChecklist, subtitle: "listos para operar", accent: "#B45309", icon: ListChecks },
+          { label: "ACTIVOS", value: totalActive, subtitle: "en uso", icon: Car },
+          { label: "PREDEFINIDOS", value: predefActive, subtitle: `de ${PREDEFINED.length} disponibles`, icon: Boxes },
+          { label: "PERSONALIZADOS", value: customs.length, subtitle: "creados por la municipalidad", icon: Sparkles },
+          { label: "CON CHECKLIST", value: withChecklist, subtitle: "listos para operar", icon: ListChecks },
         ]}
       />
-
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <Link href="/tipos-vehiculo/nuevo">
-          <Button variant="primary">
-            <Plus size={16} strokeWidth={2} />
-            Nuevo tipo
-          </Button>
-        </Link>
-      </div>
 
       {error && (
         <div
@@ -247,7 +245,18 @@ export default function TiposVehiculoPage() {
                       {p.description}
                     </p>
                   </div>
-                  {isActive && <Badge variant="activo">Activo</Badge>}
+                  {isActive && (
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      padding: "2px 9px", borderRadius: 6,
+                      background: "#fff", color: "#18181b", border: "1px solid #e4e4e7",
+                      fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
+                      textTransform: "uppercase",
+                    }}>
+                      <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#15803d", flexShrink: 0 }} />
+                      Activo
+                    </span>
+                  )}
                 </div>
                 <div style={{ marginTop: 16, display: "flex", gap: 8, alignItems: "center" }}>
                   <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
@@ -309,20 +318,38 @@ export default function TiposVehiculoPage() {
                 href={`/tipos-vehiculo/${t.id}`}
                 style={{ textDecoration: "none" }}
               >
-                <Card accent={t.active ? "gold" : "default"} className="feature-card">
+                <Card accent="default" className="feature-card">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                    <h3
-                      style={{
-                        fontFamily: "var(--font-inter)",
-                        fontSize: "1.0625rem",
-                        fontWeight: 700,
-                        color: "#09090b",
-                        margin: 0,
-                      }}
-                    >
-                      {t.name}
-                    </h3>
-                    <Badge variant="gold">Personalizado</Badge>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                      <span
+                        title={t.active ? "Activo" : "Inactivo"}
+                        style={{
+                          width: 7, height: 7, borderRadius: "50%",
+                          background: t.active ? "#15803d" : "#a1a1aa",
+                          flexShrink: 0,
+                        }}
+                      />
+                      <h3
+                        style={{
+                          fontFamily: "var(--font-inter)",
+                          fontSize: "1.0625rem",
+                          fontWeight: 700,
+                          color: "#09090b",
+                          margin: 0,
+                        }}
+                      >
+                        {t.name}
+                      </h3>
+                    </div>
+                    <span style={{
+                      display: "inline-flex", alignItems: "center",
+                      padding: "2px 8px", borderRadius: 6,
+                      background: "#fff", color: "#52525b", border: "1px solid #e4e4e7",
+                      fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.04em",
+                      textTransform: "uppercase",
+                    }}>
+                      Personalizado
+                    </span>
                   </div>
                   <p style={{ color: "#52525b", fontSize: "0.8125rem", marginTop: 10, lineHeight: 1.5 }}>
                     {t.description || "Sin descripción."}

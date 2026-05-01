@@ -161,9 +161,29 @@ export default function EditarTipoVehiculoPage({ params }: Props) {
         }
       />
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        {vt.isCustom ? <Badge variant="gold">Personalizado</Badge> : <Badge variant="info">Predefinido</Badge>}
-        {vt.active ? <Badge variant="activo">Activo</Badge> : <Badge variant="inactivo">Inactivo</Badge>}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <span style={{
+          display: "inline-flex", alignItems: "center",
+          padding: "3px 10px", borderRadius: 6,
+          background: "#fff", color: "#18181b", border: "1px solid #e4e4e7",
+          fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
+          textTransform: "uppercase",
+        }}>
+          {vt.isCustom ? "Personalizado" : "Predefinido"}
+        </span>
+        <span style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          padding: "3px 10px", borderRadius: 6,
+          background: "#fff", color: "#18181b", border: "1px solid #e4e4e7",
+          fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
+          textTransform: "uppercase",
+        }}>
+          <span style={{
+            width: 6, height: 6, borderRadius: "50%",
+            background: vt.active ? "#15803d" : "#a1a1aa", flexShrink: 0,
+          }} />
+          {vt.active ? "Activo" : "Inactivo"}
+        </span>
       </div>
 
       {error && (

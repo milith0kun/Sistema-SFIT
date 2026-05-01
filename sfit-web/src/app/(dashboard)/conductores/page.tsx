@@ -282,9 +282,9 @@ export default function ConductoresPage() {
 
       <KPIStrip cols={4} items={[
         { label: "TOTAL REGISTRADOS", value: loading ? "—" : total, subtitle: "conductores", icon: Users },
-        { label: "APTOS AHORA", value: loading ? "—" : (counts.apto ?? 0), subtitle: "operativos", icon: Check, accent: APTO },
-        { label: "EN RIESGO", value: loading ? "—" : (counts.riesgo ?? 0), subtitle: "fatiga acumulada", icon: Gauge, accent: RIESGO },
-        { label: "NO APTOS", value: loading ? "—" : (counts.no_apto ?? 0), subtitle: "sin acceso", icon: AlertTriangle, accent: NO },
+        { label: "APTOS AHORA", value: loading ? "—" : (counts.apto ?? 0), subtitle: "operativos", icon: Check },
+        { label: "EN RIESGO", value: loading ? "—" : (counts.riesgo ?? 0), subtitle: "fatiga acumulada", icon: Gauge },
+        { label: "NO APTOS", value: loading ? "—" : (counts.no_apto ?? 0), subtitle: "sin acceso", icon: AlertTriangle },
       ]} />
 
       {error && (
