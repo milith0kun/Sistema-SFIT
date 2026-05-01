@@ -114,6 +114,7 @@ class SfitSidebar extends ConsumerWidget {
             ]),
             _NavSection(label: 'Acciones', items: [
               _NavItem(icon: Icons.campaign_outlined, label: 'Reportar', slug: 'reportar'),
+              _NavItem(icon: Icons.directions_bus_outlined, label: 'Buses en vivo', route: '/buses-en-vivo'),
               _NavItem(icon: Icons.qr_code_scanner_outlined, label: 'Escanear QR', route: '/qr'),
             ]),
             _NavSection(label: 'Mi actividad', items: [
@@ -147,6 +148,7 @@ class SfitSidebar extends ConsumerWidget {
               _NavItem(icon: Icons.local_shipping_outlined, label: 'Flota', slug: 'flota'),
               _NavItem(icon: Icons.groups_2_outlined, label: 'Conductores', slug: 'conductores'),
               _NavItem(icon: Icons.directions_car_outlined, label: 'Vehículos', slug: 'vehiculos'),
+              _NavItem(icon: Icons.route_outlined, label: 'Rutas', slug: 'rutas'),
               _NavItem(icon: Icons.bar_chart_outlined, label: 'Análisis', slug: 'analisis'),
             ]),
             _NavSection(label: 'Mi cuenta', items: [

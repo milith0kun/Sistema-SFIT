@@ -270,7 +270,7 @@ class _TripCheckinPageState extends ConsumerState<TripCheckinPage> {
         routeId: routeId,
       );
       if (mounted) {
-        context.go('/home');
+        context.go('/home?tab=mapa');
       }
     } catch (e) {
       if (mounted) {

@@ -356,11 +356,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             label: 'Rutas',
             icon: Icons.route_outlined,
             iconFilled: Icons.route,
-            page: _RolePlaceholder(
-              kicker: 'Operación',
-              title: 'Rutas y Trazados',
-              subtitle: 'Gestión de recorridos autorizados.',
-            ),
+            page: MyRoutesPage(),
           ),
           const _Tab(
             slug: 'perfil',

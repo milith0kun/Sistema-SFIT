@@ -27,11 +27,13 @@ import '../../features/operator/presentation/pages/nuevo_conductor_page.dart';
 import '../../features/operator/presentation/pages/nuevo_vehiculo_page.dart';
 import '../../features/vista_publica/presentation/pages/vehicle_public_page.dart';
 import '../../features/trips/presentation/pages/route_detail_page.dart';
+import '../../features/trips/presentation/pages/route_edit_page.dart';
 import '../../features/rewards/presentation/pages/ranking_page.dart';
 import '../../features/feed/data/models/feed_report_model.dart';
 import '../../features/feed/presentation/pages/feed_detail_page.dart';
 import '../../features/reports/presentation/pages/mis_reportes_page.dart';
 import '../../features/reports/presentation/pages/submit_report_page.dart';
+import '../../features/live_bus/presentation/pages/live_bus_map_page.dart';
 
 part 'app_router.g.dart';
 
@@ -217,6 +219,21 @@ GoRouter router(Ref ref) {
 
       // ── RF-16: Ranking de ciudadanos ──────────────────────────
       GoRoute(path: '/ranking', builder: (_, __) => const RankingPage()),
+
+      // ── RF-09: Edición de ruta (operador) ─────────────────────
+      GoRoute(
+        path: '/ruta-editar',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return RouteEditPage(
+            routeId: extra['routeId'] as String,
+            routeName: extra['routeName'] as String? ?? 'Ruta',
+          );
+        },
+      ),
+
+      // ── Buses en vivo (ciudadano) ─────────────────────────────
+      GoRoute(path: '/buses-en-vivo', builder: (_, __) => const LiveBusMapPage()),
 
       // ── RF-12: Historial de mis reportes (ciudadano) ──────────
       GoRoute(path: '/mis-reportes', builder: (_, __) => const MisReportesPage()),

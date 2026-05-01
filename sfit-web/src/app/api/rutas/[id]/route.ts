@@ -72,8 +72,40 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!route) return apiNotFound("Ruta no encontrada");
   if (!(await canAccessMunicipality(auth.session, String(route.municipalityId)))) return apiForbidden();
 
+  // Operador: solo puede editar rutas asignadas a su empresa
+  if (auth.session.role === ROLES.OPERADOR) {
+    const { Driver } = await import("@/models/Driver");
+    const driver = await Driver.findOne({ userId: auth.session.userId }).select("companyId").lean();
+    const driverCompanyId = driver && typeof driver === "object" && "companyId" in driver
+      ? String(driver.companyId) : null;
+    if (!driverCompanyId || !route.companyId || driverCompanyId !== String(route.companyId)) {
+      return apiForbidden("No puedes editar rutas de otra empresa");
+    }
+  }
+
   Object.assign(route, parsed.data);
   await route.save();
+
+  // Auditoría de edición
+  try {
+    const { logAuditRaw } = await import("@/lib/audit/log");
+    await logAuditRaw(
+      request,
+      {
+        actorId: auth.session.userId,
+        actorRole: auth.session.role,
+        municipalityId: auth.session.municipalityId,
+        provinceId: auth.session.provinceId,
+      },
+      {
+        action: "route.update",
+        resourceType: "route",
+        resourceId: String(route._id),
+        metadata: { updatedFields: Object.keys(parsed.data) },
+      },
+    );
+  } catch { /* silent — audit failure must not block the response */ }
+
   return apiResponse({ id: String(route._id), ...route.toObject() });
 }
 
