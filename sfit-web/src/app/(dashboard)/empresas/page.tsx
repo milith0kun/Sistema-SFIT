@@ -3,11 +3,25 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Truck, Star, ChevronRight } from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
+import { Plus, Truck, Star, ChevronRight, Car } from "lucide-react";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
+
+// Tokens (mismos que el resto del dashboard)
+const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a";
+const INK6 = "#52525b"; const INK9 = "#18181b";
+
+/**
+ * Convierte un key técnico (snake_case) a un label humano legible.
+ * "limpieza_residuos" → "Limpieza residuos"
+ * "municipal_general" → "Municipal general"
+ */
+function humanizeKey(key: string): string {
+  if (!key) return "";
+  const cleaned = key.replace(/_/g, " ").trim().toLowerCase();
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
 
 type Company = {
   id: string;
@@ -25,10 +39,10 @@ type StoredUser = { role: string };
 
 const ALLOWED_ROLES = ["admin_municipal", "fiscal", "admin_provincial", "super_admin"];
 
-function repColor(score: number): { bg: string; color: string; border: string; label: string } {
-  if (score >= 80) return { bg: "#F0FDF4", color: "#15803d", border: "#86EFAC", label: "Alta" };
-  if (score >= 50) return { bg: "#FFFBEB", color: "#b45309", border: "#FCD34D", label: "Media" };
-  return { bg: "#FFF5F5", color: "#DC2626", border: "#FCA5A5", label: "Baja" };
+function repColor(score: number): string {
+  if (score >= 80) return "#15803d";
+  if (score >= 50) return "#b45309";
+  return "#DC2626";
 }
 
 const selectStyle: React.CSSProperties = {
@@ -155,18 +169,24 @@ export default function EmpresasPage() {
       },
       {
         id: "flota",
-        header: "Flota",
+        header: "Tipos de vehículo",
         enableSorting: false,
-        accessorFn: (c) => c.vehicleTypeKeys.map((k) => typeMap.get(k) ?? k).join(" "),
+        accessorFn: (c) => c.vehicleTypeKeys.map((k) => typeMap.get(k) ?? humanizeKey(k)).join(" "),
         cell: ({ row: r }) => (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
             {r.original.vehicleTypeKeys.length === 0 ? (
-              <span style={{ color: "#a1a1aa", fontSize: "0.8125rem" }}>—</span>
+              <span style={{ color: INK5, fontSize: "0.8125rem" }}>—</span>
             ) : (
               r.original.vehicleTypeKeys.map((k) => (
-                <Badge key={k} variant="info">
-                  {typeMap.get(k) ?? k}
-                </Badge>
+                <span key={k} style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  padding: "2px 8px", borderRadius: 5,
+                  background: "#fff", border: `1px solid ${INK2}`, color: INK9,
+                  fontSize: "0.6875rem", fontWeight: 600,
+                }}>
+                  <Car size={10} color={INK6} />
+                  {typeMap.get(k) ?? humanizeKey(k)}
+                </span>
               ))
             )}
           </div>
@@ -177,25 +197,27 @@ export default function EmpresasPage() {
         header: "Reputación",
         accessorFn: (c) => c.reputationScore,
         cell: ({ row: r }) => {
-          const s = repColor(r.original.reputationScore);
+          const score = r.original.reputationScore;
+          const color = repColor(score);
           return (
-            <span
-              className="num"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "3px 10px",
-                borderRadius: 999,
-                background: s.bg,
-                color: s.color,
-                border: `1px solid ${s.border}`,
-                fontSize: "0.8125rem",
-                fontWeight: 700,
-              }}
-            >
-              {r.original.reputationScore}
-            </span>
+            <div style={{ minWidth: 90 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 4 }}>
+                <span style={{
+                  fontFamily: "ui-monospace,monospace", fontWeight: 800,
+                  fontSize: "0.875rem", color: INK9,
+                  fontVariantNumeric: "tabular-nums",
+                }}>
+                  {score}
+                </span>
+                <span style={{ fontSize: "0.625rem", color: INK5, fontWeight: 500 }}>/ 100</span>
+              </div>
+              <div style={{ height: 4, background: INK1, borderRadius: 999, overflow: "hidden" }}>
+                <div style={{
+                  height: "100%", width: `${Math.max(0, Math.min(100, score))}%`,
+                  background: color, borderRadius: 999,
+                }} />
+              </div>
+            </div>
           );
         },
       },
@@ -203,7 +225,11 @@ export default function EmpresasPage() {
         id: "_nav",
         header: "",
         enableSorting: false,
-        cell: () => <ChevronRight size={15} color="#a1a1aa"/>,
+        cell: () => (
+          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", color: INK5 }}>
+            <ChevronRight size={14} />
+          </span>
+        ),
       },
     ],
     [typeMap]
@@ -228,7 +254,7 @@ export default function EmpresasPage() {
   const toolbarEnd = (
     <>
       <select style={selectStyle} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-        <option value="">Todas las flotas</option>
+        <option value="">Todos los tipos</option>
         {types.filter((t) => t.active).map((t) => (
           <option key={t.id} value={t.key}>{t.name}</option>
         ))}
@@ -251,7 +277,7 @@ export default function EmpresasPage() {
         cols={2}
         items={[
           { label: "EMPRESAS", value: items.length, subtitle: "registradas", icon: Truck },
-          { label: "REPUTACIÓN", value: repAvg, subtitle: "promedio flota", icon: Star },
+          { label: "REPUTACIÓN", value: repAvg, subtitle: "promedio del catálogo", icon: Star },
         ]}
       />
 

@@ -61,6 +61,13 @@ function scoreColor(s: number): { color: string; bg: string; bd: string } {
   return { color: RED, bg: RED_BG, bd: RED_BD };
 }
 
+/** Convierte una key técnica (snake_case) en un label legible. */
+function humanizeKey(key: string): string {
+  if (!key) return "";
+  const cleaned = key.replace(/_/g, " ").trim().toLowerCase();
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
 interface Props { params: Promise<{ id: string }> }
 
 export default function EmpresaDetallePage({ params }: Props) {
@@ -80,6 +87,7 @@ export default function EmpresaDetallePage({ params }: Props) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<"suspend" | "reactivate" | null>(null);
   const [toggling, setToggling] = useState(false);
+  const [togglingType, setTogglingType] = useState<string | null>(null);
 
   // Validación RUC (SUNAT)
   const [rucLookup, setRucLookup] = useState<RucLookup>({ state: "idle" });
@@ -279,6 +287,31 @@ export default function EmpresaDetallePage({ params }: Props) {
       setCompany(data.data);
     } catch { setError("Error de conexión."); }
     finally { setToggling(false); setConfirm(null); }
+  }
+
+  /** Agrega o quita un tipo de vehículo del catálogo autorizado de la empresa. */
+  async function toggleVehicleType(key: string) {
+    if (!company) return;
+    const current = company.vehicleTypeKeys ?? [];
+    const next = current.includes(key)
+      ? current.filter(k => k !== key)
+      : [...current, key];
+    setTogglingType(key); setError(null);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/empresas/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ vehicleTypeKeys: next }),
+      });
+      if (res.status === 401) return router.replace("/login");
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error ?? "No se pudo actualizar la flota."); return;
+      }
+      setCompany(data.data);
+    } catch { setError("Error de conexión."); }
+    finally { setTogglingType(null); }
   }
 
   const backBtnPlain = (
@@ -707,33 +740,125 @@ export default function EmpresaDetallePage({ params }: Props) {
             </div>
           </SectionCard>
 
-          {/* ── Flota autorizada ── */}
+          {/* ── Tipos de vehículo autorizados ── */}
           <SectionCard
             icon={<Car size={14} color={INK6} />}
-            title="Flota autorizada"
-            subtitle={`${company.vehicleTypeKeys.length} tipo${company.vehicleTypeKeys.length === 1 ? "" : "s"} de vehículo`}
+            title="Tipos de vehículo autorizados"
+            subtitle={canManage
+              ? "Marca los tipos que esta empresa puede operar"
+              : `${company.vehicleTypeKeys.length} tipo${company.vehicleTypeKeys.length === 1 ? "" : "s"} autorizado${company.vehicleTypeKeys.length === 1 ? "" : "s"}`}
           >
-            {company.vehicleTypeKeys.length === 0 ? (
-              <EmptyBlock
-                icon={<Car size={20} color={INK5} strokeWidth={1.5} />}
-                title="Sin tipos asignados"
-                subtitle="No se han autorizado tipos de vehículo para esta empresa."
-              />
-            ) : (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {company.vehicleTypeKeys.map(k => (
-                  <span key={k} style={{
-                    display: "inline-flex", alignItems: "center", gap: 4,
-                    padding: "4px 10px", borderRadius: 6,
-                    background: INK1, border: `1px solid ${INK2}`, color: INK9,
-                    fontSize: "0.75rem", fontWeight: 600,
-                  }}>
-                    <Car size={11} color={INK6} />
-                    {typeMap.get(k) ?? k}
-                  </span>
-                ))}
-              </div>
-            )}
+            {(() => {
+              const selected = new Set(company.vehicleTypeKeys);
+              const catalogKeys = new Set(types.map(t => t.key));
+              // Tipos que la empresa tiene pero ya no están en el catálogo activo:
+              // los mostramos igual, marcados como obsoletos, para no perder la trazabilidad.
+              const orphanKeys = company.vehicleTypeKeys.filter(k => !catalogKeys.has(k));
+
+              if (!canManage) {
+                // Vista de solo lectura para roles sin permisos de gestión
+                if (company.vehicleTypeKeys.length === 0) {
+                  return (
+                    <EmptyBlock
+                      icon={<Car size={20} color={INK5} strokeWidth={1.5} />}
+                      title="Sin tipos asignados"
+                      subtitle="No se han autorizado tipos de vehículo para esta empresa."
+                    />
+                  );
+                }
+                return (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {company.vehicleTypeKeys.map(k => (
+                      <span key={k} style={{
+                        display: "inline-flex", alignItems: "center", gap: 5,
+                        padding: "4px 10px", borderRadius: 6,
+                        background: INK1, border: `1px solid ${INK2}`, color: INK9,
+                        fontSize: "0.75rem", fontWeight: 600,
+                      }}>
+                        <Car size={11} color={INK6} />
+                        {typeMap.get(k) ?? humanizeKey(k)}
+                      </span>
+                    ))}
+                  </div>
+                );
+              }
+
+              // Vista interactiva: toggle por chip
+              if (types.length === 0 && company.vehicleTypeKeys.length === 0) {
+                return (
+                  <EmptyBlock
+                    icon={<Car size={20} color={INK5} strokeWidth={1.5} />}
+                    title="Catálogo vacío"
+                    subtitle="Aún no hay tipos de vehículo en el catálogo de la municipalidad."
+                  />
+                );
+              }
+              return (
+                <>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {types.map(t => {
+                      const isOn = selected.has(t.key);
+                      const loading = togglingType === t.key;
+                      return (
+                        <button
+                          key={t.key}
+                          type="button"
+                          onClick={() => { void toggleVehicleType(t.key); }}
+                          disabled={loading}
+                          aria-pressed={isOn}
+                          style={{
+                            display: "inline-flex", alignItems: "center", gap: 6,
+                            padding: "5px 11px", borderRadius: 6,
+                            background: isOn ? INK9 : "#fff",
+                            color: isOn ? "#fff" : INK6,
+                            border: `1px solid ${isOn ? INK9 : INK2}`,
+                            fontSize: "0.75rem", fontWeight: 600,
+                            cursor: loading ? "not-allowed" : "pointer",
+                            opacity: loading ? 0.6 : 1,
+                            fontFamily: "inherit", transition: "background 120ms, color 120ms, border-color 120ms",
+                          }}
+                        >
+                          {loading
+                            ? <Loader2 size={11} style={{ animation: "spin 0.7s linear infinite" }} />
+                            : isOn ? <Check size={11} /> : <Plus size={11} />}
+                          {t.name}
+                        </button>
+                      );
+                    })}
+                    {orphanKeys.map(k => {
+                      const loading = togglingType === k;
+                      return (
+                        <button
+                          key={k}
+                          type="button"
+                          onClick={() => { void toggleVehicleType(k); }}
+                          disabled={loading}
+                          title="Tipo fuera del catálogo activo — clic para quitar"
+                          style={{
+                            display: "inline-flex", alignItems: "center", gap: 6,
+                            padding: "5px 11px", borderRadius: 6,
+                            background: WARN_BG, color: WARN,
+                            border: `1px dashed ${WARN_BD}`,
+                            fontSize: "0.75rem", fontWeight: 600,
+                            cursor: loading ? "not-allowed" : "pointer",
+                            opacity: loading ? 0.6 : 1,
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          {loading
+                            ? <Loader2 size={11} style={{ animation: "spin 0.7s linear infinite" }} />
+                            : <X size={11} />}
+                          {humanizeKey(k)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div style={{ marginTop: 10, fontSize: "0.6875rem", color: INK5, lineHeight: 1.5 }}>
+                    Cada cambio se guarda automáticamente. Los chips negros están autorizados; los blancos disponibles para agregar.
+                  </div>
+                </>
+              );
+            })()}
           </SectionCard>
 
           {/* ── Documentos ── */}
