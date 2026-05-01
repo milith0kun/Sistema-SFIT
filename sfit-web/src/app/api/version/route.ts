@@ -28,13 +28,14 @@ export async function GET() {
 
       // ── Novedades mostradas en el diálogo ────────────────────
       // Dejar vacío ("") para no mostrar la sección de novedades
-      releaseNotes:
-          "• Buses en vivo: ve dónde está cada bus de tu ciudad en tiempo real.\n"
-          "• Conductor: al iniciar tu turno se abre el mapa con la ruta y paraderos.\n"
-          "• Detalle de ruta con mini-mapa interactivo y lista de paradas.\n"
-          "• Operadores pueden editar rutas desde el app.\n"
-          "• Imágenes de evidencia ahora cargan correctamente.\n"
-          "• Mejoras en el inicio con Google y carga más rápida.",
+      releaseNotes: [
+        "• Buses en vivo: ve dónde está cada bus de tu ciudad en tiempo real.",
+        "• Conductor: al iniciar tu turno se abre el mapa con la ruta y paraderos.",
+        "• Detalle de ruta con mini-mapa interactivo y lista de paradas.",
+        "• Operadores pueden editar rutas desde el app.",
+        "• Imágenes de evidencia ahora cargan correctamente.",
+        "• Mejoras en el inicio con Google y carga más rápida.",
+      ].join("\n"),
     },
   });
 }
