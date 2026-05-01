@@ -567,6 +567,16 @@ body {
   [style*="1.4fr 1fr"] { grid-template-columns: 1fr !important; }
   [style*="1.5fr 1fr"] { grid-template-columns: 1fr !important; }
   [style*="1fr 1.5fr"] { grid-template-columns: 1fr !important; }
+  /* Sidebar fijo de detalle (1fr 320px / 1fr 280px / etc.) → stack */
+  [style*="1fr 320px"] { grid-template-columns: 1fr !important; }
+  [style*="1fr 300px"] { grid-template-columns: 1fr !important; }
+  [style*="1fr 280px"] { grid-template-columns: 1fr !important; }
+  [style*="1fr 260px"] { grid-template-columns: 1fr !important; }
+  /* Grids de 3 cols con números/inputs (form edición) → 2 cols en tablet */
+  [style*="1fr 1fr 1fr"] { grid-template-columns: repeat(2, 1fr) !important; }
+  /* Grids específicos del super_admin con 3 columnas asimétricas */
+  [style*="1fr 2fr"] { grid-template-columns: 1fr !important; }
+  [style*="1fr 1fr 2fr"] { grid-template-columns: 1fr !important; }
 }
 @media (max-width: 640px) {
   /* KPI strips */
@@ -577,8 +587,37 @@ body {
   /* Chart panels 2 cols */
   [style*="1.5fr 1fr"] { grid-template-columns: 1fr !important; }
   [style*="1fr 1fr"]   { grid-template-columns: 1fr !important; }
+  /* Form 3-col grids → 1 col en móvil pequeño */
+  [style*="1fr 1fr 1fr"] { grid-template-columns: 1fr !important; gap: 12px !important; }
   /* Form 2-col grids */
   [style*="gridColumn: \"1 / -1\""] { grid-column: 1 / -1; }
+  /* Modales: forzar viewport-relative para que el contenido sea scrolleable */
+  [style*="maxWidth: 540"],
+  [style*="maxWidth: 520"],
+  [style*="maxWidth: 600"],
+  [style*="maxWidth: 720"] {
+    max-width: calc(100vw - 24px) !important;
+    max-height: calc(100vh - 32px) !important;
+    overflow-y: auto !important;
+  }
+  /* Position sticky → relative en mobile (los aside-detail no deben quedarse pegados) */
+  .sfit-mobile-unsticky,
+  [data-mobile-unsticky="true"] {
+    position: relative !important;
+    top: auto !important;
+  }
+}
+
+/* ── Toolbars con muchos elementos: forzar wrap en mobile ── */
+@media (max-width: 640px) {
+  .sfit-toolbar {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  .sfit-toolbar > * {
+    flex-grow: 1;
+    min-width: 0;
+  }
 }
 @media (max-width: 768px) {
   /* Stat numbers smaller */
