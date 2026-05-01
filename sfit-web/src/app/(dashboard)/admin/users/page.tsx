@@ -80,12 +80,33 @@ export default function AdminUsersPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem("sfit_access_token");
-      const res = await fetch("/api/users/pending", {
+      // Endpoint unificado: el listado scoped + filtro por status pendiente.
+      const res = await fetch("/api/admin/usuarios?status=pendiente&limit=100", {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Error al cargar solicitudes"); return; }
-      setUsers(data.data.users);
+      // El endpoint devuelve { items: [...] } con el shape extendido; lo
+      // mapeamos a PendingUser para no tocar el resto de la UI.
+      type AdminUserItem = {
+        id: string;
+        name: string;
+        email: string;
+        image?: string | null;
+        requestedRole?: string;
+        requestMessage?: string;
+        createdAt: string;
+      };
+      const items: AdminUserItem[] = data.data?.items ?? [];
+      setUsers(items.map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        image: u.image ?? undefined,
+        requestedRole: u.requestedRole ?? "ciudadano",
+        requestMessage: u.requestMessage,
+        createdAt: u.createdAt,
+      })));
       setError(null);
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
@@ -136,21 +157,23 @@ export default function AdminUsersPage() {
 
   async function handleAction() {
     if (!selectedId) return;
-    if (action === "reject" && !rejectReason.trim()) {
-      setActionError("Indica el motivo del rechazo.");
+    if (action === "reject" && rejectReason.trim().length < 5) {
+      setActionError("Indica el motivo del rechazo (mínimo 5 caracteres).");
       return;
     }
     setProcessing(true); setActionError(null);
     try {
       const token = localStorage.getItem("sfit_access_token");
-      const res = await fetch(`/api/users/${selectedId}/${action}`, {
-        method: "POST",
+      // Endpoint unificado: PATCH cambia status (activo/rechazado) y, en
+      // caso de aprobar, asigna el rol final. En caso de rechazar incluye
+      // rejectionReason que el backend exige.
+      const body = action === "approve"
+        ? { status: "activo", role: assignedRole }
+        : { status: "rechazado", rejectionReason: rejectReason.trim() };
+      const res = await fetch(`/api/admin/usuarios/${selectedId}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(
-          action === "approve"
-            ? { role: assignedRole }
-            : { reason: rejectReason.trim() }
-        ),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) { setActionError(data.error ?? "Error al procesar la solicitud"); return; }

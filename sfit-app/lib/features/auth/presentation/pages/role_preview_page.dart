@@ -130,7 +130,7 @@ class _RolePreviewPageState extends ConsumerState<RolePreviewPage> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Entrar como',
+                'Vista por rol',
                 style: AppTheme.inter(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
@@ -140,7 +140,7 @@ class _RolePreviewPageState extends ConsumerState<RolePreviewPage> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Elige el rol con el que quieres revisar la app. Podrás volver a tu sesión de super admin desde el perfil.',
+                'Sigues siendo tú — la app se adapta al rol que elijas para revisar la experiencia. Podrás volver desde la sidebar.',
                 style: AppTheme.inter(
                   fontSize: 13,
                   color: AppColors.ink5,

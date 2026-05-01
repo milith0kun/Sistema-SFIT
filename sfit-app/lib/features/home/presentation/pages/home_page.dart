@@ -7,6 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/sfit_mark.dart';
 import '../../../../core/widgets/sfit_sidebar.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../../../auth/domain/entities/user_entity.dart';
 import '../../../auth/presentation/pages/role_preview_page.dart';
 import '../../../auth/presentation/pages/widgets/status_screen.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -160,39 +161,66 @@ class _HomePageState extends ConsumerState<HomePage> {
         },
       ),
       appBar: AppBar(
-        toolbarHeight: 60,
+        toolbarHeight: 62,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        shape: const Border(bottom: BorderSide(color: AppColors.ink2, width: 1)),
         title: Row(
           children: [
-            const SfitMark(size: 32),
+            const SfitMark(size: 30),
             const SizedBox(width: 10),
-            Text(
-              activeTab.label,
-              style: AppTheme.inter(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: AppColors.ink9,
-                letterSpacing: -0.3,
+            Container(width: 1, height: 18, color: AppColors.ink2),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                activeTab.label,
+                overflow: TextOverflow.ellipsis,
+                style: AppTheme.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink9,
+                  letterSpacing: -0.3,
+                ),
               ),
             ),
           ],
         ),
         actions: [
+          // Notificaciones
           IconButton(
             tooltip: 'Notificaciones',
             icon: Badge(
+              backgroundColor: AppColors.primary,
               isLabelVisible: _unreadNotifCount > 0,
               label: Text(
                 _unreadNotifCount > 99 ? '99+' : '$_unreadNotifCount',
-                style: const TextStyle(fontSize: 10),
+                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
               ),
-              child: const Icon(Icons.notifications_outlined),
+              child: const Icon(Icons.notifications_outlined, size: 22, color: AppColors.ink8),
             ),
             onPressed: () async {
               await context.push('/notificaciones');
               if (mounted) _loadUnreadCount();
             },
           ),
-          const SizedBox(width: 6),
+          // Avatar / menú de cuenta
+          _AccountMenu(
+            user: user,
+            roleLabel: _roleLabel(user.role),
+            onMyProfile: () {
+              final i = tabs.indexWhere((t) => t.slug == 'perfil');
+              if (i >= 0) {
+                setState(() {
+                  _index = i;
+                  _visitedTabs.add(i);
+                });
+              }
+            },
+            onLogout: () => ref.read(authProvider.notifier).logout(),
+          ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Column(
@@ -486,6 +514,184 @@ class _Tab {
     required this.slug,
     this.iconFilled,
   });
+}
+
+/// Avatar circular en el AppBar que abre un popup con el header de cuenta
+/// (nombre + email + pill de rol), acceso rápido a "Mi perfil" y
+/// "Cerrar sesión". Espejo del patrón de la sidebar web.
+class _AccountMenu extends StatelessWidget {
+  final UserEntity user;
+  final String roleLabel;
+  final VoidCallback onMyProfile;
+  final VoidCallback onLogout;
+
+  const _AccountMenu({
+    required this.user,
+    required this.roleLabel,
+    required this.onMyProfile,
+    required this.onLogout,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final name = user.name;
+    final email = user.email;
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+
+    return PopupMenuButton<String>(
+      tooltip: 'Cuenta',
+      offset: const Offset(0, 48),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: Colors.white,
+      surfaceTintColor: Colors.white,
+      elevation: 8,
+      icon: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: AppColors.primaryBg,
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.primaryBorder, width: 1),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          initial,
+          style: AppTheme.inter(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppColors.primary,
+          ),
+        ),
+      ),
+      onSelected: (v) {
+        if (v == 'profile') onMyProfile();
+        if (v == 'logout') onLogout();
+      },
+      itemBuilder: (_) => [
+        // Header inerte con info de cuenta
+        PopupMenuItem<String>(
+          enabled: false,
+          padding: EdgeInsets.zero,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            constraints: const BoxConstraints(minWidth: 240),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryBg,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.primaryBorder),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        initial,
+                        style: AppTheme.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            name.isEmpty ? 'Usuario' : name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTheme.inter(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.ink9,
+                            ),
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            email,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTheme.inter(
+                              fontSize: 11.5,
+                              color: AppColors.ink5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryBg,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: AppColors.primaryBorder),
+                  ),
+                  child: Text(
+                    roleLabel.toUpperCase(),
+                    style: AppTheme.inter(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primaryDark,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const PopupMenuDivider(height: 1),
+        PopupMenuItem<String>(
+          value: 'profile',
+          height: 42,
+          child: Row(
+            children: [
+              const Icon(Icons.person_outline, size: 18, color: AppColors.ink7),
+              const SizedBox(width: 10),
+              Text(
+                'Mi perfil',
+                style: AppTheme.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ink8,
+                ),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'logout',
+          height: 42,
+          child: Row(
+            children: [
+              const Icon(Icons.logout_rounded, size: 18, color: AppColors.noApto),
+              const SizedBox(width: 10),
+              Text(
+                'Cerrar sesión',
+                style: AppTheme.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.noApto,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// Placeholder de tab por-rol: mantiene el canon visual (hero + KPI mock +

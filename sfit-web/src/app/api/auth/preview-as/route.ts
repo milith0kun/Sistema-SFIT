@@ -26,17 +26,23 @@ const PreviewAsSchema = z.object({
 /**
  * POST /api/auth/preview-as
  *
- * Permite a un super_admin "entrar como" un usuario activo de uno de los
- * 4 roles operativos del app móvil (ciudadano/conductor/fiscal/operador).
- * Útil para QA y demos: el super_admin selecciona un rol al hacer login
- * en el app móvil y se le devuelven los tokens del primer usuario activo
- * de ese rol.
+ * Permite a un super_admin "entrar como" un rol operativo del app móvil
+ * (ciudadano/conductor/fiscal/operador) usando SU MISMA cuenta. El JWT
+ * resultante mantiene el `userId` del super_admin pero cambia el `role`,
+ * para que las APIs sirvan datos del super_admin filtrados/protegidos
+ * según el rol elegido.
+ *
+ * Importante:
+ *  - NO se actualiza `User.refreshToken` en BD: el refresh original del
+ *    super_admin sigue válido para que pueda revertir el preview con
+ *    sus tokens guardados en el cliente.
+ *  - El refresh del propio token preview NO funcionará en /api/auth/refresh
+ *    (no está persistido). Consecuencia: la sesión preview vive ~2h, lo
+ *    que basta para QA/demo.
  *
  * Seguridad:
  *  - Solo super_admin (validado por JWT del caller).
- *  - Auditado en el log con `action: 'auth.preview_as'` para trazabilidad.
- *  - El cliente debe persistir el accessToken+refreshToken originales
- *    si quiere ofrecer un botón "volver a super admin".
+ *  - Auditado en el log con `action: 'auth.preview_as'`.
  */
 export async function POST(request: NextRequest) {
   const auth = requireRole(request, [ROLES.SUPER_ADMIN]);
@@ -60,61 +66,47 @@ export async function POST(request: NextRequest) {
 
     await connectDB();
 
-    // Tomamos el usuario activo más reciente del rol — los seeds suelen
-    // estar arriba; si no hay sembrados, cualquier real activo sirve.
-    const target = await User.findOne({
-      role,
-      status: USER_STATUS.ACTIVO,
-    })
-      .sort({ createdAt: 1 })
-      .lean();
-
-    if (!target) {
-      return apiError(
-        `No hay usuarios activos con el rol '${role}' para previsualizar`,
-        404,
-      );
+    const me = await User.findById(auth.session.userId).lean();
+    if (!me) return apiError("Usuario no encontrado", 404);
+    if (me.status !== USER_STATUS.ACTIVO) {
+      return apiError("Tu cuenta no está activa", 403);
     }
 
+    // JWT con MI userId + el rol elegido (no impersonamos a otro usuario,
+    // solo cambiamos el rol del propio super_admin).
     const payload = {
-      userId: target._id.toString(),
-      role: target.role,
-      municipalityId: target.municipalityId?.toString(),
-      provinceId: target.provinceId?.toString(),
+      userId: me._id.toString(),
+      role,
+      municipalityId: me.municipalityId?.toString(),
+      provinceId: me.provinceId?.toString(),
     };
-
     const accessToken = signAccessToken(payload);
     const refreshToken = signRefreshToken(payload);
-    const refreshExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    await User.findByIdAndUpdate(target._id, {
-      refreshToken,
-      refreshTokenExpiry: refreshExpiry,
-      lastLoginAt: new Date(),
-    });
-
-    // RNF-16: auditoría de impersonación.
+    // RNF-16: auditoría.
     await logAuditRaw(
       request,
       {
         actorId: auth.session.userId,
         actorRole: auth.session.role,
+        municipalityId: auth.session.municipalityId,
+        provinceId: auth.session.provinceId,
       },
       {
         action: "auth.preview_as",
         resourceType: "user",
-        resourceId: target._id.toString(),
-        metadata: { previewRole: role, targetUserId: target._id.toString() },
+        resourceId: me._id.toString(),
+        metadata: { previewRole: role },
       },
     );
 
-    // Poblar nombres territoriales para que el cliente los muestre.
+    // Poblar nombres territoriales (si los tiene el super_admin).
     let municipalityName: string | null = null;
     let provinceName: string | null = null;
-    if (target.municipalityId) {
+    if (me.municipalityId) {
       try {
         const { Municipality } = await import("@/models/Municipality");
-        const muni = await Municipality.findById(target.municipalityId)
+        const muni = await Municipality.findById(me.municipalityId)
           .select("name")
           .lean();
         if (muni && typeof muni === "object" && "name" in muni) {
@@ -124,10 +116,10 @@ export async function POST(request: NextRequest) {
         /* silent */
       }
     }
-    if (target.provinceId) {
+    if (me.provinceId) {
       try {
         const { Province } = await import("@/models/Province");
-        const prov = await Province.findById(target.provinceId)
+        const prov = await Province.findById(me.provinceId)
           .select("name")
           .lean();
         if (prov && typeof prov === "object" && "name" in prov) {
@@ -143,19 +135,19 @@ export async function POST(request: NextRequest) {
       refreshToken,
       expiresIn: 2 * 60 * 60,
       user: {
-        id: target._id.toString(),
-        name: target.name,
-        email: target.email,
-        image: target.image,
-        role: target.role,
-        status: target.status,
-        municipalityId: target.municipalityId?.toString(),
-        provinceId: target.provinceId?.toString(),
+        id: me._id.toString(),
+        name: me.name,
+        email: me.email,
+        image: me.image,
+        role, // ← rol previsualizado (no super_admin)
+        status: me.status,
+        municipalityId: me.municipalityId?.toString(),
+        provinceId: me.provinceId?.toString(),
         municipalityName,
         provinceName,
-        phone: target.phone ?? null,
-        dni: target.dni ?? null,
-        profileCompleted: target.profileCompleted ?? true,
+        phone: me.phone ?? null,
+        dni: me.dni ?? null,
+        profileCompleted: me.profileCompleted ?? true,
         mustChangePassword: false,
       },
     });
