@@ -28,6 +28,9 @@
 
     <!-- ── Servicio en primer plano — FCM en background ─────────────── -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Forzar remoción de DATA_SYNC inyectado por dependencias de Firebase -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"
+        tools:node="remove" />
 
     <!-- Eliminar ID de publicidad inyectado por dependencias ────────── -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID"
