@@ -116,6 +116,7 @@ export async function GET(request: NextRequest) {
         status: r.status,
         description: r.description,
         evidenceUrl: r.evidenceUrl,
+        imageUrls: r.imageUrls ?? [],
         fraudScore: r.fraudScore,
         fraudLayers: r.fraudLayers,
         createdAt: r.createdAt,

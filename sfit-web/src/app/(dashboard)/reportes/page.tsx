@@ -19,6 +19,7 @@ type Report = {
   status: ReportStatus;
   description: string;
   evidenceUrl?: string;
+  imageUrls?: string[];
   fraudScore: number;
   fraudLayers: FraudLayer[];
   createdAt: string;
@@ -263,26 +264,51 @@ export default function ReportesPage() {
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 999, fontSize: "0.6875rem", fontWeight: 700, background: GBG, color: GD, border: `1px solid ${GBR}` }}>Score {sel.fraudScore}</span>
             </div>
             <div style={{ padding: 18 }}>
-              {sel.evidenceUrl ? (
-                /\.(jpg|jpeg|png|webp|gif|bmp)(\?.*)?$/i.test(sel.evidenceUrl) ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={sel.evidenceUrl}
-                    alt={`Evidencia RC-${sel.id.slice(-6).toUpperCase()}`}
-                    style={{ width: "100%", aspectRatio: "16/9", objectFit: "cover", borderRadius: 10, border: `1px solid ${INK2}` }}
-                  />
-                ) : (
-                  <a href={sel.evidenceUrl} target="_blank" rel="noopener noreferrer" style={{ display: "flex", aspectRatio: "16/9", borderRadius: 10, background: INK1, border: `1px solid ${INK2}`, alignItems: "center", justifyContent: "center", color: INK6, flexDirection: "column", gap: 8, textDecoration: "none" }}>
-                    <Camera size={28} />
-                    <div style={{ fontSize: "0.75rem", fontWeight: 600 }}>Ver evidencia adjunta</div>
-                  </a>
-                )
-              ) : (
-                <div style={{ aspectRatio: "16/9", borderRadius: 10, background: INK1, border: `1px solid ${INK2}`, display: "flex", alignItems: "center", justifyContent: "center", color: INK5, flexDirection: "column", gap: 8 }}>
-                  <Camera size={28} />
-                  <div style={{ fontSize: "0.75rem" }}>Sin evidencia adjunta</div>
-                </div>
-              )}
+              {(() => {
+                // La app móvil envía imageUrls[]; el dashboard antiguo usaba evidenceUrl.
+                // Soportamos ambos: priorizamos imageUrls (puede haber varias fotos),
+                // con fallback a evidenceUrl.
+                const imgs: string[] = sel.imageUrls && sel.imageUrls.length > 0
+                  ? sel.imageUrls
+                  : (sel.evidenceUrl ? [sel.evidenceUrl] : []);
+                if (imgs.length === 0) {
+                  return (
+                    <div style={{ aspectRatio: "16/9", borderRadius: 10, background: INK1, border: `1px solid ${INK2}`, display: "flex", alignItems: "center", justifyContent: "center", color: INK5, flexDirection: "column", gap: 8 }}>
+                      <Camera size={28} />
+                      <div style={{ fontSize: "0.75rem" }}>Sin evidencia adjunta</div>
+                    </div>
+                  );
+                }
+                const first = imgs[0];
+                const isImage = /\.(jpg|jpeg|png|webp|gif|bmp)(\?.*)?$/i.test(first);
+                return (
+                  <div>
+                    {isImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={first}
+                        alt={`Evidencia RC-${sel.id.slice(-6).toUpperCase()}`}
+                        style={{ width: "100%", aspectRatio: "16/9", objectFit: "cover", borderRadius: 10, border: `1px solid ${INK2}` }}
+                      />
+                    ) : (
+                      <a href={first} target="_blank" rel="noopener noreferrer" style={{ display: "flex", aspectRatio: "16/9", borderRadius: 10, background: INK1, border: `1px solid ${INK2}`, alignItems: "center", justifyContent: "center", color: INK6, flexDirection: "column", gap: 8, textDecoration: "none" }}>
+                        <Camera size={28} />
+                        <div style={{ fontSize: "0.75rem", fontWeight: 600 }}>Ver evidencia adjunta</div>
+                      </a>
+                    )}
+                    {imgs.length > 1 && (
+                      <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                        {imgs.slice(1).map((u, i) => (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <a key={i} href={u} target="_blank" rel="noopener noreferrer" style={{ width: 56, height: 56, borderRadius: 7, overflow: "hidden", border: `1px solid ${INK2}`, flexShrink: 0 }}>
+                            <img src={u} alt={`Foto ${i + 2}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               <div style={{ marginTop: 14, padding: 12, background: INK1, borderRadius: 10, fontSize: "0.8125rem", lineHeight: 1.5, color: INK6 }}>&ldquo;{sel.description}&rdquo;</div>
 
               {sel.fraudLayers.length > 0 && (

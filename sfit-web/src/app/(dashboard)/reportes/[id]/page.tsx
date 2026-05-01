@@ -24,6 +24,7 @@ type CitizenReport = {
   status: ReportStatus;
   description: string;
   evidenceUrl?: string;
+  imageUrls?: string[];
   fraudScore: number;
   fraudLayers: FraudLayer[];
   assignedFiscalId?: string;
@@ -389,44 +390,75 @@ export default function ReporteDetallePage({ params }: Props) {
           </SectionCard>
 
           {/* Evidencia */}
-          <SectionCard
-            icon={<Camera size={14} color={INK6} />}
-            title="Evidencia"
-            subtitle={report.evidenceUrl ? "Adjuntada por el ciudadano" : "Sin evidencia"}
-          >
-            {report.evidenceUrl ? (
-              <div>
-                {isImageUrl(report.evidenceUrl) ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={report.evidenceUrl}
-                    alt="Evidencia del reporte"
-                    style={{ width: "100%", maxHeight: 360, objectFit: "contain", borderRadius: 8, border: `1px solid ${INK2}`, background: INK1 }}
-                  />
+          {(() => {
+            // Soporta tanto imageUrls[] (envía la app móvil) como evidenceUrl
+            // (legacy single). Prioriza imageUrls si existe.
+            const imgs: string[] = report.imageUrls && report.imageUrls.length > 0
+              ? report.imageUrls
+              : (report.evidenceUrl ? [report.evidenceUrl] : []);
+            const hasEvidence = imgs.length > 0;
+            return (
+              <SectionCard
+                icon={<Camera size={14} color={INK6} />}
+                title="Evidencia"
+                subtitle={hasEvidence
+                  ? `${imgs.length} archivo${imgs.length !== 1 ? "s" : ""} adjuntado${imgs.length !== 1 ? "s" : ""} por el ciudadano`
+                  : "Sin evidencia"}
+              >
+                {!hasEvidence ? (
+                  <div style={{ padding: "28px 0", textAlign: "center", color: INK5, fontSize: "0.8125rem" }}>
+                    <Camera size={24} style={{ margin: "0 auto 8px", display: "block", color: INK5 }} />
+                    Sin evidencia adjunta
+                  </div>
                 ) : (
-                  <a href={report.evidenceUrl} target="_blank" rel="noopener noreferrer"
-                    style={{
-                      display: "flex", aspectRatio: "16/9", borderRadius: 8,
-                      background: INK1, border: `1px solid ${INK2}`,
-                      alignItems: "center", justifyContent: "center", color: INK6,
-                      flexDirection: "column", gap: 8, textDecoration: "none",
-                    }}>
-                    <Camera size={28} />
-                    <div style={{ fontSize: "0.75rem", fontWeight: 600 }}>Ver evidencia adjunta</div>
-                  </a>
+                  <div>
+                    {/* Imagen principal */}
+                    {isImageUrl(imgs[0]) ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={imgs[0]}
+                        alt="Evidencia del reporte"
+                        style={{ width: "100%", maxHeight: 360, objectFit: "contain", borderRadius: 8, border: `1px solid ${INK2}`, background: INK1 }}
+                      />
+                    ) : (
+                      <a href={imgs[0]} target="_blank" rel="noopener noreferrer"
+                        style={{
+                          display: "flex", aspectRatio: "16/9", borderRadius: 8,
+                          background: INK1, border: `1px solid ${INK2}`,
+                          alignItems: "center", justifyContent: "center", color: INK6,
+                          flexDirection: "column", gap: 8, textDecoration: "none",
+                        }}>
+                        <Camera size={28} />
+                        <div style={{ fontSize: "0.75rem", fontWeight: 600 }}>Ver evidencia adjunta</div>
+                      </a>
+                    )}
+                    {/* Galería de fotos adicionales */}
+                    {imgs.length > 1 && (
+                      <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+                        {imgs.slice(1).map((u, i) => (
+                          <a key={i} href={u} target="_blank" rel="noopener noreferrer"
+                            style={{ width: 72, height: 72, borderRadius: 7, overflow: "hidden", border: `1px solid ${INK2}`, flexShrink: 0 }}>
+                            {isImageUrl(u) ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img src={u} alt={`Foto ${i + 2}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            ) : (
+                              <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: INK1 }}>
+                                <Camera size={20} color={INK6} />
+                              </div>
+                            )}
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                    <a href={imgs[0]} target="_blank" rel="noopener noreferrer"
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 10, color: INK9, fontSize: "0.8125rem", fontWeight: 500, textDecoration: "underline" }}>
+                      <ExternalLink size={12} />Abrir original
+                    </a>
+                  </div>
                 )}
-                <a href={report.evidenceUrl} target="_blank" rel="noopener noreferrer"
-                  style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 10, color: INK9, fontSize: "0.8125rem", fontWeight: 500, textDecoration: "underline" }}>
-                  <ExternalLink size={12} />Abrir original
-                </a>
-              </div>
-            ) : (
-              <div style={{ padding: "28px 0", textAlign: "center", color: INK5, fontSize: "0.8125rem" }}>
-                <Camera size={24} style={{ margin: "0 auto 8px", display: "block", color: INK5 }} />
-                Sin evidencia adjunta
-              </div>
-            )}
-          </SectionCard>
+              </SectionCard>
+            );
+          })()}
 
           {/* Score de fraude (sobrio) */}
           <SectionCard
