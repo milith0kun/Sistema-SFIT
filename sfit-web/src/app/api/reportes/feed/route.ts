@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { isValidObjectId, type PipelineStage } from "mongoose";
+import { Types, isValidObjectId, type PipelineStage } from "mongoose";
 import { connectDB } from "@/lib/db/mongoose";
 import { CitizenReport } from "@/models/CitizenReport";
 import { ReportApoyo } from "@/models/ReportApoyo";
@@ -45,15 +45,18 @@ export async function GET(request: NextRequest) {
       userProvinceId = userProvinceId ?? (me?.provinceId ? String(me.provinceId) : null);
     }
 
-    // Filtro base
-    const filter: Record<string, unknown> = { status: "validado" };
-    if (category) filter.category = category;
+    // Filtro base por categoría y región (se aplica tanto a reportes
+    // validados como a reportes propios pendientes).
+    const baseFilter: Record<string, unknown> = {};
+    if (category) baseFilter.category = category;
 
     if (region === "municipality") {
       if (!userMunicipalityId || !isValidObjectId(userMunicipalityId)) {
         return apiResponse({ items: [], total: 0, hasMore: false });
       }
-      filter.municipalityId = userMunicipalityId;
+      // Aggregate $match no autocasta strings → ObjectId como find() lo hace.
+      // Hay que convertir explícitamente para que el filtro encuentre docs.
+      baseFilter.municipalityId = new Types.ObjectId(userMunicipalityId);
     } else if (region === "province") {
       if (!userProvinceId || !isValidObjectId(userProvinceId)) {
         return apiResponse({ items: [], total: 0, hasMore: false });
@@ -61,8 +64,25 @@ export async function GET(request: NextRequest) {
       // Provincia: cubre todos los reportes cuyas municipalidades pertenezcan a esa provincia
       const Municipality = (await import("@/models/Municipality")).Municipality;
       const munIds = await Municipality.find({ provinceId: userProvinceId }).select("_id").lean();
-      filter.municipalityId = { $in: munIds.map((m) => m._id) };
+      baseFilter.municipalityId = { $in: munIds.map((m) => m._id) };
     }
+
+    // Filtro de visibilidad estilo red social:
+    // - Reportes con status='validado' son visibles para todos.
+    // - Reportes propios con status pendiente/en_revisión también son
+    //   visibles para el dueño (UX estilo Instagram: "tu publicación está
+    //   en revisión"). Se distinguen con `status` e `isMine` en el payload.
+    const myCitizenId = new Types.ObjectId(auth.session.userId);
+    const filter: Record<string, unknown> = {
+      ...baseFilter,
+      $or: [
+        { status: "validado" },
+        {
+          citizenId: myCitizenId,
+          status: { $in: ["pendiente", "en_revision"] },
+        },
+      ],
+    };
 
     // Pipeline con conteo de apoyos
     const skip = (page - 1) * limit;
@@ -140,25 +160,30 @@ export async function GET(request: NextRequest) {
     const myApoyosSet = new Set(myApoyos.map((a) => String(a.reportId)));
 
     return apiResponse({
-      items: items.map((r) => ({
-        id: String(r._id),
-        category: r.category,
-        description: r.description,
-        imageUrls: r.imageUrls ?? [],
-        latitude: r.latitude ?? null,
-        longitude: r.longitude ?? null,
-        createdAt: r.createdAt,
-        vehicle: r.vehicle ? {
-          plate: r.vehicle.plate,
-          brand: r.vehicle.brand,
-          model: r.vehicle.model,
-        } : null,
-        citizenName: anonymizeName(r.citizen?.name),
-        municipalityName: r.municipality?.name ?? null,
-        provinceName: r.province?.name ?? null,
-        apoyosCount: r.apoyosCount ?? 0,
-        apoyado: myApoyosSet.has(String(r._id)),
-      })),
+      items: items.map((r) => {
+        const isMine = String(r.citizenId) === String(auth.session.userId);
+        return {
+          id: String(r._id),
+          category: r.category,
+          description: r.description,
+          imageUrls: r.imageUrls ?? [],
+          latitude: r.latitude ?? null,
+          longitude: r.longitude ?? null,
+          createdAt: r.createdAt,
+          status: r.status,
+          isMine,
+          vehicle: r.vehicle ? {
+            plate: r.vehicle.plate,
+            brand: r.vehicle.brand,
+            model: r.vehicle.model,
+          } : null,
+          citizenName: anonymizeName(r.citizen?.name),
+          municipalityName: r.municipality?.name ?? null,
+          provinceName: r.province?.name ?? null,
+          apoyosCount: r.apoyosCount ?? 0,
+          apoyado: myApoyosSet.has(String(r._id)),
+        };
+      }),
       total,
       page,
       limit,

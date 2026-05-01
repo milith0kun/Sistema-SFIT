@@ -104,10 +104,7 @@ class _FeedPageState extends ConsumerState<FeedPage> {
               ),
             ),
             if (state.loading)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: _FeedLoading(),
-              )
+              const SliverToBoxAdapter(child: _FeedLoading())
             else if (state.error != null && state.items.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
@@ -364,15 +361,140 @@ class _FeedLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: SizedBox(
-        height: 30,
-        width: 30,
-        child: CircularProgressIndicator(
-          strokeWidth: 2.4,
-          color: AppColors.primary,
-        ),
+    // Skeleton de 3 cards con shimmer — da sensación de carga progresiva
+    // en lugar de un spinner vacío. Column en lugar de ListView porque
+    // está dentro de un SliverToBoxAdapter (no requiere lazy build).
+    return const Padding(
+      padding: EdgeInsets.only(top: 12, bottom: 32),
+      child: Column(
+        children: [
+          _SkeletonCard(),
+          _SkeletonCard(),
+          _SkeletonCard(),
+        ],
       ),
+    );
+  }
+}
+
+/// Card placeholder con shimmer animado mientras carga el feed.
+class _SkeletonCard extends StatefulWidget {
+  const _SkeletonCard();
+
+  @override
+  State<_SkeletonCard> createState() => _SkeletonCardState();
+}
+
+class _SkeletonCardState extends State<_SkeletonCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      duration: const Duration(milliseconds: 1100),
+      vsync: this,
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 14),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.ink2, width: 1),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: avatar + nombre + ubicación
+          Row(
+            children: [
+              _ShimmerBox(controller: _ctrl, width: 36, height: 36, radius: 18),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _ShimmerBox(controller: _ctrl, width: 120, height: 12, radius: 4),
+                  const SizedBox(height: 6),
+                  _ShimmerBox(controller: _ctrl, width: 80, height: 10, radius: 3),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Imagen placeholder (4:3 como el carrusel real)
+          AspectRatio(
+            aspectRatio: 4 / 3,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: _ShimmerBox(
+                controller: _ctrl,
+                width: double.infinity,
+                height: double.infinity,
+                radius: 8,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Categoría + descripción (2 líneas)
+          _ShimmerBox(controller: _ctrl, width: 140, height: 12, radius: 4),
+          const SizedBox(height: 8),
+          _ShimmerBox(controller: _ctrl, width: double.infinity, height: 10, radius: 3),
+          const SizedBox(height: 6),
+          _ShimmerBox(controller: _ctrl, width: 220, height: 10, radius: 3),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShimmerBox extends StatelessWidget {
+  final AnimationController controller;
+  final double width;
+  final double height;
+  final double radius;
+
+  const _ShimmerBox({
+    required this.controller,
+    required this.width,
+    required this.height,
+    required this.radius,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (_, __) {
+        return Container(
+          width: width,
+          height: height,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius),
+            gradient: LinearGradient(
+              begin: Alignment(-1 + controller.value * 2, -0.3),
+              end: Alignment(1 + controller.value * 2, 0.3),
+              colors: const [
+                AppColors.ink1,
+                AppColors.ink2,
+                AppColors.ink1,
+              ],
+              stops: const [0.0, 0.5, 1.0],
+            ),
+          ),
+        );
+      },
     );
   }
 }

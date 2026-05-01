@@ -71,6 +71,11 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
   }
 
   // ── GPS ──────────────────────────────────────────────────────────
+  /// Estrategia híbrida para que el mapa aparezca de inmediato:
+  /// 1. Pedir permisos (rápido si ya están concedidos).
+  /// 2. Mostrar `getLastKnownPosition()` — caché del SO, instantáneo.
+  /// 3. Lanzar `getCurrentPosition()` en background con timeout corto
+  ///    para refinar la coordenada cuando llegue.
   Future<void> _captureLocation() async {
     setState(() { _locationLoading = true; _locationError = null; });
     try {
@@ -86,24 +91,47 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
         if (mounted) setState(() { _locationError = 'Permiso bloqueado. Habilítalo en ajustes.'; _locationLoading = false; });
         return;
       }
-      final pos = await Geolocator.getCurrentPosition(
+
+      // Paso rápido: última ubicación conocida (instantáneo, viene de caché del SO)
+      final cached = await Geolocator.getLastKnownPosition();
+      if (cached != null && mounted) {
+        setState(() {
+          _userPosition = cached;
+          _selectedLatLng ??= LatLng(cached.latitude, cached.longitude);
+          _locationLoading = false;
+        });
+      }
+
+      // Paso preciso: ubicación actual (en background, timeout corto)
+      final fresh = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 10),
+          timeLimit: Duration(seconds: 8),
         ),
       );
       if (mounted) {
-        final latLng = LatLng(pos.latitude, pos.longitude);
         setState(() {
-          _userPosition = pos;
-          _selectedLatLng ??= latLng;
+          _userPosition = fresh;
+          // Solo actualizamos el marcador si el usuario no lo movió manualmente.
+          if (cached == null) {
+            _selectedLatLng ??= LatLng(fresh.latitude, fresh.longitude);
+          }
           _locationLoading = false;
         });
       }
     } on TimeoutException {
-      if (mounted) setState(() { _locationError = 'Tiempo agotado'; _locationLoading = false; });
+      // Si el preciso falló pero ya tenemos cached, ignoramos el timeout.
+      if (mounted && _userPosition == null) {
+        setState(() { _locationError = 'Tiempo agotado'; _locationLoading = false; });
+      } else if (mounted) {
+        setState(() => _locationLoading = false);
+      }
     } catch (e) {
-      if (mounted) setState(() { _locationError = 'No se pudo obtener la ubicación'; _locationLoading = false; });
+      if (mounted && _userPosition == null) {
+        setState(() { _locationError = 'No se pudo obtener la ubicación'; _locationLoading = false; });
+      } else if (mounted) {
+        setState(() => _locationLoading = false);
+      }
     }
   }
 
@@ -315,7 +343,16 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
     } on ReportSubmitException catch (e) {
       debugPrint('submit report error (${e.statusCode}): ${e.message}');
       if (mounted) setState(() { _submitting = false; _uploadingImages = false; });
-      _showError(e.message);
+      // 429 = rate limit alcanzado → diálogo modal claro y bloqueante.
+      // Otros errores → snackbar inline (no interrumpe).
+      if (e.statusCode == 429 && mounted) {
+        await showDialog<void>(
+          context: context,
+          builder: (_) => _RateLimitDialog(message: e.message),
+        );
+      } else {
+        _showError(e.message);
+      }
     } catch (e) {
       debugPrint('submit report error: $e');
       if (mounted) setState(() { _submitting = false; _uploadingImages = false; });
@@ -677,26 +714,13 @@ class _LocationSectionState extends State<_LocationSection> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.loading) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.infoBg,
-          border: Border.all(color: AppColors.infoBorder),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.8, color: AppColors.info)),
-            const SizedBox(width: 10),
-            Text('Obteniendo ubicación GPS...', style: AppTheme.inter(fontSize: 13, color: AppColors.info)),
-          ],
-        ),
-      );
+    // Si no hay posición todavía y estamos cargando, mostrar skeleton del
+    // mapa en lugar del banner — mismo alto, transición sin saltos.
+    if (widget.loading && widget.position == null) {
+      return _MapSkeleton();
     }
 
-    if (widget.error != null) {
+    if (widget.error != null && widget.position == null) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
@@ -731,37 +755,71 @@ class _LocationSectionState extends State<_LocationSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Mini mapa interactivo
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: SizedBox(
-            height: 210,
-            child: FlutterMap(
-              options: MapOptions(
-                initialCenter: marker,
-                initialZoom: 15.5,
-                onTap: (_, point) {
-                  setState(() => _marker = point);
-                  widget.onLocationChanged(point);
-                },
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.sfit.app',
-                ),
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: marker,
-                      width: 44,
-                      height: 44,
-                      child: const Icon(Icons.location_pin, color: AppColors.info, size: 44),
+        Stack(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                height: 210,
+                child: FlutterMap(
+                  options: MapOptions(
+                    initialCenter: marker,
+                    initialZoom: 15.5,
+                    onTap: (_, point) {
+                      setState(() => _marker = point);
+                      widget.onLocationChanged(point);
+                    },
+                  ),
+                  children: [
+                    // Tiles CartoDB Voyager — más limpios que OSM crudo,
+                    // sin clutter de POIs y con paleta sobria.
+                    TileLayer(
+                      urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                      subdomains: const ['a', 'b', 'c', 'd'],
+                      userAgentPackageName: 'com.sfit.app',
+                      maxZoom: 19,
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: marker,
+                          width: 48,
+                          height: 56,
+                          alignment: Alignment.topCenter,
+                          child: _SfitMapPin(),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
-          ),
+            // Indicador "Refinando GPS..." cuando ya hay marker pero
+            // sigue cargando una posición más precisa
+            if (widget.loading)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4, offset: const Offset(0, 1)),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.4, color: AppColors.info)),
+                      const SizedBox(width: 6),
+                      Text('Refinando GPS', style: AppTheme.inter(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.info)),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 8),
         // Coordenadas + instrucción + link
@@ -793,6 +851,183 @@ class _LocationSectionState extends State<_LocationSection> {
         ),
         const SizedBox(height: 4),
         Text('Toca el mapa para ajustar la ubicación exacta.', style: AppTheme.inter(fontSize: 11, color: AppColors.ink4)),
+      ],
+    );
+  }
+}
+
+// ── Diálogo modal cuando el ciudadano alcanza el límite diario ───────────────
+class _RateLimitDialog extends StatelessWidget {
+  final String message;
+  const _RateLimitDialog({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      title: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: AppColors.riesgoBg,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.timer_outlined, color: AppColors.riesgo, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Llegaste al límite de hoy',
+              style: AppTheme.inter(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.ink9),
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            message,
+            style: AppTheme.inter(fontSize: 13.5, color: AppColors.ink7, height: 1.5),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.infoBg,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.infoBorder),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded, size: 14, color: AppColors.info),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'El contador se reinicia mañana. Tus reportes ya están en revisión.',
+                    style: AppTheme.inter(fontSize: 12, color: AppColors.info, height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.ink9,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          child: Text(
+            'Entendido',
+            style: AppTheme.inter(fontSize: 13.5, color: Colors.white, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Skeleton del mapa mientras carga el GPS ──────────────────────────────────
+class _MapSkeleton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        height: 210,
+        color: AppColors.ink1,
+        child: Stack(
+          children: [
+            // Patrón sutil de cuadrícula simulando tiles
+            Positioned.fill(
+              child: CustomPaint(painter: _GridPainter()),
+            ),
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.info)),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Obteniendo tu ubicación…',
+                    style: AppTheme.inter(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.ink6),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.ink2
+      ..strokeWidth = 1;
+    const step = 32.0;
+    for (double x = 0; x < size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (double y = 0; y < size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_GridPainter old) => false;
+}
+
+// ── Pin del mapa con sombra y tilde institucional ────────────────────────────
+class _SfitMapPin extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.bottomCenter,
+      children: [
+        // Sombra circular bajo el pin (proyección)
+        Positioned(
+          bottom: 0,
+          child: Container(
+            width: 16,
+            height: 5,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+        // Pin
+        Positioned(
+          bottom: 4,
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.35),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: const Icon(Icons.location_on_rounded, size: 16, color: Colors.white),
+          ),
+        ),
       ],
     );
   }

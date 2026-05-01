@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/navigation/navigation_key.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/image_url.dart';
 import '../../data/models/feed_report_model.dart';
 import '../providers/feed_provider.dart';
 
@@ -90,14 +91,32 @@ class _FeedDetailPageState extends ConsumerState<FeedDetailPage> {
                   child: Hero(
                     tag: 'feed-photo-${widget.report.id}-$i',
                     child: CachedNetworkImage(
-                      imageUrl: urls[i],
+                      imageUrl: normalizeImageUrl(urls[i]),
                       fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(color: AppColors.ink1),
+                      fadeInDuration: const Duration(milliseconds: 220),
+                      placeholder: (_, __) => Container(
+                        color: AppColors.ink1,
+                        alignment: Alignment.center,
+                        child: const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.ink4),
+                        ),
+                      ),
                       errorWidget: (_, __, ___) => Container(
                         color: AppColors.ink1,
                         alignment: Alignment.center,
-                        child: const Icon(Icons.broken_image_outlined,
-                            color: AppColors.ink4, size: 36),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.broken_image_outlined, color: AppColors.ink4, size: 36),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Imagen no disponible',
+                              style: AppTheme.inter(fontSize: 11, color: AppColors.ink5),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -160,7 +179,7 @@ class _FeedDetailPageState extends ConsumerState<FeedDetailPage> {
           radius: 22,
           backgroundColor: AppColors.primaryBg,
           child: Text(
-            r.citizenName.characters.first.toUpperCase(),
+            r.citizenName.isEmpty ? 'C' : r.citizenName.characters.first.toUpperCase(),
             style: AppTheme.inter(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -490,7 +509,7 @@ class _FullscreenGalleryState extends State<_FullscreenGallery> {
               child: Hero(
                 tag: '${widget.heroTagPrefix}-$i',
                 child: CachedNetworkImage(
-                  imageUrl: widget.urls[i],
+                  imageUrl: normalizeImageUrl(widget.urls[i]),
                   fit: BoxFit.contain,
                   placeholder: (_, __) => const Center(
                     child: CircularProgressIndicator(color: Colors.white),

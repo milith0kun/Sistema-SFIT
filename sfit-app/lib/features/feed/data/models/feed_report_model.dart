@@ -26,6 +26,13 @@ class FeedReport {
   final String? provinceName;
   final int apoyosCount;
   final bool apoyado;
+  /// Estado del reporte: 'pendiente', 'en_revision', 'validado'.
+  /// Los reportes propios pendientes/en revisión solo son visibles para
+  /// el dueño en el feed (estilo Instagram); 'validado' son públicos.
+  final String status;
+  /// `true` si el reporte fue creado por el usuario actual. Permite
+  /// distinguir visualmente "tu publicación" en el feed.
+  final bool isMine;
 
   const FeedReport({
     required this.id,
@@ -36,6 +43,8 @@ class FeedReport {
     required this.citizenName,
     required this.apoyosCount,
     required this.apoyado,
+    required this.status,
+    required this.isMine,
     this.latitude,
     this.longitude,
     this.vehicle,
@@ -62,6 +71,8 @@ class FeedReport {
         provinceName: j['provinceName'] as String?,
         apoyosCount: (j['apoyosCount'] as num?)?.toInt() ?? 0,
         apoyado: j['apoyado'] as bool? ?? false,
+        status: j['status'] as String? ?? 'validado',
+        isMine: j['isMine'] as bool? ?? false,
       );
 
   FeedReport copyWith({int? apoyosCount, bool? apoyado}) => FeedReport(
@@ -78,6 +89,8 @@ class FeedReport {
         provinceName: provinceName,
         apoyosCount: apoyosCount ?? this.apoyosCount,
         apoyado: apoyado ?? this.apoyado,
+        status: status,
+        isMine: isMine,
       );
 }
 

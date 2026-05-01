@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/image_url.dart';
 import '../../data/models/feed_report_model.dart';
 
 class FeedPostCard extends StatefulWidget {
@@ -60,6 +61,10 @@ class _FeedPostCardState extends State<FeedPostCard> {
   }
 
   Widget _buildHeader(FeedReport r) {
+    final showAuthorName = r.isMine ? 'Tu reporte' : (r.citizenName.isEmpty ? 'Ciudadano' : r.citizenName);
+    final showInitial = r.isMine
+        ? 'T'
+        : (r.citizenName.isEmpty ? 'C' : r.citizenName.characters.first.toUpperCase());
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 12, 12, 10),
       child: Row(
@@ -68,7 +73,7 @@ class _FeedPostCardState extends State<FeedPostCard> {
             radius: 18,
             backgroundColor: AppColors.primaryBg,
             child: Text(
-              r.citizenName.characters.first.toUpperCase(),
+              showInitial,
               style: AppTheme.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
@@ -81,13 +86,24 @@ class _FeedPostCardState extends State<FeedPostCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  r.citizenName,
-                  style: AppTheme.inter(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink9,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        showAuthorName,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTheme.inter(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink9,
+                        ),
+                      ),
+                    ),
+                    if (r.isMine && r.status != 'validado') ...[
+                      const SizedBox(width: 8),
+                      _StatusPill(status: r.status),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Row(
@@ -135,8 +151,9 @@ class _FeedPostCardState extends State<FeedPostCard> {
             itemCount: urls.length,
             onPageChanged: (i) => setState(() => _imageIndex = i),
             itemBuilder: (context, i) => CachedNetworkImage(
-              imageUrl: urls[i],
+              imageUrl: normalizeImageUrl(urls[i]),
               fit: BoxFit.cover,
+              fadeInDuration: const Duration(milliseconds: 220),
               placeholder: (_, __) => Container(
                 color: AppColors.ink1,
                 alignment: Alignment.center,
@@ -150,8 +167,18 @@ class _FeedPostCardState extends State<FeedPostCard> {
               errorWidget: (_, __, ___) => Container(
                 color: AppColors.ink1,
                 alignment: Alignment.center,
-                child: const Icon(Icons.broken_image_outlined,
-                    color: AppColors.ink4, size: 36),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.broken_image_outlined,
+                        color: AppColors.ink4, size: 36),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Imagen no disponible',
+                      style: AppTheme.inter(fontSize: 11, color: AppColors.ink5),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -416,6 +443,40 @@ class _PlatePill extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Pill compacto de estado para mostrar junto a "Tu reporte" cuando el
+/// reporte propio aún no fue validado por un fiscal.
+class _StatusPill extends StatelessWidget {
+  final String status;
+  const _StatusPill({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, fg, label) = switch (status) {
+      'pendiente' => (AppColors.riesgoBg, AppColors.riesgo, 'EN REVISIÓN'),
+      'en_revision' => (AppColors.infoBg, AppColors.info, 'EN REVISIÓN'),
+      'rechazado' => (AppColors.noAptoBg, AppColors.noApto, 'RECHAZADO'),
+      _ => (AppColors.ink1, AppColors.ink6, status.toUpperCase()),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: fg.withValues(alpha: 0.3), width: 1),
+      ),
+      child: Text(
+        label,
+        style: AppTheme.inter(
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          color: fg,
+          letterSpacing: 0.7,
+        ),
       ),
     );
   }
