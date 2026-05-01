@@ -25,12 +25,25 @@ export async function GET(
     const file = await UploadedFile.findById(id).lean();
     if (!file) return new NextResponse("Not found", { status: 404 });
 
-    return new NextResponse(new Uint8Array(file.data as unknown as Buffer), {
+    // file.data viene como Buffer (Mongoose Binary subtype). Lo convertimos
+    // a Uint8Array para asegurar compatibilidad con BodyInit del runtime
+    // de Next 16. NO enviamos Content-Length manualmente: detrás de
+    // Cloudflare la compresión transparente cambia el tamaño real del body
+    // y un Content-Length declarado por el origen produce
+    // ERR_HTTP2_PROTOCOL_ERROR en el cliente. El runtime/proxy calcula
+    // el header correcto a partir del body.
+    const buf = file.data as unknown as Buffer;
+    // Copiamos a un ArrayBuffer fresco para evitar problemas de tipo con
+    // Next 16 (Uint8Array<ArrayBufferLike> no satisface BodyInit estricto)
+    // y para que el body sea independiente del Buffer subyacente de Mongoose.
+    const body = new ArrayBuffer(buf.byteLength);
+    new Uint8Array(body).set(buf);
+
+    return new NextResponse(body, {
       status: 200,
       headers: {
         "Content-Type": file.mimeType,
-        "Content-Length": String(file.size),
-        // Cache agresivo: el contenido es inmutable (mismo id → mismo bytes).
+        // Cache agresivo: el contenido es inmutable (mismo id → mismos bytes).
         "Cache-Control": "public, max-age=31536000, immutable",
       },
     });
