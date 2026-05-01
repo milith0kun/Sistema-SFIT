@@ -141,11 +141,25 @@ export default function EmpresasPage() {
         id: "razonSocial",
         header: "Razón social",
         accessorFn: (c) => `${c.razonSocial} ${c.ruc} ${c.representanteLegal.name}`,
-        cell: ({ row: r }) => (
-          <Link href={`/empresas/${r.original.id}`} style={{ fontWeight: 600, color: "#09090b", textDecoration: "none" }}>
-            {r.original.razonSocial}
-          </Link>
-        ),
+        cell: ({ row: r }) => {
+          const ok = r.original.active;
+          return (
+            <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+              <span
+                title={ok ? "Activa" : "Suspendida"}
+                aria-label={ok ? "Activa" : "Suspendida"}
+                style={{
+                  width: 7, height: 7, borderRadius: "50%",
+                  background: ok ? "#15803d" : "#DC2626",
+                  flexShrink: 0,
+                }}
+              />
+              <Link href={`/empresas/${r.original.id}`} style={{ fontWeight: 600, color: INK9, textDecoration: "none" }}>
+                {r.original.razonSocial}
+              </Link>
+            </div>
+          );
+        },
       },
       {
         accessorKey: "ruc",

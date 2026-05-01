@@ -44,6 +44,13 @@ const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
 const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 const INFO_BG = "#EFF6FF"; const INFO_C = "#1D4ED8"; const INFO_BD = "#BFDBFE";
 
+const STATUS_DOT: Record<string, { color: string; label: string }> = {
+  activo:     { color: "#15803d", label: "Activo" },
+  pendiente:  { color: "#b45309", label: "Pendiente" },
+  suspendido: { color: "#DC2626", label: "Suspendido" },
+  rechazado:  { color: "#71717a", label: "Rechazado" },
+};
+
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" });
 }
@@ -144,17 +151,28 @@ export default function UsuariosAdminPage() {
       accessorFn: row => `${row.name} ${row.email}`,
       enableSorting: true,
       sortingFn: (a, b) => a.original.name.localeCompare(b.original.name),
-      cell: ({ row: r }) => (
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <UserAvatar name={r.original.name} role={r.original.role} />
-          <div>
-            <div style={{ fontWeight: 600, fontSize: "0.875rem", color: INK9, lineHeight: 1.3 }}>
-              {r.original.name}
+      cell: ({ row: r }) => {
+        const meta = STATUS_DOT[r.original.status] ?? { color: INK5, label: r.original.status };
+        return (
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span
+              title={meta.label}
+              aria-label={`Estado: ${meta.label}`}
+              style={{
+                width: 7, height: 7, borderRadius: "50%",
+                background: meta.color, flexShrink: 0,
+              }}
+            />
+            <UserAvatar name={r.original.name} role={r.original.role} />
+            <div>
+              <div style={{ fontWeight: 600, fontSize: "0.875rem", color: INK9, lineHeight: 1.3 }}>
+                {r.original.name}
+              </div>
+              <div style={{ fontSize: "0.75rem", color: INK5 }}>{r.original.email}</div>
             </div>
-            <div style={{ fontSize: "0.75rem", color: INK5 }}>{r.original.email}</div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       accessorKey: "role",
