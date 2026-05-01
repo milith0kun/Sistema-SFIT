@@ -22,6 +22,7 @@ type Report = {
   imageUrls?: string[];
   fraudScore: number;
   fraudLayers: FraudLayer[];
+  rejectionReason?: string;
   createdAt: string;
 };
 type StatusCounts = Partial<Record<ReportStatus, number>>;
@@ -94,12 +95,24 @@ export default function ReportesPage() {
 
   const updateStatus = async (id: string, status: ReportStatus) => {
     setError(null);
+    // Al rechazar pedimos un motivo escrito (RF-12). El backend lo exige.
+    let rejectionReason: string | undefined;
+    if (status === "rechazado") {
+      const r = window.prompt("Motivo del rechazo (mínimo 5 caracteres). Será visible para el ciudadano.");
+      if (r === null) return; // cancelado
+      const trimmed = r.trim();
+      if (trimmed.length < 5) {
+        setError("El motivo debe tener al menos 5 caracteres.");
+        return;
+      }
+      rejectionReason = trimmed;
+    }
     try {
       const token = localStorage.getItem("sfit_access_token");
       const res = await fetch(`/api/reportes/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(rejectionReason ? { status, rejectionReason } : { status }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.success) { setError(data.error ?? "No se pudo actualizar el reporte"); return; }
@@ -309,6 +322,17 @@ export default function ReportesPage() {
                 );
               })()}
               <div style={{ marginTop: 14, padding: 12, background: INK1, borderRadius: 10, fontSize: "0.8125rem", lineHeight: 1.5, color: INK6 }}>&ldquo;{sel.description}&rdquo;</div>
+
+              {sel.status === "rechazado" && sel.rejectionReason && (
+                <div style={{
+                  marginTop: 10, padding: 12,
+                  background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 10,
+                  fontSize: "0.8125rem", lineHeight: 1.5, color: NO,
+                }}>
+                  <div style={{ fontWeight: 700, marginBottom: 4 }}>Motivo del rechazo</div>
+                  <div style={{ color: INK6 }}>{sel.rejectionReason}</div>
+                </div>
+              )}
 
               {sel.fraudLayers.length > 0 && (
                 <>

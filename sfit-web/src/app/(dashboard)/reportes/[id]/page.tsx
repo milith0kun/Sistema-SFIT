@@ -27,6 +27,7 @@ type CitizenReport = {
   imageUrls?: string[];
   fraudScore: number;
   fraudLayers: FraudLayer[];
+  rejectionReason?: string;
   assignedFiscalId?: string;
   assignedFiscal?: { _id: string; name: string } | null;
   createdAt: string;
@@ -392,6 +393,23 @@ export default function ReporteDetallePage({ params }: Props) {
               &ldquo;{report.description}&rdquo;
             </p>
           </SectionCard>
+
+          {/* Motivo del rechazo (visible para fiscal y ciudadano) */}
+          {report.status === "rechazado" && report.rejectionReason && (
+            <SectionCard
+              icon={<FileText size={14} color={RED} />}
+              title="Motivo del rechazo"
+              subtitle="Justificación del fiscal"
+            >
+              <div style={{
+                padding: 12, background: REDBG, border: `1px solid ${REDBD}`,
+                borderRadius: 8, color: INK6, fontSize: "0.9375rem", lineHeight: 1.6,
+                whiteSpace: "pre-wrap",
+              }}>
+                {report.rejectionReason}
+              </div>
+            </SectionCard>
+          )}
 
           {/* Evidencia */}
           {(() => {

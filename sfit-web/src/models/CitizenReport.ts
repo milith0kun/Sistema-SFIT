@@ -26,6 +26,8 @@ export interface ICitizenReport extends Document {
   /** Coordenadas opcionales del ciudadano al momento de enviar el reporte (capa 2 anti-fraude geográfico) */
   latitude?: number;
   longitude?: number;
+  /** Motivo escrito por el fiscal cuando rechaza el reporte (RF-12). Visible al ciudadano. */
+  rejectionReason?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -61,6 +63,7 @@ const CitizenReportSchema = new Schema<ICitizenReport>(
     qrVerified: { type: Boolean, default: false }, // RF-12-04
     latitude: { type: Number },
     longitude: { type: Number },
+    rejectionReason: { type: String, trim: true, maxlength: 1000 },
   },
   { timestamps: true },
 );

@@ -36,6 +36,15 @@ export interface IUser extends Document {
   // FCM Push Tokens (RF-18)
   fcmTokens: string[];
 
+  // Anti-fraude reportes ciudadanos (RF-12)
+  /**
+   * Reportes rechazados consecutivos. Se incrementa al rechazar un reporte
+   * del ciudadano y se resetea a 0 cuando uno se valida. Al alcanzar 3
+   * el sistema marca al usuario como "suspendido" y no puede enviar más
+   * reportes hasta que un admin lo reactive.
+   */
+  consecutiveRejectedReports: number;
+
   // Tokens
   refreshToken?: string;
   refreshTokenExpiry?: Date;
@@ -120,6 +129,9 @@ const UserSchema = new Schema<IUser>(
 
     // FCM Push Tokens (RF-18)
     fcmTokens: { type: [String], default: [] },
+
+    // Anti-fraude reportes ciudadanos (RF-12)
+    consecutiveRejectedReports: { type: Number, default: 0, min: 0 },
 
     // Tokens
     refreshToken: { type: String, select: false },

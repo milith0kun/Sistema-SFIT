@@ -229,20 +229,53 @@ export async function POST(request: NextRequest) {
       citizenReputationLevel = 1;
     }
 
-    // FraudScore compuesto: base 60, reducido por capas superadas
+    // Capa 2: contexto geográfico — coordenadas presentes y dentro del
+    // bounding box del Perú (lat -18.5..-0.05, lng -81.4..-68.6). Detecta
+    // GPS spoofeado o reportes desde fuera del país.
     const { latitude, longitude } = parsed.data;
     const hasCoords = latitude !== undefined && longitude !== undefined;
+    const insidePeru =
+      hasCoords &&
+      latitude! >= -18.5 && latitude! <= -0.04 &&
+      longitude! >= -81.4 && longitude! <= -68.6;
+    const capa2Passed = insidePeru;
+    const capa2Detail = !hasCoords
+      ? "Sin coordenadas — no se puede validar"
+      : insidePeru
+        ? "Coordenadas dentro del territorio peruano"
+        : "Coordenadas fuera de Perú — posible GPS spoofeado";
+
+    // Capa 5: corroboración — ¿hay otros reportes recientes (24h) del
+    // mismo vehículo y misma categoría? Si sí, eleva confiabilidad.
+    let capa5Passed = false;
+    let capa5Detail = "Sin reportes similares recientes";
+    if (vehicleId) {
+      const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const similar = await CitizenReport.countDocuments({
+        vehicleId,
+        category: parsed.data.category,
+        createdAt: { $gte: last24h },
+        citizenId: { $ne: auth.session.userId }, // de otro ciudadano, no el mismo
+      });
+      if (similar > 0) {
+        capa5Passed = true;
+        capa5Detail = `${similar} reporte${similar > 1 ? "s" : ""} similar${similar > 1 ? "es" : ""} en 24h`;
+      }
+    }
+
+    // FraudScore compuesto: base 60, reducido por capas superadas
     let fraudScore = parsed.data.fraudScore ?? 60;
     if (qrVerified) fraudScore = Math.max(0, fraudScore - 20);
     if (citizenReputationLevel >= 3) fraudScore = Math.max(0, fraudScore - 10);
-    if (hasCoords) fraudScore = Math.max(0, fraudScore - 5);
+    if (capa2Passed) fraudScore = Math.max(0, fraudScore - 5);
+    if (capa5Passed) fraudScore = Math.max(0, fraudScore - 15); // corroboración pesa más
 
     const fraudLayers = [
       { layer: "Identidad", passed: capa1Passed, detail: "Usuario verificado y activo" },
-      { layer: "Contexto", passed: true, detail: "Radio coherente" },
+      { layer: "Contexto", passed: capa2Passed, detail: capa2Detail },
       { layer: "Límite diario", passed: capa3Passed, detail: `${reportsToday + 1}/${DAILY_LIMIT} reportes hoy` },
       { layer: "QR válido", passed: qrVerified, detail: qrDetail },
-      { layer: "Corroboración", passed: false, detail: "Sin corroboración aún" },
+      { layer: "Corroboración", passed: capa5Passed, detail: capa5Detail },
     ];
 
     const doc = await CitizenReport.create({
