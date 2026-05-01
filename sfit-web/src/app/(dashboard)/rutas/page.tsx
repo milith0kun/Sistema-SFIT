@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Download, Plus, Pencil, Eye, MapPin, Map, AlertTriangle } from "lucide-react";
-import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { GoogleMapView } from "@/components/ui/GoogleMapView";
 
@@ -157,25 +157,26 @@ export default function RutasPage() {
 
   if (!user) return null;
 
-  const heroAction = (
-    <div style={{ display: "flex", gap: 6 }}>
+  const headerAction = (
+    <div style={{ display: "flex", gap: 8 }}>
       <button style={{
-        display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-        borderRadius: 7, border: "1px solid rgba(255,255,255,0.18)",
-        background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.85)",
-        fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+        display: "inline-flex", alignItems: "center", gap: 6,
+        height: 36, padding: "0 14px", borderRadius: 9,
+        border: `1.5px solid ${INK2}`, background: "#fff", color: INK6,
+        fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
       }}>
-        <Download size={13} />Exportar
+        <Download size={14} />Exportar
       </button>
       {canCreate && (
         <Link href="/rutas/nueva">
           <button style={{
-            display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-            borderRadius: 7, border: "none",
-            background: "#fff", color: INK9,
-            fontSize: "0.8125rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+            display: "inline-flex", alignItems: "center", gap: 6,
+            height: 36, padding: "0 14px", borderRadius: 9,
+            border: "none",
+            background: INK9, color: "#fff",
+            fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
           }}>
-            <Plus size={13} />Nueva ruta
+            <Plus size={14} />Nueva ruta
           </button>
         </Link>
       )}
@@ -184,15 +185,11 @@ export default function RutasPage() {
 
   return (
     <div className="flex flex-col gap-4 animate-fade-in pb-10">
-      <DashboardHero
+      <PageHeader
         kicker="Operación · RF-09"
         title="Rutas y zonas"
-        pills={[
-          { label: "Rutas", value: rutas.length },
-          { label: "Zonas", value: zonas.length },
-          { label: "Activas", value: items.filter(i => i.status === "activa").length },
-        ]}
-        action={heroAction}
+        subtitle={`${rutas.length} rutas · ${zonas.length} zonas · ${items.filter(i => i.status === "activa").length} activas`}
+        action={headerAction}
       />
 
       {/* Tabs por tipo */}

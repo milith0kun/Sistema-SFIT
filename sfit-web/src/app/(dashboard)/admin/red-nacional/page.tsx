@@ -6,8 +6,8 @@ import {
   ChevronRight, ChevronDown, MapPin, Globe2, Building2, Users,
   Search, Inbox, Check, Loader2, X, BarChart3, Truck,
 } from "lucide-react";
-import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 type Province = {
   id: string;
@@ -182,13 +182,10 @@ export default function RedNacionalPage() {
 
   return (
     <div className="flex flex-col gap-4 animate-fade-in pb-10">
-      <DashboardHero
+      <PageHeader
         kicker="Vista nacional · super_admin"
         title="Red nacional"
-        pills={[
-          { label: "Departamentos", value: totals?.departments ?? 0 },
-          { label: "Activas", value: totals?.activeMunicipalities ?? 0 },
-        ]}
+        subtitle={`${totals?.departments ?? 0} departamentos · ${totals?.activeMunicipalities ?? 0} municipalidades activas`}
       />
 
       <KPIStrip cols={4} items={[

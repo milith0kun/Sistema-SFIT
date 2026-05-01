@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import {
   Car, Check, Route, Wrench, Plus, QrCode, Pencil, Eye, AlertTriangle, Loader2,
 } from "lucide-react";
-import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 
 type VehicleStatus = "disponible" | "en_ruta" | "en_mantenimiento" | "fuera_de_servicio";
@@ -296,34 +296,30 @@ export default function VehiculosPage() {
 
   return (
     <div className="flex flex-col gap-4 animate-fade-in pb-10">
-      <DashboardHero
+      <PageHeader
         kicker="Operación · RF-06"
         title="Vehículos y QR"
-        pills={[
-          { label: "Total", value: statusCounts.total },
-          { label: "Disponibles", value: statusCounts.disponible },
-          { label: "En ruta", value: statusCounts.en_ruta },
-          { label: "Mantenimiento", value: statusCounts.en_mantenimiento, warn: statusCounts.en_mantenimiento > 0 },
-        ]}
+        subtitle={`${statusCounts.total} registrados · ${statusCounts.disponible} disponibles · ${statusCounts.en_ruta} en ruta`}
         action={
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 8 }}>
             <button style={{
-              display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-              borderRadius: 7, border: "1px solid rgba(255,255,255,0.18)",
-              background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.85)",
-              fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+              display: "inline-flex", alignItems: "center", gap: 6,
+              height: 36, padding: "0 14px", borderRadius: 9,
+              border: `1.5px solid ${INK2}`, background: "#fff", color: INK6,
+              fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
             }}>
-              <QrCode size={13} />Escanear QR
+              <QrCode size={14} />Escanear QR
             </button>
             {canCreate && (
               <Link href="/vehiculos/nuevo">
                 <button style={{
-                  display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-                  borderRadius: 7, border: "none",
-                  background: "#fff", color: INK9,
-                  fontSize: "0.8125rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  height: 36, padding: "0 14px", borderRadius: 9,
+                  border: "none",
+                  background: INK9, color: "#fff",
+                  fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
                 }}>
-                  <Plus size={13} />Nuevo vehículo
+                  <Plus size={14} />Nuevo vehículo
                 </button>
               </Link>
             )}
@@ -333,9 +329,9 @@ export default function VehiculosPage() {
 
       <KPIStrip cols={4} items={[
         { label: "REGISTRADOS", value: loading ? "—" : statusCounts.total, subtitle: "vehículos", icon: Car },
-        { label: "DISPONIBLES", value: loading ? "—" : statusCounts.disponible, subtitle: "operativos", icon: Check, accent: APTO },
-        { label: "EN RUTA", value: loading ? "—" : statusCounts.en_ruta, subtitle: "en circulación", icon: Route, accent: INFO },
-        { label: "MANTENIMIENTO", value: loading ? "—" : statusCounts.en_mantenimiento, subtitle: "fuera de servicio", icon: Wrench, accent: RIESGO },
+        { label: "DISPONIBLES", value: loading ? "—" : statusCounts.disponible, subtitle: "operativos", icon: Check },
+        { label: "EN RUTA", value: loading ? "—" : statusCounts.en_ruta, subtitle: "en circulación", icon: Route },
+        { label: "MANTENIMIENTO", value: loading ? "—" : statusCounts.en_mantenimiento, subtitle: "fuera de servicio", icon: Wrench },
       ]} />
 
       {error && (

@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import {
   Users, Check, Gauge, AlertTriangle, Download, Plus, Phone, Car, Pencil, Eye,
 } from "lucide-react";
-import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 
 type DriverStatus = "apto" | "riesgo" | "no_apto";
@@ -245,34 +245,30 @@ export default function ConductoresPage() {
 
   return (
     <div className="flex flex-col gap-4 animate-fade-in pb-10">
-      <DashboardHero
+      <PageHeader
         kicker="Operación · RF-05"
         title="Conductores"
-        pills={[
-          { label: "Total", value: total },
-          { label: "Aptos", value: counts.apto ?? 0 },
-          { label: "Riesgo", value: counts.riesgo ?? 0, warn: (counts.riesgo ?? 0) > 0 },
-          { label: "No aptos", value: counts.no_apto ?? 0, warn: (counts.no_apto ?? 0) > 0 },
-        ]}
+        subtitle={`${total} registrados · ${counts.apto ?? 0} aptos · ${counts.riesgo ?? 0} en riesgo · ${counts.no_apto ?? 0} no aptos`}
         action={
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 8 }}>
             <button style={{
-              display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-              borderRadius: 7, border: "1px solid rgba(255,255,255,0.18)",
-              background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.85)",
-              fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+              display: "inline-flex", alignItems: "center", gap: 6,
+              height: 36, padding: "0 14px", borderRadius: 9,
+              border: `1.5px solid ${INK2}`, background: "#fff", color: INK6,
+              fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
             }}>
-              <Download size={13} />Exportar CSV
+              <Download size={14} />Exportar CSV
             </button>
             {canCreate && (
               <Link href="/conductores/nuevo">
                 <button style={{
-                  display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-                  borderRadius: 7, border: "none",
-                  background: "#fff", color: INK9,
-                  fontSize: "0.8125rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  height: 36, padding: "0 14px", borderRadius: 9,
+                  border: "none",
+                  background: INK9, color: "#fff",
+                  fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
                 }}>
-                  <Plus size={13} />Nuevo conductor
+                  <Plus size={14} />Nuevo conductor
                 </button>
               </Link>
             )}
