@@ -81,7 +81,7 @@ export default function HomePage() {
 
       {/* ── Navigation ─────────────────────────── */}
       <header
-        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between gap-4 px-4 sm:px-6 md:px-10 lg:px-16 py-3 sm:py-4 transition-all duration-300 border-b border-[#E4E4E7]/50"
+        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between gap-4 px-4 sm:px-6 md:px-10 lg:px-16 py-2.5 sm:py-3 md:py-4 transition-all duration-300 border-b border-[#E4E4E7]/50"
         style={{
           background: "rgba(255, 255, 255, 0.9)",
           backdropFilter: "blur(20px)",
@@ -92,7 +92,7 @@ export default function HomePage() {
           <img
             src="/logo-horizontal.svg"
             alt="SFIT — Sistema de Fiscalización Inteligente del Transporte"
-            className="h-9 sm:h-10 md:h-11 w-auto object-contain"
+            className="h-11 sm:h-14 md:h-16 lg:h-20 w-auto object-contain"
           />
         </a>
         <nav className="flex items-center gap-3 sm:gap-6 md:gap-8 shrink-0">

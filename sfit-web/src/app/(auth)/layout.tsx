@@ -31,7 +31,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <img
               src="/logo-horizontal.svg"
               alt="SFIT — Sistema de Fiscalización Inteligente del Transporte"
-              className="h-12 w-auto object-contain"
+              className="h-16 xl:h-20 2xl:h-24 w-auto object-contain"
               style={{ filter: "brightness(0) invert(1)" }}
             />
           </div>
@@ -105,11 +105,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       {/* ── Panel Derecho (Formulario) ─────────────────────────────── */}
       <main className="flex-1 flex flex-col bg-[#fafafa] relative overflow-hidden h-full">
         {/* Header móvil */}
-        <div className="lg:hidden flex items-center justify-between gap-3 px-4 sm:px-6 py-4 sm:py-6 border-b border-[#E4E4E7] bg-white shrink-0">
+        <div className="lg:hidden flex items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-[#E4E4E7] bg-white shrink-0">
           <img
             src="/logo-horizontal.svg"
             alt="SFIT — Sistema de Fiscalización Inteligente del Transporte"
-            className="h-9 sm:h-10 w-auto object-contain"
+            className="h-12 sm:h-14 md:h-16 w-auto object-contain"
           />
           <span className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest px-3 py-1.5 rounded-full bg-[#f4f4f5] border border-[#E4E4E7] whitespace-nowrap">Acceso Seguro</span>
         </div>
