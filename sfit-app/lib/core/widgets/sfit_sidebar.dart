@@ -24,11 +24,16 @@ class SfitSidebar extends ConsumerWidget {
   /// de Notificaciones).
   final int unreadNotifCount;
 
+  /// `true` cuando un super_admin está previsualizando como otro rol.
+  /// Muestra un banner arriba del drawer con botón "Volver a super admin".
+  final bool inPreviewMode;
+
   const SfitSidebar({
     super.key,
     required this.currentSlug,
     required this.onSelectTab,
     this.unreadNotifCount = 0,
+    this.inPreviewMode = false,
   });
 
   @override
@@ -51,6 +56,13 @@ class SfitSidebar extends ConsumerWidget {
           children: [
             _Header(onClose: () => Navigator.of(context).pop()),
             const _Divider(),
+            if (inPreviewMode)
+              _PreviewBanner(
+                onRevert: () async {
+                  Navigator.of(context).pop();
+                  await ref.read(authProvider.notifier).revertPreview();
+                },
+              ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -156,19 +168,8 @@ class SfitSidebar extends ConsumerWidget {
               _NavItem(icon: Icons.person_outline, label: 'Mi perfil', slug: 'perfil'),
             ]),
           ],
-        'admin_municipal' => const [
-            _NavSection(label: 'Panel', items: [
-              _NavItem(icon: Icons.dashboard_outlined, label: 'Tablero', slug: 'tablero'),
-              _NavItem(icon: Icons.notifications_outlined, label: 'Notificaciones', slug: 'notificaciones', route: '/notificaciones'),
-            ]),
-            _NavSection(label: 'Gestión', items: [
-              _NavItem(icon: Icons.people_outline, label: 'Usuarios', slug: 'usuarios'),
-              _NavItem(icon: Icons.business_outlined, label: 'Empresas', slug: 'empresas'),
-            ]),
-            _NavSection(label: 'Mi cuenta', items: [
-              _NavItem(icon: Icons.person_outline, label: 'Mi perfil', slug: 'perfil'),
-            ]),
-          ],
+        // admin_municipal/provincial/super_admin son web-only — la sidebar
+        // del app no los expone (HomePage corta con StatusScreen antes).
         _ => const [
             _NavSection(label: 'Panel', items: [
               _NavItem(icon: Icons.home_outlined, label: 'Inicio', slug: 'inicio'),
@@ -467,6 +468,78 @@ class _Divider extends StatelessWidget {
     return Container(
       height: 1,
       color: Colors.white.withValues(alpha: 0.06),
+    );
+  }
+}
+
+/// Banner que se muestra arriba del drawer cuando el super_admin está
+/// previsualizando como otro rol. Permite volver a su sesión original
+/// con un solo tap.
+class _PreviewBanner extends StatelessWidget {
+  final Future<void> Function() onRevert;
+  const _PreviewBanner({required this.onRevert});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
+      color: AppColors.primary.withValues(alpha: 0.16),
+      child: Row(
+        children: [
+          Icon(
+            Icons.shield_outlined,
+            size: 14,
+            color: Colors.white.withValues(alpha: 0.9),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'MODO PREVIEW',
+                  style: AppTheme.inter(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryLight,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                Text(
+                  'Estás viendo como otro rol',
+                  style: AppTheme.inter(
+                    fontSize: 11.5,
+                    color: Colors.white.withValues(alpha: 0.85),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          TextButton(
+            onPressed: onRevert,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              minimumSize: const Size(0, 28),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              backgroundColor: Colors.white.withValues(alpha: 0.12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            child: Text(
+              'Volver',
+              style: AppTheme.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

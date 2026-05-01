@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/fcm_service.dart';
 import '../../data/datasources/auth_api_service.dart';
@@ -10,6 +13,12 @@ import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 
 part 'auth_provider.g.dart';
+
+// Storage keys para guardar la sesión original del super_admin mientras
+// está en modo "preview" como otro rol. Permite revertir sin re-loguear.
+const _kPreviewOriginalAccessKey = 'preview_original_access';
+const _kPreviewOriginalRefreshKey = 'preview_original_refresh';
+const _kPreviewOriginalUserKey = 'preview_original_user';
 
 // ── Providers de infraestructura ─────────────────────────────────
 
@@ -263,6 +272,112 @@ class Auth extends _$Auth {
     } catch (e) {
       return e.toString();
     }
+  }
+
+  // ── Preview-as (super_admin → ciudadano/conductor/fiscal/operador) ──
+  /// Permite al super_admin "entrar como" un usuario activo de uno de
+  /// los 4 roles operativos. Guarda los tokens originales del super
+  /// admin en slots de respaldo para poder revertir con `revertPreview`.
+  /// Devuelve `null` en éxito o el mensaje de error.
+  Future<String?> previewAs(String role) async {
+    final storage = ref.read(secureStorageProvider);
+    final dio = ref.read(dioClientProvider).dio;
+
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    try {
+      // Respaldar la sesión actual del super_admin antes de pisarla.
+      final origAccess = await storage.read(key: ApiConstants.accessTokenKey);
+      final origRefresh = await storage.read(key: ApiConstants.refreshTokenKey);
+      final origUser = await storage.read(key: ApiConstants.userJsonKey);
+      if (origAccess != null) {
+        await storage.write(key: _kPreviewOriginalAccessKey, value: origAccess);
+      }
+      if (origRefresh != null) {
+        await storage.write(key: _kPreviewOriginalRefreshKey, value: origRefresh);
+      }
+      if (origUser != null) {
+        await storage.write(key: _kPreviewOriginalUserKey, value: origUser);
+      }
+
+      final resp = await dio.post('/auth/preview-as', data: {'role': role});
+      final body = resp.data as Map?;
+      if (body == null || body['success'] != true) {
+        state = state.copyWith(status: AuthStatus.authenticated);
+        return (body?['error'] as String?) ?? 'No se pudo cambiar de rol';
+      }
+
+      final data = body['data'] as Map<String, dynamic>;
+      final newAccess = data['accessToken'] as String;
+      final newRefresh = data['refreshToken'] as String;
+      final userJson = data['user'] as Map<String, dynamic>;
+
+      await storage.write(key: ApiConstants.accessTokenKey, value: newAccess);
+      await storage.write(key: ApiConstants.refreshTokenKey, value: newRefresh);
+      await storage.write(key: ApiConstants.userJsonKey, value: jsonEncode(userJson));
+
+      final newUser = UserEntity(
+        id: userJson['id'] as String,
+        name: userJson['name'] as String? ?? '',
+        email: userJson['email'] as String? ?? '',
+        role: userJson['role'] as String,
+        status: userJson['status'] as String? ?? 'activo',
+        image: userJson['image'] as String?,
+        municipalityId: userJson['municipalityId'] as String?,
+        provinceId: userJson['provinceId'] as String?,
+        phone: userJson['phone'] as String?,
+        dni: userJson['dni'] as String?,
+      );
+      state = AuthState(status: _statusFor(newUser), user: newUser);
+      return null;
+    } catch (e) {
+      state = state.copyWith(status: AuthStatus.authenticated);
+      return _networkErrorMsg(e);
+    }
+  }
+
+  /// `true` si actualmente el super_admin está previsualizando como otro
+  /// rol (existen tokens originales respaldados).
+  Future<bool> isInPreviewMode() async {
+    final storage = ref.read(secureStorageProvider);
+    final orig = await storage.read(key: _kPreviewOriginalAccessKey);
+    return orig != null;
+  }
+
+  /// Restaura la sesión original del super_admin. Si no había sesión
+  /// previa respaldada, hace logout normal.
+  Future<void> revertPreview() async {
+    final storage = ref.read(secureStorageProvider);
+    final origAccess = await storage.read(key: _kPreviewOriginalAccessKey);
+    final origRefresh = await storage.read(key: _kPreviewOriginalRefreshKey);
+    final origUserStr = await storage.read(key: _kPreviewOriginalUserKey);
+
+    if (origAccess == null || origRefresh == null || origUserStr == null) {
+      await logout();
+      return;
+    }
+
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    await storage.write(key: ApiConstants.accessTokenKey, value: origAccess);
+    await storage.write(key: ApiConstants.refreshTokenKey, value: origRefresh);
+    await storage.write(key: ApiConstants.userJsonKey, value: origUserStr);
+    await storage.delete(key: _kPreviewOriginalAccessKey);
+    await storage.delete(key: _kPreviewOriginalRefreshKey);
+    await storage.delete(key: _kPreviewOriginalUserKey);
+
+    final userJson = jsonDecode(origUserStr) as Map<String, dynamic>;
+    final restoredUser = UserEntity(
+      id: userJson['id'] as String,
+      name: userJson['name'] as String? ?? '',
+      email: userJson['email'] as String? ?? '',
+      role: userJson['role'] as String,
+      status: userJson['status'] as String? ?? 'activo',
+      image: userJson['image'] as String?,
+      municipalityId: userJson['municipalityId'] as String?,
+      provinceId: userJson['provinceId'] as String?,
+      phone: userJson['phone'] as String?,
+      dni: userJson['dni'] as String?,
+    );
+    state = AuthState(status: _statusFor(restoredUser), user: restoredUser);
   }
 
   // ── RF-01-10: Logout ──────────────────────────────────────────

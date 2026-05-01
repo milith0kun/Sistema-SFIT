@@ -24,6 +24,11 @@ class FeedPostCard extends StatefulWidget {
 class _FeedPostCardState extends State<FeedPostCard> {
   int _imageIndex = 0;
 
+  // Memoización: el valor relativo solo cambia cuando cambia minuto/hora,
+  // no en cada rebuild (que puede ocurrir muchas veces por scroll/like).
+  String? _cachedTimeAgo;
+  DateTime? _cachedTimeAgoFor;
+
   @override
   Widget build(BuildContext context) {
     final r = widget.report;
@@ -149,7 +154,17 @@ class _FeedPostCardState extends State<FeedPostCard> {
         children: [
           PageView.builder(
             itemCount: urls.length,
-            onPageChanged: (i) => setState(() => _imageIndex = i),
+            onPageChanged: (i) {
+              setState(() => _imageIndex = i);
+              // Precachear la siguiente imagen para que el swipe sea inmediato.
+              final next = i + 1;
+              if (next < urls.length) {
+                precacheImage(
+                  CachedNetworkImageProvider(normalizeImageUrl(urls[next])),
+                  context,
+                );
+              }
+            },
             itemBuilder: (context, i) => CachedNetworkImage(
               imageUrl: normalizeImageUrl(urls[i]),
               fit: BoxFit.cover,
@@ -304,13 +319,24 @@ class _FeedPostCardState extends State<FeedPostCard> {
   }
 
   String _timeAgo(DateTime when) {
+    // Cache: si el reporte es el mismo y ya calculamos antes, reusar.
+    // El tiempo relativo cambia poco (cada minuto en el peor caso), así
+    // que reusar entre rebuilds del scroll es seguro y mucho más rápido.
+    if (_cachedTimeAgoFor == when && _cachedTimeAgo != null) {
+      return _cachedTimeAgo!;
+    }
     final diff = DateTime.now().difference(when);
-    if (diff.inMinutes < 1) return 'ahora';
-    if (diff.inHours < 1) return 'hace ${diff.inMinutes}min';
-    if (diff.inDays < 1) return 'hace ${diff.inHours}h';
-    if (diff.inDays < 7) return 'hace ${diff.inDays}d';
-    if (diff.inDays < 30) return 'hace ${(diff.inDays / 7).floor()}sem';
-    return 'hace ${(diff.inDays / 30).floor()}m';
+    final result = switch (diff) {
+      _ when diff.inMinutes < 1 => 'ahora',
+      _ when diff.inHours < 1 => 'hace ${diff.inMinutes}min',
+      _ when diff.inDays < 1 => 'hace ${diff.inHours}h',
+      _ when diff.inDays < 7 => 'hace ${diff.inDays}d',
+      _ when diff.inDays < 30 => 'hace ${(diff.inDays / 7).floor()}sem',
+      _ => 'hace ${(diff.inDays / 30).floor()}m',
+    };
+    _cachedTimeAgo = result;
+    _cachedTimeAgoFor = when;
+    return result;
   }
 }
 

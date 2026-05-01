@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/sfit_mark.dart';
 import '../../../../core/widgets/sfit_sidebar.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../../../auth/presentation/pages/role_preview_page.dart';
 import '../../../auth/presentation/pages/widgets/status_screen.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../fleet/presentation/pages/fleet_page.dart';
@@ -23,9 +25,6 @@ import '../../../trips/presentation/pages/my_routes_page.dart';
 import '../../../trips/presentation/pages/my_trips_page.dart';
 import '../../../trips/presentation/pages/trip_map_page.dart';
 import '../../../rewards/presentation/pages/rewards_page.dart';
-import '../../../admin/presentation/pages/admin_dashboard_page.dart';
-import '../../../admin/presentation/pages/admin_usuarios_page.dart';
-import '../../../admin/presentation/pages/admin_empresas_page.dart';
 import 'dashboards/citizen_dashboard_page.dart';
 import 'dashboards/conductor_dashboard_page.dart';
 import 'dashboards/fiscal_dashboard_page.dart';
@@ -51,6 +50,7 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage> {
   int _index = 0;
   int _unreadNotifCount = 0;
+  bool _inPreviewMode = false;
   String? _lastProcessedTabSlug;
   // Tabs que ya fueron visitados al menos una vez — se construyen de forma perezosa
   // para evitar que animaciones de carga en tabs ocultos disparen el crash de semantics.
@@ -60,6 +60,12 @@ class _HomePageState extends ConsumerState<HomePage> {
   void initState() {
     super.initState();
     _loadUnreadCount();
+    _checkPreviewMode();
+  }
+
+  Future<void> _checkPreviewMode() async {
+    final isPreview = await ref.read(authProvider.notifier).isInPreviewMode();
+    if (mounted) setState(() => _inPreviewMode = isPreview);
   }
 
   @override
@@ -102,16 +108,32 @@ class _HomePageState extends ConsumerState<HomePage> {
     final user = ref.watch(authProvider).user;
     if (user == null) return const _BlankLoading();
 
+    // super_admin → selector de rol para "entrar como" un usuario
+    // operativo (ciudadano/conductor/fiscal/operador). Los demás roles
+    // web-only (admin_municipal, admin_provincial) ven el StatusScreen
+    // que los redirige al panel web.
+    if (user.isSuperAdmin) {
+      return const RolePreviewPage();
+    }
+
     if (user.isWebOnlyRole) {
       return StatusScreen(
         mark: const SfitMark(size: 36),
         icon: Icons.desktop_windows_outlined,
         iconColor: AppColors.goldDark,
         iconBg: AppColors.goldBg,
-        title: 'Usa la web para este rol',
+        title: 'Usa el panel web',
         message:
-            'Tu rol (${_roleLabel(user.role)}) opera desde el panel web de SFIT. '
-            'Ingresa a sfit.ecosdelseo.com con tus mismas credenciales.',
+            'Como ${_roleLabel(user.role)}, las gestiones se hacen desde '
+            'el panel web de SFIT con tus mismas credenciales.',
+        onPrimary: () async {
+          final url = Uri.parse('https://sfit.ecosdelseo.com/login');
+          if (await canLaunchUrl(url)) {
+            await launchUrl(url, mode: LaunchMode.externalApplication);
+          }
+        },
+        primaryIcon: Icons.open_in_new_rounded,
+        primaryLabel: 'Abrir panel web',
         onLogout: () => ref.read(authProvider.notifier).logout(),
       );
     }
@@ -126,6 +148,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       drawer: SfitSidebar(
         currentSlug: activeTab.slug,
         unreadNotifCount: _unreadNotifCount,
+        inPreviewMode: _inPreviewMode,
         onSelectTab: (slug) {
           final i = tabs.indexWhere((t) => t.slug == slug);
           if (i >= 0 && i != _index) {
@@ -407,36 +430,10 @@ class _HomePageState extends ConsumerState<HomePage> {
             page: ProfilePage(),
           ),
         ],
-      'admin_municipal' => const [
-          _Tab(
-            slug: 'tablero',
-            label: 'Tablero',
-            icon: Icons.dashboard_outlined,
-            iconFilled: Icons.dashboard,
-            page: AdminDashboardPage(),
-          ),
-          _Tab(
-            slug: 'usuarios',
-            label: 'Usuarios',
-            icon: Icons.people_outline,
-            iconFilled: Icons.people,
-            page: AdminUsuariosPage(),
-          ),
-          _Tab(
-            slug: 'empresas',
-            label: 'Empresas',
-            icon: Icons.business_outlined,
-            iconFilled: Icons.business,
-            page: AdminEmpresasPage(),
-          ),
-          _Tab(
-            slug: 'perfil',
-            label: 'Perfil',
-            icon: Icons.person_outline,
-            iconFilled: Icons.person,
-            page: ProfilePage(),
-          ),
-        ],
+      // Nota: admin_municipal, admin_provincial y super_admin son web-only
+      // (ver `UserEntity.isWebOnlyRole`). HomePage muestra `StatusScreen`
+      // para esos roles antes de llegar a `_tabsForRole`, por eso no
+      // están listados aquí.
       _ => const [
           _Tab(
             slug: 'inicio',

@@ -23,15 +23,24 @@ class FeedDetailPage extends ConsumerStatefulWidget {
 class _FeedDetailPageState extends ConsumerState<FeedDetailPage> {
   int _photoIndex = 0;
 
+  // DateFormat es relativamente caro de instanciar (parsea el patrón).
+  // Estático para reusar la misma instancia en todos los rebuilds.
+  static final _detailDateFormat = DateFormat("d 'de' MMMM 'a las' HH:mm", 'es');
+
   @override
   Widget build(BuildContext context) {
     // Si el feed actualizó el reporte (por toggle de apoyo), reflejar esos
-    // cambios aquí buscándolo por id en el state.
-    final inFeed = ref
-        .watch(feedProvider)
-        .items
-        .firstWhere((r) => r.id == widget.report.id, orElse: () => widget.report);
-    final r = inFeed;
+    // cambios. Usamos `select` para que esta página solo se reconstruya
+    // cuando el reporte específico cambia, no en cualquier cambio del feed
+    // (filtros, paginación, etc.).
+    final r = ref.watch(
+      feedProvider.select(
+        (s) => s.items.firstWhere(
+          (r) => r.id == widget.report.id,
+          orElse: () => widget.report,
+        ),
+      ),
+    );
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -210,8 +219,7 @@ class _FeedDetailPageState extends ConsumerState<FeedDetailPage> {
               ),
               const SizedBox(height: 1),
               Text(
-                DateFormat("d 'de' MMMM 'a las' HH:mm", 'es')
-                    .format(r.createdAt.toLocal()),
+                _detailDateFormat.format(r.createdAt.toLocal()),
                 style: AppTheme.inter(
                   fontSize: 11.5,
                   color: AppColors.ink5,

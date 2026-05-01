@@ -3,7 +3,7 @@ import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_theme.dart';
 
 /// Pantalla informativa de estado (pending / rejected / rol web-only).
-/// Ícono circular con borde tintado, título, mensaje y botón outlined.
+/// Ícono circular con borde tintado, título, mensaje y botones outlined.
 class StatusScreen extends StatelessWidget {
   final Widget? mark;
   final IconData icon;
@@ -13,6 +13,12 @@ class StatusScreen extends StatelessWidget {
   final String message;
   final VoidCallback onLogout;
   final String logoutLabel;
+
+  /// CTA principal opcional (botón filled arriba del logout). Útil para
+  /// roles web-only: "Abrir panel web" que abre `sfit.ecosdelseo.com`.
+  final VoidCallback? onPrimary;
+  final IconData? primaryIcon;
+  final String? primaryLabel;
 
   const StatusScreen({
     super.key,
@@ -24,6 +30,9 @@ class StatusScreen extends StatelessWidget {
     required this.message,
     required this.onLogout,
     this.logoutLabel = 'Cerrar sesión',
+    this.onPrimary,
+    this.primaryIcon,
+    this.primaryLabel,
   });
 
   @override
@@ -74,8 +83,41 @@ class StatusScreen extends StatelessWidget {
                   height: 1.5,
                 ),
               ),
-              const SizedBox(height: 36),
-              OutlinedButton(onPressed: onLogout, child: Text(logoutLabel)),
+              const SizedBox(height: 32),
+              if (onPrimary != null) ...[
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: FilledButton.icon(
+                    onPressed: onPrimary,
+                    icon: Icon(primaryIcon ?? Icons.open_in_new_rounded, size: 18),
+                    label: Text(
+                      primaryLabel ?? 'Continuar',
+                      style: AppTheme.inter(fontSize: 14.5, fontWeight: FontWeight.w600, color: Colors.white),
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.ink9,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton(
+                  onPressed: onLogout,
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.ink2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: Text(
+                    logoutLabel,
+                    style: AppTheme.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ink8),
+                  ),
+                ),
+              ),
             ],
           ),
         ),

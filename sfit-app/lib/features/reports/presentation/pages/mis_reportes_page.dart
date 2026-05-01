@@ -286,6 +286,9 @@ class _ReportCard extends StatefulWidget {
 class _ReportCardState extends State<_ReportCard> {
   bool _expanded = false;
 
+  // DateFormat estático para reusar la instancia en todos los rebuilds.
+  static final _cardDateFormat = DateFormat("d 'de' MMMM, HH:mm", 'es');
+
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
@@ -402,7 +405,7 @@ class _ReportCardState extends State<_ReportCard> {
                     Expanded(
                       child: Text(
                         createdAt != null
-                            ? DateFormat("d 'de' MMMM, HH:mm", 'es').format(createdAt.toLocal())
+                            ? _cardDateFormat.format(createdAt.toLocal())
                             : '—',
                         style: AppTheme.inter(fontSize: 11.5, color: AppColors.ink5, tabular: true),
                       ),

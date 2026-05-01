@@ -44,5 +44,9 @@ class UserEntity {
   bool get isSuperAdmin       => role == 'super_admin';
 
   /// Roles que SOLO operan desde el panel web.
-  bool get isWebOnlyRole => isAdminProvincial || isSuperAdmin;
+  /// Los roles de administración (municipal/provincial/super) gestionan
+  /// flujos pesados de aprobación, gestión de usuarios y reportes — más
+  /// cómodos en el dashboard web. En el app móvil se les muestra una
+  /// pantalla que los redirige a `sfit.ecosdelseo.com`.
+  bool get isWebOnlyRole => isAdminMunicipal || isAdminProvincial || isSuperAdmin;
 }

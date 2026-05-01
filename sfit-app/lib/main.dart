@@ -12,25 +12,29 @@ void main() async {
 
   // Inicializa los símbolos de fecha en español para que `DateFormat`
   // pueda formatear fechas con locale 'es' (ej. "1 de mayo, 14:23").
+  // Es rápido (~10ms) y se necesita antes del primer build.
   await initializeDateFormatting('es', null);
 
-  try {
-    await Firebase.initializeApp();
-
-    // RF-18: Registrar el handler de background ANTES de runApp.
-    // Debe ser una función top-level — ver fcm_background_handler.dart.
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
-    // RF-18: Inicializar canal Android + listeners FCM (foreground, tap).
-    await NotificationService.initialize();
-  } catch (_) {
-    // Si falta google-services.json en el build, no bloquear el arranque.
-    // Los handlers de FCM simplemente no se registran.
-  }
-
+  // Arrancamos la UI de inmediato. Firebase + FCM se inicializan en el
+  // primer post-frame callback para no bloquear el primer frame
+  // (ahorra ~500-800ms de startup en dispositivos lentos).
   runApp(
     const ProviderScope(
       child: SfitApp(),
     ),
   );
+
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    try {
+      await Firebase.initializeApp();
+      // RF-18: Registrar el handler de background. Debe ser una función
+      // top-level — ver fcm_background_handler.dart.
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      // RF-18: Inicializar canal Android + listeners FCM (foreground, tap).
+      await NotificationService.initialize();
+    } catch (_) {
+      // Si falta google-services.json en el build, no bloquear el arranque.
+      // Los handlers de FCM simplemente no se registran.
+    }
+  });
 }

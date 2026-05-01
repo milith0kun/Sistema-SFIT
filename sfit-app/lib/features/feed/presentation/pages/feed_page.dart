@@ -356,37 +356,18 @@ class _OrderButton extends StatelessWidget {
   }
 }
 
-class _FeedLoading extends StatelessWidget {
+class _FeedLoading extends StatefulWidget {
   const _FeedLoading();
 
   @override
-  Widget build(BuildContext context) {
-    // Skeleton de 3 cards con shimmer — da sensación de carga progresiva
-    // en lugar de un spinner vacío. Column en lugar de ListView porque
-    // está dentro de un SliverToBoxAdapter (no requiere lazy build).
-    return const Padding(
-      padding: EdgeInsets.only(top: 12, bottom: 32),
-      child: Column(
-        children: [
-          _SkeletonCard(),
-          _SkeletonCard(),
-          _SkeletonCard(),
-        ],
-      ),
-    );
-  }
+  State<_FeedLoading> createState() => _FeedLoadingState();
 }
 
-/// Card placeholder con shimmer animado mientras carga el feed.
-class _SkeletonCard extends StatefulWidget {
-  const _SkeletonCard();
-
-  @override
-  State<_SkeletonCard> createState() => _SkeletonCardState();
-}
-
-class _SkeletonCardState extends State<_SkeletonCard>
+class _FeedLoadingState extends State<_FeedLoading>
     with SingleTickerProviderStateMixin {
+  // Un único AnimationController compartido entre los 3 skeletons.
+  // Antes cada SkeletonCard creaba su propio controller, gastando GPU
+  // y memoria innecesariamente.
   late final AnimationController _ctrl;
 
   @override
@@ -406,6 +387,28 @@ class _SkeletonCardState extends State<_SkeletonCard>
 
   @override
   Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 32),
+      child: Column(
+        children: [
+          _SkeletonCard(controller: _ctrl),
+          _SkeletonCard(controller: _ctrl),
+          _SkeletonCard(controller: _ctrl),
+        ],
+      ),
+    );
+  }
+}
+
+/// Card placeholder con shimmer animado mientras carga el feed.
+/// Recibe el `AnimationController` desde el padre para no crear uno
+/// por instancia.
+class _SkeletonCard extends StatelessWidget {
+  final AnimationController controller;
+  const _SkeletonCard({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 14),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
@@ -420,14 +423,14 @@ class _SkeletonCardState extends State<_SkeletonCard>
           // Header: avatar + nombre + ubicación
           Row(
             children: [
-              _ShimmerBox(controller: _ctrl, width: 36, height: 36, radius: 18),
+              _ShimmerBox(controller: controller, width: 36, height: 36, radius: 18),
               const SizedBox(width: 10),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _ShimmerBox(controller: _ctrl, width: 120, height: 12, radius: 4),
+                  _ShimmerBox(controller: controller, width: 120, height: 12, radius: 4),
                   const SizedBox(height: 6),
-                  _ShimmerBox(controller: _ctrl, width: 80, height: 10, radius: 3),
+                  _ShimmerBox(controller: controller, width: 80, height: 10, radius: 3),
                 ],
               ),
             ],
@@ -439,7 +442,7 @@ class _SkeletonCardState extends State<_SkeletonCard>
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: _ShimmerBox(
-                controller: _ctrl,
+                controller: controller,
                 width: double.infinity,
                 height: double.infinity,
                 radius: 8,
@@ -448,11 +451,11 @@ class _SkeletonCardState extends State<_SkeletonCard>
           ),
           const SizedBox(height: 12),
           // Categoría + descripción (2 líneas)
-          _ShimmerBox(controller: _ctrl, width: 140, height: 12, radius: 4),
+          _ShimmerBox(controller: controller, width: 140, height: 12, radius: 4),
           const SizedBox(height: 8),
-          _ShimmerBox(controller: _ctrl, width: double.infinity, height: 10, radius: 3),
+          _ShimmerBox(controller: controller, width: double.infinity, height: 10, radius: 3),
           const SizedBox(height: 6),
-          _ShimmerBox(controller: _ctrl, width: 220, height: 10, radius: 3),
+          _ShimmerBox(controller: controller, width: 220, height: 10, radius: 3),
         ],
       ),
     );
