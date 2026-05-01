@@ -26,7 +26,14 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
   @override
   void initState() { super.initState(); _load(); }
   @override
-  void dispose() { _nameCtl.dispose(); _freqCtl.dispose(); for (final w in _wps) w.ctl.dispose(); super.dispose(); }
+  void dispose() {
+    _nameCtl.dispose();
+    _freqCtl.dispose();
+    for (final w in _wps) {
+      w.ctl.dispose();
+    }
+    super.dispose();
+  }
 
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });

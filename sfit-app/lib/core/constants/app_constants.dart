@@ -4,7 +4,7 @@ class AppConstants {
 
   static const String appName = 'SFIT';
   static const String appFullName = 'Sistema de Fiscalización Inteligente de Transporte';
-  static const String appVersion = '1.2.0';
+  static const String appVersion = '1.3.0';
 
   // Actualización — versión mínima local (fallback si la API no responde)
   static const String minimumVersion = '1.2.0';

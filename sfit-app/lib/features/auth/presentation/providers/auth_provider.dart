@@ -145,18 +145,39 @@ class Auth extends _$Auth {
   Future<bool> loginWithGoogle() async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
+      // ignore: avoid_print
+      print('[Auth.loginWithGoogle] iniciando Google Sign In...');
       final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
-        // El usuario canceló
-        state = const AuthState(status: AuthStatus.unauthenticated);
+        // signIn() retorna null en dos casos indistinguibles:
+        // 1) El usuario canceló el diálogo de cuenta
+        // 2) Google Play Services rechaza el sign-in (SHA-1 no registrado,
+        //    Play Services desactualizado, etc.)
+        // Como no hay forma de diferenciarlos, mostramos un mensaje
+        // informativo que cubre ambos casos sin alarmar.
+        // ignore: avoid_print
+        print('[Auth.loginWithGoogle] signIn() retornó null (cancelación o fallo silencioso del plugin)');
+        state = const AuthState(
+          status: AuthStatus.unauthenticated,
+          errorMessage:
+              'No se completó el inicio con Google. Si no cancelaste, revisa Google Play Services o vuelve a intentar.',
+        );
         return false;
       }
+      // ignore: avoid_print
+      print('[Auth.loginWithGoogle] cuenta seleccionada: ${googleUser.email}');
 
       final googleAuth = await googleUser.authentication;
       final idToken = googleAuth.idToken;
       if (idToken == null) {
-        throw AuthException('No se pudo obtener el token de Google');
+        // ignore: avoid_print
+        print('[Auth.loginWithGoogle] idToken es null — serverClientId probablemente mal configurado');
+        throw AuthException(
+          'Google no devolvió token de identidad. Revisa la configuración de la cuenta o intenta más tarde.',
+        );
       }
+      // ignore: avoid_print
+      print('[Auth.loginWithGoogle] idToken obtenido, enviando al backend...');
 
       final result =
           await ref.read(authRepositoryProvider).loginWithGoogle(idToken);

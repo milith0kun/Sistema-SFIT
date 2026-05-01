@@ -16,7 +16,7 @@ export async function GET() {
     data: {
       // ── Versiones ────────────────────────────────────────────
       minimumVersion: "1.2.0",   // Versión mínima soportada — debajo → dialog FORZADO
-      latestVersion:  "1.2.0",   // Última versión en Play Store → dialog opcional si hay diferencia
+      latestVersion:  "1.3.0",   // Última versión en Play Store → dialog opcional si hay diferencia
 
       // ── Play Store ───────────────────────────────────────────
       playStoreUrl: "https://play.google.com/store/apps/details?id=com.sfit.sfit_app",
@@ -28,7 +28,13 @@ export async function GET() {
 
       // ── Novedades mostradas en el diálogo ────────────────────
       // Dejar vacío ("") para no mostrar la sección de novedades
-      releaseNotes: "",
+      releaseNotes:
+          "• Buses en vivo: ve dónde está cada bus de tu ciudad en tiempo real.\n"
+          "• Conductor: al iniciar tu turno se abre el mapa con la ruta y paraderos.\n"
+          "• Detalle de ruta con mini-mapa interactivo y lista de paradas.\n"
+          "• Operadores pueden editar rutas desde el app.\n"
+          "• Imágenes de evidencia ahora cargan correctamente.\n"
+          "• Mejoras en el inicio con Google y carga más rápida.",
     },
   });
 }
