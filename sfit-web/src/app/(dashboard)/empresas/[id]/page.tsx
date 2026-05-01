@@ -750,10 +750,17 @@ export default function EmpresaDetallePage({ params }: Props) {
           >
             {(() => {
               const selected = new Set(company.vehicleTypeKeys);
-              const catalogKeys = new Set(types.map(t => t.key));
+              // Deduplicar el catálogo por key — el backend puede devolver el mismo
+              // tipo dos veces (uno global predefinido + uno municipal del mismo key).
+              const seenKeys = new Set<string>();
+              const uniqueTypes = types.filter(t => {
+                if (seenKeys.has(t.key)) return false;
+                seenKeys.add(t.key);
+                return true;
+              });
               // Tipos que la empresa tiene pero ya no están en el catálogo activo:
               // los mostramos igual, marcados como obsoletos, para no perder la trazabilidad.
-              const orphanKeys = company.vehicleTypeKeys.filter(k => !catalogKeys.has(k));
+              const orphanKeys = company.vehicleTypeKeys.filter(k => !seenKeys.has(k));
 
               if (!canManage) {
                 // Vista de solo lectura para roles sin permisos de gestión

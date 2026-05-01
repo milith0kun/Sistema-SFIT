@@ -33,12 +33,13 @@ function StatusBadge({ s }: { s: DriverStatus }) {
   const m = STATUS_META(s);
   return (
     <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
-      padding: "2px 9px", borderRadius: 999,
-      background: "#fff", color: m.color, border: `1px solid ${m.bd}`,
+      display: "inline-flex", alignItems: "center", gap: 6,
+      padding: "3px 10px", borderRadius: 6,
+      background: "#fff", color: INK9, border: `1px solid ${INK2}`,
       fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
+      textTransform: "uppercase",
     }}>
-      <span style={{ width: 5, height: 5, borderRadius: "50%", background: "currentColor" }} />
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
       {m.label}
     </span>
   );
@@ -204,10 +205,18 @@ export default function ConductoresPage() {
       accessorFn: (d) => d.reputationScore ?? 0,
       cell: ({ row: r }) => {
         const score = r.original.reputationScore ?? 0;
+        const color = score >= 80 ? "#15803d" : score >= 50 ? "#b45309" : "#DC2626";
         return (
-          <div style={{ cursor: "pointer" }} onClick={() => setSel(r.original)}>
-            <span style={{ fontWeight: 700, color: INK9, fontVariantNumeric: "tabular-nums" }}>{score}</span>
-            <span style={{ color: INK5, fontSize: "0.75rem" }}>/100</span>
+          <div style={{ minWidth: 90, cursor: "pointer" }} onClick={() => setSel(r.original)}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 4 }}>
+              <span style={{ fontFamily: "ui-monospace,monospace", fontWeight: 800, fontSize: "0.875rem", color: INK9, fontVariantNumeric: "tabular-nums" }}>
+                {score}
+              </span>
+              <span style={{ fontSize: "0.625rem", color: INK5, fontWeight: 500 }}>/ 100</span>
+            </div>
+            <div style={{ height: 4, background: INK1, borderRadius: 999, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${Math.max(0, Math.min(100, score))}%`, background: color, borderRadius: 999 }} />
+            </div>
           </div>
         );
       },
