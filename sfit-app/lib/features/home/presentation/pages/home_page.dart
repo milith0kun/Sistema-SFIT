@@ -14,6 +14,7 @@ import '../../../operator/presentation/pages/fleet_analytics_page.dart';
 import '../../../operator/presentation/pages/vehiculos_tab_page.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 import '../../../feed/presentation/pages/feed_page.dart';
+import '../../../reports/presentation/pages/mis_reportes_page.dart';
 import '../../../reports/presentation/pages/reports_review_page.dart';
 import '../../../reports/presentation/pages/submit_report_page.dart';
 import '../../../trips/presentation/pages/fatigue_page.dart';
@@ -361,11 +362,11 @@ class _HomePageState extends ConsumerState<HomePage> {
             page: FeedPage(),
           ),
           _Tab(
-            slug: 'consulta',
-            label: 'Consulta',
-            icon: Icons.qr_code_2_outlined,
-            iconFilled: Icons.qr_code_2,
-            page: _QrLaunchTab(),
+            slug: 'mis-reportes',
+            label: 'Mis reportes',
+            icon: Icons.list_alt_outlined,
+            iconFilled: Icons.list_alt,
+            page: MisReportesPage(),
           ),
           _Tab(
             slug: 'reportar',

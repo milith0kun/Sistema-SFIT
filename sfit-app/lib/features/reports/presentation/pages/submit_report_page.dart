@@ -5,10 +5,12 @@ import 'package:dio/dio.dart' show DioException, DioExceptionType, FormData, Mul
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/navigation/navigation_key.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -50,7 +52,6 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
 
   // ── Envío ────────────────────────────────────────────────────────
   bool _submitting = false;
-  bool _success = false;
 
   @override
   void initState() {
@@ -281,11 +282,48 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
         longitude: _selectedLatLng?.longitude,
         imageUrls: imageUrls.isEmpty ? null : imageUrls,
       );
-      if (mounted) setState(() { _submitting = false; _success = true; });
+
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      _onSubmitSuccess();
     } catch (e) {
       debugPrint('submit report error: $e');
       if (mounted) setState(() { _submitting = false; _uploadingImages = false; });
       _showError('No se pudo enviar el reporte. Intenta de nuevo.');
+    }
+  }
+
+  /// Tras enviar el reporte, navega de forma útil:
+  /// - Si la página fue empujada como ruta (vino desde vista pública del
+  ///   vehículo), regresa a la pantalla anterior.
+  /// - Si está montada como tab del HomePage, salta al tab "Mis reportes"
+  ///   donde el usuario ve el reporte recién creado.
+  /// En ambos casos muestra un snackbar de confirmación.
+  void _onSubmitSuccess() {
+    _resetForm();
+    showAppSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '¡Reporte enviado! Será revisado por un fiscal.',
+                style: AppTheme.inter(fontSize: 13.5, color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: AppColors.apto,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/home?tab=mis-reportes');
     }
   }
 
@@ -312,10 +350,27 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
     SnackBar(content: Text(msg), backgroundColor: AppColors.noApto, behavior: SnackBarBehavior.floating),
   );
 
+  /// Limpia el formulario tras un envío exitoso para dejarlo listo para el
+  /// siguiente reporte. La navegación la hace `_onSubmitSuccess`.
+  void _resetForm() {
+    _plateCtrl.clear();
+    _descCtrl.clear();
+    _selectedImages.clear();
+    setState(() {
+      _foundVehicle = null;
+      _searchError = null;
+      _selectedCategory = null;
+      _suggestedCategory = null;
+      _userPosition = null;
+      _selectedLatLng = null;
+      _locationError = null;
+      _submitting = false;
+      _uploadingImages = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_success) return _SuccessScreen(onBack: () => Navigator.of(context).pop());
-
     final String submitLabel = _uploadingImages
         ? 'Subiendo fotos...'
         : _submitting ? 'Enviando...' : 'Enviar reporte';
@@ -1025,62 +1080,6 @@ class _AISuggestionChip extends StatelessWidget {
             const SizedBox(width: 6),
             GestureDetector(onTap: onDismiss, child: const Icon(Icons.close, size: 16, color: AppColors.infoBorder)),
           ],
-        ),
-      );
-}
-
-// ── Pantalla de éxito ─────────────────────────────────────────────────────────
-class _SuccessScreen extends StatelessWidget {
-  final VoidCallback onBack;
-  const _SuccessScreen({required this.onBack});
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        backgroundColor: AppColors.paper,
-        body: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    duration: const Duration(milliseconds: 500),
-                    curve: Curves.elasticOut,
-                    builder: (_, v, child) => Transform.scale(scale: v, child: child),
-                    child: Container(
-                      width: 84,
-                      height: 84,
-                      decoration: const BoxDecoration(color: AppColors.infoBg, shape: BoxShape.circle),
-                      child: const Icon(Icons.check_rounded, size: 46, color: AppColors.info),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text('¡Reporte enviado!', style: AppTheme.inter(fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.ink9, letterSpacing: -0.4)),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Tu reporte fue registrado y será revisado\npor un fiscal asignado a la brevedad.',
-                    textAlign: TextAlign.center,
-                    style: AppTheme.inter(fontSize: 14, color: AppColors.ink6, height: 1.5),
-                  ),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: FilledButton(
-                      onPressed: onBack,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.ink9,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      child: Text('Volver', style: AppTheme.inter(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ),
       );
 }

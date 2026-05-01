@@ -47,11 +47,13 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     await writeFile(join(uploadDir, filename), Buffer.from(bytes));
 
-    // URL RELATIVA — funciona desde cualquier host (localhost:3000 desde la
-    // PC o IP local desde el móvil). Antes se concatenaba NEXT_PUBLIC_APP_URL,
-    // pero si la env var apuntaba a la IP de LAN del móvil, el dashboard web
-    // (en localhost) no podía cargar las imágenes.
-    const url = `/uploads/reports/${filename}`;
+    // URL ABSOLUTA derivada del request — siempre apunta al mismo origen donde
+    // se subió el archivo. Esto permite que cualquier cliente (dashboard local,
+    // dashboard en producción, app móvil) cargue la imagen sin importar dónde
+    // esté abierto. Antes se usaba NEXT_PUBLIC_APP_URL: si la env var apuntaba
+    // a una IP de LAN o estaba vacía, las imágenes podían quedar inalcanzables
+    // desde otros clientes.
+    const url = new URL(`/uploads/reports/${filename}`, request.url).toString();
 
     return apiResponse({ url, filename }, 201);
   } catch (error) {

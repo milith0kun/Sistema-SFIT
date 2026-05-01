@@ -42,21 +42,6 @@ function fmtAgo(d: string) {
   return `Hace ${Math.floor(hrs / 24)} días`;
 }
 
-/**
- * Normaliza una URL de evidencia. Si viene como URL absoluta apuntando a
- * /uploads/... (caso de reportes creados antes del fix donde el endpoint
- * concatenaba NEXT_PUBLIC_APP_URL con la IP de LAN), la convierte a path
- * relativo para que el navegador la cargue desde el host actual del dashboard.
- */
-function normalizeEvidenceUrl(u: string): string {
-  if (!u) return u;
-  try {
-    const m = u.match(/\/uploads\/(reports|.*?)\/([^/?#]+)/);
-    if (m) return `/uploads/${m[1]}/${m[2]}`;
-  } catch { /* ignore */ }
-  return u;
-}
-
 const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin"];
 const btnInk: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: "none", background: INK9, color: "#fff", fontFamily: "inherit" };
 const btnOut: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontFamily: "inherit" };
@@ -280,14 +265,9 @@ export default function ReportesPage() {
             </div>
             <div style={{ padding: 18 }}>
               {(() => {
-                // La app móvil envía imageUrls[]; el dashboard antiguo usaba evidenceUrl.
-                // Soportamos ambos: priorizamos imageUrls (puede haber varias fotos),
-                // con fallback a evidenceUrl. Normalizamos cada URL a path relativo
-                // para evitar problemas con IPs de LAN guardadas en datos antiguos.
-                const imgs: string[] = (sel.imageUrls && sel.imageUrls.length > 0
+                const imgs: string[] = sel.imageUrls && sel.imageUrls.length > 0
                   ? sel.imageUrls
-                  : (sel.evidenceUrl ? [sel.evidenceUrl] : [])
-                ).map(normalizeEvidenceUrl);
+                  : (sel.evidenceUrl ? [sel.evidenceUrl] : []);
                 if (imgs.length === 0) {
                   return (
                     <div style={{ aspectRatio: "16/9", borderRadius: 10, background: INK1, border: `1px solid ${INK2}`, display: "flex", alignItems: "center", justifyContent: "center", color: INK5, flexDirection: "column", gap: 8 }}>

@@ -90,18 +90,6 @@ function fmtDate(iso: string) {
 function fmtDateShort(iso: string) {
   return new Date(iso).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" });
 }
-/**
- * Convierte URLs absolutas /uploads/... (creadas con NEXT_PUBLIC_APP_URL
- * apuntando a una IP de LAN) en paths relativos para que el dashboard
- * cargue las imágenes desde su propio host.
- */
-function normalizeEvidenceUrl(u: string): string {
-  if (!u) return u;
-  const m = u.match(/\/uploads\/(reports|.*?)\/([^/?#]+)/);
-  if (m) return `/uploads/${m[1]}/${m[2]}`;
-  return u;
-}
-
 /* ── SectionCard ── */
 function SectionCard({ icon, title, subtitle, children, action }: {
   icon: React.ReactNode; title: string; subtitle?: string;
@@ -402,14 +390,9 @@ export default function ReporteDetallePage({ params }: Props) {
 
           {/* Evidencia */}
           {(() => {
-            // Soporta tanto imageUrls[] (envía la app móvil) como evidenceUrl
-            // (legacy single). Prioriza imageUrls si existe. Normaliza URLs
-            // absolutas a paths relativos para que carguen desde el host
-            // del dashboard (problema con datos antiguos que tenían IP de LAN).
-            const imgs: string[] = (report.imageUrls && report.imageUrls.length > 0
+            const imgs: string[] = report.imageUrls && report.imageUrls.length > 0
               ? report.imageUrls
-              : (report.evidenceUrl ? [report.evidenceUrl] : [])
-            ).map(normalizeEvidenceUrl);
+              : (report.evidenceUrl ? [report.evidenceUrl] : []);
             const hasEvidence = imgs.length > 0;
             return (
               <SectionCard
