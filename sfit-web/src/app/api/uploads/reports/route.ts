@@ -47,8 +47,11 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     await writeFile(join(uploadDir, filename), Buffer.from(bytes));
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-    const url = `${appUrl}/uploads/reports/${filename}`;
+    // URL RELATIVA — funciona desde cualquier host (localhost:3000 desde la
+    // PC o IP local desde el móvil). Antes se concatenaba NEXT_PUBLIC_APP_URL,
+    // pero si la env var apuntaba a la IP de LAN del móvil, el dashboard web
+    // (en localhost) no podía cargar las imágenes.
+    const url = `/uploads/reports/${filename}`;
 
     return apiResponse({ url, filename }, 201);
   } catch (error) {
