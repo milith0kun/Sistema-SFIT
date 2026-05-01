@@ -22,29 +22,47 @@ export async function GET(
 
   try {
     await connectDB();
-    const file = await UploadedFile.findById(id).lean();
+    // Sin .lean(): cuando se serializa el campo Buffer con .lean() en algunas
+    // versiones de Mongoose viene como Binary del driver de mongo, no como
+    // Node Buffer, y los wrappers de TypedArray no copian correctamente.
+    // findById() devuelve un doc hidratado donde file.data es un Buffer real.
+    const file = await UploadedFile.findById(id);
     if (!file) return new NextResponse("Not found", { status: 404 });
 
-    // file.data viene como Buffer (Mongoose Binary subtype). Lo convertimos
-    // a Uint8Array para asegurar compatibilidad con BodyInit del runtime
-    // de Next 16. NO enviamos Content-Length manualmente: detrás de
-    // Cloudflare la compresión transparente cambia el tamaño real del body
-    // y un Content-Length declarado por el origen produce
-    // ERR_HTTP2_PROTOCOL_ERROR en el cliente. El runtime/proxy calcula
-    // el header correcto a partir del body.
-    const buf = file.data as unknown as Buffer;
-    // Copiamos a un ArrayBuffer fresco para evitar problemas de tipo con
-    // Next 16 (Uint8Array<ArrayBufferLike> no satisface BodyInit estricto)
-    // y para que el body sea independiente del Buffer subyacente de Mongoose.
+    // Forzamos a Buffer node real (cubre el caso de Binary subtype).
+    const raw = file.data as unknown;
+    let buf: Buffer;
+    if (Buffer.isBuffer(raw)) {
+      buf = raw;
+    } else if (raw && typeof raw === "object" && "buffer" in raw) {
+      // Mongoose Binary { buffer: Buffer, sub_type: number }
+      const inner = (raw as { buffer: unknown }).buffer;
+      buf = Buffer.isBuffer(inner) ? inner : Buffer.from(inner as ArrayBufferLike);
+    } else {
+      buf = Buffer.from(raw as ArrayBufferLike);
+    }
+
+    if (!buf || buf.byteLength === 0) {
+      console.error("[uploads/files GET] empty buffer", { id, type: typeof raw });
+      return new NextResponse("Empty file", { status: 500 });
+    }
+
+    // Copiamos a un ArrayBuffer fresco e independiente del Buffer original.
+    // No enviamos Content-Length manualmente: detrás de Cloudflare la
+    // compresión transparente cambia el tamaño real del body y declarar
+    // Content-Length en el origen produce ERR_HTTP2_PROTOCOL_ERROR.
     const body = new ArrayBuffer(buf.byteLength);
-    new Uint8Array(body).set(buf);
+    new Uint8Array(body).set(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength));
 
     return new NextResponse(body, {
       status: 200,
       headers: {
-        "Content-Type": file.mimeType,
+        "Content-Type": file.mimeType || "application/octet-stream",
         // Cache agresivo: el contenido es inmutable (mismo id → mismos bytes).
         "Cache-Control": "public, max-age=31536000, immutable",
+        // Necesario para que el navegador permita cargar el binario como
+        // imagen aunque el origin sea distinto del que sirvió la página.
+        "Cross-Origin-Resource-Policy": "cross-origin",
       },
     });
   } catch (error) {
