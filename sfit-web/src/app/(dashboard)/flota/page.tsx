@@ -4,10 +4,10 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Car, Route, Wrench, X, Users, Download, Plus, Filter, AlertTriangle, Check,
-  Calendar, Loader2, Inbox, MapPin,
+  Car, Route, Wrench, X, Users, Plus, Filter, AlertTriangle, Check,
+  Calendar, Loader2, Inbox, MapPin, ChevronRight,
 } from "lucide-react";
-import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 
@@ -311,6 +311,17 @@ export default function FlotaPage() {
       accessorFn: (row) => row.status,
       cell: ({ row: r }) => <StatusBadge s={r.original.status} />,
     },
+    {
+      id: "_nav",
+      header: "",
+      enableSorting: false,
+      enableHiding: false,
+      cell: () => (
+        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", color: INK5 }}>
+          <ChevronRight size={14} />
+        </span>
+      ),
+    },
   ], []);
 
   if (!user) return null;
@@ -319,46 +330,34 @@ export default function FlotaPage() {
   const isToday = date === todayISO();
 
   return (
-    <div className="flex flex-col gap-4 animate-fade-in pb-10">
-      <DashboardHero
+    <div className="flex flex-col gap-4 animate-fade-in pb-10" style={{ color: INK9 }}>
+      <PageHeader
         kicker="Operación · RF-07"
         title="Flota del día"
-        pills={[
-          { label: "Total hoy", value: items.length },
-          { label: "En ruta", value: enRuta },
-          { label: "Disponibles", value: disponible },
-          { label: "Mantenimiento", value: mant + fueraServ, warn: (mant + fueraServ) > 0 },
-        ]}
+        subtitle={`${items.length} salida${items.length === 1 ? "" : "s"} · ${enRuta} en ruta · ${disponible} disponibles`}
         action={
-          <div style={{ display: "flex", gap: 6 }}>
-            <button style={{
-              display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-              borderRadius: 7, border: "1px solid rgba(255,255,255,0.18)",
-              background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.85)",
-              fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-            }}>
-              <Download size={13} />Reporte diario
-            </button>
-            <Link href="/flota/mapa" style={{
-              display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-              borderRadius: 7, border: "1px solid rgba(255,255,255,0.18)",
-              background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.85)",
-              fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-              textDecoration: "none",
-            }}>
-              <MapPin size={13} />Mapa en vivo
+          <div style={{ display: "flex", gap: 8 }}>
+            <Link href="/flota/mapa">
+              <button style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                height: 36, padding: "0 14px", borderRadius: 9,
+                border: `1.5px solid ${INK2}`, background: "#fff", color: INK6,
+                fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+              }}>
+                <MapPin size={14} />Mapa en vivo
+              </button>
             </Link>
             {canRegister && (
               <button
                 style={{
-                  display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-                  borderRadius: 7, border: "none",
-                  background: "#fff", color: INK9,
-                  fontSize: "0.8125rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  height: 36, padding: "0 14px", borderRadius: 9,
+                  border: "none", background: INK9, color: "#fff",
+                  fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
                 }}
                 onClick={() => { setShowChecklist(true); void loadModalData(); }}
               >
-                <Plus size={13} />Registrar salida
+                <Plus size={14} />Registrar salida
               </button>
             )}
           </div>
@@ -366,11 +365,11 @@ export default function FlotaPage() {
       />
 
       <KPIStrip cols={5} items={[
-        { label: "DISPONIBLES", value: loading ? "—" : disponible, subtitle: "listos para salir", icon: Car, accent: APTO },
-        { label: "EN RUTA", value: loading ? "—" : enRuta, subtitle: "en circulación", icon: Route, accent: INFO },
-        { label: "MANTENIMIENTO", value: loading ? "—" : mant, subtitle: "en taller", icon: Wrench, accent: RIESGO },
-        { label: "FUERA SERVICIO", value: loading ? "—" : fueraServ, subtitle: "deshabilitados", icon: X, accent: NO },
-        { label: "CONDUCTORES APTOS", value: loading ? "—" : aptosCount, subtitle: "operativos hoy", icon: Users, accent: APTO },
+        { label: "DISPONIBLES", value: loading ? "—" : disponible, subtitle: "listos para salir", icon: Car },
+        { label: "EN RUTA", value: loading ? "—" : enRuta, subtitle: "en circulación", icon: Route },
+        { label: "MANTENIMIENTO", value: loading ? "—" : mant, subtitle: "en taller", icon: Wrench },
+        { label: "FUERA SERVICIO", value: loading ? "—" : fueraServ, subtitle: "deshabilitados", icon: X },
+        { label: "CONDUCTORES APTOS", value: loading ? "—" : aptosCount, subtitle: "operativos hoy", icon: Users },
       ]} />
 
       {error && (
@@ -504,6 +503,7 @@ export default function FlotaPage() {
             columns={columns}
             data={filteredItems}
             loading={loading}
+            onRowClick={(row) => router.push(`/flota/${row.id}`)}
             searchPlaceholder="Buscar por placa, conductor, ruta…"
             emptyTitle={isToday ? "Sin registros para hoy" : "Sin registros para esta fecha"}
             emptyDescription={isToday
@@ -798,14 +798,6 @@ export default function FlotaPage() {
         </div>
       )}
 
-      {/* Link al detalle si hay items, oculto pero mantiene rutas activas */}
-      {items.length > 0 && (
-        <div style={{ display: "none" }}>
-          {items.map(i => (
-            <Link key={i.id} href={`/flota/${i.id}`}>{i.id}</Link>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
