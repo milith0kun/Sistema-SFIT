@@ -25,6 +25,8 @@ const RegisterSchema = z.object({
     ROLES.CONDUCTOR,
     ROLES.CIUDADANO,
   ] as [Role, ...Role[]]),
+  /** Mensaje opcional al admin que aprueba (justificación, datos institucionales, etc.) */
+  requestMessage: z.string().trim().max(500).optional(),
 });
 
 /**
@@ -46,7 +48,7 @@ export async function POST(request: NextRequest) {
       return apiValidationError(errors);
     }
 
-    const { name, email, password, municipalityId, requestedRole } =
+    const { name, email, password, municipalityId, requestedRole, requestMessage } =
       parsed.data;
 
     await connectDB();
@@ -77,6 +79,10 @@ export async function POST(request: NextRequest) {
       municipalityId: municipalityId ?? undefined,
       role: isInitialAdmin ? ROLES.SUPER_ADMIN : ROLES.CIUDADANO,
       requestedRole: isInitialAdmin ? undefined : requestedRole,
+      // Solo guardamos mensaje si requiere aprobación; ciudadanos/admin inicial no lo necesitan
+      requestMessage: !isInitialAdmin && !isCiudadano && requestMessage
+        ? requestMessage
+        : undefined,
       status,
     });
 

@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     }
 
     const users = await User.find(filter)
-      .select("name email image requestedRole municipalityId createdAt")
+      .select("name email image requestedRole requestMessage municipalityId createdAt")
       .sort({ createdAt: -1 })
       .limit(100)
       .lean();
@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
         email: u.email,
         image: u.image,
         requestedRole: u.requestedRole,
+        requestMessage: u.requestMessage,
         municipalityId: u.municipalityId?.toString(),
         createdAt: u.createdAt,
       })),

@@ -20,6 +20,8 @@ export interface IUser extends Document {
   // Rol y estado (RF-01-03, RF-01-04)
   role: Role;
   requestedRole?: Role;
+  /** Justificación opcional que el usuario deja al admin al solicitar acceso. */
+  requestMessage?: string;
   status: UserStatus;
   rejectionReason?: string;
 
@@ -100,6 +102,7 @@ const UserSchema = new Schema<IUser>(
         "ciudadano",
       ],
     },
+    requestMessage: { type: String, trim: true, maxlength: 500 },
     status: {
       type: String,
       enum: ["pendiente", "activo", "rechazado", "suspendido"],

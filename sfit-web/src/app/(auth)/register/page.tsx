@@ -39,6 +39,7 @@ export default function RegisterPage() {
   const [form, setForm] = useState({
     name: "", email: "", password: "",
     provinceId: "", municipalityId: "", requestedRole: "",
+    requestMessage: "",
   });
 
   const [provincias,      setProvincias]      = useState<Provincia[]>([]);
@@ -99,7 +100,7 @@ export default function RegisterPage() {
       .finally(() => setLoadingMunis(false));
   }, [form.provinceId]);
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     const { name, value } = e.target;
     setForm((p) => ({ ...p, [name]: value }));
     setFieldErrors((p) => ({ ...p, [name]: "" }));
@@ -157,6 +158,10 @@ export default function RegisterPage() {
         body: JSON.stringify({
           name: form.name, email: form.email, password: form.password,
           requestedRole, municipalityId,
+          // Solo enviamos el mensaje si el rol requiere aprobación (no para ciudadano)
+          requestMessage: requestedRole !== "ciudadano" && form.requestMessage.trim()
+            ? form.requestMessage.trim()
+            : undefined,
         }),
       });
       const data = await res.json();
@@ -619,6 +624,29 @@ export default function RegisterPage() {
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Mensaje al administrador (opcional) */}
+          <div className="animate-fade-up delay-300">
+            <label className="block mb-2.5" style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#09090b" }}>
+              Mensaje al administrador <span style={{ color: "#71717A", fontWeight: 400, fontSize: "0.8125rem" }}>(opcional)</span>
+            </label>
+            <p className="mb-3 text-[13px]" style={{ color: "#71717A", lineHeight: 1.55 }}>
+              Indica al administrador municipal cualquier información que ayude a verificar tu identidad o el motivo de tu solicitud.
+            </p>
+            <textarea
+              name="requestMessage"
+              value={form.requestMessage}
+              onChange={handleChange}
+              maxLength={500}
+              rows={4}
+              placeholder="Ej. Soy el operador de Trans Cusco SAC. Pueden verificar mi vínculo con la empresa al RUC 20XXXXXXXXX o llamando al teléfono…"
+              className="field"
+              style={{ resize: "vertical", minHeight: 90, lineHeight: 1.5, padding: "10px 12px" }}
+            />
+            <div style={{ marginTop: 6, fontSize: "0.6875rem", color: "#71717A", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+              {form.requestMessage.length}/500
             </div>
           </div>
 

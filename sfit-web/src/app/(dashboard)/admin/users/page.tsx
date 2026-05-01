@@ -5,7 +5,7 @@ import {
   Check, X, UserCheck, Clock, Users, Calendar, Mail, ShieldAlert,
   Search, Inbox, MessageSquare, Loader2, ChevronRight,
 } from "lucide-react";
-import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 
 type PendingUser = {
@@ -14,6 +14,7 @@ type PendingUser = {
   email: string;
   image?: string;
   requestedRole: string;
+  requestMessage?: string;
   createdAt: string;
 };
 type ActionMode = "approve" | "reject";
@@ -174,20 +175,19 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4 animate-fade-in pb-10">
-      <DashboardHero
-        kicker="Control de Acceso"
-        rfCode="RF-01-04"
-        title="Aprobaciones de Usuarios"
-        pills={[{ label: "Pendientes", value: users.length, warn: users.length > 0 }]}
+    <div className="flex flex-col gap-4 animate-fade-in pb-10" style={{ color: INK9 }}>
+      <PageHeader
+        kicker="Control de acceso · RF-01-04"
+        title="Aprobaciones de usuarios"
+        subtitle={`${users.length} solicitud${users.length === 1 ? "" : "es"} por revisar`}
       />
 
       <KPIStrip
         cols={3}
         items={[
-          { label: "PENDIENTES", value: users.length, subtitle: "por revisar", accent: "#92400E", icon: Clock },
-          { label: "TIPOS DE ROL", value: Object.keys(rolesCount).length, subtitle: "solicitados", accent: "#0A1628", icon: Users },
-          { label: "MÁS SOLICITADO", value: maxRole ? (ROLE_LABELS[maxRole[0]] ?? maxRole[0]) : "—", subtitle: maxRole ? `${maxRole[1]} solicitud${maxRole[1] === 1 ? "" : "es"}` : "sin datos", accent: "#0A1628", icon: UserCheck },
+          { label: "PENDIENTES", value: users.length, subtitle: "por revisar", icon: Clock },
+          { label: "TIPOS DE ROL", value: Object.keys(rolesCount).length, subtitle: "solicitados", icon: Users },
+          { label: "MÁS SOLICITADO", value: maxRole ? (ROLE_LABELS[maxRole[0]] ?? maxRole[0]) : "—", subtitle: maxRole ? `${maxRole[1]} solicitud${maxRole[1] === 1 ? "" : "es"}` : "sin datos", icon: UserCheck },
         ]}
       />
 
@@ -562,6 +562,28 @@ function DetailPanel({
         </div>
       </div>
 
+      {/* Mensaje del solicitante (si lo dejó al registrarse) */}
+      {user.requestMessage && (
+        <div style={{
+          padding: "14px 18px", borderBottom: `1px solid ${INK2}`,
+          background: INK1,
+        }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 6, marginBottom: 6,
+            fontSize: "0.625rem", fontWeight: 800, letterSpacing: "0.08em",
+            textTransform: "uppercase", color: INK5,
+          }}>
+            <MessageSquare size={11} />Mensaje del solicitante
+          </div>
+          <p style={{
+            margin: 0, fontSize: "0.875rem", color: INK9,
+            lineHeight: 1.55, whiteSpace: "pre-wrap", wordBreak: "break-word",
+          }}>
+            &ldquo;{user.requestMessage}&rdquo;
+          </p>
+        </div>
+      )}
+
       {/* Body */}
       <div style={{ padding: "16px 18px 18px" }}>
         {/* Switcher de acción */}
@@ -684,7 +706,7 @@ function DetailPanel({
             disabled={processing || (action === "reject" && !rejectReason.trim())}
             style={{
               flex: 1, height: 36, borderRadius: 8, border: "none",
-              background: action === "approve" ? GRN : RED, color: "#fff",
+              background: INK9, color: "#fff",
               fontFamily: "inherit", fontWeight: 700, fontSize: "0.875rem",
               cursor: processing ? "not-allowed" : "pointer",
               opacity: processing || (action === "reject" && !rejectReason.trim()) ? 0.5 : 1,
@@ -695,8 +717,8 @@ function DetailPanel({
             {processing
               ? <><Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} /> Procesando…</>
               : action === "approve"
-                ? <><Check size={14} strokeWidth={2.5} /> Aprobar usuario</>
-                : <><X size={14} strokeWidth={2.5} /> Rechazar solicitud</>
+                ? <><Check size={14} strokeWidth={2.5} color={GRN} /> Aprobar usuario</>
+                : <><X size={14} strokeWidth={2.5} color={RED} /> Rechazar solicitud</>
             }
           </button>
         </div>
