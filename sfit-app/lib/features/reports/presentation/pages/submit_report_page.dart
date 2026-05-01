@@ -146,11 +146,22 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
   }
 
   // ── Fotos ────────────────────────────────────────────────────────
+  // Comprime y redimensiona en cliente antes de subir. El servidor luego
+  // convierte a WebP (ver /api/uploads/reports), pero comprimir aquí reduce
+  // el ancho de banda y la latencia de subida en redes móviles lentas.
+  static const double _kMaxImageDim = 1920;
+  static const int _kImageQuality = 80;
+
   Future<void> _pickFromGallery() async {
     if (_selectedImages.length >= 3) return;
     final remaining = 3 - _selectedImages.length;
     try {
-      final picked = await _imagePicker.pickMultiImage(imageQuality: 80, limit: remaining);
+      final picked = await _imagePicker.pickMultiImage(
+        imageQuality: _kImageQuality,
+        maxWidth: _kMaxImageDim,
+        maxHeight: _kMaxImageDim,
+        limit: remaining,
+      );
       if (picked.isNotEmpty && mounted) {
         setState(() => _selectedImages.addAll(picked.take(remaining)));
       }
@@ -160,7 +171,12 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
   Future<void> _pickFromCamera() async {
     if (_selectedImages.length >= 3) return;
     try {
-      final picked = await _imagePicker.pickImage(source: ImageSource.camera, imageQuality: 80);
+      final picked = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: _kImageQuality,
+        maxWidth: _kMaxImageDim,
+        maxHeight: _kMaxImageDim,
+      );
       if (picked != null && mounted) setState(() => _selectedImages.add(picked));
     } catch (_) {}
   }
