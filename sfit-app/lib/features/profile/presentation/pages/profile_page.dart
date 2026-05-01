@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/apiperu_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -8,6 +9,8 @@ import '../../../../shared/widgets/sfit_disclaimer_banner.dart';
 import '../../../auth/domain/entities/user_entity.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../drivers/data/datasources/driver_api_service.dart';
+import '../../../rewards/data/datasources/rewards_api_service.dart';
+import '../../../rewards/data/models/reward_model.dart';
 
 /// Perfil del usuario autenticado — todos los roles.
 /// Modo lectura por defecto; botón de edición para nombre, teléfono y DNI.
@@ -33,12 +36,23 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   Map<String, dynamic>? _driverProfile;
   bool _loadingDriver = false;
 
+  // Datos de SFITCoins para ciudadano.
+  CoinsStatus? _coinsStatus;
+  bool _loadingCoins = false;
+
+  // Perfil extendido (municipio, provincia, createdAt)
+  Map<String, dynamic>? _extProfile;
+  bool _loadingProfile = false;
+
   @override
   void initState() {
     super.initState();
-    // Carga el perfil del conductor en background después del primer build,
-    // así no bloquea el render del perfil base.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadDriverProfile());
+    // Carga datos extendidos en background después del primer build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadDriverProfile();
+      _loadCitCoins();
+      _loadExtendedProfile();
+    });
   }
 
   Future<void> _loadDriverProfile() async {
@@ -54,6 +68,31 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     } finally {
       if (mounted) setState(() => _loadingDriver = false);
     }
+  }
+
+  Future<void> _loadCitCoins() async {
+    final user = ref.read(authProvider).user;
+    if (user?.role != 'ciudadano') return;
+    setState(() => _loadingCoins = true);
+    try {
+      final status = await ref.read(rewardsApiServiceProvider).getCoinsStatus();
+      if (!mounted) return;
+      setState(() => _coinsStatus = status);
+    } catch (_) {}
+    finally { if (mounted) setState(() => _loadingCoins = false); }
+  }
+
+  Future<void> _loadExtendedProfile() async {
+    setState(() => _loadingProfile = true);
+    try {
+      final dio = ref.read(dioClientProvider).dio;
+      final resp = await dio.get('/auth/perfil');
+      final body = resp.data as Map<String, dynamic>;
+      final data = body['data'] as Map<String, dynamic>? ?? body;
+      if (!mounted) return;
+      setState(() => _extProfile = data);
+    } catch (_) {}
+    finally { if (mounted) setState(() => _loadingProfile = false); }
   }
 
   @override
@@ -187,8 +226,38 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   label: 'Rol',
                   value: _roleLabel(user.role),
                 ),
+                // Municipio
+                if (_extProfile?['municipalityName'] != null)
+                  _InfoRow(
+                    icon: Icons.location_city_outlined,
+                    label: 'Municipio',
+                    value: _extProfile!['municipalityName'] as String,
+                  ),
+                // Provincia
+                if (_extProfile?['provinceName'] != null)
+                  _InfoRow(
+                    icon: Icons.map_outlined,
+                    label: 'Provincia',
+                    value: _extProfile!['provinceName'] as String,
+                  ),
+                // Fecha de registro
+                if (_extProfile?['createdAt'] != null)
+                  _InfoRow(
+                    icon: Icons.calendar_today_outlined,
+                    label: 'Miembro desde',
+                    value: _formatCreatedAt(_extProfile!['createdAt']),
+                  ),
               ]),
               const SizedBox(height: 22),
+
+              // ── SFITCoins del ciudadano ──────────────────────────
+              if (user.role == 'ciudadano') ...[
+                _CitizenCoinsSection(
+                  coinsStatus: _coinsStatus,
+                  loading: _loadingCoins,
+                ),
+                const SizedBox(height: 22),
+              ],
 
               // ── Datos del conductor (solo rol conductor) ─────────
               if (user.role == 'conductor') ...[
@@ -254,6 +323,154 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         'super_admin'       => 'Super Admin',
         _                   => role,
       };
+
+  static String _formatCreatedAt(dynamic raw) {
+    try {
+      final dt = raw is DateTime ? raw : DateTime.parse(raw.toString());
+      const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+      return '${months[dt.month - 1]} ${dt.year}';
+    } catch (_) { return '—'; }
+  }
+}
+
+// ── Sección SFITCoins para ciudadano ──────────────────────────────────────────
+class _CitizenCoinsSection extends StatelessWidget {
+  final CoinsStatus? coinsStatus;
+  final bool loading;
+  const _CitizenCoinsSection({required this.coinsStatus, required this.loading});
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _SectionLabel('SFITCOINS'),
+          const SizedBox(height: 8),
+          Container(
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: AppColors.ink2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Center(
+              child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gold)),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (coinsStatus == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _SectionLabel('SFITCOINS'),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: AppColors.ink2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.emoji_events_outlined, size: 18, color: AppColors.ink4),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Envía reportes para ganar SFITCoins.',
+                    style: AppTheme.inter(fontSize: 13, color: AppColors.ink6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    final status = coinsStatus!;
+    final (nivelColor, nivelLabel) = switch (status.nivel) {
+      1 => (AppColors.riesgo, 'Bronce'),
+      2 => (AppColors.ink5, 'Plata'),
+      3 => (AppColors.gold, 'Oro'),
+      _ => (AppColors.info, 'Platino'),
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _SectionLabel('SFITCOINS'),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: AppColors.goldBorder),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.emoji_events_rounded, size: 22, color: AppColors.gold),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${status.balance}',
+                    style: AppTheme.inter(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.goldDark),
+                  ),
+                  const SizedBox(width: 6),
+                  Text('SFITCoins', style: AppTheme.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.ink5)),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: nivelColor.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: nivelColor.withValues(alpha: 0.30)),
+                    ),
+                    child: Text(nivelLabel, style: AppTheme.inter(fontSize: 11, fontWeight: FontWeight.w700, color: nivelColor)),
+                  ),
+                ],
+              ),
+              if (status.transactions.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(height: 1, color: AppColors.ink1),
+                const SizedBox(height: 8),
+                Text('Últimas transacciones', style: AppTheme.inter(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.ink4, letterSpacing: 0.6)),
+                const SizedBox(height: 6),
+                ...status.transactions.take(3).map((tx) {
+                  final isGanado = tx.amount > 0;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isGanado ? Icons.add_circle_outline : Icons.remove_circle_outline,
+                          size: 14,
+                          color: isGanado ? AppColors.apto : AppColors.noApto,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(child: Text(tx.reasonLabel, style: AppTheme.inter(fontSize: 12, color: AppColors.ink7))),
+                        Text(
+                          '${isGanado ? '+' : ''}${tx.amount}',
+                          style: AppTheme.inter(fontSize: 12, fontWeight: FontWeight.w700, color: isGanado ? AppColors.apto : AppColors.noApto),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 // ── Formulario de edición ─────────────────────────────────────────────────────
