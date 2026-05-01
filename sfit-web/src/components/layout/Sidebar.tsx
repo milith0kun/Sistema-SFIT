@@ -102,99 +102,103 @@ export function Sidebar({
 
       {/* ── Usuario + Logout + Versión ── */}
       <div style={{ padding: "10px 10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        {/* Tarjeta de usuario */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 11,
-            padding: "10px 11px",
-            borderRadius: 10,
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            marginBottom: 6,
-          }}
-        >
+        {/* Tarjeta de usuario + pill de rol — sólo desktop. En mobile esta
+            info ya está en el dropdown del avatar del Topbar, así que la
+            ocultamos para dar más espacio a las opciones del nav. */}
+        <div className="sfit-sidebar-user-info">
           <div
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: "50%",
-              background: "rgba(108,6,6,0.28)",
-              color: "#FFFFFF",
-              fontSize: "0.875rem",
-              fontWeight: 700,
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-              border: "1.5px solid rgba(139,20,20,0.40)",
+              gap: 11,
+              padding: "10px 11px",
+              borderRadius: 10,
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.06)",
+              marginBottom: 6,
             }}
           >
-            {user.name.charAt(0).toUpperCase()}
-          </div>
-          <div style={{ minWidth: 0, flex: 1 }}>
             <div
               style={{
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                background: "rgba(108,6,6,0.28)",
                 color: "#FFFFFF",
-                fontSize: "0.8125rem",
+                fontSize: "0.875rem",
                 fontWeight: 700,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                lineHeight: 1.25,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                border: "1.5px solid rgba(139,20,20,0.40)",
               }}
             >
-              {user.name}
+              {user.name.charAt(0).toUpperCase()}
             </div>
-            <div
-              style={{
-                color: "rgba(255,255,255,0.50)",
-                fontSize: "0.6875rem",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                marginTop: 2,
-                fontWeight: 500,
-              }}
-              title={user.email}
-            >
-              {user.email}
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div
+                style={{
+                  color: "#FFFFFF",
+                  fontSize: "0.8125rem",
+                  fontWeight: 700,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  lineHeight: 1.25,
+                }}
+              >
+                {user.name}
+              </div>
+              <div
+                style={{
+                  color: "rgba(255,255,255,0.50)",
+                  fontSize: "0.6875rem",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  marginTop: 2,
+                  fontWeight: 500,
+                }}
+                title={user.email}
+              >
+                {user.email}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Pill de rol */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 4px",
-            marginBottom: 8,
-          }}
-        >
-          <span
+          {/* Pill de rol */}
+          <div
             style={{
-              display: "inline-flex",
+              display: "flex",
               alignItems: "center",
-              gap: 5,
-              padding: "3px 9px",
-              borderRadius: 999,
-              background: "rgba(108,6,6,0.18)",
-              color: "#FFFFFF",
-              border: "1px solid rgba(139,20,20,0.35)",
-              fontSize: "0.625rem",
-              fontWeight: 700,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
+              justifyContent: "space-between",
+              padding: "0 4px",
+              marginBottom: 8,
             }}
           >
             <span
-              style={{ width: 5, height: 5, borderRadius: "50%", background: "#8B1414" }}
-            />
-            {ROLE_LABELS[user.role] ?? user.role}
-          </span>
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "3px 9px",
+                borderRadius: 999,
+                background: "rgba(108,6,6,0.18)",
+                color: "#FFFFFF",
+                border: "1px solid rgba(139,20,20,0.35)",
+                fontSize: "0.625rem",
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+              }}
+            >
+              <span
+                style={{ width: 5, height: 5, borderRadius: "50%", background: "#8B1414" }}
+              />
+              {ROLE_LABELS[user.role] ?? user.role}
+            </span>
+          </div>
         </div>
 
         {/* Logout */}
@@ -205,6 +209,7 @@ export function Sidebar({
 
         {/* Versión */}
         <div
+          className="sfit-sidebar-version"
           style={{
             marginTop: 10,
             paddingTop: 10,

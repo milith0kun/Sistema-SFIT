@@ -223,6 +223,15 @@ export function DashboardStyles() {
         outline-offset: -2px;
       }
 
+      /* ── Sidebar user info (avatar card + role pill) — desktop only ──
+         En mobile esta info ya está en el dropdown del Topbar.
+         Ocultarla aquí libera ~110px verticales para que se vean más
+         opciones del nav sin scrollear. */
+      .sfit-sidebar-user-info { display: block; }
+      @media (max-width: 1023px) {
+        .sfit-sidebar-user-info { display: none !important; }
+      }
+
       /* ── Sidebar logout button ── */
       .sfit-sidebar-logout {
         display: flex;
