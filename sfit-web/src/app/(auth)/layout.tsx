@@ -26,15 +26,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
 
         <div className="relative z-10 flex flex-col h-full px-12 py-12 xl:px-16">
-          {/* Logo y Marca */}
-          <div className="flex items-center gap-4 mb-16 animate-fade-in shrink-0">
-            <div className="bg-white/10 p-2.5 rounded-2xl backdrop-blur-md border border-white/10 shadow-2xl">
-              <SfitMark size={42} invert />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-white font-black text-2xl tracking-[0.2em] uppercase leading-none">SFIT</span>
-              <span className="text-[#D9B0B0] text-[10px] font-bold tracking-[0.1em] uppercase mt-1">Institucional</span>
-            </div>
+          {/* Logo institucional — mismo logo horizontal que la sidebar */}
+          <div className="flex items-center mb-16 animate-fade-in shrink-0">
+            <img
+              src="/logo-horizontal.svg"
+              alt="SFIT — Sistema de Fiscalización Inteligente del Transporte"
+              className="h-12 w-auto object-contain"
+              style={{ filter: "brightness(0) invert(1)" }}
+            />
           </div>
 
           <div className="flex-1 flex flex-col justify-center min-h-0 overflow-hidden">
@@ -106,17 +105,13 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       {/* ── Panel Derecho (Formulario) ─────────────────────────────── */}
       <main className="flex-1 flex flex-col bg-[#fafafa] relative overflow-hidden h-full">
         {/* Header móvil */}
-        <div className="lg:hidden flex items-center justify-between px-6 py-6 border-b border-[#E4E4E7] bg-white shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="bg-[#0A1628] p-1.5 rounded-xl shadow-xl shadow-black/5">
-              <SfitMark size={32} invert />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[#0A1628] font-black text-lg tracking-[0.2em] uppercase leading-none">SFIT</span>
-              <span className="text-[#8B1414] text-[9px] font-bold tracking-[0.1em] uppercase mt-1">Institucional</span>
-            </div>
-          </div>
-          <span className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest px-3 py-1.5 rounded-full bg-[#f4f4f5] border border-[#E4E4E7]">Acceso Seguro</span>
+        <div className="lg:hidden flex items-center justify-between gap-3 px-4 sm:px-6 py-4 sm:py-6 border-b border-[#E4E4E7] bg-white shrink-0">
+          <img
+            src="/logo-horizontal.svg"
+            alt="SFIT — Sistema de Fiscalización Inteligente del Transporte"
+            className="h-9 sm:h-10 w-auto object-contain"
+          />
+          <span className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest px-3 py-1.5 rounded-full bg-[#f4f4f5] border border-[#E4E4E7] whitespace-nowrap">Acceso Seguro</span>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center p-8 md:p-12 overflow-hidden">

@@ -88,14 +88,12 @@ export default function HomePage() {
           WebkitBackdropFilter: "blur(20px)",
         }}
       >
-        <a href="#" className="flex items-center gap-2 sm:gap-3 group transition-transform hover:scale-[0.98] min-w-0">
-          <div className="bg-[#0A1628] p-1.5 sm:p-2 rounded-xl shadow-lg shadow-black/10 shrink-0">
-            <SfitMark size={28} invert />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-[#0A1628] font-black text-base sm:text-lg tracking-[0.2em] uppercase leading-none">SFIT</span>
-            <span className="text-[#8B1414] text-[8px] font-bold tracking-[0.1em] uppercase mt-0.5 truncate">Institucional</span>
-          </div>
+        <a href="#" className="flex items-center group transition-transform hover:scale-[0.98] min-w-0 shrink">
+          <img
+            src="/logo-horizontal.svg"
+            alt="SFIT — Sistema de Fiscalización Inteligente del Transporte"
+            className="h-9 sm:h-10 md:h-11 w-auto object-contain"
+          />
         </a>
         <nav className="flex items-center gap-3 sm:gap-6 md:gap-8 shrink-0">
           <a
