@@ -19,7 +19,7 @@ export interface IApelacion extends Document {
 
 const ApelacionSchema = new Schema<IApelacion>(
   {
-    inspectionId:   { type: Schema.Types.ObjectId, ref: "Inspection",    required: true, index: true },
+    inspectionId:   { type: Schema.Types.ObjectId, ref: "Inspection",    required: true },
     vehicleId:      { type: Schema.Types.ObjectId, ref: "Vehicle",        required: true, index: true },
     municipalityId: { type: Schema.Types.ObjectId, ref: "Municipality",   required: true, index: true },
     submittedBy:    { type: Schema.Types.ObjectId, ref: "User",           required: true, index: true },
