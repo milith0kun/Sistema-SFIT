@@ -16,7 +16,7 @@ export async function GET() {
     data: {
       // ── Versiones ────────────────────────────────────────────
       minimumVersion: "1.2.0",   // Versión mínima soportada — debajo → dialog FORZADO
-      latestVersion:  "1.3.0",   // Última versión en Play Store → dialog opcional si hay diferencia
+      latestVersion:  "1.3.1",   // Última versión en Play Store → dialog opcional si hay diferencia
 
       // ── Play Store ───────────────────────────────────────────
       playStoreUrl: "https://play.google.com/store/apps/details?id=com.sfit.sfit_app",
