@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Building2, MapPin, Map as MapIcon, Power } from "lucide-react";
+import { Plus, Building2, MapPin, Map as MapIcon, Power, ChevronRight, Loader2 } from "lucide-react";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -36,7 +36,7 @@ const INK6 = "#52525b"; const INK9 = "#18181b";
 const RED  = "#b91c1c"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
 // Granate institucional SFIT (alineado con resto del dashboard)
 const G    = "#6C0606";
-const GREEN = "#15803d"; const GREENBG = "#F0FDF4"; const GREENBD = "#86EFAC";
+const GREEN = "#15803d";
 
 export default function MunicipalidadesPage() {
   const router = useRouter();
@@ -122,7 +122,7 @@ export default function MunicipalidadesPage() {
 
   useEffect(() => { void loadMunicipalities(); }, [loadMunicipalities]);
 
-  // ── Toggle activar/desactivar ──
+  // ── Toggle activar/desactivar (botón compacto en la columna estado) ──
   async function toggleActive(m: Municipality) {
     if (!m.ubigeoCode) {
       setError(`La municipalidad "${m.name}" no pertenece al catálogo UBIGEO.`);
@@ -141,9 +141,7 @@ export default function MunicipalidadesPage() {
         setError(data.error ?? "No se pudo actualizar el estado.");
         return;
       }
-      // Update local
       setItems((prev) => prev.map((x) => x.id === m.id ? { ...x, active: data.data.active } : x));
-      // Actualiza el conteo en el departamento (mejor: re-fetch departamentos)
       if (isSA) {
         const tok = localStorage.getItem("sfit_access_token");
         fetch("/api/admin/departamentos", { headers: { Authorization: `Bearer ${tok ?? ""}` } })
@@ -226,29 +224,44 @@ export default function MunicipalidadesPage() {
       cell: ({ row: r }) => {
         const m = r.original;
         const active = m.active;
+        const loading = togglingId === m.id;
         return (
           <button
-            disabled={togglingId === m.id || !m.ubigeoCode}
+            disabled={loading || !m.ubigeoCode}
             onClick={(e) => { e.stopPropagation(); void toggleActive(m); }}
-            title={m.ubigeoCode
-              ? (active ? "Desactivar" : "Activar")
-              : "Sin UBIGEO — no gestionable"}
+            title={!m.ubigeoCode
+              ? "Sin UBIGEO — no gestionable"
+              : (active ? "Desactivar municipalidad" : "Activar municipalidad")}
+            aria-label={active ? "Desactivar" : "Activar"}
             style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              height: 28, padding: "0 10px", borderRadius: 999,
-              border: `1.5px solid ${active ? GREENBD : INK2}`,
-              background: active ? GREENBG : "#fff",
-              color: active ? GREEN : INK5,
-              fontSize: "0.75rem", fontWeight: 700, cursor: m.ubigeoCode ? "pointer" : "not-allowed",
-              opacity: togglingId === m.id ? 0.5 : 1,
-              fontFamily: "inherit",
+              width: 26, height: 26, borderRadius: "50%",
+              border: `1.5px solid ${active ? GREEN : INK2}`,
+              background: active ? GREEN : "#fff",
+              color: active ? "#fff" : INK5,
+              cursor: m.ubigeoCode ? "pointer" : "not-allowed",
+              opacity: loading ? 0.5 : 1,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              padding: 0, fontFamily: "inherit",
+              transition: "background 120ms, border-color 120ms",
             }}
           >
-            <Power size={11} strokeWidth={2.5} />
-            {togglingId === m.id ? "…" : (active ? "Activa" : "Inactiva")}
+            {loading
+              ? <Loader2 size={12} style={{ animation: "spin 0.7s linear infinite" }} />
+              : <Power size={12} strokeWidth={2.5} />}
           </button>
         );
       },
+    },
+    {
+      id: "_nav",
+      header: "",
+      enableSorting: false,
+      enableHiding: false,
+      cell: () => (
+        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", color: INK5 }}>
+          <ChevronRight size={14} />
+        </span>
+      ),
     },
   ], [togglingId]);  // eslint-disable-line react-hooks/exhaustive-deps
 
