@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MessageSquareWarning, Clock, CheckCircle, XCircle } from "lucide-react";
+import { MessageSquareWarning, Clock, CheckCircle, XCircle, ChevronRight } from "lucide-react";
 import { type ColumnDef, DataTable } from "@/components/ui/DataTable";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
+
+// Tokens consistentes con el resto del dashboard
+const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a";
+const INK6 = "#52525b"; const INK9 = "#18181b";
+const APTO = "#15803d"; const RIESGO = "#b45309"; const NO = "#DC2626";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 type ApelacionStatus = "pendiente" | "aprobada" | "rechazada";
@@ -29,16 +32,22 @@ type Apelacion = {
 
 const ALLOWED = ["fiscal", "admin_municipal", "admin_provincial", "super_admin"];
 
-const STATUS_VARIANT: Record<ApelacionStatus, "pendiente" | "activo" | "suspendido"> = {
-  pendiente: "pendiente",
-  aprobada: "activo",
-  rechazada: "suspendido",
-};
-
 const STATUS_LABEL: Record<ApelacionStatus, string> = {
   pendiente: "Pendiente",
   aprobada: "Aprobada",
   rechazada: "Rechazada",
+};
+
+const STATUS_DOT: Record<ApelacionStatus, string> = {
+  pendiente: RIESGO,
+  aprobada:  APTO,
+  rechazada: NO,
+};
+
+const INSPECTION_DOT: Record<string, string> = {
+  aprobada:  APTO,
+  observada: RIESGO,
+  rechazada: NO,
 };
 
 function fmtDate(d: string) {
@@ -271,16 +280,16 @@ export default function ApelacionesPage() {
             <div>
               <span style={{
                 display: "inline-flex", padding: "2px 8px", borderRadius: 6,
-                background: "#18181b", color: "#fff",
+                background: INK9, color: "#fff",
                 fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.8125rem",
               }}>
                 {row.original.vehicle.plate}
               </span>
-              <div style={{ fontSize: "0.75rem", color: "#71717a", marginTop: 3 }}>
+              <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 3 }}>
                 {row.original.vehicle.brand} {row.original.vehicle.model}
               </div>
             </div>
-          ) : <span style={{ color: "#71717a" }}>—</span>,
+          ) : <span style={{ color: INK5 }}>—</span>,
       },
       {
         id: "operador",
@@ -288,8 +297,8 @@ export default function ApelacionesPage() {
         accessorFn: (r) => `${r.submittedBy?.name ?? ""} ${r.submittedBy?.email ?? ""}`,
         cell: ({ row }) => (
           <div>
-            <div style={{ fontWeight: 600, fontSize: "0.875rem" }}>{row.original.submittedBy?.name ?? "—"}</div>
-            <div style={{ fontSize: "0.75rem", color: "#71717a" }}>{row.original.submittedBy?.email ?? ""}</div>
+            <div style={{ fontWeight: 600, fontSize: "0.875rem", color: INK9 }}>{row.original.submittedBy?.name ?? "—"}</div>
+            <div style={{ fontSize: "0.75rem", color: INK5 }}>{row.original.submittedBy?.email ?? ""}</div>
           </div>
         ),
       },
@@ -299,14 +308,14 @@ export default function ApelacionesPage() {
         cell: ({ row }) => (
           <div style={{ maxWidth: 240 }}>
             <div style={{
-              fontSize: "0.8125rem", color: "#52525b", lineHeight: 1.4,
+              fontSize: "0.8125rem", color: INK6, lineHeight: 1.4,
               overflow: "hidden", display: "-webkit-box",
               WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
             }}>
               {row.original.reason}
             </div>
             {(row.original.evidence?.length ?? 0) > 0 && (
-              <div style={{ fontSize: "0.6875rem", color: "#71717a", marginTop: 3 }}>
+              <div style={{ fontSize: "0.6875rem", color: INK5, marginTop: 3 }}>
                 {row.original.evidence.length} evidencia{row.original.evidence.length > 1 ? "s" : ""}
               </div>
             )}
@@ -317,79 +326,96 @@ export default function ApelacionesPage() {
         id: "inspeccion",
         header: "Insp. resultado",
         accessorFn: (r) => r.inspection?.result ?? "",
-        cell: ({ row }) =>
-          row.original.inspection ? (
+        cell: ({ row }) => {
+          const insp = row.original.inspection;
+          if (!insp) return <span style={{ color: INK5 }}>—</span>;
+          const dot = INSPECTION_DOT[insp.result] ?? INK5;
+          return (
             <div>
-              <Badge variant={row.original.inspection.result === "rechazada" ? "suspendido" : "pendiente"}>
-                {row.original.inspection.result}
-              </Badge>
-              <div style={{ fontSize: "0.75rem", color: "#71717a", marginTop: 3 }}>
-                Score: {row.original.inspection.score}/100
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "2px 9px", borderRadius: 6,
+                background: "#fff", color: INK9, border: `1px solid ${INK2}`,
+                fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
+                textTransform: "uppercase",
+              }}>
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: dot, flexShrink: 0 }} />
+                {insp.result}
+              </span>
+              <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 3, fontVariantNumeric: "tabular-nums" }}>
+                Score: {insp.score}/100
               </div>
             </div>
-          ) : <span style={{ color: "#71717a" }}>—</span>,
+          );
+        },
       },
       {
         accessorKey: "status",
         header: "Estado",
-        cell: ({ row }) => (
-          <div>
-            <Badge variant={STATUS_VARIANT[row.original.status]}>
-              {STATUS_LABEL[row.original.status]}
-            </Badge>
-            {row.original.resolvedBy && (
-              <div style={{ fontSize: "0.6875rem", color: "#71717a", marginTop: 3 }}>
-                por {row.original.resolvedBy.name}
-              </div>
-            )}
-          </div>
-        ),
+        cell: ({ row }) => {
+          const s = row.original.status;
+          return (
+            <div>
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "2px 9px", borderRadius: 6,
+                background: "#fff", color: INK9, border: `1px solid ${INK2}`,
+                fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
+                textTransform: "uppercase",
+              }}>
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: STATUS_DOT[s], flexShrink: 0 }} />
+                {STATUS_LABEL[s]}
+              </span>
+              {row.original.resolvedBy && (
+                <div style={{ fontSize: "0.6875rem", color: INK5, marginTop: 3 }}>
+                  por {row.original.resolvedBy.name}
+                </div>
+              )}
+            </div>
+          );
+        },
       },
       {
         accessorKey: "createdAt",
         header: "Fecha",
         cell: ({ getValue }) => (
-          <span style={{ fontSize: "0.8125rem", color: "#52525b", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: "0.8125rem", color: INK6, whiteSpace: "nowrap" }}>
             {fmtDate(getValue() as string)}
           </span>
         ),
       },
       {
         id: "acciones",
-        header: "Acción",
+        header: "",
         enableSorting: false,
-        cell: ({ row }) => (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <Link
-              href={`/apelaciones/${row.original.id}`}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-                borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600,
-                border: "1.5px solid #e4e4e7", background: "#fff", color: "#52525b",
-                textDecoration: "none", whiteSpace: "nowrap",
-              }}
-            >
-              Ver detalle
-            </Link>
-            {canResolve && row.original.status === "pendiente" && (
-              <button
-                onClick={() => setResolving(row.original)}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
-                  borderRadius: 8, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
-                  border: "1.5px solid #18181b", background: "#18181b", color: "#fff", fontFamily: "inherit",
-                }}
-              >
-                Resolver
-              </button>
-            )}
-            {row.original.status !== "pendiente" && row.original.resolvedAt && (
-              <span style={{ fontSize: "0.75rem", color: "#71717a", whiteSpace: "nowrap" }}>
-                {fmtDate(row.original.resolvedAt)}
-              </span>
-            )}
-          </div>
-        ),
+        enableHiding: false,
+        cell: ({ row }) => {
+          // Si está pendiente y se puede resolver, ofrecer acción rápida.
+          // De lo contrario, solo el chevron de afordancia hacia el detalle.
+          const isPending = row.original.status === "pendiente";
+          if (canResolve && isPending) {
+            return (
+              <div onClick={(e) => e.stopPropagation()}>
+                <button
+                  onClick={() => setResolving(row.original)}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6, height: 28,
+                    padding: "0 11px", borderRadius: 6,
+                    border: "none", background: INK9, color: "#fff",
+                    fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                  }}
+                >
+                  Resolver
+                </button>
+              </div>
+            );
+          }
+          return (
+            <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", color: INK5 }}>
+              <ChevronRight size={14} />
+            </span>
+          );
+        },
       },
     ],
     [canResolve]
@@ -432,10 +458,10 @@ export default function ApelacionesPage() {
       <KPIStrip
         cols={4}
         items={[
-          { label: "TOTAL", value: loading ? "—" : totalGlobal, subtitle: "registradas", accent: "#52525b", icon: MessageSquareWarning },
-          { label: "PENDIENTES", value: loading ? "—" : pendientes, subtitle: "por resolver", accent: "#b45309", icon: Clock },
-          { label: "APROBADAS", value: loading ? "—" : aprobadas, subtitle: "confirmadas", accent: "#15803d", icon: CheckCircle },
-          { label: "RECHAZADAS", value: loading ? "—" : rechazadas, subtitle: "denegadas", accent: "#DC2626", icon: XCircle },
+          { label: "TOTAL", value: loading ? "—" : totalGlobal, subtitle: "registradas", icon: MessageSquareWarning },
+          { label: "PENDIENTES", value: loading ? "—" : pendientes, subtitle: "por resolver", icon: Clock },
+          { label: "APROBADAS", value: loading ? "—" : aprobadas, subtitle: "confirmadas", icon: CheckCircle },
+          { label: "RECHAZADAS", value: loading ? "—" : rechazadas, subtitle: "denegadas", icon: XCircle },
         ]}
       />
 
@@ -452,6 +478,7 @@ export default function ApelacionesPage() {
         columns={columns}
         data={items}
         loading={loading}
+        onRowClick={(row) => router.push(`/apelaciones/${row.id}`)}
         searchPlaceholder="Buscar placa, operador, motivo…"
         emptyTitle="Sin apelaciones"
         emptyDescription={statusFilter ? `No hay apelaciones con estado "${statusFilter}".` : "No hay apelaciones en el sistema."}
