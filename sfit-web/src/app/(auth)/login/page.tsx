@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Script from "next/script";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Eye, EyeOff, Lock, ArrowRight, Check } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, Lock, ArrowRight } from "lucide-react";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
@@ -17,10 +17,6 @@ function destForStatus(status: string): string {
   }
 }
 
-function firstName(fullName?: string): string {
-  if (!fullName) return "";
-  return fullName.split(" ")[0] ?? "";
-}
 
 declare global {
   interface Window {
@@ -50,10 +46,6 @@ export default function LoginPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
-  // Estado de overlay de éxito para tapar el form mientras Next.js navega.
-  // Sin esto, el form queda visible durante el route change dando la
-  // sensación de que "no pasa nada" tras el click.
-  const [successUser, setSuccessUser] = useState<string | null>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const googleBtnRef = useRef<HTMLDivElement>(null);
@@ -138,8 +130,10 @@ export default function LoginPage() {
     return () => observer.disconnect();
   }, [gisReady, GOOGLE_CLIENT_ID]);
 
-  // Persiste tokens, dispara overlay de éxito y navega con replace
+  // Persiste tokens y navega inmediatamente con replace.
   // (replace evita que el botón "atrás" del navegador devuelva al login).
+  // Sin overlay intermedio: el prefetch hace que la navegación sea
+  // prácticamente instantánea cuando llega aquí.
   function persistSessionAndRedirect(data: {
     accessToken: string;
     refreshToken: string;
@@ -149,13 +143,7 @@ export default function LoginPage() {
     localStorage.setItem("sfit_refresh_token", data.refreshToken);
     localStorage.setItem("sfit_user", JSON.stringify(data.user));
     document.cookie = `sfit_access_token=${data.accessToken}; path=/; max-age=7200; SameSite=Lax`;
-    setSuccessUser(firstName(data.user.name) || "Usuario");
-    // Navegamos en el siguiente tick para dar tiempo al overlay a montar
-    // antes del route change. Sin requestAnimationFrame el overlay puede
-    // no llegar a pintarse antes de que React desmonte la página.
-    requestAnimationFrame(() => {
-      router.replace(destForStatus(data.user.status));
-    });
+    router.replace(destForStatus(data.user.status));
   }
 
   async function handleGoogleCredential(response: { credential: string }) {
@@ -226,48 +214,6 @@ export default function LoginPage() {
         onLoad={() => setGisReady(true)}
       />
 
-      {/* Overlay de éxito — tapa el form mientras Next.js carga el dashboard.
-          Sin esto el form quedaba visible durante el route change y el usuario
-          sentía que "no pasaba nada" tras hacer click. */}
-      {successUser && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="fixed inset-0 z-[9999] bg-white flex flex-col items-center justify-center gap-5 sm:gap-6 animate-fade-in"
-          style={{ animation: "fadeIn 200ms ease forwards" }}
-        >
-          <div
-            className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#0A1628] text-white flex items-center justify-center"
-            style={{ animation: "successPop 380ms cubic-bezier(0.16,1,0.3,1) forwards" }}
-          >
-            <Check size={36} strokeWidth={3} />
-          </div>
-          <div className="text-center px-6">
-            <p className="text-[#0A1628] text-xl sm:text-2xl font-bold tracking-tight">
-              ¡Bienvenido, {successUser}!
-            </p>
-            <p className="text-[#71717A] text-sm sm:text-base mt-2 font-medium">
-              Cargando su panel…
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 mt-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#8B1414]" style={{ animation: "loadingDot 1.2s ease-in-out infinite", animationDelay: "0ms" }} />
-            <span className="w-1.5 h-1.5 rounded-full bg-[#8B1414]" style={{ animation: "loadingDot 1.2s ease-in-out infinite", animationDelay: "180ms" }} />
-            <span className="w-1.5 h-1.5 rounded-full bg-[#8B1414]" style={{ animation: "loadingDot 1.2s ease-in-out infinite", animationDelay: "360ms" }} />
-          </div>
-          <style>{`
-            @keyframes successPop {
-              0%   { transform: scale(0.4); opacity: 0; }
-              60%  { transform: scale(1.08); opacity: 1; }
-              100% { transform: scale(1); opacity: 1; }
-            }
-            @keyframes loadingDot {
-              0%, 100% { opacity: 0.25; transform: translateY(0); }
-              50%      { opacity: 1;    transform: translateY(-3px); }
-            }
-          `}</style>
-        </div>
-      )}
 
       {/* Header del Formulario */}
       <div className="mb-5 sm:mb-7 lg:mb-10">
