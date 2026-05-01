@@ -619,75 +619,109 @@ function ProvinceItem({
       </button>
 
       {isOpen && (
-        <div style={{ borderTop: `1px solid ${INK2}` }}>
+        <div style={{ borderTop: `1px solid ${INK2}`, background: INK1 }}>
           {districts === null ? (
             <div style={{
-              padding: "16px 12px", color: INK5, fontSize: "0.75rem",
+              padding: "14px 14px 14px 38px", color: INK5, fontSize: "0.75rem",
               display: "flex", alignItems: "center", gap: 6,
             }}>
               <Loader2 size={12} style={{ animation: "spin 0.7s linear infinite" }} />
               Cargando distritos…
             </div>
           ) : districts.length === 0 ? (
-            <div style={{ padding: "16px 12px", color: INK5, fontSize: "0.75rem", textAlign: "center" }}>
-              Sin distritos.
+            <div style={{ padding: "14px 14px 14px 38px", color: INK5, fontSize: "0.75rem" }}>
+              Sin distritos en este catálogo.
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              {districts.map((dist, idx) => {
-                const isLoading = togglingId === dist.id;
-                return (
-                  <div key={dist.id} style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    padding: "8px 12px",
-                    background: "#fff",
-                    borderTop: idx > 0 ? `1px solid ${INK1}` : "none",
-                  }}>
-                    <span style={{
-                      display: "inline-flex", alignItems: "center", justifyContent: "center",
-                      minWidth: 56, height: 20, padding: "0 7px", borderRadius: 4,
-                      background: INK9, color: "#fff",
-                      fontFamily: "ui-monospace,monospace", fontWeight: 700, fontSize: "0.6875rem",
-                      flexShrink: 0,
-                    }}>
-                      {dist.ubigeoCode ?? "?"}
-                    </span>
-                    {dist.active && (
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: GRN, flexShrink: 0 }} aria-label="activa" />
-                    )}
-                    <span style={{
-                      flex: 1, minWidth: 0,
-                      fontSize: "0.8125rem",
-                      color: INK9,
-                      fontWeight: dist.active ? 600 : 500,
-                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                    }}>
-                      {dist.name}
-                    </span>
-                    <button
-                      disabled={isLoading}
-                      onClick={() => onToggleMuni(dist.id, !dist.active)}
-                      title={dist.active ? "Desactivar municipalidad" : "Activar municipalidad"}
-                      style={{
-                        height: 24, padding: "0 10px", borderRadius: 6,
-                        border: `1px solid ${INK2}`,
-                        background: dist.active ? INK9 : "#fff",
-                        color: dist.active ? "#fff" : INK6,
-                        fontSize: "0.6875rem", fontWeight: 600,
-                        cursor: isLoading ? "not-allowed" : "pointer", fontFamily: "inherit",
-                        opacity: isLoading ? 0.5 : 1,
-                        display: "inline-flex", alignItems: "center", gap: 4,
-                        flexShrink: 0,
-                      }}
-                    >
-                      {isLoading
-                        ? <Loader2 size={10} style={{ animation: "spin 0.7s linear infinite" }} />
-                        : dist.active ? <Check size={10} /> : null}
-                      {dist.active ? "Activa" : "Activar"}
-                    </button>
-                  </div>
-                );
-              })}
+            <div>
+              {/* Sub-header indicando jerarquía: estos son distritos de la provincia */}
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "8px 14px 6px 38px",
+                fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.08em",
+                textTransform: "uppercase", color: INK5,
+              }}>
+                <span>Distritos de {prov.name}</span>
+                <span style={{ flex: 1, height: 1, background: INK2 }} />
+                <span style={{ fontVariantNumeric: "tabular-nums", color: INK6 }}>{districts.length}</span>
+              </div>
+
+              {/* Lista de distritos con indentación + línea vertical conectora */}
+              <div style={{
+                position: "relative",
+                paddingLeft: 22, // espacio para la línea conectora
+                paddingRight: 8,
+                paddingBottom: 8,
+              }}>
+                {/* Línea vertical jerárquica que conecta la provincia con sus distritos */}
+                <div aria-hidden style={{
+                  position: "absolute",
+                  left: 22, top: 0, bottom: 12,
+                  width: 1, background: INK2,
+                }} />
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  {districts.map((dist) => {
+                    const isLoading = togglingId === dist.id;
+                    return (
+                      <div key={dist.id} style={{
+                        display: "flex", alignItems: "center", gap: 8,
+                        padding: "7px 10px 7px 18px",
+                        background: "#fff", border: `1px solid ${INK2}`, borderRadius: 6,
+                        position: "relative",
+                      }}>
+                        {/* Pequeño tick horizontal saliendo de la línea vertical */}
+                        <span aria-hidden style={{
+                          position: "absolute", left: -10, top: "50%",
+                          width: 10, height: 1, background: INK2,
+                        }} />
+                        <span style={{
+                          display: "inline-flex", alignItems: "center", justifyContent: "center",
+                          minWidth: 52, height: 18, padding: "0 6px", borderRadius: 4,
+                          background: "#fff", color: INK6, border: `1px solid ${INK2}`,
+                          fontFamily: "ui-monospace,monospace", fontWeight: 600, fontSize: "0.625rem",
+                          flexShrink: 0, letterSpacing: "0.02em",
+                        }}>
+                          {dist.ubigeoCode ?? "?"}
+                        </span>
+                        {dist.active && (
+                          <span style={{ width: 5, height: 5, borderRadius: "50%", background: GRN, flexShrink: 0 }} aria-label="activa" />
+                        )}
+                        <span style={{
+                          flex: 1, minWidth: 0,
+                          fontSize: "0.8125rem",
+                          color: INK9,
+                          fontWeight: dist.active ? 600 : 500,
+                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        }}>
+                          {dist.name}
+                        </span>
+                        <button
+                          disabled={isLoading}
+                          onClick={() => onToggleMuni(dist.id, !dist.active)}
+                          title={dist.active ? "Desactivar municipalidad" : "Activar municipalidad"}
+                          style={{
+                            height: 22, padding: "0 9px", borderRadius: 5,
+                            border: `1px solid ${INK2}`,
+                            background: dist.active ? INK9 : "#fff",
+                            color: dist.active ? "#fff" : INK6,
+                            fontSize: "0.6875rem", fontWeight: 600,
+                            cursor: isLoading ? "not-allowed" : "pointer", fontFamily: "inherit",
+                            opacity: isLoading ? 0.5 : 1,
+                            display: "inline-flex", alignItems: "center", gap: 4,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {isLoading
+                            ? <Loader2 size={10} style={{ animation: "spin 0.7s linear infinite" }} />
+                            : dist.active ? <Check size={10} /> : null}
+                          {dist.active ? "Activa" : "Activar"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
         </div>

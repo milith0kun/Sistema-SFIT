@@ -195,7 +195,7 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 420px", gap: 20, alignItems: "start" }}>
 
         {/* ── Columna izquierda: toolbar + lista ── */}
         <div style={{ minWidth: 0 }}>
