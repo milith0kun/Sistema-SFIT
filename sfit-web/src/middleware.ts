@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const PUBLIC_ROUTES = ["/", "/login", "/register", "/reset-password", "/design-system"];
-const PUBLIC_API = ["/api/auth", "/api/public", "/api/health"];
+// `/api/uploads/files` sirve binarios de imágenes (evidencia de reportes,
+// fotos de perfil) cuyo ID es un ObjectId aleatorio de 24 hex no enumerable.
+// Debe ser pública porque CachedNetworkImage en el app móvil no envía el
+// Bearer token (igual que <img src> en HTML). El upload (POST a
+// /api/uploads/reports) sí sigue protegido — solo la lectura es pública.
+const PUBLIC_API = ["/api/auth", "/api/public", "/api/health", "/api/uploads/files"];
 
 // ── Rate limiting (in-memory, production only) ──────────────────────────────
 // Each entry: { count, reset (epoch ms) }
