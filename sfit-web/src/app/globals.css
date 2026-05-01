@@ -618,6 +618,13 @@ body {
     flex-grow: 1;
     min-width: 0;
   }
+  /* Inputs/selects con minWidth fijos en toolbars (notificaciones, admin/usuarios)
+     se relajan en mobile pequeño para no forzar overflow horizontal. */
+  [style*="minWidth: 180"],
+  [style*="minWidth: 200"],
+  [style*="minWidth: 220"] {
+    min-width: 0 !important;
+  }
 }
 @media (max-width: 768px) {
   /* Stat numbers smaller */
