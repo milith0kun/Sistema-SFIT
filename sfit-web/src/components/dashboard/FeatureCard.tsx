@@ -32,7 +32,7 @@ export function FeatureCard({
         position: "relative",
         overflow: "hidden",
         display: "block",
-        background: hover ? "#FDFAF2" : "#ffffff",
+        background: hover ? "#FDF8F8" : "#ffffff",
         border: `1.5px solid ${hover ? "#D9B0B0" : "#e4e4e7"}`,
         borderRadius: 12,
         padding: "14px 16px",

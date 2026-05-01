@@ -33,8 +33,8 @@ class ReportsApiService {
 
   /// POST /reportes — envía un nuevo reporte ciudadano.
   /// Retorna el ID del reporte creado.
-  /// [latitude] y [longitude] son opcionales (RF-12-03 anti-fraude capa 2).
-  /// [qrToken] es el JSON serializado del QR escaneado (RF-12-04 anti-fraude capa 4).
+  /// Lanza [ReportSubmitException] con el mensaje del backend si la
+  /// respuesta no es exitosa (ej. 429 rate limit, 400 validación).
   Future<String> submitReport({
     required String vehiclePlate,
     required String category,
@@ -55,8 +55,25 @@ class ReportsApiService {
       if (qrToken != null) 'qrToken': qrToken,
       if (imageUrls != null && imageUrls.isNotEmpty) 'imageUrls': imageUrls,
     });
-    final data = (resp.data as Map)['data'] as Map;
-    return data['id'] as String;
+    final body = resp.data as Map?;
+    // dio_client tiene `validateStatus: status < 500`, así que 4xx llega
+    // como respuesta normal — hay que detectar `success: false` aquí.
+    if (body == null || body['success'] == false) {
+      final msg = body?['error'] as String?;
+      throw ReportSubmitException(
+        msg ?? 'No se pudo enviar el reporte',
+        statusCode: resp.statusCode,
+      );
+    }
+    final data = body['data'] as Map?;
+    final id = data?['id'] as String?;
+    if (id == null) {
+      throw ReportSubmitException(
+        'Respuesta inesperada del servidor',
+        statusCode: resp.statusCode,
+      );
+    }
+    return id;
   }
 
   /// PATCH /reportes/:id — actualiza el estado de un reporte (fiscal).
@@ -127,4 +144,15 @@ class ReportsApiService {
       'totalApoyos': data['totalApoyos'] as int,
     };
   }
+}
+
+/// Error con mensaje legible para el usuario lanzado cuando el backend
+/// rechaza un envío de reporte (rate limit, validación, etc.).
+class ReportSubmitException implements Exception {
+  final String message;
+  final int? statusCode;
+  const ReportSubmitException(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
 }

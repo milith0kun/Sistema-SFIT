@@ -135,21 +135,48 @@ class _InspectionsListPageState extends ConsumerState<InspectionsListPage> {
         children: [
           // ── Header con botón nueva inspección ───────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
             child: Row(
               children: [
                 Expanded(
-                  child: Text('Inspecciones',
-                      style: AppTheme.inter(
-                        fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.ink9,
-                      )),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(width: 5, height: 5, decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle)),
+                          const SizedBox(width: 6),
+                          Text(
+                            'FISCALIZACIÓN',
+                            style: AppTheme.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                              letterSpacing: 1.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Inspecciones',
+                        style: AppTheme.inter(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.ink9,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 FilledButton.icon(
                   onPressed: () => context.push('/qr').then((_) { _load(); _loadSummary(); }),
                   icon: const Icon(Icons.qr_code_scanner, size: 16),
-                  label: const Text('Escanear QR'),
+                  label: const Text('Nuevo'),
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.panel,
+                    backgroundColor: AppColors.ink,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8)),
                   ),

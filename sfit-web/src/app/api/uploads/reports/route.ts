@@ -70,11 +70,23 @@ export async function POST(request: NextRequest) {
       uploadedBy: session.userId,
     });
 
-    // URL absoluta derivada del request — mismo origen donde se subió,
-    // sin depender de NEXT_PUBLIC_APP_URL.
-    const url = new URL(`/api/uploads/files/${String(doc._id)}`, request.url).toString();
+    // URL absoluta pública. Detrás de Cloudflare/Dokploy `request.url` ve
+    // el origen interno del socket (`https://0.0.0.0:3000`), que no es
+    // accesible desde el cliente. Preferimos `NEXT_PUBLIC_APP_URL` del .env
+    // de producción; caemos a los headers de proxy `x-forwarded-host` y
+    // como último recurso al `request.url` (útil en dev local).
+    const fileId = String(doc._id);
+    const baseUrl = (() => {
+      const envUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+      if (envUrl) return envUrl;
+      const proto = request.headers.get("x-forwarded-proto") ?? "https";
+      const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+      if (host) return `${proto}://${host}`;
+      return new URL(request.url).origin;
+    })();
+    const url = `${baseUrl}/api/uploads/files/${fileId}`;
 
-    return apiResponse({ url, id: String(doc._id) }, 201);
+    return apiResponse({ url, id: fileId }, 201);
   } catch (error) {
     console.error("[uploads/reports POST]", error);
     return apiError("Error al subir el archivo", 500);

@@ -188,7 +188,42 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
               ),
               const SizedBox(height: 10),
               ...sanciones.map((s) => _SancionRow(sancion: s)),
+              const SizedBox(height: 20),
             ],
+
+            // ── Módulos ──────────────────────────────────────────────
+            const SfitSectionHeader(
+              icon: Icons.grid_view_rounded,
+              label: 'MÓDULOS DISPONIBLES',
+            ),
+            const SizedBox(height: 12),
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 2.1,
+              children: [
+                SfitFeatureCard(
+                  icon: Icons.people_outline,
+                  title: 'Usuarios',
+                  subtitle: 'Gestión local',
+                  onTap: () {
+                    // Nota: AdminDashboardPage no tiene el callback onSelectTab
+                    // porque se maneja como un tab independiente.
+                    // Para simplicidad, podemos usar una notificación o simplemente
+                    // dejarlo como referencia visual por ahora si no hay callback.
+                  },
+                ),
+                SfitFeatureCard(
+                  icon: Icons.business_outlined,
+                  title: 'Empresas',
+                  subtitle: 'Transportistas',
+                  onTap: () {},
+                ),
+              ],
+            ),
           ],
         ),
       ),

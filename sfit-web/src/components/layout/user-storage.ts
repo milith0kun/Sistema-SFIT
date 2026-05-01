@@ -11,6 +11,10 @@ export type StoredUser = {
   // institucionales (RUC + razón social) registrados. El layout consulta
   // /api/auth/perfil y persiste el flag aquí para evitar re-fetch.
   municipalityDataCompleted?: boolean;
+  /** Nombre de la municipalidad del usuario (contexto territorial). */
+  municipalityName?: string;
+  /** Nombre de la provincia del usuario (contexto territorial). */
+  provinceName?: string;
 };
 
 let __lastRawUser: string | null = null;

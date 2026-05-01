@@ -4,10 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import Script from "next/script";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AlertCircle, Eye, EyeOff, Lock, ArrowRight } from "lucide-react";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
-/** RF-01-03/04: enruta según estado del usuario */
 function destForStatus(status: string): string {
   switch (status) {
     case "pendiente": return "/pending";
@@ -48,47 +48,49 @@ export default function LoginPage() {
   const emailInputRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const googleBtnRef = useRef<HTMLDivElement>(null);
-  const initializedRef = useRef(false);
   const [gisReady, setGisReady] = useState(false);
 
-  // Auto-focus en email al cargar (estándar UX para forms de login)
   useEffect(() => {
     emailInputRef.current?.focus();
   }, []);
 
-  // Mover foco al alert cuando aparece un error global
   useEffect(() => {
     if (error) errorRef.current?.focus();
   }, [error]);
 
-  // Inicializa Google Identity Services cuando el script carga
+  // Inicialización de Google robusta
   useEffect(() => {
-    if (initializedRef.current) return;
-    if (!gisReady || !GOOGLE_CLIENT_ID || !window.google) return;
+    const initGoogle = () => {
+      if (!GOOGLE_CLIENT_ID || !window.google || !googleBtnRef.current) return;
 
-    window.google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleGoogleCredential,
-      use_fedcm_for_prompt: false,
-      auto_select: false,
-      ux_mode: "popup",
-    });
+      try {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleCredential,
+          use_fedcm_for_prompt: false,
+          auto_select: false,
+          ux_mode: "popup",
+        });
 
-    if (googleBtnRef.current) {
-      googleBtnRef.current.innerHTML = "";
-      window.google.accounts.id.renderButton(googleBtnRef.current, {
-        type: "standard",
-        theme: "outline",
-        size: "large",
-        text: "continue_with",
-        shape: "rectangular",
-        logo_alignment: "left",
-        width: 376,
-      });
+        googleBtnRef.current.innerHTML = "";
+        window.google.accounts.id.renderButton(googleBtnRef.current, {
+          type: "standard",
+          theme: "outline",
+          size: "large",
+          text: "continue_with",
+          shape: "rectangular",
+          logo_alignment: "left",
+          width: googleBtnRef.current.offsetWidth || 376,
+        });
+      } catch (err) {
+        console.error("Error al inicializar Google Sign-In:", err);
+      }
+    };
+
+    if (gisReady) {
+      initGoogle();
     }
-
-    initializedRef.current = true;
-  }, [gisReady]);
+  }, [gisReady, GOOGLE_CLIENT_ID]);
 
   async function handleGoogleCredential(response: { credential: string }) {
     setGoogleLoading(true);
@@ -159,291 +161,153 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="animate-fade-in">
-      {/* Header */}
-      <div className="mb-8">
-        <p className="kicker animate-fade-up text-center w-full">
-          Acceso al sistema
-        </p>
-        <h1
-          className="mt-3 font-bold text-[#09090b] animate-fade-up delay-50 text-center w-full"
-          style={{
-            fontSize: "clamp(1.75rem, 4vw, 2.5rem)",
-            lineHeight: 1.1,
-            letterSpacing: "-0.025em",
-          }}
-        >
-          Ingreso al sistema
+    <div className="animate-fade-in w-full">
+      <Script
+        src="https://accounts.google.com/gsi/client"
+        strategy="afterInteractive"
+        onLoad={() => setGisReady(true)}
+      />
+
+      {/* Header del Formulario */}
+      <div className="mb-10">
+        <h1 className="text-[#0A1628] text-3xl font-bold tracking-tight mb-3 text-balance">
+          Bienvenido de nuevo
         </h1>
-        <p
-          className="mt-3 animate-fade-up delay-100 text-center w-full"
-          style={{
-            color: "#52525b",
-            fontSize: "0.9375rem",
-            lineHeight: 1.55,
-            fontWeight: 400,
-          }}
-        >
-          Acceso restringido al personal autorizado.
-        </p>
-        {/* HTTPS / institutional reassurance */}
-        <p
-          className="mt-3 flex items-center justify-center gap-1.5 animate-fade-in delay-150"
-          style={{ fontSize: "0.75rem", color: "#71717A", fontWeight: 500 }}
-        >
-          <LockIcon />
-          Conexión cifrada · Servidor institucional
+        <p className="text-[#52525B] font-medium leading-relaxed">
+          Inicie sesión con sus credenciales institucionales para acceder al sistema.
         </p>
       </div>
 
-      {/* Global error */}
+      {/* Alerta de Error Global */}
       {error && (
         <div
           ref={errorRef}
           role="alert"
-          aria-live="assertive"
+          className="mb-8 flex items-start gap-3 rounded-2xl p-4 bg-[#FFF5F5] border border-[#FCA5A5] animate-fade-up outline-none"
           tabIndex={-1}
-          className="mb-6 flex items-start gap-3 rounded-xl p-4 animate-fade-up outline-none focus-visible:ring-2 focus-visible:ring-[#FCA5A5]"
-          style={{ background: "#FFF5F5", border: "1.5px solid #FCA5A5" }}
         >
-          <AlertCircle className="mt-0.5 shrink-0 text-[#EF4444]" />
-          <p style={{ fontSize: "0.9375rem", color: "#DC2626", lineHeight: 1.45, fontWeight: 500 }}>
+          <AlertCircle className="mt-0.5 shrink-0 text-[#EF4444]" size={18} />
+          <p className="text-[14px] text-[#DC2626] font-semibold leading-snug">
             {error}
           </p>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} noValidate>
+      <form onSubmit={handleSubmit} noValidate className="space-y-6">
         {/* Email */}
-        <div className="mb-5 animate-fade-up delay-150">
-          <label
-            htmlFor="email"
-            className="block mb-2.5"
-            style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#09090b", letterSpacing: "-0.005em" }}
-          >
-            Correo electrónico
+        <div className="animate-fade-up delay-100">
+          <label htmlFor="email" className="block text-sm font-bold text-[#0A1628] mb-2 uppercase tracking-widest opacity-70">
+            Correo Institucional
           </label>
           <input
             ref={emailInputRef}
             id="email"
             name="email"
             type="email"
-            autoComplete="email"
+            placeholder="usuario@municipalidad.gob.pe"
             required
-            placeholder="nombre@municipalidad.gob.pe"
-            aria-invalid={!!fieldErrors.email}
-            aria-describedby={fieldErrors.email ? "email-error" : undefined}
-            className={`field${fieldErrors.email ? " field-error" : ""}`}
+            className={`field transition-all ${fieldErrors.email ? "border-[#EF4444] bg-[#FFF5F5]" : "focus:border-[#0A1628] focus:ring-4 focus:ring-[#0A1628]/5"}`}
           />
           {fieldErrors.email && (
-            <p id="email-error" className="mt-2" style={{ fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
-              {fieldErrors.email}
-            </p>
+            <p className="mt-2 text-xs font-bold text-[#DC2626] uppercase tracking-wider">{fieldErrors.email}</p>
           )}
         </div>
 
         {/* Password */}
-        <div className="mb-6 animate-fade-up delay-200">
-          <div className="flex items-center justify-between mb-2.5">
-            <label
-              htmlFor="password"
-              style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#09090b", letterSpacing: "-0.005em" }}
-            >
+        <div className="animate-fade-up delay-150">
+          <div className="flex items-center justify-between mb-2">
+            <label htmlFor="password" className="text-sm font-bold text-[#0A1628] uppercase tracking-widest opacity-70">
               Contraseña
             </label>
-            <Link
-              href="/reset-password"
-              className="transition-colors"
-              style={{ color: "#6C0606", fontSize: "0.8125rem", fontWeight: 600 }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#4A0303")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#6C0606")}
-            >
+            <Link href="/reset-password" 
+                  className="text-xs font-bold text-[#8B1414] hover:underline tracking-wide">
               ¿Olvidó su contraseña?
             </Link>
           </div>
-          <div className="relative">
+          <div className="relative group">
             <input
               id="password"
               name="password"
               type={showPassword ? "text" : "password"}
-              autoComplete="current-password"
+              placeholder="••••••••••••"
               required
-              placeholder="••••••••••"
-              aria-invalid={!!fieldErrors.password}
-              aria-describedby={
-                [fieldErrors.password ? "password-error" : null, capsLock ? "caps-warn" : null]
-                  .filter(Boolean)
-                  .join(" ") || undefined
-              }
               onKeyUp={(e) => setCapsLock(e.getModifierState("CapsLock"))}
-              onKeyDown={(e) => setCapsLock(e.getModifierState("CapsLock"))}
-              onBlur={() => setCapsLock(false)}
-              className={`field pr-12${fieldErrors.password ? " field-error" : ""}`}
+              className={`field pr-12 transition-all ${fieldErrors.password ? "border-[#EF4444] bg-[#FFF5F5]" : "focus:border-[#0A1628] focus:ring-4 focus:ring-[#0A1628]/5"}`}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              tabIndex={-1}
-              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A1A1AA] hover:text-[#52525B] transition-colors"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A1A1AA] hover:text-[#0A1628] transition-colors"
             >
-              {showPassword ? <EyeOff /> : <Eye />}
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
           </div>
           {capsLock && (
-            <p
-              id="caps-warn"
-              role="status"
-              className="mt-2 inline-flex items-center gap-1.5"
-              style={{ fontSize: "0.8125rem", color: "#B45309", fontWeight: 500 }}
-            >
-              <CapsLockIcon /> Bloq Mayús activado
+            <p className="mt-2 text-[10px] font-bold text-[#B45309] uppercase tracking-widest flex items-center gap-1.5">
+              <Lock size={10} /> Bloq Mayús Activado
             </p>
           )}
           {fieldErrors.password && (
-            <p id="password-error" className="mt-2" style={{ fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
-              {fieldErrors.password}
-            </p>
+            <p className="mt-2 text-xs font-bold text-[#DC2626] uppercase tracking-wider">{fieldErrors.password}</p>
           )}
         </div>
 
-        {/* Submit */}
-        <div className="animate-fade-up delay-300">
+        {/* Submit Button */}
+        <div className="pt-2 animate-fade-up delay-200">
           <button
             type="submit"
             disabled={loading}
-            className="btn-primary w-full"
+            className="w-full h-14 bg-[#0A1628] text-white rounded-2xl font-bold text-lg hover:bg-[#111F38] disabled:opacity-50 transition-all flex items-center justify-center gap-3 shadow-lg shadow-[#0A1628]/10 group"
           >
-            <span className="shine" aria-hidden />
             {loading ? (
-              <>
-                <span className="spinner" />
-                <span>Verificando…</span>
-              </>
+              <span className="flex h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
-              "Acceso al sistema"
+              <>
+                Entrar al Sistema
+                <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+              </>
             )}
           </button>
         </div>
       </form>
 
       {/* Divider */}
-      <div className="relative my-7 animate-fade-up delay-400">
+      <div className="relative my-10 animate-fade-up delay-300">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full" style={{ height: "1px", background: "#E4E4E7" }} />
+          <div className="w-full border-t border-[#E4E4E7]" />
         </div>
-        <div className="relative flex justify-center">
-          <span
-            className="px-4 bg-[#fafafa]"
-            style={{ fontSize: "0.8125rem", color: "#71717A", fontWeight: 500, letterSpacing: "0.02em" }}
-          >
-            o continúa con
-          </span>
+        <div className="relative flex justify-center text-sm font-bold uppercase tracking-[0.2em]">
+          <span className="bg-[#fafafa] px-4 text-[#A1A1AA]">o continuar con</span>
         </div>
       </div>
 
-      {/* Google Sign-In (Google Identity Services) */}
-      <Script
-        src="https://accounts.google.com/gsi/client"
-        strategy="afterInteractive"
-        onReady={() => setGisReady(true)}
-      />
-      <div className="animate-fade-up delay-500">
-        {!GOOGLE_CLIENT_ID && (
-          <div
-            className="rounded-[10px] px-4 py-3 text-center"
-            style={{ background: "#FFFBEB", border: "1.5px solid #FCD34D", fontSize: "0.875rem", color: "#92400E" }}
-          >
-            Google OAuth no está configurado. Define <code>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code>.
-          </div>
-        )}
-        {GOOGLE_CLIENT_ID && (
-          <div className="w-full flex justify-center">
-            <div ref={googleBtnRef} />
-          </div>
-        )}
-        {googleLoading && (
-          <p className="mt-2 text-center" style={{ fontSize: "0.8125rem", color: "#52525B" }}>
-            Verificando con Google…
+      {/* Google Login Container */}
+      <div className="flex flex-col items-center gap-4 animate-fade-up delay-400 min-h-[50px]">
+        {GOOGLE_CLIENT_ID ? (
+          <div 
+            id="google-btn-parent"
+            className="w-full flex justify-center overflow-hidden rounded-xl" 
+            ref={googleBtnRef} 
+          />
+        ) : (
+          <p className="text-[10px] font-bold text-[#B45309] uppercase tracking-widest text-center px-4 py-2 bg-amber-50 rounded-lg border border-amber-200">
+            Configuración de Google Pendiente (NEXT_PUBLIC_GOOGLE_CLIENT_ID)
           </p>
         )}
+        {googleLoading && <p className="text-[10px] font-bold text-[#52525B] animate-pulse uppercase tracking-widest">Verificando cuenta...</p>}
       </div>
 
-      {/* Register link */}
-      <p
-        className="mt-9 text-center animate-fade-up delay-500"
-        style={{ fontSize: "0.9375rem", color: "#52525B", fontWeight: 400 }}
-      >
-        ¿No cuenta con un usuario?{" "}
-        <Link
-          href="/register"
-          className="transition-colors"
-          style={{ color: "#6C0606", fontWeight: 600 }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#4A0303")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "#6C0606")}
-        >
-          Solicitar acceso
+      {/* Footer del Formulario */}
+      <div className="mt-12 text-center animate-fade-up delay-500">
+        <p className="text-[#71717A] font-medium text-sm">
+          ¿Aún no tiene acceso institucional?
+        </p>
+        <Link href="/register" 
+              className="mt-2 inline-block text-[#8B1414] font-bold hover:underline">
+          Solicitar Usuario Autorizado
         </Link>
-      </p>
+      </div>
     </div>
   );
 }
 
-/* ── Micro icons ── */
-function Eye() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-function EyeOff() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-      <line x1="1" y1="1" x2="23" y2="23" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function LockIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-    </svg>
-  );
-}
-
-function CapsLockIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="m18 8-6-6-6 6" />
-      <path d="M5 14h14" />
-      <path d="M5 18h14" />
-    </svg>
-  );
-}
-
-function AlertCircle({ className = "" }: { className?: string }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 15 15" fill="none" className={className}>
-      <circle cx="7.5" cy="7.5" r="6.5" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M7.5 4.5v3M7.5 10h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function GoogleMark() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden>
-      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-    </svg>
-  );
-}

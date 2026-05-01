@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/sfit_mark.dart';
+import '../../../../core/widgets/sfit_sidebar.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../auth/presentation/pages/widgets/status_screen.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -25,6 +26,10 @@ import '../../../rewards/presentation/pages/rewards_page.dart';
 import '../../../admin/presentation/pages/admin_dashboard_page.dart';
 import '../../../admin/presentation/pages/admin_usuarios_page.dart';
 import '../../../admin/presentation/pages/admin_empresas_page.dart';
+import 'dashboards/citizen_dashboard_page.dart';
+import 'dashboards/conductor_dashboard_page.dart';
+import 'dashboards/fiscal_dashboard_page.dart';
+import 'dashboards/operator_dashboard_page.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/widgets/connectivity_banner.dart';
 import '../../../../core/widgets/sfit_loading.dart';
@@ -114,21 +119,36 @@ class _HomePageState extends ConsumerState<HomePage> {
     final tabs = _tabsForRole(user.role);
     final safeIndex = _index.clamp(0, tabs.length - 1);
 
+    final activeTab = tabs[safeIndex];
+
     return Scaffold(
       backgroundColor: AppColors.paper,
+      drawer: SfitSidebar(
+        currentSlug: activeTab.slug,
+        unreadNotifCount: _unreadNotifCount,
+        onSelectTab: (slug) {
+          final i = tabs.indexWhere((t) => t.slug == slug);
+          if (i >= 0 && i != _index) {
+            setState(() {
+              _index = i;
+              _visitedTabs.add(i);
+            });
+          }
+        },
+      ),
       appBar: AppBar(
         toolbarHeight: 60,
         title: Row(
           children: [
-            const SfitMark(size: 36),
+            const SfitMark(size: 32),
             const SizedBox(width: 10),
             Text(
-              'SFIT',
+              activeTab.label,
               style: AppTheme.inter(
                 fontSize: 17,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
                 color: AppColors.ink9,
-                letterSpacing: 2.8,
+                letterSpacing: -0.3,
               ),
             ),
           ],
@@ -146,56 +166,8 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
             onPressed: () async {
               await context.push('/notificaciones');
-              // Refrescar el conteo al volver de la pantalla de notificaciones
               if (mounted) _loadUnreadCount();
             },
-          ),
-          PopupMenuButton<String>(
-            tooltip: 'Perfil',
-            icon: CircleAvatar(
-              radius: 15,
-              backgroundColor: AppColors.goldBg,
-              child: Text(
-                user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-                style: AppTheme.inter(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.goldDark,
-                ),
-              ),
-            ),
-            onSelected: (v) {
-              if (v == 'logout') ref.read(authProvider.notifier).logout();
-            },
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                enabled: false,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      user.name,
-                      style: AppTheme.inter(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.ink9,
-                      ),
-                    ),
-                    Text(
-                      _roleLabel(user.role),
-                      style: AppTheme.inter(
-                        fontSize: 12, color: AppColors.ink5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: 'logout',
-                child: Text('Cerrar sesión'),
-              ),
-            ],
           ),
           const SizedBox(width: 6),
         ],
@@ -224,32 +196,31 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: safeIndex,
-        onDestinationSelected: (i) => setState(() {
-          _index = i;
-          _visitedTabs.add(i);
-        }),
-        labelBehavior: tabs.length > 4
-            ? NavigationDestinationLabelBehavior.onlyShowSelected
-            : NavigationDestinationLabelBehavior.alwaysShow,
-        height: tabs.length > 4 ? 68 : 72,
-        destinations: tabs
-            .map((t) => NavigationDestination(
-                  icon: Icon(t.icon),
-                  selectedIcon: Icon(t.iconFilled ?? t.icon),
-                  label: t.label,
-                ))
-            .toList(),
-      ),
     );
   }
 
-  // ── Tabs por rol — cada tab es un placeholder `_RolePlaceholder` con
-  //    SfitHeroCard + KPIStrip mock para mantener el canon visual.
+  // ── Tabs por rol — cada tab es un dashboard real o vista funcional.
   List<_Tab> _tabsForRole(String role) {
+    void onSelectTab(String slug) {
+      final tabs = _tabsForRole(role);
+      final i = tabs.indexWhere((t) => t.slug == slug);
+      if (i >= 0 && i != _index) {
+        setState(() {
+          _index = i;
+          _visitedTabs.add(i);
+        });
+      }
+    }
+
     return switch (role) {
       'fiscal' => [
+          _Tab(
+            slug: 'inicio',
+            label: 'Inicio',
+            icon: Icons.home_outlined,
+            iconFilled: Icons.home,
+            page: FiscalDashboardPage(onSelectTab: onSelectTab),
+          ),
           const _Tab(
             slug: 'inspecciones',
             label: 'Inspecciones',
@@ -272,6 +243,20 @@ class _HomePageState extends ConsumerState<HomePage> {
             page: ReportsReviewPage(),
           ),
           const _Tab(
+            slug: 'vehiculos-consulta',
+            label: 'Vehículos',
+            icon: Icons.directions_car_outlined,
+            iconFilled: Icons.directions_car,
+            page: _QrLaunchTab(forInspection: true),
+          ),
+          const _Tab(
+            slug: 'conductores-consulta',
+            label: 'Conductores',
+            icon: Icons.groups_2_outlined,
+            iconFilled: Icons.groups_2,
+            page: _QrLaunchTab(forInspection: true),
+          ),
+          const _Tab(
             slug: 'perfil',
             label: 'Perfil',
             icon: Icons.person_outline,
@@ -279,36 +264,54 @@ class _HomePageState extends ConsumerState<HomePage> {
             page: ProfilePage(),
           ),
         ],
-      'operador' => const [
+      'operador' => [
           _Tab(
+            slug: 'inicio',
+            label: 'Inicio',
+            icon: Icons.home_outlined,
+            iconFilled: Icons.home,
+            page: OperatorDashboardPage(onSelectTab: onSelectTab),
+          ),
+          const _Tab(
             slug: 'flota',
             label: 'Flota',
             icon: Icons.local_shipping_outlined,
             iconFilled: Icons.local_shipping,
             page: FleetPage(),
           ),
-          _Tab(
+          const _Tab(
             slug: 'conductores',
             label: 'Conductores',
             icon: Icons.groups_2_outlined,
             iconFilled: Icons.groups_2,
             page: ConductoresTabPage(),
           ),
-          _Tab(
+          const _Tab(
             slug: 'vehiculos',
             label: 'Vehículos',
             icon: Icons.directions_car_outlined,
             iconFilled: Icons.directions_car,
             page: VehiculosTabPage(),
           ),
-          _Tab(
+          const _Tab(
             slug: 'analisis',
             label: 'Análisis',
             icon: Icons.bar_chart_outlined,
             iconFilled: Icons.bar_chart,
             page: FleetAnalyticsPage(),
           ),
-          _Tab(
+          const _Tab(
+            slug: 'rutas',
+            label: 'Rutas',
+            icon: Icons.route_outlined,
+            iconFilled: Icons.route,
+            page: _RolePlaceholder(
+              kicker: 'Operación',
+              title: 'Rutas y Trazados',
+              subtitle: 'Gestión de recorridos autorizados.',
+            ),
+          ),
+          const _Tab(
             slug: 'perfil',
             label: 'Perfil',
             icon: Icons.person_outline,
@@ -317,6 +320,13 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ],
       'conductor' => [
+          _Tab(
+            slug: 'inicio',
+            label: 'Inicio',
+            icon: Icons.home_outlined,
+            iconFilled: Icons.home,
+            page: ConductorDashboardPage(onSelectTab: onSelectTab),
+          ),
           const _Tab(
             slug: 'rutas',
             label: 'Mis rutas',
@@ -353,36 +363,43 @@ class _HomePageState extends ConsumerState<HomePage> {
             page: ProfilePage(),
           ),
         ],
-      'ciudadano' => const [
+      'ciudadano' => [
           _Tab(
             slug: 'inicio',
             label: 'Inicio',
+            icon: Icons.home_outlined,
+            iconFilled: Icons.home,
+            page: CitizenDashboardPage(onSelectTab: onSelectTab),
+          ),
+          const _Tab(
+            slug: 'inicio-feed',
+            label: 'Feed',
             icon: Icons.dynamic_feed_outlined,
             iconFilled: Icons.dynamic_feed,
             page: FeedPage(),
           ),
-          _Tab(
+          const _Tab(
             slug: 'mis-reportes',
             label: 'Mis reportes',
             icon: Icons.list_alt_outlined,
             iconFilled: Icons.list_alt,
             page: MisReportesPage(),
           ),
-          _Tab(
+          const _Tab(
             slug: 'reportar',
             label: 'Reportar',
             icon: Icons.campaign_outlined,
             iconFilled: Icons.campaign,
             page: SubmitReportPage(),
           ),
-          _Tab(
+          const _Tab(
             slug: 'premios',
             label: 'Premios',
             icon: Icons.emoji_events_outlined,
             iconFilled: Icons.emoji_events,
             page: RewardsPage(),
           ),
-          _Tab(
+          const _Tab(
             slug: 'perfil',
             label: 'Perfil',
             icon: Icons.person_outline,

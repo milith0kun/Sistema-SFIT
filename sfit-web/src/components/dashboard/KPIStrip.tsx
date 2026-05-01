@@ -20,7 +20,10 @@ export interface KPIStripProps {
 
 export function KPIStrip({ items, cols = 6 }: KPIStripProps) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gap: 10 }}>
+    <div
+      className="sfit-kpi-grid"
+      style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gap: 10 }}
+    >
       {items.map((it, i) => {
         const trendUp = it.trend && it.trend.value >= 0;
         const hasAccent = Boolean(it.accent);
@@ -28,6 +31,7 @@ export function KPIStrip({ items, cols = 6 }: KPIStripProps) {
         return (
           <div
             key={`${it.label}-${i}`}
+            className="sfit-kpi-card"
             style={{
               position: "relative",
               overflow: "hidden",
@@ -39,7 +43,7 @@ export function KPIStrip({ items, cols = 6 }: KPIStripProps) {
               borderRadius: 12,
               padding: "14px 16px 13px",
               minWidth: 0,
-              minHeight: 102,
+              minHeight: 100,
             }}
           >
             {/* Label */}
@@ -116,8 +120,7 @@ export function KPIStrip({ items, cols = 6 }: KPIStripProps) {
               )}
             </div>
 
-            {/* Ícono watermark — esquina inferior derecha, dorado tenue (mismo lenguaje
-                visual que FeatureCard de "Módulos disponibles"). */}
+            {/* Ícono watermark — esquina inferior derecha */}
             <div
               aria-hidden
               style={{
@@ -128,6 +131,7 @@ export function KPIStrip({ items, cols = 6 }: KPIStripProps) {
                 opacity: 0.10,
                 pointerEvents: "none",
                 lineHeight: 0,
+                transition: "opacity 200ms ease",
               }}
             >
               <Icon size={88} strokeWidth={1.2} />

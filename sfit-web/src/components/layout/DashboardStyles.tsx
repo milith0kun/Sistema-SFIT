@@ -225,6 +225,65 @@ export function DashboardStyles() {
         outline: 2px solid #FCA5A5;
         outline-offset: -2px;
       }
+
+      /* ── Topbar hover states ── */
+      .sfit-topbar {
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+      .sfit-search-btn:hover {
+        border-color: #D4D4D8 !important;
+        color: #09090B !important;
+        background: #F4F4F5 !important;
+      }
+      .sfit-search-btn:focus-visible {
+        outline: 2px solid #6C0606;
+        outline-offset: 2px;
+      }
+
+      /* ── User pill hover ── */
+      .sfit-user-pill:hover {
+        background: #FAFAFA !important;
+        border-color: #6C060644 !important;
+      }
+      .sfit-user-pill:focus-visible {
+        outline: 2px solid #6C0606;
+        outline-offset: 2px;
+      }
+
+      /* ── Hero shimmer line ── */
+      .sfit-hero-shimmer {
+        animation: heroShimmer 4s ease-in-out infinite;
+      }
+      @keyframes heroShimmer {
+        0%, 100% { opacity: 0.4; }
+        50% { opacity: 1; }
+      }
+
+      /* ── Hero responsive ── */
+      @media (max-width: 640px) {
+        .sfit-hero { padding: 16px 18px !important; border-radius: 12px !important; }
+        .sfit-hero h1 { font-size: 1.125rem !important; }
+      }
+
+      /* ── KPI card hover ── */
+      .sfit-kpi-card {
+        transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+      }
+      .sfit-kpi-card:hover {
+        border-color: #D9B0B0 !important;
+        box-shadow: 0 4px 14px rgba(108, 6, 6, 0.06);
+        transform: translateY(-1px);
+      }
+
+      /* ── User dropdown animation ── */
+      .sfit-user-dropdown {
+        animation: dropdownIn 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      @keyframes dropdownIn {
+        from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+      }
     `}</style>
   );
 }

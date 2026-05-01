@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, ChevronDown, LogOut, Menu, Settings } from "lucide-react";
+import {
+  CalendarDays, ChevronDown, LogOut, Menu, Settings,
+  Wifi, Search,
+} from "lucide-react";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { buildCrumbs, ROLE_BADGE, ROLE_LABELS } from "./nav";
 import type { StoredUser } from "./user-storage";
@@ -13,6 +16,22 @@ function useNow() {
     return () => clearInterval(id);
   }, []);
   return now;
+}
+
+/** Hook que obtiene el nombre de la municipalidad del usuario logueado. */
+function useMunicipalityName(): string | null {
+  const [name, setName] = useState<string | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem("sfit_user");
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed.municipalityName) { setName(parsed.municipalityName); return; }
+      if (parsed.provinceName) { setName(parsed.provinceName); return; }
+    } catch { /* silent */ }
+  }, []);
+  return name;
 }
 
 export function Topbar({
@@ -29,6 +48,7 @@ export function Topbar({
   const now = useNow();
   const [open, setOpen] = useState(false);
   const pillRef = useRef<HTMLDivElement>(null);
+  const municipalityName = useMunicipalityName();
 
   // Cerrar dropdown al hacer click fuera
   useEffect(() => {
@@ -94,28 +114,39 @@ export function Topbar({
     fontFamily: "inherit",
   };
 
+  // Contexto territorial del usuario
+  const contextLabel = useMemo(() => {
+    if (user.role === "super_admin") return "Plataforma Nacional";
+    if (user.role === "admin_provincial") return municipalityName ?? "Provincia";
+    if (user.role === "admin_municipal") return municipalityName ?? "Municipalidad";
+    if (user.role === "fiscal") return municipalityName ?? "Jurisdicción";
+    if (user.role === "operador") return municipalityName ?? "Empresa";
+    return null;
+  }, [user.role, municipalityName]);
+
   return (
     <div
+      className="sfit-topbar"
       style={{
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        gap: 12,
-        padding: "0 22px",
+        gap: 10,
+        padding: "0 20px",
         background: "#FFFFFF",
         borderBottom: "1px solid #F0F0F1",
-        minHeight: 62,
+        minHeight: 60,
         flexShrink: 0,
       }}
     >
       {/* ── Left ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
         <button
           className="sfit-hamburger"
           onClick={onOpenSidebar}
           style={{
-            width: 36,
-            height: 36,
+            width: 34,
+            height: 34,
             borderRadius: 9,
             border: "1.5px solid #E4E4E7",
             background: "#FFFFFF",
@@ -125,14 +156,15 @@ export function Topbar({
             justifyContent: "center",
             cursor: "pointer",
             flexShrink: 0,
+            transition: "border-color 140ms, background 140ms",
           }}
           aria-label="Abrir menú"
         >
-          <Menu size={17} strokeWidth={2} />
+          <Menu size={16} strokeWidth={2} />
         </button>
 
         <div
-          style={{ width: 1, height: 26, background: "#E4E4E7", flexShrink: 0 }}
+          style={{ width: 1, height: 24, background: "#E4E4E7", flexShrink: 0 }}
           className="hidden-mobile"
         />
 
@@ -140,7 +172,7 @@ export function Topbar({
         <nav
           aria-label="Migas de pan"
           className="sfit-breadcrumb hidden-mobile"
-          style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, lineHeight: 1 }}
+          style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, lineHeight: 1 }}
         >
           <Link href="/dashboard" className="sfit-crumb-root" aria-label="Inicio SFIT">
             SFIT
@@ -150,7 +182,7 @@ export function Topbar({
             return (
               <span
                 key={c.href}
-                style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0 }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0 }}
               >
                 <span className="sfit-crumb-sep" aria-hidden>
                   /
@@ -192,24 +224,55 @@ export function Topbar({
       </div>
 
       {/* ── Right ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        {/* Contexto territorial */}
+        {contextLabel && (
+          <div
+            className="hidden-mobile"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "4px 10px",
+              borderRadius: 7,
+              background: "#FBEAEA",
+              border: "1px solid #D9B0B0",
+              maxWidth: 180,
+            }}
+          >
+            <Wifi size={10} color="#6C0606" strokeWidth={2.5} />
+            <span
+              style={{
+                fontSize: "0.6875rem",
+                color: "#4A0303",
+                fontWeight: 600,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {contextLabel}
+            </span>
+          </div>
+        )}
+
         {/* Date/time */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             gap: 6,
-            padding: "5px 11px",
-            borderRadius: 9,
+            padding: "4px 10px",
+            borderRadius: 8,
             background: "#F4F4F5",
-            border: "1.5px solid #E4E4E7",
+            border: "1px solid #E4E4E7",
           }}
           className="hidden-mobile"
         >
-          <CalendarDays size={12} color="#71717A" strokeWidth={2} />
+          <CalendarDays size={11} color="#71717A" strokeWidth={2} />
           <span
             style={{
-              fontSize: "0.8125rem",
+              fontSize: "0.75rem",
               color: "#52525B",
               fontWeight: 600,
               textTransform: "capitalize",
@@ -217,10 +280,10 @@ export function Topbar({
           >
             {dateStr}
           </span>
-          <span style={{ width: 1, height: 13, background: "#D4D4D8" }} />
+          <span style={{ width: 1, height: 12, background: "#D4D4D8" }} />
           <span
             style={{
-              fontSize: "0.8125rem",
+              fontSize: "0.75rem",
               color: "#71717A",
               fontVariantNumeric: "tabular-nums",
             }}
@@ -229,9 +292,31 @@ export function Topbar({
           </span>
         </div>
 
+        {/* Búsqueda rápida */}
+        <button
+          className="sfit-search-btn hidden-mobile"
+          aria-label="Buscar"
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            border: "1px solid #E4E4E7",
+            background: "#fff",
+            color: "#71717A",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            flexShrink: 0,
+            transition: "border-color 140ms, color 140ms, background 140ms",
+          }}
+        >
+          <Search size={14} strokeWidth={2} />
+        </button>
+
         <NotificationsBell />
 
-        <div style={{ width: 1, height: 26, background: "#E4E4E7" }} />
+        <div style={{ width: 1, height: 24, background: "#E4E4E7" }} className="hidden-mobile" />
 
         {/* User pill + dropdown */}
         <div ref={pillRef} style={{ position: "relative" }}>
@@ -243,29 +328,18 @@ export function Topbar({
             aria-haspopup="menu"
             onClick={() => setOpen(o => !o)}
             onKeyDown={e => (e.key === "Enter" || e.key === " ") && setOpen(o => !o)}
+            className="sfit-user-pill"
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: 8,
-              padding: "4px 10px 4px 4px",
+              gap: 7,
+              padding: "3px 9px 3px 3px",
               borderRadius: 999,
               border: `1.5px solid ${open ? "#6C060655" : "#E4E4E7"}`,
               background: open ? "#FBEAEA" : "#FFFFFF",
               cursor: "pointer",
               transition: "all 150ms",
               outline: "none",
-            }}
-            onMouseEnter={e => {
-              if (!open) {
-                e.currentTarget.style.background = "#FAFAFA";
-                e.currentTarget.style.borderColor = "#6C060644";
-              }
-            }}
-            onMouseLeave={e => {
-              if (!open) {
-                e.currentTarget.style.background = "#FFFFFF";
-                e.currentTarget.style.borderColor = "#E4E4E7";
-              }
             }}
           >
             {/* Avatar */}
@@ -275,8 +349,8 @@ export function Topbar({
                 src={user.image}
                 alt={user.name}
                 style={{
-                  width: 30,
-                  height: 30,
+                  width: 28,
+                  height: 28,
                   borderRadius: "50%",
                   objectFit: "cover",
                   flexShrink: 0,
@@ -286,14 +360,14 @@ export function Topbar({
             ) : (
               <span
                 style={{
-                  width: 30,
-                  height: 30,
+                  width: 28,
+                  height: 28,
                   borderRadius: "50%",
                   background: badge.bg,
                   color: badge.color,
                   border: `1.5px solid ${badge.border}`,
                   fontWeight: 700,
-                  fontSize: "0.75rem",
+                  fontSize: "0.6875rem",
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -306,16 +380,16 @@ export function Topbar({
 
             {/* Name + role */}
             <div
-              style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}
+              style={{ display: "flex", flexDirection: "column", lineHeight: 1.15 }}
               className="hidden-mobile"
             >
               <span
                 style={{
-                  fontSize: "0.8125rem",
+                  fontSize: "0.75rem",
                   fontWeight: 700,
                   color: "#09090B",
                   whiteSpace: "nowrap",
-                  maxWidth: 130,
+                  maxWidth: 120,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                 }}
@@ -324,7 +398,7 @@ export function Topbar({
               </span>
               <span
                 style={{
-                  fontSize: "0.6875rem",
+                  fontSize: "0.625rem",
                   color: "#71717A",
                   fontWeight: 500,
                   whiteSpace: "nowrap",
@@ -335,7 +409,7 @@ export function Topbar({
             </div>
 
             <ChevronDown
-              size={13}
+              size={12}
               strokeWidth={2.2}
               color="#A1A1AA"
               style={{
@@ -350,17 +424,19 @@ export function Topbar({
           {open && (
             <div
               role="menu"
+              className="sfit-user-dropdown"
               style={{
                 position: "absolute",
                 top: "calc(100% + 8px)",
                 right: 0,
                 zIndex: 200,
-                width: 256,
+                width: 260,
                 background: "#FFFFFF",
                 borderRadius: 14,
                 border: "1.5px solid #E4E4E7",
-                boxShadow: "0 10px 40px rgba(9,9,11,0.10), 0 2px 8px rgba(9,9,11,0.05)",
+                boxShadow: "0 10px 40px rgba(9,9,11,0.12), 0 2px 8px rgba(9,9,11,0.06)",
                 overflow: "hidden",
+                animation: "fadeUp 160ms cubic-bezier(0.16,1,0.3,1) forwards",
               }}
             >
               {/* Header del perfil */}
@@ -372,8 +448,8 @@ export function Topbar({
                       src={user.image}
                       alt={user.name}
                       style={{
-                        width: 40,
-                        height: 40,
+                        width: 38,
+                        height: 38,
                         borderRadius: "50%",
                         objectFit: "cover",
                         flexShrink: 0,
@@ -383,14 +459,14 @@ export function Topbar({
                   ) : (
                     <span
                       style={{
-                        width: 40,
-                        height: 40,
+                        width: 38,
+                        height: 38,
                         borderRadius: "50%",
                         background: badge.bg,
                         color: badge.color,
                         border: `1.5px solid ${badge.border}`,
                         fontWeight: 700,
-                        fontSize: "1rem",
+                        fontSize: "0.9375rem",
                         display: "inline-flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -404,7 +480,7 @@ export function Topbar({
                     <div
                       style={{
                         fontWeight: 700,
-                        fontSize: "0.9375rem",
+                        fontSize: "0.875rem",
                         color: "#09090B",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -415,7 +491,7 @@ export function Topbar({
                     </div>
                     <div
                       style={{
-                        fontSize: "0.75rem",
+                        fontSize: "0.6875rem",
                         color: "#71717A",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -427,8 +503,8 @@ export function Topbar({
                     </div>
                   </div>
                 </div>
-                {/* Badge rol */}
-                <div style={{ marginTop: 10 }}>
+                {/* Badge rol + contexto territorial */}
+                <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                   <span
                     style={{
                       display: "inline-flex",
@@ -439,7 +515,7 @@ export function Topbar({
                       background: badge.bg,
                       color: badge.color,
                       border: `1px solid ${badge.border}`,
-                      fontSize: "0.6875rem",
+                      fontSize: "0.625rem",
                       fontWeight: 700,
                     }}
                   >
@@ -452,6 +528,24 @@ export function Topbar({
                       }}
                     />
                     {ROLE_LABELS[user.role] ?? user.role}
+                  </span>
+                  {/* Estado online */}
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "3px 8px",
+                      borderRadius: 6,
+                      background: "#F0FDF4",
+                      color: "#15803D",
+                      border: "1px solid #86EFAC",
+                      fontSize: "0.625rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#15803D" }} />
+                    En línea
                   </span>
                 </div>
               </div>
@@ -481,7 +575,7 @@ export function Topbar({
                       flexShrink: 0,
                     }}
                   >
-                    <Settings size={14} color="#52525B" />
+                    <Settings size={13} color="#52525B" />
                   </span>
                   Mi perfil
                 </Link>
@@ -514,7 +608,7 @@ export function Topbar({
                       flexShrink: 0,
                     }}
                   >
-                    <LogOut size={14} color="#DC2626" />
+                    <LogOut size={13} color="#DC2626" />
                   </span>
                   Cerrar sesión
                 </button>

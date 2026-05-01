@@ -1,222 +1,160 @@
+import { ShieldCheck, Smartphone, Zap, Globe, Apple } from "lucide-react";
+
 const STATS = [
   { value: "7",   label: "Niveles de acceso" },
   { value: "19",  label: "Módulos funcionales" },
-  { value: "100%", label: "Aislamiento por municipalidad" },
-  { value: "24/7", label: "Disponibilidad del servicio" },
+  { value: "100%", label: "Trazabilidad" },
+  { value: "24/7", label: "Disponibilidad" },
 ];
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-[100dvh] lg:h-[100dvh] flex flex-col lg:flex-row overflow-hidden">
-      {/* ── Left panel ─────────────────────────────── */}
-      <aside
-        className="hidden lg:flex lg:w-[44%] xl:w-[42%] flex-col relative overflow-hidden"
-        style={{ background: "#0A1628" }}
-      >
-        {/* Dot grid */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.045) 1px, transparent 0)",
-            backgroundSize: "24px 24px",
-          }}
+    <div className="h-screen w-full flex flex-col lg:flex-row bg-white selection:bg-[#8B1414]/10 selection:text-[#8B1414] overflow-hidden">
+      
+      {/* ── Panel Izquierdo (Institucional) ─────────────────────────────── */}
+      <aside className="hidden lg:flex lg:w-[45%] xl:w-[42%] bg-[#0A1628] relative flex-col overflow-hidden h-full">
+        {/* Patrones de fondo sutiles */}
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+          style={{ backgroundImage: "radial-gradient(white 1px, transparent 1px)", backgroundSize: "32px 32px" }} 
         />
-        {/* Primary ambient — bottom-left */}
-        <div
-          className="absolute pointer-events-none"
-          style={{
-            bottom: "-200px", left: "-120px",
-            width: "580px",   height: "580px",
-            background: "radial-gradient(circle, rgba(108,6,6,0.14) 0%, transparent 65%)",
-          }}
-        />
-        {/* Blue ambient — top-right */}
-        <div
-          className="absolute pointer-events-none"
-          style={{
-            top: "-120px", right: "-120px",
-            width: "380px", height: "380px",
-            background: "radial-gradient(circle, rgba(30,80,160,0.22) 0%, transparent 65%)",
-          }}
-        />
-        {/* Large SFIT watermark */}
-        <div
-          className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none select-none"
-          aria-hidden
-        >
-          <img src="/logo.svg" alt="" width={800} height={800} className="object-contain" />
+        <div className="absolute -bottom-[10%] -left-[10%] w-[600px] h-[600px] bg-[#8B1414]/10 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute top-[10%] -right-[10%] w-[400px] h-[400px] bg-[#1E50A0]/10 rounded-full blur-[100px] pointer-events-none" />
+        
+        {/* Marca de agua sutil */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-[0.02] pointer-events-none select-none">
+          <img src="/logo.svg" alt="" width={600} height={600} className="object-contain" />
         </div>
 
-        {/* ── Content ── */}
-        <div className="relative z-10 flex flex-col h-full px-10 py-10 xl:px-14 xl:py-12 overflow-y-auto">
-          {/* Wordmark */}
-          <div className="flex items-center gap-3 animate-fade-in mb-2">
-            <SfitMark size={110} />
+        <div className="relative z-10 flex flex-col h-full px-12 py-12 xl:px-16">
+          {/* Logo y Marca */}
+          <div className="flex items-center gap-4 mb-16 animate-fade-in shrink-0">
+            <div className="bg-white/10 p-2.5 rounded-2xl backdrop-blur-md border border-white/10 shadow-2xl">
+              <SfitMark size={42} invert />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-white font-black text-2xl tracking-[0.2em] uppercase leading-none">SFIT</span>
+              <span className="text-[#D9B0B0] text-[10px] font-bold tracking-[0.1em] uppercase mt-1">Institucional</span>
+            </div>
           </div>
 
-          {/* Main */}
-          <div className="flex-1 flex flex-col my-auto py-4">
-            {/* Live badge */}
-            <div className="flex items-center gap-2 mb-5 animate-fade-in delay-100">
-              <span
-                className="w-1.5 h-1.5 rounded-full animate-soft-pulse"
-                style={{ background: "#8B1414" }}
-                aria-hidden
-              />
-              <span
-                className="text-[10px] font-bold tracking-[0.22em] uppercase"
-                style={{ color: "#D9B0B0" }}
-              >
-                Sistema de Fiscalización · República del Perú
+          <div className="flex-1 flex flex-col justify-center min-h-0 overflow-hidden">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 mb-6 w-fit animate-fade-up shrink-0">
+              <span className="w-2 h-2 rounded-full bg-[#8B1414] animate-pulse" />
+              <span className="text-[11px] font-bold text-[#D9B0B0] uppercase tracking-[0.15em]">
+                Sistema de Fiscalización · Perú
               </span>
             </div>
 
-            {/* Heading */}
-            <h1
-              className="font-bold text-white animate-fade-up delay-200"
-              style={{
-                fontSize: "clamp(1.875rem, 3.2vw, 2.625rem)",
-                lineHeight: 1.15,
-                letterSpacing: "-0.02em",
-              }}
-            >
-              Sistema Integral de Fiscalización del{" "}
-              <span style={{ color: "#D9B0B0" }}>Transporte Municipal</span>
+            {/* Heading Principal */}
+            <h1 className="text-white font-bold tracking-tight mb-6 leading-[1.1] animate-fade-up delay-100 shrink-0"
+                style={{ fontSize: "clamp(2.25rem, 4vw, 3.25rem)" }}>
+              Gestión inteligente del <span className="text-[#D9B0B0]">Transporte Municipal.</span>
             </h1>
 
-            {/* Primary rule */}
-            <div
-              className="my-6 animate-fade-in delay-300"
-              style={{ width: "44px", height: "2.5px", background: "#8B1414", borderRadius: "1px" }}
-            />
-
-            {/* Description */}
-            <p
-              className="animate-fade-up delay-400"
-              style={{
-                color: "#D4D4D8",
-                maxWidth: "380px",
-                fontSize: "0.9375rem",
-                lineHeight: 1.65,
-                fontWeight: 400,
-              }}
-            >
-              Plataforma institucional para la gestión de la flota vehicular, el control de conductores y la realización de inspecciones de campo en tiempo real.
+            {/* Descripción */}
+            <p className="text-white/70 text-lg leading-relaxed mb-10 max-w-md animate-fade-up delay-200 font-medium shrink-0">
+              Acceda a la infraestructura digital centralizada para el control operativo y seguridad vial.
             </p>
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-3 mt-7 animate-fade-up delay-500">
-              {STATS.map((s) => (
-                <div
-                  key={s.label}
-                  className="rounded-xl p-4"
-                  style={{
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                  }}
-                >
-                  <div
-                    className="text-white font-bold mb-1.5"
-                    style={{
-                      fontSize: "1.0625rem",
-                      lineHeight: 1.1,
-                      letterSpacing: "-0.01em",
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {s.value}
-                  </div>
-                  <div style={{ color: "#A1A1AA", fontSize: "0.75rem", fontWeight: 500, lineHeight: 1.4 }}>
-                    {s.label}
-                  </div>
+            {/* Estadísticas en Grid */}
+            <div className="grid grid-cols-2 gap-4 mb-10 animate-fade-up delay-300 shrink-0">
+              {STATS.map((s, i) => (
+                <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/[0.07] transition-all group">
+                  <div className="text-2xl font-bold text-white mb-1 tracking-tight group-hover:translate-x-1 transition-transform origin-left">{s.value}</div>
+                  <div className="text-[11px] font-bold text-white/40 uppercase tracking-widest">{s.label}</div>
                 </div>
               ))}
             </div>
 
-            {/* App móvil */}
-            <div
-              className="mt-7 animate-fade-up delay-600 flex flex-col gap-3 p-4 rounded-2xl"
-              style={{
-                background: "linear-gradient(145deg, rgba(108,6,6,0.08) 0%, rgba(10,22,40,0.4) 100%)",
-                border: "1px solid rgba(108,6,6,0.22)",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-              }}
-            >
-              <p
-                className="text-[13px] font-semibold tracking-wide flex items-center gap-2"
-                style={{ color: "#E4E4E7" }}
-              >
-                <span className="w-1.5 h-1.5 rounded-full animate-soft-pulse" style={{ background: "#8B1414" }} />
-                Aplicación móvil disponible
-              </p>
-              <div className="flex flex-wrap gap-3 mt-1">
-                {/* Play Store Badge */}
-                <button
-                  className="flex items-center gap-2.5 transition-all px-3 py-1.5 rounded-lg select-none"
-                  style={{ background: "#000000", border: "1px solid rgba(108,6,6,0.30)" }}
-                >
-                  <svg viewBox="0 0 24 24" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4.17 21.66A1.85 1.85 0 013.3 20.2V3.8a1.85 1.85 0 01.87-1.46l10.87 10.87-10.87 8.45z" fill="#00e676"/>
-                    <path d="M15.04 14.67l3.67 3.67-2.8 1.62c-1.33.77-2.6 0-2.8-.12l-8.94-5.17z" fill="#ff3d00"/>
-                    <path d="M15.04 9.33L4.17 3.03C3.97 2.91 5.24 2.14 6.57 2.91l12.14 7.02z" fill="#ffc400"/>
-                    <path d="M18.71 9.93l3.35 1.94c1.1.64 1.1 1.68 0 2.32l-3.35 1.94-3.67-3.67z" fill="#2962ff"/>
-                  </svg>
+            {/* App Móvil */}
+            <div className="animate-fade-up delay-400 p-6 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-sm shrink-0">
+              <div className="flex items-center gap-2 mb-4">
+                <Smartphone size={18} className="text-[#8B1414]" />
+                <span className="text-xs font-bold text-white uppercase tracking-widest">Aplicación Móvil</span>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <a href="#" className="flex items-center gap-3 bg-black px-4 py-2.5 rounded-xl border border-white/10 hover:bg-zinc-900 transition-colors group">
+                  <PlayStoreIcon />
                   <div className="text-left">
-                    <div className="text-[9px] text-gray-400 leading-none mb-1 tracking-[0.08em] uppercase">Disponible en</div>
-                    <div className="text-[13px] text-white font-semibold leading-none">Google Play</div>
+                    <div className="text-[8px] text-white/40 uppercase tracking-tighter leading-none mb-1">Disponible en</div>
+                    <div className="text-[12px] text-white font-bold leading-none">Google Play</div>
                   </div>
-                </button>
-
-                {/* App Store Badge */}
-                <button
-                  className="flex items-center gap-2.5 transition-all px-3 py-1.5 rounded-lg select-none"
-                  style={{ background: "#000000", border: "1px solid rgba(108,6,6,0.30)" }}
-                >
-                  <svg viewBox="0 0 24 24" width="22" height="22" xmlns="http://www.w3.org/2000/svg" fill="white">
-                    <path d="M16.5 6.5c.8-1 1.3-2.3 1.2-3.6-1.1.1-2.5.6-3.4 1.4-.7.6-1.3 1.9-1.1 3.2 1.2.1 2.5-.5 3.3-1zM17.3 16.8c-.8 2.3-1.6 4.7-4 4.8-1.1 0-1.6-.7-4.1-.7-2.4 0-3 1.3-4.1 1.4-2.1.2-4.5-3.8-5.1-6-1.3-4.2.3-7.5 2.8-9 1.2-.7 2.5-.9 3.8-.9 1.8 0 2.9.7 4.1.7 1.2 0 2.6-.9 4.3-.8 1.4 0 3 .5 4 1.9-3.2 1.8-2.7 6.1.5 7.4-.5 1-1.3 2-2.2 3.2z"/>
-                  </svg>
+                </a>
+                <a href="#" className="flex items-center gap-3 bg-black px-4 py-2.5 rounded-xl border border-white/10 hover:bg-zinc-900 transition-colors group">
+                  <Apple size={18} className="text-white fill-white" />
                   <div className="text-left">
-                    <div className="text-[9px] text-gray-400 leading-none mb-1 tracking-[0.08em] uppercase">Disponible en</div>
-                    <div className="text-[13px] text-white font-semibold leading-none">App Store</div>
+                    <div className="text-[8px] text-white/40 uppercase tracking-tighter leading-none mb-1">Consíguelo en</div>
+                    <div className="text-[12px] text-white font-bold leading-none">App Store</div>
                   </div>
-                </button>
+                </a>
               </div>
             </div>
           </div>
 
-          {/* Footer */}
-          <p
-            className="text-[11px] animate-fade-in delay-600"
-            style={{ color: "rgba(255,255,255,0.20)" }}
-          >
-            © 2026 SFIT · República del Perú
-          </p>
+          {/* Footer del panel */}
+          <div className="mt-auto pt-10 flex items-center justify-between border-t border-white/5 animate-fade-in delay-500 shrink-0">
+            <div className="flex items-center gap-4">
+              <ShieldCheck size={18} className="text-[#8B1414]" />
+              <span className="text-[10px] font-bold text-white/40 uppercase tracking-[0.15em]">Seguridad Institucional AES-256</span>
+            </div>
+            <span className="text-[10px] font-bold text-white/20 uppercase tracking-[0.15em]">© 2026 SFIT</span>
+          </div>
         </div>
       </aside>
 
-      {/* ── Right panel ─────────────────────────────── */}
-      <main className="flex-1 flex flex-col items-center p-6 sm:p-10 bg-[#fafafa] overflow-y-auto">
-        <div className="w-full max-w-[440px] my-auto">
-          {/* Mobile brand (inside centered container) */}
-          <div className="flex lg:hidden items-center justify-center gap-2.5 mb-10 animate-fade-in">
-            <SfitMark size={80} />
+      {/* ── Panel Derecho (Formulario) ─────────────────────────────── */}
+      <main className="flex-1 flex flex-col bg-[#fafafa] relative overflow-hidden h-full">
+        {/* Header móvil */}
+        <div className="lg:hidden flex items-center justify-between px-6 py-6 border-b border-[#E4E4E7] bg-white shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="bg-[#0A1628] p-1.5 rounded-xl shadow-xl shadow-black/5">
+              <SfitMark size={32} invert />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[#0A1628] font-black text-lg tracking-[0.2em] uppercase leading-none">SFIT</span>
+              <span className="text-[#8B1414] text-[9px] font-bold tracking-[0.1em] uppercase mt-1">Institucional</span>
+            </div>
           </div>
-          {children}
+          <span className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest px-3 py-1.5 rounded-full bg-[#f4f4f5] border border-[#E4E4E7]">Acceso Seguro</span>
         </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center p-8 md:p-12 overflow-hidden">
+          <div className="w-full max-w-[420px] animate-fade-in flex flex-col">
+            {children}
+          </div>
+        </div>
+
+        {/* Footer móvil */}
+        <footer className="lg:hidden p-6 text-center border-t border-[#E4E4E7] shrink-0">
+          <p className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-[0.2em]">
+            © 2026 SFIT · República del Perú
+          </p>
+        </footer>
       </main>
     </div>
   );
 }
 
-function SfitMark({ size = 32 }: { size?: number }) {
+function SfitMark({ size = 32, invert = false }: { size?: number, invert?: boolean }) {
   return (
     <img
-      src="/logo.svg"
+      src={invert ? "/logo-mark.svg" : "/logo.svg"}
       alt="SFIT"
       width={size}
       height={size}
-      className="object-contain"
+      className={`object-contain ${invert ? "brightness-0 invert" : ""}`}
     />
+  );
+}
+
+function PlayStoreIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4.17 21.66A1.85 1.85 0 013.3 20.2V3.8a1.85 1.85 0 01.87-1.46l10.87 10.87-10.87 8.45z" fill="#00e676"/>
+      <path d="M15.04 14.67l3.67 3.67-2.8 1.62c-1.33.77-2.6 0-2.8-.12l-8.94-5.17z" fill="#ff3d00"/>
+      <path d="M15.04 9.33L4.17 3.03C3.97 2.91 5.24 2.14 6.57 2.91l12.14 7.02z" fill="#ffc400"/>
+      <path d="M18.71 9.93l3.35 1.94c1.1.64 1.1 1.68 0 2.32l-3.35 1.94-3.67-3.67z" fill="#2962ff"/>
+    </svg>
   );
 }

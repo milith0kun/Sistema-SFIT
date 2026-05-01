@@ -103,6 +103,24 @@ export async function POST(request: NextRequest) {
       },
     );
 
+    // Poblar nombres de municipalidad/provincia para contexto territorial
+    let municipalityName: string | null = null;
+    let provinceName: string | null = null;
+    if (user.municipalityId) {
+      try {
+        const { Municipality } = await import("@/models/Municipality");
+        const muni = await Municipality.findById(user.municipalityId).select("name").lean();
+        if (muni && typeof muni === "object" && "name" in muni) municipalityName = muni.name as string;
+      } catch { /* silent */ }
+    }
+    if (user.provinceId) {
+      try {
+        const { Province } = await import("@/models/Province");
+        const prov = await Province.findById(user.provinceId).select("name").lean();
+        if (prov && typeof prov === "object" && "name" in prov) provinceName = prov.name as string;
+      } catch { /* silent */ }
+    }
+
     // RF-01-03/04: pendiente/rechazado → devolver tokens pero el cliente
     // enrutará a la pantalla correspondiente según user.status
     return apiResponse({
@@ -118,6 +136,8 @@ export async function POST(request: NextRequest) {
         status: user.status,
         municipalityId: user.municipalityId?.toString(),
         provinceId: user.provinceId?.toString(),
+        municipalityName,
+        provinceName,
         phone: user.phone ?? null,
         dni:   user.dni   ?? null,
         profileCompleted:   user.profileCompleted   ?? true,

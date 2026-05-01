@@ -19,3 +19,5 @@ export 'sfit_section_header.dart';
 export 'sfit_status_pill.dart';
 export 'sfit_type_chip.dart';
 export 'sfit_disclaimer_banner.dart';
+export 'sfit_quick_action_card.dart';
+export 'sfit_feature_card.dart';

@@ -312,6 +312,10 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
       if (!mounted) return;
       setState(() => _submitting = false);
       _onSubmitSuccess();
+    } on ReportSubmitException catch (e) {
+      debugPrint('submit report error (${e.statusCode}): ${e.message}');
+      if (mounted) setState(() { _submitting = false; _uploadingImages = false; });
+      _showError(e.message);
     } catch (e) {
       debugPrint('submit report error: $e');
       if (mounted) setState(() { _submitting = false; _uploadingImages = false; });

@@ -544,6 +544,17 @@ body {
   animation: shimmer 1.6s ease-in-out infinite;
 }
 
+/* ── KPI grid responsive (clase dedicada) ── */
+.sfit-kpi-grid {
+  transition: gap 200ms ease;
+}
+@media (max-width: 768px) {
+  .sfit-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 8px !important; }
+}
+@media (max-width: 640px) {
+  .sfit-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+}
+
 /* ── Responsive: grids inline colapsan en móvil ── */
 @media (max-width: 768px) {
   /* KPI strips: 5/6 cols → 3 cols en tablet, 2 cols en mobile */

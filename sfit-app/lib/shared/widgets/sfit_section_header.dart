@@ -8,16 +8,18 @@ import '../../core/theme/app_theme.dart';
 /// Más ligero que `SfitGroupedSection`: no lleva count pill ni divisor inline.
 class SfitSectionHeader extends StatelessWidget {
   final Color color;
-  final String title;
+  final String label;
   final String? subtitle;
   final Widget? trailing;
+  final IconData? icon;
 
   const SfitSectionHeader({
     super.key,
-    required this.title,
+    required this.label,
     this.color = AppColors.gold,
     this.subtitle,
     this.trailing,
+    this.icon,
   });
 
   @override
@@ -28,14 +30,17 @@ class SfitSectionHeader extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Container(
-              width: 3,
-              height: subtitle != null ? 32 : 18,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
+            if (icon == null)
+              Container(
+                width: 3,
+                height: subtitle != null ? 32 : 18,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              )
+            else
+              Icon(icon, size: 15, color: AppColors.ink5),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -43,7 +48,7 @@ class SfitSectionHeader extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    title.toUpperCase(),
+                    label.toUpperCase(),
                     style: AppTheme.inter(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,

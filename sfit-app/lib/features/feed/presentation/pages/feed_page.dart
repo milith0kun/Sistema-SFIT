@@ -60,6 +60,41 @@ class _FeedPageState extends ConsumerState<FeedPage> {
           controller: _scroll,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(width: 5, height: 5, decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle)),
+                        const SizedBox(width: 6),
+                        Text(
+                          'COMUNIDAD SFIT',
+                          style: AppTheme.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                            letterSpacing: 1.6,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Feed de reportes',
+                      style: AppTheme.inter(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.ink9,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             SliverPersistentHeader(
               pinned: true,
               delegate: _FilterBarDelegate(

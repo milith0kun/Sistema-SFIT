@@ -109,14 +109,40 @@ class _FleetPageState extends ConsumerState<FleetPage> {
         children: [
           // ── Header ──────────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
             child: Row(
               children: [
                 Expanded(
-                  child: Text('Flota del día',
-                      style: AppTheme.inter(
-                        fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.ink9,
-                      )),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(width: 5, height: 5, decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle)),
+                          const SizedBox(width: 6),
+                          Text(
+                            'OPERACIÓN DE FLOTA',
+                            style: AppTheme.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                              letterSpacing: 1.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Flota del día',
+                        style: AppTheme.inter(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.ink9,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 FilledButton.icon(
                   onPressed: () async {
@@ -127,9 +153,10 @@ class _FleetPageState extends ConsumerState<FleetPage> {
                     _load();
                   },
                   icon: const Icon(Icons.add, size: 16),
-                  label: const Text('Registrar salida'),
+                  label: const Text('Salida'),
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.panel,
+                    backgroundColor: AppColors.ink,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8)),
                   ),
