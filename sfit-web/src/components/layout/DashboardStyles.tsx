@@ -10,26 +10,45 @@ export function DashboardStyles() {
   return (
     <style>{`
       .sfit-sidebar {
-        /* Mobile: pegado al borde, slide-in completo, sin redondeo */
+        /* Mobile: drawer con slide-in y mismo lenguaje visual del desktop */
         position: fixed; top: 0; left: 0; bottom: 0;
-        width: 282px; z-index: 50;
+        width: min(286px, 88vw); z-index: 50;
         transform: translateX(-100%);
-        transition: transform 280ms cubic-bezier(0.4,0,0.2,1);
+        transition: transform 280ms cubic-bezier(0.4, 0, 0.2, 1),
+                    box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
         flex-direction: column;
         background: #0A1628;
+        /* Esquina derecha redondeada para sensación de tarjeta */
+        border-top-right-radius: 18px;
+        border-bottom-right-radius: 18px;
+        border-right: 1px solid rgba(139, 20, 20, 0.22);
+        overflow: hidden;
+        /* Sombra sutil cuando está cerrado para no perder rendimiento */
+        box-shadow: 0 0 0 transparent;
       }
-      .sfit-sidebar.open { transform: translateX(0); }
+      .sfit-sidebar.open {
+        transform: translateX(0);
+        /* Elevación marcada cuando está abierto sobre el backdrop */
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.04),
+          0 12px 28px rgba(9, 22, 40, 0.40),
+          0 30px 60px rgba(9, 22, 40, 0.30);
+      }
       @media (min-width: 1024px) {
         .sfit-sidebar {
           /* Desktop: tarjeta flotante con margen, redondeo y elevación */
           position: sticky !important; top: 12px !important;
           margin: 12px !important;
           height: calc(100svh - 24px) !important;
+          width: 282px !important;
           transform: translateX(0) !important;
           display: flex !important; flex-shrink: 0;
           border-radius: 18px;
-          overflow: hidden;
+          border-top-right-radius: 18px;
+          border-bottom-right-radius: 18px;
           border: 1px solid rgba(139, 20, 20, 0.18);
+          border-right: 1px solid rgba(139, 20, 20, 0.18);
           box-shadow:
             inset 0 1px 0 rgba(255, 255, 255, 0.04),
             0 4px 12px rgba(9, 22, 40, 0.10),

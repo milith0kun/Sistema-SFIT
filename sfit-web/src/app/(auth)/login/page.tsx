@@ -197,11 +197,11 @@ export default function LoginPage() {
       />
 
       {/* Header del Formulario */}
-      <div className="mb-10">
-        <h1 className="text-[#0A1628] text-3xl font-bold tracking-tight mb-3 text-balance">
+      <div className="mb-8 sm:mb-10">
+        <h1 className="text-[#0A1628] text-2xl sm:text-3xl font-bold tracking-tight mb-2 sm:mb-3 text-balance">
           Bienvenido de nuevo
         </h1>
-        <p className="text-[#52525B] font-medium leading-relaxed">
+        <p className="text-[#52525B] text-sm sm:text-base font-medium leading-relaxed">
           Inicie sesión con sus credenciales institucionales para acceder al sistema.
         </p>
       </div>
@@ -211,7 +211,7 @@ export default function LoginPage() {
         <div
           ref={errorRef}
           role="alert"
-          className="mb-8 flex items-start gap-3 rounded-2xl p-4 bg-[#FFF5F5] border border-[#FCA5A5] animate-fade-up outline-none"
+          className="mb-6 sm:mb-8 flex items-start gap-3 rounded-2xl p-4 bg-[#FFF5F5] border border-[#FCA5A5] animate-fade-up outline-none"
           tabIndex={-1}
         >
           <AlertCircle className="mt-0.5 shrink-0 text-[#EF4444]" size={18} />
@@ -221,7 +221,7 @@ export default function LoginPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} noValidate className="space-y-6">
+      <form onSubmit={handleSubmit} noValidate className="space-y-5 sm:space-y-7">
         {/* Email */}
         <div className="animate-fade-up delay-100">
           <label htmlFor="email" className="block text-sm font-bold text-[#0A1628] mb-2 uppercase tracking-widest opacity-70">
@@ -281,11 +281,12 @@ export default function LoginPage() {
         </div>
 
         {/* Submit Button */}
-        <div className="pt-2 animate-fade-up delay-200">
+        <div className="pt-3 sm:pt-4 animate-fade-up delay-200">
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-14 bg-[#0A1628] text-white rounded-2xl font-bold text-lg hover:bg-[#111F38] disabled:opacity-50 transition-all flex items-center justify-center gap-3 shadow-lg shadow-[#0A1628]/10 group"
+            className="w-full h-13 sm:h-14 bg-[#0A1628] text-white rounded-2xl font-bold text-base sm:text-lg hover:bg-[#111F38] active:scale-[0.99] disabled:opacity-50 transition-all flex items-center justify-center gap-3 shadow-lg shadow-[#0A1628]/10 group"
+            style={{ minHeight: 52 }}
           >
             {loading ? (
               <span className="flex h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -300,12 +301,12 @@ export default function LoginPage() {
       </form>
 
       {/* Divider */}
-      <div className="relative my-10 animate-fade-up delay-300">
+      <div className="relative my-8 sm:my-10 animate-fade-up delay-300">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-[#E4E4E7]" />
         </div>
-        <div className="relative flex justify-center text-sm font-bold uppercase tracking-[0.2em]">
-          <span className="bg-[#fafafa] px-4 text-[#A1A1AA]">o continuar con</span>
+        <div className="relative flex justify-center text-xs sm:text-sm font-bold uppercase tracking-[0.2em]">
+          <span className="bg-[#fafafa] px-3 sm:px-4 text-[#A1A1AA]">o continuar con</span>
         </div>
       </div>
 

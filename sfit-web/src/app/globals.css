@@ -626,6 +626,41 @@ body {
     min-width: 0 !important;
   }
 }
+
+/* ── Helper de visibilidad responsive ──────────────────────────────────────
+   Usado en todo el Topbar para ocultar elementos no esenciales en mobile.
+   Antes esta clase se referenciaba en el JSX pero NO estaba definida en CSS,
+   por lo que en mobile el Topbar mostraba todos los elementos (date/time,
+   search, contexto territorial, etc.) y el wrap empujaba al avatar debajo.
+   Con esta regla el Topbar queda compacto y el avatar permanece en línea. */
+@media (max-width: 768px) {
+  .hidden-mobile {
+    display: none !important;
+  }
+}
+@media (min-width: 769px) {
+  .show-mobile-only {
+    display: none !important;
+  }
+}
+
+/* ── Topbar: garantizar single-row layout en mobile ─────────────────────── */
+.sfit-topbar {
+  flex-wrap: nowrap;
+}
+@media (max-width: 768px) {
+  .sfit-topbar {
+    gap: 8px !important;
+  }
+  .sfit-user-pill {
+    flex-shrink: 0;
+  }
+  /* El dropdown del user-pill siempre debe quedar dentro del viewport */
+  .sfit-user-dropdown {
+    width: min(280px, calc(100vw - 16px)) !important;
+    right: 8px !important;
+  }
+}
 @media (max-width: 768px) {
   /* Stat numbers smaller */
   [style*="font-size: \"2rem\""] { font-size: 1.5rem !important; }
