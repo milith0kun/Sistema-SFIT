@@ -9,8 +9,8 @@ const STATS = [
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="h-screen w-full flex flex-col lg:flex-row bg-white selection:bg-[#8B1414]/10 selection:text-[#8B1414] overflow-hidden">
-      
+    <div className="min-h-screen lg:h-screen w-full flex flex-col lg:flex-row bg-white selection:bg-[#8B1414]/10 selection:text-[#8B1414] lg:overflow-hidden">
+
       {/* ── Panel Izquierdo (Institucional) ─────────────────────────────── */}
       <aside className="hidden lg:flex lg:w-[45%] xl:w-[42%] bg-[#0A1628] relative flex-col overflow-hidden h-full">
         {/* Patrones de fondo sutiles */}
@@ -103,25 +103,25 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </aside>
 
       {/* ── Panel Derecho (Formulario) ─────────────────────────────── */}
-      <main className="flex-1 flex flex-col bg-[#fafafa] relative overflow-hidden h-full">
+      <main className="flex-1 flex flex-col bg-[#fafafa] relative lg:overflow-hidden lg:h-full">
         {/* Header móvil */}
-        <div className="lg:hidden flex items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-[#E4E4E7] bg-white shrink-0">
+        <div className="lg:hidden flex items-center justify-between gap-3 px-4 py-3 border-b border-[#E4E4E7] bg-white shrink-0">
           <img
             src="/logo-horizontal.svg"
             alt="SFIT — Sistema de Fiscalización Inteligente del Transporte"
-            className="h-12 sm:h-14 md:h-16 w-auto object-contain"
+            className="h-10 sm:h-12 md:h-14 w-auto object-contain"
           />
-          <span className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest px-3 py-1.5 rounded-full bg-[#f4f4f5] border border-[#E4E4E7] whitespace-nowrap">Acceso Seguro</span>
+          <span className="text-[9px] sm:text-[10px] font-bold text-[#71717A] uppercase tracking-widest px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-[#f4f4f5] border border-[#E4E4E7] whitespace-nowrap">Acceso Seguro</span>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center p-8 md:p-12 overflow-hidden">
+        <div className="flex-1 flex flex-col items-center lg:justify-center px-4 sm:px-6 md:p-12 py-6 sm:py-8 lg:overflow-hidden">
           <div className="w-full max-w-[420px] animate-fade-in flex flex-col">
             {children}
           </div>
         </div>
 
         {/* Footer móvil */}
-        <footer className="lg:hidden p-6 text-center border-t border-[#E4E4E7] shrink-0">
+        <footer className="lg:hidden px-4 py-4 sm:py-5 text-center border-t border-[#E4E4E7] shrink-0">
           <p className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-[0.2em]">
             © 2026 SFIT · República del Perú
           </p>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
   CalendarDays, ChevronDown, LogOut, Menu, Settings,
@@ -448,10 +449,12 @@ export function Topbar({
             />
           </div>
 
-          {/* Dropdown — position: fixed para escapar del overflow:hidden de
-              .sfit-main-shell. zIndex 1000 lo coloca por encima de cualquier
-              card o tabla con stacking context propio. */}
-          {open && coords && (
+          {/* Dropdown — render via portal a document.body para escapar del
+              containing block creado por backdrop-filter:blur(12px) en el
+              .sfit-topbar (transform/filter/backdrop-filter rompen position:
+              fixed haciendo que se posicione relativo al ancestor en vez del
+              viewport). */}
+          {open && coords && typeof document !== "undefined" && createPortal(
             <div
               ref={dropdownRef}
               role="menu"
@@ -644,7 +647,8 @@ export function Topbar({
                   Cerrar sesión
                 </button>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       </div>

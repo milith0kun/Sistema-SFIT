@@ -197,11 +197,11 @@ export default function LoginPage() {
       />
 
       {/* Header del Formulario */}
-      <div className="mb-8 sm:mb-10">
-        <h1 className="text-[#0A1628] text-2xl sm:text-3xl font-bold tracking-tight mb-2 sm:mb-3 text-balance">
+      <div className="mb-6 sm:mb-8 lg:mb-10">
+        <h1 className="text-[#0A1628] text-[1.5rem] sm:text-2xl lg:text-3xl font-bold tracking-tight mb-1.5 sm:mb-2 lg:mb-3 text-balance leading-tight">
           Bienvenido de nuevo
         </h1>
-        <p className="text-[#52525B] text-sm sm:text-base font-medium leading-relaxed">
+        <p className="text-[#52525B] text-[13px] sm:text-sm lg:text-base font-medium leading-relaxed">
           Inicie sesión con sus credenciales institucionales para acceder al sistema.
         </p>
       </div>
@@ -211,17 +211,17 @@ export default function LoginPage() {
         <div
           ref={errorRef}
           role="alert"
-          className="mb-6 sm:mb-8 flex items-start gap-3 rounded-2xl p-4 bg-[#FFF5F5] border border-[#FCA5A5] animate-fade-up outline-none"
+          className="mb-5 sm:mb-6 lg:mb-8 flex items-start gap-3 rounded-2xl p-3.5 sm:p-4 bg-[#FFF5F5] border border-[#FCA5A5] animate-fade-up outline-none"
           tabIndex={-1}
         >
           <AlertCircle className="mt-0.5 shrink-0 text-[#EF4444]" size={18} />
-          <p className="text-[14px] text-[#DC2626] font-semibold leading-snug">
+          <p className="text-[13px] sm:text-[14px] text-[#DC2626] font-semibold leading-snug">
             {error}
           </p>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} noValidate className="space-y-5 sm:space-y-7">
+      <form onSubmit={handleSubmit} noValidate className="space-y-4 sm:space-y-5 lg:space-y-7">
         {/* Email */}
         <div className="animate-fade-up delay-100">
           <label htmlFor="email" className="block text-sm font-bold text-[#0A1628] mb-2 uppercase tracking-widest opacity-70">
@@ -281,12 +281,12 @@ export default function LoginPage() {
         </div>
 
         {/* Submit Button */}
-        <div className="pt-3 sm:pt-4 animate-fade-up delay-200">
+        <div className="pt-2 sm:pt-3 lg:pt-4 animate-fade-up delay-200">
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-13 sm:h-14 bg-[#0A1628] text-white rounded-2xl font-bold text-base sm:text-lg hover:bg-[#111F38] active:scale-[0.99] disabled:opacity-50 transition-all flex items-center justify-center gap-3 shadow-lg shadow-[#0A1628]/10 group"
-            style={{ minHeight: 52 }}
+            className="w-full bg-[#0A1628] text-white rounded-2xl font-bold text-[15px] sm:text-base lg:text-lg hover:bg-[#111F38] active:scale-[0.99] disabled:opacity-50 transition-all flex items-center justify-center gap-3 shadow-lg shadow-[#0A1628]/10 group"
+            style={{ minHeight: 52, height: 52 }}
           >
             {loading ? (
               <span className="flex h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -301,11 +301,11 @@ export default function LoginPage() {
       </form>
 
       {/* Divider */}
-      <div className="relative my-8 sm:my-10 animate-fade-up delay-300">
+      <div className="relative my-6 sm:my-7 lg:my-10 animate-fade-up delay-300">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-[#E4E4E7]" />
         </div>
-        <div className="relative flex justify-center text-xs sm:text-sm font-bold uppercase tracking-[0.2em]">
+        <div className="relative flex justify-center text-[11px] sm:text-xs lg:text-sm font-bold uppercase tracking-[0.2em]">
           <span className="bg-[#fafafa] px-3 sm:px-4 text-[#A1A1AA]">o continuar con</span>
         </div>
       </div>
@@ -330,12 +330,12 @@ export default function LoginPage() {
       </div>
 
       {/* Footer del Formulario */}
-      <div className="mt-12 text-center animate-fade-up delay-500">
-        <p className="text-[#71717A] font-medium text-sm">
+      <div className="mt-8 sm:mt-10 lg:mt-12 text-center animate-fade-up delay-500">
+        <p className="text-[#71717A] font-medium text-[13px] sm:text-sm">
           ¿Aún no tiene acceso institucional?
         </p>
-        <Link href="/register" 
-              className="mt-2 inline-block text-[#8B1414] font-bold hover:underline">
+        <Link href="/register"
+              className="mt-1.5 sm:mt-2 inline-block text-[#8B1414] font-bold text-[14px] sm:text-base hover:underline">
           Solicitar Usuario Autorizado
         </Link>
       </div>
