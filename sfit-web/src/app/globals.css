@@ -655,10 +655,11 @@ body {
   .sfit-user-pill {
     flex-shrink: 0;
   }
-  /* El dropdown del user-pill siempre debe quedar dentro del viewport */
+  /* El dropdown del user-pill siempre debe quedar dentro del viewport.
+     El `right` se calcula dinámicamente en JS desde el rect del pill,
+     así que aquí solo limitamos el ancho — no sobrescribimos posición. */
   .sfit-user-dropdown {
     width: min(280px, calc(100vw - 16px)) !important;
-    right: 8px !important;
   }
 }
 @media (max-width: 768px) {

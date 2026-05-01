@@ -48,13 +48,41 @@ export function Topbar({
   const now = useNow();
   const [open, setOpen] = useState(false);
   const pillRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
   const municipalityName = useMunicipalityName();
 
-  // Cerrar dropdown al hacer click fuera
+  // Calcula la posición del dropdown relativa al viewport
+  // Esto permite usar position: fixed y evitar que el overflow:hidden
+  // de .sfit-main-shell recorte el dropdown o lo deje detrás del contenido.
+  useEffect(() => {
+    if (!open) return;
+    const update = () => {
+      if (!pillRef.current) return;
+      const rect = pillRef.current.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom + 8,
+        right: Math.max(8, window.innerWidth - rect.right),
+      });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [open]);
+
+  // Cerrar dropdown al hacer click fuera (incluye el dropdown ahora que está
+  // fuera del DOM tree del pill por usar position: fixed).
   useEffect(() => {
     if (!open) return;
     function handle(e: MouseEvent) {
-      if (pillRef.current && !pillRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      const insidePill = pillRef.current?.contains(target);
+      const insideDropdown = dropdownRef.current?.contains(target);
+      if (!insidePill && !insideDropdown) setOpen(false);
     }
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
@@ -420,16 +448,19 @@ export function Topbar({
             />
           </div>
 
-          {/* Dropdown */}
-          {open && (
+          {/* Dropdown — position: fixed para escapar del overflow:hidden de
+              .sfit-main-shell. zIndex 1000 lo coloca por encima de cualquier
+              card o tabla con stacking context propio. */}
+          {open && coords && (
             <div
+              ref={dropdownRef}
               role="menu"
               className="sfit-user-dropdown"
               style={{
-                position: "absolute",
-                top: "calc(100% + 8px)",
-                right: 0,
-                zIndex: 200,
+                position: "fixed",
+                top: coords.top,
+                right: coords.right,
+                zIndex: 1000,
                 width: 260,
                 background: "#FFFFFF",
                 borderRadius: 14,
