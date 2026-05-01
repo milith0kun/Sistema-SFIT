@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Calendar, Route, Check, Clock, Download, Plus, AlertTriangle, Inbox,
+  Calendar, Route, Check, Clock, Download, Plus, AlertTriangle, Inbox, ChevronRight,
 } from "lucide-react";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
@@ -217,6 +217,17 @@ export default function ViajesPage() {
       header: "Estado",
       accessorFn: (row) => row.status,
       cell: ({ row: r }) => <StatusBadge s={r.original.status} />,
+    },
+    {
+      id: "_nav",
+      header: "",
+      enableSorting: false,
+      enableHiding: false,
+      cell: () => (
+        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", color: INK5 }}>
+          <ChevronRight size={14} />
+        </span>
+      ),
     },
   ], []);
 

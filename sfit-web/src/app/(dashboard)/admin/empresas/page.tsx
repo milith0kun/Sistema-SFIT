@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Building2, Globe2, MapPin, Plus } from "lucide-react";
+import { Building2, Globe2, MapPin, Plus, ChevronRight } from "lucide-react";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -142,16 +142,30 @@ export default function AdminEmpresasPage() {
       accessorFn: (c) => c.razonSocial,
       enableSorting: true,
       enableHiding: false,
-      cell: ({ row: r }) => (
-        <div>
-          <div style={{ fontWeight: 600, fontSize: "0.875rem", color: INK9 }}>
-            {r.original.razonSocial}
+      cell: ({ row: r }) => {
+        const ok = r.original.active;
+        return (
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+            <span
+              title={ok ? "Activa" : "Suspendida"}
+              aria-label={ok ? "Activa" : "Suspendida"}
+              style={{
+                width: 7, height: 7, borderRadius: "50%",
+                background: ok ? "#15803d" : RED,
+                flexShrink: 0,
+              }}
+            />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 600, fontSize: "0.875rem", color: INK9, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {r.original.razonSocial}
+              </div>
+              <div style={{ fontSize: "0.75rem", color: INK5, fontFamily: "ui-monospace,monospace" }}>
+                RUC {r.original.ruc}
+              </div>
+            </div>
           </div>
-          <div style={{ fontSize: "0.75rem", color: INK5, fontFamily: "ui-monospace,monospace" }}>
-            RUC {r.original.ruc}
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       id: "scope",
@@ -201,36 +215,43 @@ export default function AdminEmpresasPage() {
       },
     },
     {
-      id: "estado",
-      header: "Estado",
-      accessorFn: (c) => c.active ? "activa" : "suspendida",
-      cell: ({ row: r }) => {
-        const ok = r.original.active;
-        return (
-          <span style={{
-            display: "inline-flex", alignItems: "center", gap: 5,
-            padding: "2px 8px", borderRadius: 999,
-            background: "#fff", border: `1px solid ${ok ? "#86EFAC" : REDBD}`,
-            color: ok ? "#15803d" : RED,
-            fontSize: "0.6875rem", fontWeight: 700,
-          }}>
-            <span style={{ width: 5, height: 5, borderRadius: "50%", background: "currentColor" }} />
-            {ok ? "Activa" : "Suspendida"}
-          </span>
-        );
-      },
-    },
-    {
       id: "rep",
       header: "Reputación",
       accessorFn: (c) => c.reputationScore,
       enableSorting: true,
-      cell: ({ row: r }) => (
-        <span style={{
-          fontFamily: "ui-monospace,monospace", fontWeight: 700,
-          fontSize: "0.8125rem", color: r.original.reputationScore >= 80 ? "#15803d" : INK6,
-        }}>
-          {r.original.reputationScore}
+      cell: ({ row: r }) => {
+        const score = r.original.reputationScore;
+        const color = score >= 80 ? "#15803d" : score >= 50 ? "#b45309" : RED;
+        return (
+          <div style={{ minWidth: 90 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 4 }}>
+              <span style={{
+                fontFamily: "ui-monospace,monospace", fontWeight: 800,
+                fontSize: "0.875rem", color: INK9,
+                fontVariantNumeric: "tabular-nums",
+              }}>
+                {score}
+              </span>
+              <span style={{ fontSize: "0.625rem", color: INK5, fontWeight: 500 }}>/ 100</span>
+            </div>
+            <div style={{ height: 4, background: INK1, borderRadius: 999, overflow: "hidden" }}>
+              <div style={{
+                height: "100%", width: `${Math.max(0, Math.min(100, score))}%`,
+                background: color, borderRadius: 999,
+              }} />
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      id: "_nav",
+      header: "",
+      enableSorting: false,
+      enableHiding: false,
+      cell: () => (
+        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", color: INK5 }}>
+          <ChevronRight size={14} />
         </span>
       ),
     },
