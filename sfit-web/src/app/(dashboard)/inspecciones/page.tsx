@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Shield, Check, AlertTriangle, X, Plus, Sparkles, Download } from "lucide-react";
+import { Shield, Check, AlertTriangle, X, Plus, Sparkles, Download, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 
@@ -184,6 +184,17 @@ export default function InspeccionesPage() {
           </span>
         );
       },
+    },
+    {
+      id: "_nav",
+      header: "",
+      enableSorting: false,
+      enableHiding: false,
+      cell: () => (
+        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", color: INK5 }}>
+          <ChevronRight size={14} />
+        </span>
+      ),
     },
   ], []);
 
