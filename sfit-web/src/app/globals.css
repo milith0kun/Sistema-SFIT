@@ -683,6 +683,20 @@ body {
   .cols-2-responsive { grid-template-columns: 1fr; gap: 12px; }
 }
 
+/* ── Grid de pills de rol en /usuarios/[id] ──────────────────────────────
+   Roles tienen labels largos ("Administrador Provincial", "Super
+   Administrador"). En 2 columnas estrujadas se cortaban con ellipsis y
+   no se entendía cuál era cuál. En desktop XL caben en 2 cols, en
+   tablet/mobile colapsa a 1 col para mostrar el nombre completo. */
+.usuarios-role-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+@media (max-width: 1280px) {
+  .usuarios-role-grid { grid-template-columns: 1fr; }
+}
+
 /* Notificaciones: siempre dos columnas, colapsa en tablet/móvil */
 .notif-grid {
   display: grid;

@@ -614,12 +614,22 @@ export default function UsuarioDetallePage() {
                   </button>
                 }
               >
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6 }}>
+                {/* Pills de rol: en desktop 2 cols, en <=900px 1 col porque
+                    labels largos como "Super Administrador" o "Administrador
+                    Provincial" no caben en pills estrechos. Override de
+                    whiteSpace para permitir wrap si fuera necesario. */}
+                <div className="usuarios-role-grid">
                   {roles.map(r => {
                     const isSelected = selRole === r;
                     return (
                       <button key={r} onClick={() => setSelRole(r)} style={{
                         ...PILL_BTN_BASE,
+                        height: "auto",
+                        minHeight: 36,
+                        padding: "8px 12px",
+                        whiteSpace: "normal",
+                        textOverflow: "clip",
+                        lineHeight: 1.25,
                         border: `1px solid ${isSelected ? INK9 : INK2}`,
                         background: isSelected ? INK1 : "#fff",
                         color: isSelected ? INK9 : INK6,
