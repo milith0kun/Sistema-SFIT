@@ -716,10 +716,14 @@ body {
 
 /* ── Toolbar de notificaciones (responsive) ─────────────────────────────── */
 @media (max-width: 900px) {
-  /* En mobile/tablet el toolbar es opaco (no semi-transparente con blur)
-     porque al hacer scroll los cards/categorías se veían a través del
-     fondo translúcido y daba sensación de "superposición". */
+  /* En mobile/tablet el toolbar deja de ser sticky — el usuario reportaba
+     que al hacer scroll vertical el toolbar se quedaba fijo arriba
+     superponiéndose sobre las tarjetas. En pantallas chicas el sticky
+     ocupaba demasiado espacio vertical útil. Ahora scrollea con el resto. */
   .notif-toolbar {
+    position: static !important;
+    top: auto !important;
+    z-index: auto !important;
     background: #ffffff !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
