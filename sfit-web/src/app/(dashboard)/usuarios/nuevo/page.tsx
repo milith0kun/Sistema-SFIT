@@ -280,8 +280,8 @@ export default function NuevoUsuarioPage() {
             <div style={card}>
               <div style={cardHead}>Datos personales</div>
               <div style={cardBody}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                  <div style={{ gridColumn: "span 2" }}>
+                <div className="cols-2-responsive">
+                  <div style={{ gridColumn: "1 / -1" }}>
                     <label style={LABEL}>Nombre completo <span style={{ color: RED }}>*</span></label>
                     <input
                       value={name} onChange={e => setName(e.target.value)}
@@ -292,7 +292,7 @@ export default function NuevoUsuarioPage() {
                     />
                     <FieldErr k="name" />
                   </div>
-                  <div style={{ gridColumn: "span 2" }}>
+                  <div style={{ gridColumn: "1 / -1" }}>
                     <label style={LABEL}>Correo electrónico <span style={{ color: RED }}>*</span></label>
                     <input
                       type="email" value={email} onChange={e => setEmail(e.target.value)}
@@ -303,7 +303,7 @@ export default function NuevoUsuarioPage() {
                     />
                     <FieldErr k="email" />
                   </div>
-                  <div style={{ gridColumn: "span 2" }}>
+                  <div style={{ gridColumn: "1 / -1" }}>
                     <label style={LABEL}>Contraseña inicial <span style={{ color: RED }}>*</span></label>
                     <div style={{ position: "relative" }}>
                       <input
@@ -339,7 +339,7 @@ export default function NuevoUsuarioPage() {
             <div style={card}>
               <div style={cardHead}>Rol del usuario</div>
               <div style={cardBody}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
+                <div className="cols-2-responsive" style={{ gap: 10, marginBottom: 18 }}>
                   {Object.entries(ROLE_META).map(([role, m]) => {
                     const selected = selRole === role;
                     return (
@@ -360,7 +360,7 @@ export default function NuevoUsuarioPage() {
 
                 {/* Provincia / Municipio (condicional al rol) */}
                 {meta.needsProv && (
-                  <div style={{ display: "grid", gridTemplateColumns: meta.needsMuni ? "1fr 1fr" : "1fr", gap: 16 }}>
+                  <div className={meta.needsMuni ? "cols-2-responsive" : ""} style={meta.needsMuni ? undefined : { display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
                     <div>
                       <label style={LABEL}>Provincia <span style={{ color: RED }}>*</span></label>
                       <div style={{ position: "relative" }}>
@@ -428,7 +428,7 @@ export default function NuevoUsuarioPage() {
 
                 {completeNow && (
                   <div style={{ marginTop: 16 }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                    <div className="cols-2-responsive">
                       <div>
                         <label style={LABEL}>
                           DNI <span style={{ color: RED }}>*</span>

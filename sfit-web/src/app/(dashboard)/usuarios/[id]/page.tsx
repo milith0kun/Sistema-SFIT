@@ -403,7 +403,7 @@ export default function UsuarioDetallePage() {
               </button>
             }
           >
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div className="cols-2-responsive">
               {/* DNI primero — al validar autocompleta nombre */}
               <div>
                 <label style={LABEL_S}>
@@ -547,7 +547,7 @@ export default function UsuarioDetallePage() {
                 />
               </div>
 
-              <div style={{ gridColumn: "span 2" }}>
+              <div style={{ gridColumn: "1 / -1" }}>
                 <label style={LABEL_S}>Nombre completo <span style={{ color: RED }}>*</span></label>
                 <input value={name} onChange={e => setName(e.target.value)} style={FIELD}
                   onFocus={e => { e.currentTarget.style.borderColor = INK9; }}
@@ -653,7 +653,7 @@ export default function UsuarioDetallePage() {
                 </button>
               }
             >
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 10 }}>
+              <div className="cols-2-responsive" style={{ marginBottom: 10 }}>
                 <div>
                   <label style={LABEL_S}>Nueva contraseña <span style={{ color: RED }}>*</span></label>
                   <input
@@ -689,7 +689,7 @@ export default function UsuarioDetallePage() {
             title="Provincia y municipalidad"
             subtitle={isSA ? "Reasigna el ámbito de trabajo del usuario" : "Scope asignado al usuario"}
           >
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: isSA ? 18 : 0 }}>
+            <div className="cols-2-responsive" style={{ marginBottom: isSA ? 18 : 0 }}>
               <div>
                 <label style={LABEL_S}>Provincia</label>
                 <div style={{ position: "relative" }}>
