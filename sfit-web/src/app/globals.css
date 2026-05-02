@@ -758,6 +758,23 @@ body {
   }
 }
 
+/* Header actions de /conductores: en pantallas <=520px las labels de los
+   botones ('Exportar CSV' y 'Nuevo conductor') se ocultan y queda solo el
+   icono — el aria-label preserva accesibilidad. */
+@media (max-width: 520px) {
+  .conductores-header-btn {
+    width: 36px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+  .conductores-header-btn-label {
+    display: none;
+  }
+  .conductores-header-actions {
+    gap: 6px !important;
+  }
+}
+
 /* ── Red Nacional (/admin/red-nacional) — mismo patrón ───────────────────── */
 .red-nacional-grid {
   display: grid;

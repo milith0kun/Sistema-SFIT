@@ -559,13 +559,14 @@ export default function NuevoconductorPage() {
           </div>
         )}
 
-        {/* Acciones */}
+        {/* Acciones — flex-wrap para que en pantallas chicas no se salgan */}
         <div
           style={{
             display: "flex",
             gap: 12,
             marginTop: 24,
             alignItems: "center",
+            flexWrap: "wrap",
           }}
         >
           <Button type="submit" disabled={submitting}>

@@ -276,25 +276,33 @@ export default function ConductoresPage() {
         title="Conductores"
         subtitle={`${total} registrados · ${counts.apto ?? 0} aptos · ${counts.riesgo ?? 0} en riesgo · ${counts.no_apto ?? 0} no aptos`}
         action={
-          <div style={{ display: "flex", gap: 8 }}>
-            <button style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              height: 36, padding: "0 14px", borderRadius: 9,
-              border: `1.5px solid ${INK2}`, background: "#fff", color: INK6,
-              fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-            }}>
-              <Download size={14} />Exportar CSV
+          <div className="conductores-header-actions" style={{ display: "flex", gap: 8 }}>
+            <button
+              aria-label="Exportar CSV"
+              className="conductores-header-btn"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                height: 36, padding: "0 14px", borderRadius: 9,
+                border: `1.5px solid ${INK2}`, background: "#fff", color: INK6,
+                fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+              }}>
+              <Download size={14} />
+              <span className="conductores-header-btn-label">Exportar CSV</span>
             </button>
             {canCreate && (
               <Link href="/conductores/nuevo">
-                <button style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  height: 36, padding: "0 14px", borderRadius: 9,
-                  border: "none",
-                  background: INK9, color: "#fff",
-                  fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-                }}>
-                  <Plus size={14} />Nuevo conductor
+                <button
+                  aria-label="Nuevo conductor"
+                  className="conductores-header-btn conductores-header-btn--primary"
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    height: 36, padding: "0 14px", borderRadius: 9,
+                    border: "none",
+                    background: INK9, color: "#fff",
+                    fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                  }}>
+                  <Plus size={14} />
+                  <span className="conductores-header-btn-label">Nuevo conductor</span>
                 </button>
               </Link>
             )}
