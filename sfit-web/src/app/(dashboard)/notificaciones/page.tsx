@@ -305,6 +305,10 @@ export default function NotificacionesPage() {
   const [exiting, setExiting] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Notification | null>(null);
 
+  // load NO depende de isMobile — sólo fetchea. Si dependiera, la primera
+  // ejecución usaría el valor inicial false del useIsMobile (porque el
+  // hook se hidrata después del primer render) y el auto-select correría
+  // antes de que isMobile se actualizara, abriendo el overlay en mobile.
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
@@ -313,20 +317,23 @@ export default function NotificacionesPage() {
       if (!res.ok || !data.success) { setError(data.error ?? "Error al cargar."); setItems([]); return; }
       const fetched: Notification[] = data.data?.items ?? [];
       setItems(fetched);
-      // Auto-seleccionar el primer item SÓLO en desktop. En mobile abriría
-      // el overlay fullscreen al entrar a la página, sin que el usuario
-      // haya tocado ninguna notificación.
-      if (!isMobile) {
-        setSelected(prev => {
-          if (prev) return prev;
-          return fetched.find(n => !n.read) ?? fetched[0] ?? null;
-        });
-      }
     } catch { setError("Error de conexión."); }
     finally { setLoading(false); }
-  }, [isMobile]);
+  }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  // Auto-seleccionar el primer item NO leído (o el primero) SÓLO en desktop.
+  // Vive en su propio effect que espera a que tanto items como isMobile
+  // estén estables. En mobile esto sigue siendo skip → overlay no aparece.
+  useEffect(() => {
+    if (isMobile) return;
+    if (items.length === 0) return;
+    setSelected(prev => {
+      if (prev) return prev;
+      return items.find(n => !n.read) ?? items[0] ?? null;
+    });
+  }, [items, isMobile]);
 
   // Resincroniza el badge global cada vez que cambia el conjunto de items.
   useEffect(() => {
