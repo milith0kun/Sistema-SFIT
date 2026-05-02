@@ -10,6 +10,7 @@ import {
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useMobileOverlayBack } from "@/hooks/useMobileOverlayBack";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 type Province = {
   id: string;
@@ -52,6 +53,7 @@ const norm = (s: string) =>
 
 export default function RedNacionalPage() {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [user, setUser] = useState<StoredUser | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [totals, setTotals] = useState<{
@@ -165,19 +167,25 @@ export default function RedNacionalPage() {
     });
   }, [departments, query, stateFilter]);
 
-  // Auto-seleccionar el primero SÓLO en desktop. En mobile abriria el
-  // overlay fullscreen al entrar a la pagina sin que el usuario lo pidiera.
+  // Auto-seleccionar el primero SÓLO en desktop. En mobile abriría el
+  // overlay fullscreen al entrar a la página sin que el usuario lo pidiera —
+  // el usuario nunca vería la lista de departamentos.
   useEffect(() => {
     if (filteredDepartments.length === 0) return;
-    if (typeof window === "undefined") return;
-    const isDesktop = window.matchMedia("(min-width: 901px)").matches;
-    if (!isDesktop) return;
+    if (isMobile) return;
     if (!selectedCode) {
       setSelectedCode(filteredDepartments[0].code);
     } else if (!filteredDepartments.find(d => d.code === selectedCode)) {
       setSelectedCode(filteredDepartments[0]?.code ?? null);
     }
-  }, [filteredDepartments, selectedCode]);
+  }, [filteredDepartments, selectedCode, isMobile]);
+
+  // Si el usuario rota a mobile mientras tiene un depto seleccionado,
+  // cerramos la selección para que no quede el overlay tapando la lista.
+  useEffect(() => {
+    if (isMobile && selectedCode) setSelectedCode(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile]);
 
   const selected = useMemo(
     () => departments.find(d => d.code === selectedCode) ?? null,

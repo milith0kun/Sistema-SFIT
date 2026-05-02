@@ -11,6 +11,7 @@ import {
   refreshUnreadCount,
 } from "@/hooks/useUnreadCount";
 import { useMobileOverlayBack } from "@/hooks/useMobileOverlayBack";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 // ── Paleta sobria — gris uniforme, sólo rojo para errores ────────────────────
@@ -294,6 +295,7 @@ function DetailPanel({ notif, onClose, onMarkRead }: {
 
 // ── Componente principal ───────────────────────────────────────────────────────
 export default function NotificacionesPage() {
+  const isMobile = useIsMobile();
   const [items, setItems] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -312,11 +314,9 @@ export default function NotificacionesPage() {
       const fetched: Notification[] = data.data?.items ?? [];
       setItems(fetched);
       // Auto-seleccionar el primer item SÓLO en desktop. En mobile abriría
-      // el overlay fullscreen automáticamente al entrar a la página, sin
-      // que el usuario haya tocado ninguna notificación.
-      const isDesktop = typeof window !== "undefined"
-        && window.matchMedia("(min-width: 901px)").matches;
-      if (isDesktop) {
+      // el overlay fullscreen al entrar a la página, sin que el usuario
+      // haya tocado ninguna notificación.
+      if (!isMobile) {
         setSelected(prev => {
           if (prev) return prev;
           return fetched.find(n => !n.read) ?? fetched[0] ?? null;
@@ -324,7 +324,7 @@ export default function NotificacionesPage() {
       }
     } catch { setError("Error de conexión."); }
     finally { setLoading(false); }
-  }, []);
+  }, [isMobile]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -342,6 +342,13 @@ export default function NotificacionesPage() {
     useCallback(() => setSelected(null), []),
     "notificacion-detail"
   );
+
+  // Si el usuario rota a mobile con una notificación abierta, la cerramos
+  // para no dejar el overlay tapando el listado.
+  useEffect(() => {
+    if (isMobile && selected) setSelected(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile]);
 
   const unread = useMemo(() => items.filter(n => !n.read).length, [items]);
   const categories = useMemo(() => {

@@ -9,6 +9,7 @@ import {
 import { PageHeader } from "@/components/ui/PageHeader";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { useMobileOverlayBack } from "@/hooks/useMobileOverlayBack";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 type PendingUser = {
   id: string;
@@ -61,6 +62,7 @@ function formatDateAbs(iso: string): string {
 }
 
 export default function AdminUsersPage() {
+  const isMobile = useIsMobile();
   const [users, setUsers] = useState<PendingUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,18 +118,23 @@ export default function AdminUsersPage() {
 
   useEffect(() => { void loadUsers(); }, [loadUsers]);
 
-  // Auto-seleccionar el primero SÓLO en desktop (≥901px). En mobile esto
-  // abriria automáticamente el overlay fullscreen al entrar a la página
-  // y el usuario no vería la lista primero, sintiendo que "le redirige a
-  // una descripción directa".
+  // Auto-seleccionar el primero SÓLO en desktop. En mobile abriría
+  // automáticamente el overlay fullscreen al entrar y el usuario no
+  // vería la lista de solicitudes — sentiría que "le redirige a una
+  // descripción directa".
   useEffect(() => {
     if (selectedId || users.length === 0) return;
-    if (typeof window === "undefined") return;
-    const isDesktop = window.matchMedia("(min-width: 901px)").matches;
-    if (!isDesktop) return;
+    if (isMobile) return;
     setSelectedId(users[0].id);
     setAssignedRole(users[0].requestedRole);
-  }, [users, selectedId]);
+  }, [users, selectedId, isMobile]);
+
+  // Si el usuario rota a mobile con una solicitud abierta, la cerramos
+  // para que no quede el overlay tapando la lista al volver al listado.
+  useEffect(() => {
+    if (isMobile && selectedId) setSelectedId(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile]);
 
   // Cierra el overlay cuando el usuario presiona "atrás" en mobile,
   // en lugar de salir de la página.
