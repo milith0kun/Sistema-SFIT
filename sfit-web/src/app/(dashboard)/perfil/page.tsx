@@ -319,9 +319,9 @@ export default function PerfilPage() {
 
           {/* Datos personales */}
           <SectionCard icon={<UserIcon size={16} color={INK6} />} title="Datos personales" subtitle="Su nombre, teléfono y documento de identidad">
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div className="cols-2-responsive">
               {/* DNI primero — verifica con RENIEC y autocompleta el nombre */}
-              <div style={{ gridColumn: "span 2" }}>
+              <div style={{ gridColumn: "1 / -1" }}>
                 <label style={LABEL}>
                   <IdCard size={11} style={{ display: "inline", verticalAlign: "middle", marginRight: 5 }} />
                   DNI
@@ -417,7 +417,7 @@ export default function PerfilPage() {
                 )}
               </div>
 
-              <div style={{ gridColumn: "span 2" }}>
+              <div style={{ gridColumn: "1 / -1" }}>
                 <label style={LABEL}>Nombre completo <span style={{ color: RED }}>*</span></label>
                 <input value={name} onChange={e => setName(e.target.value)} style={FIELD}
                   placeholder="Se completará automáticamente al verificar el DNI"
@@ -426,7 +426,7 @@ export default function PerfilPage() {
                 />
               </div>
 
-              <div style={{ gridColumn: "span 2" }}>
+              <div style={{ gridColumn: "1 / -1" }}>
                 <label style={LABEL}>
                   <PhoneIcon size={11} style={{ display: "inline", verticalAlign: "middle", marginRight: 5 }} />
                   Teléfono

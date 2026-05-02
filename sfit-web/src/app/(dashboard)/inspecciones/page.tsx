@@ -212,7 +212,7 @@ export default function InspeccionesPage() {
           </div>
         } />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
+      <div className="cols-4-responsive">
         {[
           { ico: <Shield size={16} />, lbl: "Este mes",   val: stats.mes },
           { ico: <Check size={16} />,  lbl: "Aprobadas",  val: aprobadas },
@@ -233,7 +233,7 @@ export default function InspeccionesPage() {
 
       {error && <div style={{ padding: "12px 16px", background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 10, color: NO, marginBottom: 16 }}>{error}</div>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 20 }}>
+      <div className="cols-2-responsive" style={{ gap: 20 }}>
         <div>
           <DataTable
             columns={columns}

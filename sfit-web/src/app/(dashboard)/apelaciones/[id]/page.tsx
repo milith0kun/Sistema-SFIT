@@ -260,7 +260,7 @@ export default function ApelacionDetailPage({ params }: { params: Promise<{ id: 
             subtitle="Estado actual y datos de presentación"
             action={<StatusBadge s={apel.status} />}
           >
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <div className="cols-3-responsive" style={{ gap: 12 }}>
               <div style={{ padding: 12, background: INK1, borderRadius: 8, border: `1px solid ${INK2}` }}>
                 <div style={LABEL_S}>Presentada por</div>
                 <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9, wordBreak: "break-word" }}>

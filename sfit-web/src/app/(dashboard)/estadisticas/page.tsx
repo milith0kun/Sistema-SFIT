@@ -209,7 +209,7 @@ export default function EstadisticasPage() {
       {error && <div role="alert" style={{ background: NOBG, border: `1.5px solid ${NOBD}`, borderRadius: 12, padding: 14, color: NO, fontSize: "0.9rem", fontWeight: 500 }}>{error}</div>}
 
       {loading ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
+        <div className="cols-4-responsive">
           {[0, 1, 2, 3].map(i => <div key={i} className="skeleton-shimmer" style={{ height: 96, borderRadius: 12 }} />)}
         </div>
       ) : !stats ? (
@@ -225,7 +225,7 @@ export default function EstadisticasPage() {
           ]} />
 
           {/* Charts row */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div className="cols-2-responsive">
             {/* Donut — usuarios por rol */}
             <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, padding: "20px 22px" }}>
               <SectionTitle title="Usuarios por rol" sub="Distribución total de cuentas en la plataforma" />
@@ -344,7 +344,7 @@ function MunicipalDashboard({ loading, error, data }: { loading: boolean; error:
       {error && <div role="alert" style={{ background: NOBG, border: `1.5px solid ${NOBD}`, borderRadius: 12, padding: 14, color: NO, fontWeight: 500 }}>{error}</div>}
 
       {loading ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
+        <div className="cols-4-responsive">
           {[0, 1, 2, 3].map(i => <div key={i} className="skeleton-shimmer" style={{ height: 96, borderRadius: 12 }} />)}
         </div>
       ) : !data ? (
@@ -358,7 +358,7 @@ function MunicipalDashboard({ loading, error, data }: { loading: boolean; error:
             { label: "REPORTES PEND.", value: data.kpis?.reportsPending ?? 0, subtitle: "ciudadanos", accent: (data.kpis?.reportsPending ?? 0) > 0 ? NO : INK5, icon: AlertCircle },
           ]} />
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div className="cols-2-responsive">
             {/* Donut inspecciones */}
             <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, padding: "20px 22px" }}>
               <SectionTitle title="Inspecciones por resultado" sub={totalInsp > 0 ? `${totalInsp} inspecciones este mes` : "Sin inspecciones este mes"} />

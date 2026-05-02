@@ -344,7 +344,7 @@ export default function VehiculosPage() {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", gap: 16, alignItems: "start" }}>
+      <div className="list-detail-grid list-detail-grid--320">
         <DataTable<Vehicle>
           columns={columns}
           data={items}

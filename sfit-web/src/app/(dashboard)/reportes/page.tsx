@@ -256,7 +256,7 @@ export default function ReportesPage() {
 
       {error && <div style={{ padding: "12px 16px", background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 10, color: NO, marginBottom: 16 }}>{error}</div>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="cols-2-responsive" style={{ gap: 20 }}>
         <DataTable
           columns={columns}
           data={items}

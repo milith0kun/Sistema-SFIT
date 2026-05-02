@@ -347,13 +347,8 @@ export default function FlotaMapaPage() {
         </div>
       )}
 
-      {/* Grid principal */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "minmax(0, 1fr) 380px",
-        gap: 16,
-        alignItems: "stretch",
-      }}>
+      {/* Grid principal — colapsa a 1 col en ≤900px (mapa arriba, lista abajo) */}
+      <div className="list-detail-grid list-detail-grid--380" style={{ alignItems: "stretch" }}>
         {/* Mapa */}
         <div style={{
           background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12,

@@ -678,9 +678,11 @@ body {
 
 /* ── Responsive reusable classes for dashboard pages ── */
 .cols-2-responsive { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.cols-3-responsive { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .cols-4-responsive { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 @media (max-width: 768px) {
   .cols-2-responsive { grid-template-columns: 1fr; gap: 12px; }
+  .cols-3-responsive { grid-template-columns: 1fr; gap: 10px; }
 }
 
 /* ── Municipalidades / nueva — filtros responsive ───────────────────────── */
@@ -709,6 +711,25 @@ body {
     flex: 1;
     justify-content: center !important;
   }
+}
+
+/* ── Layout estandar list+detail con detail-panel pinned (sin overlay) ──
+   Para paginas que muestran lista a la izquierda y panel sticky a la
+   derecha (vehiculos, flota, rutas, flota/mapa). En desktop se ven
+   lado a lado; en <=900px colapsa a una sola columna apilada. */
+.list-detail-grid {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+.list-detail-grid > :first-child { min-width: 0; }
+.list-detail-grid--320 { grid-template-columns: minmax(0, 1fr) 320px; }
+.list-detail-grid--360 { grid-template-columns: minmax(0, 1fr) 360px; }
+.list-detail-grid--380 { grid-template-columns: minmax(0, 1fr) 380px; }
+@media (max-width: 900px) {
+  .list-detail-grid--320,
+  .list-detail-grid--360,
+  .list-detail-grid--380 { grid-template-columns: 1fr; gap: 14px; }
 }
 
 /* ── Conductores (/conductores) — list + preview con overlay mobile ────── */

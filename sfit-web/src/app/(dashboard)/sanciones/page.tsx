@@ -345,7 +345,7 @@ export default function SancionesPage() {
           {canCreate && <button style={btnInk} onClick={openModal}><Plus size={16} />Emitir sanción</button>}
         </div>} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
+      <div className="cols-4-responsive">
         {[
           { ico: <AlertTriangle size={18} />, lbl: "Emitidas", val: emitidas, bg: GBG, ic: GD },
           { ico: <FileText size={18} />, lbl: "En apelación", val: apeladas, bg: RIESGOBG, ic: RIESGO },
@@ -366,7 +366,7 @@ export default function SancionesPage() {
 
       {error && <div style={{ padding: "12px 16px", background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 10, color: NO, marginBottom: 16 }}>{error}</div>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 20 }}>
+      <div className="cols-2-responsive" style={{ gap: 20 }}>
         <div>
           <DataTable
             columns={columns}
