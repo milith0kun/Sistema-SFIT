@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Bell, Check, TriangleAlert, CircleX, Info, BellOff,
-  Search, CheckCheck, RefreshCw, Inbox,
+  Search, CheckCheck, RefreshCw, Inbox, ArrowLeft,
 } from "lucide-react";
 import {
   setUnreadCountValue,
@@ -406,31 +407,33 @@ export default function NotificacionesPage() {
         }
       />
 
-      {/* ── Grid: lista + detail panel ────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>
+      {/* ── Grid: lista + detail panel ──────────────────────────────────────
+          .notif-grid: 1fr 400px en desktop, 1fr (single col) en ≤900px.
+          En mobile el detail se muestra como overlay fullscreen abajo. */}
+      <div className="notif-grid">
 
         {/* Columna izquierda: toolbar + lista */}
         <div style={{ minWidth: 0 }}>
 
           {/* ── Toolbar (sticky para no perderse al hacer scroll) ────────── */}
-          <div style={{
+          <div className="notif-toolbar" style={{
             background: "rgba(255,255,255,0.92)",
             backdropFilter: "saturate(140%) blur(8px)",
             WebkitBackdropFilter: "saturate(140%) blur(8px)",
             border: `1px solid ${INK2}`,
             borderRadius: 14,
-            padding: "14px 16px",
+            padding: "12px 14px",
             marginBottom: 14,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            gap: 12,
+            gap: 10,
             flexWrap: "wrap",
             position: "sticky",
             top: 8,
             zIndex: 10,
           }}>
-            <div style={{ display: "flex", gap: 4, background: INK1, borderRadius: 10, padding: 4 }}>
+            <div className="notif-tabs" style={{ display: "flex", gap: 4, background: INK1, borderRadius: 10, padding: 4 }}>
               {([
                 { id: "all" as Tab, label: "Todas", count: items.length },
                 { id: "unread" as Tab, label: "No leídas", count: unread },
@@ -455,10 +458,11 @@ export default function NotificacionesPage() {
               })}
             </div>
 
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <div style={{ position: "relative" }}>
+            <div className="notif-toolbar-actions" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div className="notif-search-wrap" style={{ position: "relative" }}>
                 <Search size={14} color={INK5} style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
                 <input
+                  className="notif-search-input"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Buscar…"
@@ -468,14 +472,15 @@ export default function NotificacionesPage() {
                 />
               </div>
               <button
+                className="notif-markall-btn"
                 onClick={() => void markAllRead()}
                 disabled={unread === 0 || markingAll}
-                style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 14px", borderRadius: 9, border: `1.5px solid ${INK2}`, background: "#fff", color: unread > 0 ? INK6 : INK5, fontWeight: 600, fontSize: "0.8125rem", cursor: unread > 0 ? "pointer" : "not-allowed", fontFamily: "inherit", opacity: unread === 0 ? 0.45 : 1, transition: "all 150ms" }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 14px", borderRadius: 9, border: `1.5px solid ${INK2}`, background: "#fff", color: unread > 0 ? INK6 : INK5, fontWeight: 600, fontSize: "0.8125rem", cursor: unread > 0 ? "pointer" : "not-allowed", fontFamily: "inherit", opacity: unread === 0 ? 0.45 : 1, transition: "all 150ms", whiteSpace: "nowrap" }}
                 onMouseEnter={e => { if (unread > 0) { e.currentTarget.style.borderColor = INK9; e.currentTarget.style.color = INK9; } }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = INK2; e.currentTarget.style.color = unread > 0 ? INK6 : INK5; }}
               >
                 <CheckCheck size={14} strokeWidth={2} />
-                {markingAll ? "Marcando…" : "Marcar todas leídas"}
+                <span className="notif-markall-label">{markingAll ? "Marcando…" : "Marcar todas leídas"}</span>
               </button>
             </div>
           </div>
@@ -662,19 +667,70 @@ export default function NotificacionesPage() {
           )}
         </div>
 
-        {/* Columna derecha: siempre visible */}
-        {selected ? (
-          <DetailPanel notif={selected} onClose={() => setSelected(null)} onMarkRead={markRead} />
-        ) : (
-          <div style={{ background: "#fff", border: `1.5px solid ${INK2}`, borderRadius: 14, padding: "60px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textAlign: "center", position: "sticky", top: 16 }}>
-            <div style={{ width: 52, height: 52, borderRadius: 14, background: INK1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Bell size={22} color={INK5} strokeWidth={1.5} />
+        {/* Columna derecha — desktop only (≥901px). En mobile la columna
+            se colapsa por .notif-grid y el detalle se muestra como overlay. */}
+        <div className="notif-detail-desktop">
+          {selected ? (
+            <DetailPanel notif={selected} onClose={() => setSelected(null)} onMarkRead={markRead} />
+          ) : (
+            <div style={{ background: "#fff", border: `1.5px solid ${INK2}`, borderRadius: 14, padding: "60px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textAlign: "center", position: "sticky", top: 16 }}>
+              <div style={{ width: 52, height: 52, borderRadius: 14, background: INK1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Bell size={22} color={INK5} strokeWidth={1.5} />
+              </div>
+              <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9 }}>Seleccione una notificación</div>
+              <div style={{ fontSize: "0.8125rem", color: INK5 }}>Haz clic en cualquier aviso para ver su detalle aquí.</div>
             </div>
-            <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9 }}>Seleccione una notificación</div>
-            <div style={{ fontSize: "0.8125rem", color: INK5 }}>Haz clic en cualquier aviso para ver su detalle aquí.</div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
+
+      {/* ── Overlay mobile (≤900px) ─────────────────────────────────────────
+          Cuando se selecciona una notificación en mobile, el DetailPanel se
+          muestra como sheet fullscreen sobre el listado para ver el contenido
+          completo (cuerpo, IDs, acciones) sin el cramping de un grid de 2 cols. */}
+      {selected && typeof document !== "undefined" && createPortal(
+        <div className="notif-detail-mobile-overlay" role="dialog" aria-modal="true" aria-label="Detalle de notificación">
+          {/* Toolbar superior con back button */}
+          <div style={{
+            position: "sticky", top: 0, zIndex: 2,
+            background: "#fff", borderBottom: `1px solid ${INK2}`,
+            padding: "10px 14px",
+            display: "flex", alignItems: "center", gap: 10,
+          }}>
+            <button
+              onClick={() => setSelected(null)}
+              aria-label="Volver al listado"
+              style={{
+                width: 38, height: 38, borderRadius: 9,
+                border: `1.5px solid ${INK2}`, background: "#fff",
+                color: INK9, cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <ArrowLeft size={18} strokeWidth={2} />
+            </button>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: "0.6875rem", fontWeight: 700,
+                color: INK5, letterSpacing: "0.12em",
+                textTransform: "uppercase",
+              }}>Detalle de notificación</div>
+              <div style={{
+                fontSize: "0.8125rem", color: INK9, fontWeight: 600,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                marginTop: 2,
+              }}>{selected.title}</div>
+            </div>
+          </div>
+
+          {/* Contenido scrollable */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "12px 12px 24px" }}>
+            <DetailPanel notif={selected} onClose={() => setSelected(null)} onMarkRead={markRead} />
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

@@ -693,6 +693,52 @@ body {
 @media (max-width: 900px) {
   .notif-grid { grid-template-columns: 1fr; }
   .notif-detail-sticky { position: static !important; }
+  /* En mobile la columna desktop se oculta — el detalle se abre como
+     overlay fullscreen al hacer click en una notificación. */
+  .notif-detail-desktop { display: none !important; }
+}
+
+/* ── Overlay fullscreen para detalle de notificación en mobile ───────────── */
+.notif-detail-mobile-overlay {
+  display: none;
+}
+@media (max-width: 900px) {
+  .notif-detail-mobile-overlay {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: #FAFAFA;
+    animation: notif-slide-in 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+}
+
+/* ── Toolbar de notificaciones (responsive) ─────────────────────────────── */
+@media (max-width: 640px) {
+  .notif-toolbar {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  .notif-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .notif-tabs::-webkit-scrollbar { display: none; }
+  .notif-toolbar-actions {
+    width: 100%;
+  }
+  .notif-search-wrap { flex: 1; }
+  .notif-search-input {
+    width: 100% !important;
+  }
+  /* Ocultar el label largo del botón "Marcar todas leídas" — el ícono basta */
+  .notif-markall-label { display: none; }
+  .notif-markall-btn {
+    width: 36px;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
 }
 
 /* Layout estándar de detalle: contenido + aside lateral */
