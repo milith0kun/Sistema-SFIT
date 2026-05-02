@@ -10,6 +10,7 @@ import {
   setUnreadCountValue,
   refreshUnreadCount,
 } from "@/hooks/useUnreadCount";
+import { useMobileOverlayBack } from "@/hooks/useMobileOverlayBack";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 // ── Paleta sobria — gris uniforme, sólo rojo para errores ────────────────────
@@ -310,11 +311,17 @@ export default function NotificacionesPage() {
       if (!res.ok || !data.success) { setError(data.error ?? "Error al cargar."); setItems([]); return; }
       const fetched: Notification[] = data.data?.items ?? [];
       setItems(fetched);
-      // Auto-seleccionar el primer item al cargar (o el primer no leído)
-      setSelected(prev => {
-        if (prev) return prev; // mantener selección actual si ya existe
-        return fetched.find(n => !n.read) ?? fetched[0] ?? null;
-      });
+      // Auto-seleccionar el primer item SÓLO en desktop. En mobile abriría
+      // el overlay fullscreen automáticamente al entrar a la página, sin
+      // que el usuario haya tocado ninguna notificación.
+      const isDesktop = typeof window !== "undefined"
+        && window.matchMedia("(min-width: 901px)").matches;
+      if (isDesktop) {
+        setSelected(prev => {
+          if (prev) return prev;
+          return fetched.find(n => !n.read) ?? fetched[0] ?? null;
+        });
+      }
     } catch { setError("Error de conexión."); }
     finally { setLoading(false); }
   }, []);
@@ -328,6 +335,13 @@ export default function NotificacionesPage() {
 
   // Refresca el conteo global al montar la página por primera vez.
   useEffect(() => { refreshUnreadCount(); }, []);
+
+  // Back del navegador en mobile cierra el overlay en lugar de salir.
+  useMobileOverlayBack(
+    Boolean(selected),
+    useCallback(() => setSelected(null), []),
+    "notificacion-detail"
+  );
 
   const unread = useMemo(() => items.filter(n => !n.read).length, [items]);
   const categories = useMemo(() => {

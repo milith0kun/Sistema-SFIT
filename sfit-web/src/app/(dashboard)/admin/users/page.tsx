@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
+import { useMobileOverlayBack } from "@/hooks/useMobileOverlayBack";
 
 type PendingUser = {
   id: string;
@@ -115,13 +116,26 @@ export default function AdminUsersPage() {
 
   useEffect(() => { void loadUsers(); }, [loadUsers]);
 
-  // Auto-seleccionar el primero al cargar (si no hay nada seleccionado)
+  // Auto-seleccionar el primero SÓLO en desktop (≥901px). En mobile esto
+  // abriria automáticamente el overlay fullscreen al entrar a la página
+  // y el usuario no vería la lista primero, sintiendo que "le redirige a
+  // una descripción directa".
   useEffect(() => {
-    if (!selectedId && users.length > 0) {
-      setSelectedId(users[0].id);
-      setAssignedRole(users[0].requestedRole);
-    }
+    if (selectedId || users.length === 0) return;
+    if (typeof window === "undefined") return;
+    const isDesktop = window.matchMedia("(min-width: 901px)").matches;
+    if (!isDesktop) return;
+    setSelectedId(users[0].id);
+    setAssignedRole(users[0].requestedRole);
   }, [users, selectedId]);
+
+  // Cierra el overlay cuando el usuario presiona "atrás" en mobile,
+  // en lugar de salir de la página.
+  useMobileOverlayBack(
+    Boolean(selectedId),
+    useCallback(() => setSelectedId(null), []),
+    "aprobaciones-detail"
+  );
 
   // Reset del formulario al cambiar selección
   useEffect(() => {

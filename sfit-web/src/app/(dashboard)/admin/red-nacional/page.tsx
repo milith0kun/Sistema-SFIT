@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useMobileOverlayBack } from "@/hooks/useMobileOverlayBack";
 
 type Province = {
   id: string;
@@ -164,12 +165,16 @@ export default function RedNacionalPage() {
     });
   }, [departments, query, stateFilter]);
 
-  // Auto-seleccionar el primero al cargar
+  // Auto-seleccionar el primero SÓLO en desktop. En mobile abriria el
+  // overlay fullscreen al entrar a la pagina sin que el usuario lo pidiera.
   useEffect(() => {
-    if (!selectedCode && filteredDepartments.length > 0) {
+    if (filteredDepartments.length === 0) return;
+    if (typeof window === "undefined") return;
+    const isDesktop = window.matchMedia("(min-width: 901px)").matches;
+    if (!isDesktop) return;
+    if (!selectedCode) {
       setSelectedCode(filteredDepartments[0].code);
-    }
-    if (selectedCode && !filteredDepartments.find(d => d.code === selectedCode)) {
+    } else if (!filteredDepartments.find(d => d.code === selectedCode)) {
       setSelectedCode(filteredDepartments[0]?.code ?? null);
     }
   }, [filteredDepartments, selectedCode]);
@@ -177,6 +182,13 @@ export default function RedNacionalPage() {
   const selected = useMemo(
     () => departments.find(d => d.code === selectedCode) ?? null,
     [departments, selectedCode]
+  );
+
+  // Back del navegador en mobile cierra el overlay en lugar de salir.
+  useMobileOverlayBack(
+    Boolean(selected),
+    useCallback(() => setSelectedCode(null), []),
+    "red-nacional-detail"
   );
 
   if (!user) return null;
