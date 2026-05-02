@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   ChevronRight, ChevronDown, MapPin, Globe2, Building2, Users,
-  Search, Inbox, Check, Loader2, X, BarChart3, Truck,
+  Search, Inbox, Check, Loader2, X, BarChart3, Truck, ArrowLeft,
 } from "lucide-react";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -216,7 +217,9 @@ export default function RedNacionalPage() {
         filteredCount={filteredDepartments.length}
       />
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 16, alignItems: "start" }}>
+      {/* Grid: lista de deptos + detalle. En mobile la columna desktop se
+          oculta y al seleccionar se abre overlay fullscreen. */}
+      <div className="red-nacional-grid">
         {/* Lista de departamentos */}
         <div style={{ minWidth: 0 }}>
           {loading ? (
@@ -237,8 +240,8 @@ export default function RedNacionalPage() {
           )}
         </div>
 
-        {/* Panel de detalle del depto seleccionado */}
-        <div style={{ position: "sticky", top: 16, minWidth: 0 }}>
+        {/* Panel de detalle desktop (≥901px) */}
+        <div className="red-nacional-detail-desktop" style={{ position: "sticky", top: 16, minWidth: 0 }}>
           {selected ? (
             <DepartmentDetail
               dept={selected}
@@ -253,6 +256,58 @@ export default function RedNacionalPage() {
           )}
         </div>
       </div>
+
+      {/* ── Overlay mobile (≤900px) ─────────────────────────────────────────
+          Al tap-ear un departamento en mobile abrimos el detalle como sheet
+          fullscreen — caso contrario la lista y el detalle compartían
+          ancho insuficiente y todo quedaba ilegible. */}
+      {selected && typeof document !== "undefined" && createPortal(
+        <div className="red-nacional-detail-mobile-overlay" role="dialog" aria-modal="true" aria-label="Detalle del departamento">
+          <div style={{
+            position: "sticky", top: 0, zIndex: 2,
+            background: "#fff", borderBottom: `1px solid ${INK2}`,
+            padding: "10px 14px",
+            display: "flex", alignItems: "center", gap: 10,
+          }}>
+            <button
+              onClick={() => setSelectedCode(null)}
+              aria-label="Volver al listado"
+              style={{
+                width: 38, height: 38, borderRadius: 9,
+                border: `1.5px solid ${INK2}`, background: "#fff",
+                color: INK9, cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <ArrowLeft size={18} strokeWidth={2} />
+            </button>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: "0.6875rem", fontWeight: 700,
+                color: INK5, letterSpacing: "0.12em",
+                textTransform: "uppercase",
+              }}>Departamento</div>
+              <div style={{
+                fontSize: "0.8125rem", color: INK9, fontWeight: 600,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                marginTop: 2,
+              }}>{selected.code} · {selected.name}</div>
+            </div>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "12px 12px 24px" }}>
+            <DepartmentDetail
+              dept={selected}
+              openProvs={openProvs}
+              districtsByProv={districtsByProv}
+              togglingId={togglingId}
+              onToggleProv={toggleProv}
+              onToggleMuni={toggleMuni}
+            />
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -503,12 +558,16 @@ function DepartmentDetail({
             marginTop: 10, padding: "8px 10px", borderRadius: 8,
             background: INK1, border: `1px solid ${INK2}`,
             display: "flex", alignItems: "center", gap: 8,
+            flexWrap: "wrap",
           }}>
             <Truck size={12} color={INK6} />
             <span style={{ fontSize: "0.6875rem", fontWeight: 700, color: INK6, letterSpacing: "0.08em", textTransform: "uppercase" }}>
               Empresas
             </span>
-            <div style={{ display: "flex", gap: 10, marginLeft: "auto", fontSize: "0.75rem", color: INK6 }}>
+            <div style={{
+              display: "flex", gap: 10, marginLeft: "auto",
+              fontSize: "0.75rem", color: INK6, flexWrap: "wrap",
+            }}>
               <span><strong style={{ color: INK9, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{urb}</strong> urb</span>
               <span><strong style={{ color: INK9, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{interprov}</strong> interprov</span>
               <span><strong style={{ color: INK9, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{nacional}</strong> nac</span>
