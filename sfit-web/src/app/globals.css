@@ -683,6 +683,34 @@ body {
   .cols-2-responsive { grid-template-columns: 1fr; gap: 12px; }
 }
 
+/* ── Municipalidades / nueva — filtros responsive ───────────────────────── */
+.muni-nueva-filters {
+  display: grid;
+}
+.muni-nueva-filters--3 { grid-template-columns: 1fr 1fr 2fr; }
+.muni-nueva-filters--2 { grid-template-columns: 1fr 2fr; }
+@media (max-width: 900px) {
+  .muni-nueva-filters--3 { grid-template-columns: 1fr 1fr; }
+  /* En 900px deja la búsqueda en su propia fila ocupando todo el ancho */
+  .muni-nueva-filters--3 > :nth-child(3) { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .muni-nueva-filters--3,
+  .muni-nueva-filters--2 { grid-template-columns: 1fr; }
+  .muni-nueva-filters--3 > :nth-child(3) { grid-column: auto; }
+}
+/* Filas de activar (lista de inactivas): en mobile el botón "Activar"
+   pasa a línea siguiente para no estrujar el código UBIGEO + nombre. */
+@media (max-width: 480px) {
+  .muni-nueva-row {
+    flex-wrap: wrap;
+  }
+  .muni-nueva-row > button {
+    flex: 1;
+    justify-content: center !important;
+  }
+}
+
 /* ── Red Nacional (/admin/red-nacional) — mismo patrón ───────────────────── */
 .red-nacional-grid {
   display: grid;

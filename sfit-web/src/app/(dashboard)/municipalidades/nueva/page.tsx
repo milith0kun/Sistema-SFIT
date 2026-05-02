@@ -189,12 +189,13 @@ export default function ActivarMunicipalidadPage() {
         </div>
       )}
 
-      <div style={{
-        background: "#fff", border: `1.5px solid ${INK2}`, borderRadius: 12,
-        padding: 18, display: "grid",
-        gridTemplateColumns: isSA ? "1fr 1fr 2fr" : "1fr 2fr",
-        gap: 12, alignItems: "end",
-      }}>
+      <div
+        className={isSA ? "muni-nueva-filters muni-nueva-filters--3" : "muni-nueva-filters muni-nueva-filters--2"}
+        style={{
+          background: "#fff", border: `1.5px solid ${INK2}`, borderRadius: 12,
+          padding: 18, gap: 12, alignItems: "end",
+        }}
+      >
         {isSA && (
           <div>
             <label style={LABEL}>Departamento</label>
@@ -260,6 +261,7 @@ export default function ActivarMunicipalidadPage() {
             {results.map((m, i) => (
               <li
                 key={m.id}
+                className="muni-nueva-row"
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                   padding: "12px 18px", gap: 12,
