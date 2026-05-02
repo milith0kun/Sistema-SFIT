@@ -264,6 +264,17 @@ export function DashboardStyles() {
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
       }
+      .sfit-hamburger:hover {
+        background: #1a2940 !important;
+        transform: scale(1.04);
+      }
+      .sfit-hamburger:active {
+        transform: scale(0.96);
+      }
+      .sfit-hamburger:focus-visible {
+        outline: 2px solid #6C0606;
+        outline-offset: 2px;
+      }
       .sfit-search-btn:hover {
         border-color: #D4D4D8 !important;
         color: #09090B !important;

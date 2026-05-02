@@ -173,23 +173,24 @@ export function Topbar({
         <button
           className="sfit-hamburger"
           onClick={onOpenSidebar}
+          aria-label="Abrir menú lateral"
           style={{
-            width: 34,
-            height: 34,
-            borderRadius: 9,
-            border: "1.5px solid #E4E4E7",
-            background: "#FFFFFF",
-            color: "#52525B",
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            border: "none",
+            background: "#0A1628",
+            color: "#FFFFFF",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
             flexShrink: 0,
-            transition: "border-color 140ms, background 140ms",
+            transition: "background 140ms, transform 100ms",
+            boxShadow: "0 2px 6px rgba(9, 22, 40, 0.20)",
           }}
-          aria-label="Abrir menú"
         >
-          <Menu size={16} strokeWidth={2} />
+          <Menu size={20} strokeWidth={2.2} />
         </button>
 
         <div
