@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   Check, X, UserCheck, Clock, Users, Calendar, Mail, ShieldAlert,
-  Search, Inbox, MessageSquare, Loader2, ChevronRight,
+  Search, Inbox, MessageSquare, Loader2, ChevronRight, ArrowLeft,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
@@ -218,7 +219,9 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 420px", gap: 20, alignItems: "start" }}>
+      {/* Grid: lista + detail. En mobile (≤900px) la columna desktop se
+          oculta y al seleccionar un usuario se abre overlay fullscreen. */}
+      <div className="aprobaciones-grid">
 
         {/* ── Columna izquierda: toolbar + lista ── */}
         <div style={{ minWidth: 0 }}>
@@ -254,8 +257,8 @@ export default function AdminUsersPage() {
           )}
         </div>
 
-        {/* ── Columna derecha: detalle + acciones ── */}
-        <div style={{ position: "sticky", top: 16 }}>
+        {/* ── Columna derecha desktop (≥901px) ── */}
+        <div className="aprobaciones-detail-desktop" style={{ position: "sticky", top: 16 }}>
           {target ? (
             <DetailPanel
               user={target}
@@ -276,6 +279,63 @@ export default function AdminUsersPage() {
           )}
         </div>
       </div>
+
+      {/* ── Overlay mobile (≤900px) ─────────────────────────────────────────
+          Al seleccionar una solicitud en mobile, abrimos el DetailPanel como
+          sheet fullscreen para revisar datos + asignar rol + rechazar. */}
+      {target && typeof document !== "undefined" && createPortal(
+        <div className="aprobaciones-detail-mobile-overlay" role="dialog" aria-modal="true" aria-label="Detalle de solicitud">
+          <div style={{
+            position: "sticky", top: 0, zIndex: 2,
+            background: "#fff", borderBottom: `1px solid ${INK2}`,
+            padding: "10px 14px",
+            display: "flex", alignItems: "center", gap: 10,
+          }}>
+            <button
+              onClick={() => setSelectedId(null)}
+              aria-label="Volver al listado"
+              style={{
+                width: 38, height: 38, borderRadius: 9,
+                border: `1.5px solid ${INK2}`, background: "#fff",
+                color: INK9, cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <ArrowLeft size={18} strokeWidth={2} />
+            </button>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: "0.6875rem", fontWeight: 700,
+                color: INK5, letterSpacing: "0.12em",
+                textTransform: "uppercase",
+              }}>Aprobar / Rechazar</div>
+              <div style={{
+                fontSize: "0.8125rem", color: INK9, fontWeight: 600,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                marginTop: 2,
+              }}>{target.name}</div>
+            </div>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "12px 12px 24px" }}>
+            <DetailPanel
+              user={target}
+              action={action}
+              setAction={setAction}
+              assignedRole={assignedRole}
+              setAssignedRole={setAssignedRole}
+              rejectReason={rejectReason}
+              setRejectReason={setRejectReason}
+              processing={processing}
+              error={actionError}
+              success={actionSuccess}
+              onSubmit={handleAction}
+              onClose={() => setSelectedId(null)}
+            />
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -298,7 +358,7 @@ function ListToolbar({
   ], [users.length, rolesCount]);
 
   return (
-    <div style={{
+    <div className="aprobaciones-toolbar" style={{
       background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12,
       padding: "12px 14px", marginBottom: 12,
       display: "flex", flexDirection: "column", gap: 10,
@@ -572,8 +632,8 @@ function DetailPanel({
           </div>
         </div>
 
-        {/* Mini-info */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 14 }}>
+        {/* Mini-info — colapsa a 1 col en mobile */}
+        <div className="cols-2-responsive" style={{ gap: 6, marginTop: 14 }}>
           <InfoChip label="Rol solicitado" value={ROLE_LABELS[user.requestedRole] ?? user.requestedRole} />
           <InfoChip label="Recibida" value={formatDateAbs(user.createdAt)} icon={<Calendar size={11} />} />
         </div>
