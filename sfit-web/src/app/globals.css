@@ -711,6 +711,32 @@ body {
   }
 }
 
+/* ── Conductores (/conductores) — list + preview con overlay mobile ────── */
+.conductores-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .conductores-grid { grid-template-columns: 1fr; gap: 14px; }
+  .conductores-preview-desktop { display: none !important; }
+}
+.conductores-preview-mobile-overlay {
+  display: none;
+}
+@media (max-width: 900px) {
+  .conductores-preview-mobile-overlay {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: #FAFAFA;
+    animation: notif-slide-in 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+}
+
 /* ── Red Nacional (/admin/red-nacional) — mismo patrón ───────────────────── */
 .red-nacional-grid {
   display: grid;

@@ -294,12 +294,8 @@ export default function NuevoconductorPage() {
           </h3>
 
           <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 16,
-              maxWidth: 720,
-            }}
+            className="cols-2-responsive"
+            style={{ maxWidth: 720 }}
           >
             {/* Nombre completo */}
             <div style={{ gridColumn: "1 / -1" }}>
@@ -413,12 +409,8 @@ export default function NuevoconductorPage() {
           </h3>
 
           <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 16,
-              maxWidth: 720,
-            }}
+            className="cols-2-responsive"
+            style={{ maxWidth: 720 }}
           >
             {/* Número de licencia con verificación MTC */}
             <div>

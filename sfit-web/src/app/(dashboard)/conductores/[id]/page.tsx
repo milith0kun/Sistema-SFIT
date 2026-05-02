@@ -467,7 +467,7 @@ export default function ConductorDetallePage({ params }: Props) {
             title="Información personal"
             subtitle="Identidad verificable y datos de contacto"
           >
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="cols-2-responsive" style={{ gap: 12 }}>
               <div>
                 <Field
                   label="DNI"
@@ -684,7 +684,7 @@ export default function ConductorDetallePage({ params }: Props) {
               </div>
             )}
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="cols-2-responsive" style={{ gap: 12 }}>
               <Field label="Número de licencia" error={errors.licenseNumber} required={canEdit}>
                 <input
                   type="text" value={form.licenseNumber} maxLength={30}
@@ -826,7 +826,7 @@ export default function ConductorDetallePage({ params }: Props) {
                 </div>
               </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 8 }}>
+            <div className="cols-2-responsive" style={{ gap: 6, marginTop: 8 }}>
               <MiniRow label="Conducción continua" value={`${continuous}h`} />
               <MiniRow label="Descanso restante" value={`${conductor.restHours ?? 0}h`} />
               <MiniRow label="Reputación" value={`${rep}/100`} />

@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Users, Check, Gauge, AlertTriangle, Download, Plus, Phone, Car, Pencil, Eye,
+  Users, Check, Gauge, AlertTriangle, Download, Plus, Phone, Car, Pencil, Eye, ArrowLeft,
 } from "lucide-react";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { useMobileOverlayBack } from "@/hooks/useMobileOverlayBack";
 
 type DriverStatus = "apto" | "riesgo" | "no_apto";
 type Driver = {
@@ -78,6 +81,7 @@ const btnOutline: React.CSSProperties = {
 
 export default function ConductoresPage() {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [items, setItems] = useState<Driver[]>([]);
   const [filter, setFilter] = useState<"todos" | DriverStatus>("todos");
@@ -94,6 +98,9 @@ export default function ConductoresPage() {
     setUser(u);
   }, [router]);
 
+  // load NO depende de isMobile/sel — sólo fetchea. El auto-select vive
+  // en su propio useEffect aparte para evitar el race condition de la
+  // hidratación de useIsMobile (ver fix de notificaciones).
   const load = useCallback(async () => {
     if (!user) return;
     setLoading(true); setError(null);
@@ -109,14 +116,33 @@ export default function ConductoresPage() {
       if (!res.ok || !data.success) { setError(data.error ?? "Error al cargar conductores"); return; }
       setItems(data.data.items ?? []);
       setCounts(data.data.statusCounts ?? {});
-      // Auto-seleccionar el primero
-      if (data.data.items?.length && !sel) setSel(data.data.items[0]);
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, filter, router]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // Auto-seleccionar el primer conductor SÓLO en desktop. En mobile
+  // abriría automáticamente el preview como overlay y el usuario no
+  // vería la lista de conductores.
+  useEffect(() => {
+    if (isMobile) return;
+    if (items.length === 0) return;
+    setSel(prev => prev ?? items[0]);
+  }, [items, isMobile]);
+
+  // Si rota a mobile con un conductor seleccionado, lo cerramos.
+  useEffect(() => {
+    if (isMobile && sel) setSel(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile]);
+
+  // Back del navegador en mobile cierra el overlay del preview.
+  useMobileOverlayBack(
+    Boolean(sel) && isMobile,
+    useCallback(() => setSel(null), []),
+    "conductor-preview"
+  );
 
   const total = (counts.apto ?? 0) + (counts.riesgo ?? 0) + (counts.no_apto ?? 0) || items.length;
   const canEdit = user ? CAN_EDIT.includes(user.role) : false;
@@ -293,7 +319,7 @@ export default function ConductoresPage() {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", gap: 16, alignItems: "start" }}>
+      <div className="conductores-grid">
         <DataTable<Driver>
           columns={columns}
           data={items}
@@ -305,29 +331,75 @@ export default function ConductoresPage() {
           toolbarEnd={toolbarEnd}
         />
 
-        {sel ? (
-          <DriverPreview driver={sel} canEdit={canEdit} />
-        ) : (
-          <div style={{
-            background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12,
-            padding: "60px 24px", textAlign: "center", color: INK5,
-            display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
-          }}>
+        {/* Preview desktop (≥901px) */}
+        <div className="conductores-preview-desktop">
+          {sel ? (
+            <DriverPreview driver={sel} canEdit={canEdit} />
+          ) : (
             <div style={{
-              width: 48, height: 48, borderRadius: 12, background: INK1,
-              display: "flex", alignItems: "center", justifyContent: "center",
+              background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12,
+              padding: "60px 24px", textAlign: "center", color: INK5,
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+              position: "sticky", top: 16,
             }}>
-              <Users size={20} color={INK5} strokeWidth={1.5} />
+              <div style={{
+                width: 48, height: 48, borderRadius: 12, background: INK1,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <Users size={20} color={INK5} strokeWidth={1.5} />
+              </div>
+              <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9 }}>
+                Selecciona un conductor
+              </div>
+              <div style={{ fontSize: "0.8125rem", color: INK5, maxWidth: 260, lineHeight: 1.5 }}>
+                Haz clic en cualquier conductor de la lista para ver su perfil resumido.
+              </div>
             </div>
-            <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9 }}>
-              Selecciona un conductor
-            </div>
-            <div style={{ fontSize: "0.8125rem", color: INK5, maxWidth: 260, lineHeight: 1.5 }}>
-              Haz clic en cualquier conductor de la lista para ver su perfil resumido.
+          )}
+        </div>
+      </div>
+
+      {/* Overlay mobile (≤900px) cuando el usuario tap-ea un conductor */}
+      {sel && isMobile && typeof document !== "undefined" && createPortal(
+        <div className="conductores-preview-mobile-overlay" role="dialog" aria-modal="true" aria-label="Vista previa del conductor">
+          <div style={{
+            position: "sticky", top: 0, zIndex: 2,
+            background: "#fff", borderBottom: `1px solid ${INK2}`,
+            padding: "10px 14px",
+            display: "flex", alignItems: "center", gap: 10,
+          }}>
+            <button
+              onClick={() => setSel(null)}
+              aria-label="Volver al listado"
+              style={{
+                width: 38, height: 38, borderRadius: 9,
+                border: `1.5px solid ${INK2}`, background: "#fff",
+                color: INK9, cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <ArrowLeft size={18} strokeWidth={2} />
+            </button>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: "0.6875rem", fontWeight: 700,
+                color: INK5, letterSpacing: "0.12em",
+                textTransform: "uppercase",
+              }}>Conductor</div>
+              <div style={{
+                fontSize: "0.8125rem", color: INK9, fontWeight: 600,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                marginTop: 2,
+              }}>{sel.name?.trim() || "Sin nombre"}</div>
             </div>
           </div>
-        )}
-      </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "12px 12px 24px" }}>
+            <DriverPreview driver={sel} canEdit={canEdit} />
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -384,7 +456,7 @@ function DriverPreview({ driver, canEdit }: { driver: Driver; canEdit: boolean }
           textTransform: "uppercase", color: INK5, marginBottom: 8,
         }}>FatigueEngine</div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+        <div className="cols-2-responsive" style={{ gap: 8, marginBottom: 16 }}>
           {[
             { lbl: "Conducción continua", val: cont },
             { lbl: "Descanso restante", val: rest },
