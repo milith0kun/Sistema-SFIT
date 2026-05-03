@@ -214,13 +214,12 @@ export default function LoginPage() {
         onLoad={() => setGisReady(true)}
       />
 
-
       {/* Header del Formulario */}
-      <div className="mb-5 sm:mb-7 lg:mb-10">
-        <h1 className="text-[#0A1628] text-[1.375rem] sm:text-[1.625rem] lg:text-3xl font-bold tracking-tight mb-1.5 sm:mb-2 lg:mb-3 text-balance leading-[1.15]">
+      <div className="mb-6 sm:mb-8 lg:mb-10">
+        <h1 className="text-[#0A1628] text-2xl sm:text-[1.75rem] lg:text-[2rem] font-bold tracking-[-0.02em] mb-2 sm:mb-3 text-balance leading-[1.15]">
           Bienvenido de nuevo
         </h1>
-        <p className="text-[#52525B] text-[12.5px] sm:text-[13.5px] lg:text-base font-medium leading-relaxed">
+        <p className="text-[#71717A] text-[13.5px] sm:text-[14.5px] lg:text-[15.5px] font-normal leading-relaxed tracking-[-0.005em]">
           Inicie sesión con sus credenciales institucionales para acceder al sistema.
         </p>
       </div>
@@ -230,7 +229,7 @@ export default function LoginPage() {
         <div
           ref={errorRef}
           role="alert"
-          className="mb-5 sm:mb-6 lg:mb-8 flex items-start gap-3 rounded-2xl p-3.5 sm:p-4 bg-[#FFF5F5] border border-[#FCA5A5] animate-fade-up outline-none"
+          className="mb-6 flex items-start gap-3 rounded-xl p-4 bg-[#FFF5F5] border border-[#FCA5A5] animate-fade-up outline-none"
           tabIndex={-1}
         >
           <AlertCircle className="mt-0.5 shrink-0 text-[#EF4444]" size={18} />
@@ -240,11 +239,11 @@ export default function LoginPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} noValidate className="space-y-4 sm:space-y-5 lg:space-y-7">
+      <form onSubmit={handleSubmit} noValidate className="space-y-5 sm:space-y-6">
         {/* Email */}
         <div className="animate-fade-up delay-100">
-          <label htmlFor="email" className="block text-[11px] sm:text-xs lg:text-sm font-bold text-[#0A1628] mb-1.5 sm:mb-2 uppercase tracking-widest opacity-70">
-            Correo Institucional
+          <label htmlFor="email" className="block text-[13px] sm:text-[13.5px] lg:text-sm font-semibold text-[#0A1628] mb-2 tracking-[-0.005em]">
+            Correo institucional
           </label>
           <input
             ref={emailInputRef}
@@ -253,21 +252,21 @@ export default function LoginPage() {
             type="email"
             placeholder="usuario@municipalidad.gob.pe"
             required
-            className={`field transition-all ${fieldErrors.email ? "border-[#EF4444] bg-[#FFF5F5]" : "focus:border-[#0A1628] focus:ring-4 focus:ring-[#0A1628]/5"}`}
+            className={`field rounded-xl transition-all ${fieldErrors.email ? "border-[#EF4444] bg-[#FFF5F5]" : "focus:border-[#0A1628] focus:ring-4 focus:ring-[#0A1628]/5"}`}
           />
           {fieldErrors.email && (
-            <p className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-[#DC2626] uppercase tracking-wider">{fieldErrors.email}</p>
+            <p className="mt-2 text-[12px] sm:text-[13px] font-semibold text-[#DC2626]">{fieldErrors.email}</p>
           )}
         </div>
 
         {/* Password */}
         <div className="animate-fade-up delay-150">
-          <div className="flex items-center justify-between mb-1.5 sm:mb-2 gap-2">
-            <label htmlFor="password" className="text-[11px] sm:text-xs lg:text-sm font-bold text-[#0A1628] uppercase tracking-widest opacity-70">
+          <div className="flex items-center justify-between mb-2 gap-2">
+            <label htmlFor="password" className="text-[13px] sm:text-[13.5px] lg:text-sm font-semibold text-[#0A1628] tracking-[-0.005em]">
               Contraseña
             </label>
             <Link href="/reset-password"
-                  className="text-[10px] sm:text-[11px] lg:text-xs font-bold text-[#8B1414] hover:underline tracking-wide whitespace-nowrap">
+                  className="text-[12px] sm:text-[13px] font-semibold text-[#8B1414] hover:text-[#6C0606] hover:underline underline-offset-2 transition-colors whitespace-nowrap">
               ¿Olvidó su contraseña?
             </Link>
           </div>
@@ -279,7 +278,7 @@ export default function LoginPage() {
               placeholder="••••••••••••"
               required
               onKeyUp={(e) => setCapsLock(e.getModifierState("CapsLock"))}
-              className={`field pr-12 transition-all ${fieldErrors.password ? "border-[#EF4444] bg-[#FFF5F5]" : "focus:border-[#0A1628] focus:ring-4 focus:ring-[#0A1628]/5"}`}
+              className={`field rounded-xl pr-12 transition-all ${fieldErrors.password ? "border-[#EF4444] bg-[#FFF5F5]" : "focus:border-[#0A1628] focus:ring-4 focus:ring-[#0A1628]/5"}`}
             />
             <button
               type="button"
@@ -290,21 +289,21 @@ export default function LoginPage() {
             </button>
           </div>
           {capsLock && (
-            <p className="mt-2 text-[10px] font-bold text-[#B45309] uppercase tracking-widest flex items-center gap-1.5">
-              <Lock size={10} /> Bloq Mayús Activado
+            <p className="mt-2 text-[11px] font-semibold text-[#B45309] flex items-center gap-1.5">
+              <Lock size={12} /> Bloq Mayús activado
             </p>
           )}
           {fieldErrors.password && (
-            <p className="mt-2 text-xs font-bold text-[#DC2626] uppercase tracking-wider">{fieldErrors.password}</p>
+            <p className="mt-2 text-[12px] sm:text-[13px] font-semibold text-[#DC2626]">{fieldErrors.password}</p>
           )}
         </div>
 
-        {/* Submit Button — altura responsive sincronizada con .field */}
-        <div className="pt-1.5 sm:pt-2 lg:pt-4 animate-fade-up delay-200">
+        {/* Submit Button */}
+        <div className="pt-2 sm:pt-3 animate-fade-up delay-200">
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-12 sm:h-[50px] lg:h-[52px] bg-[#0A1628] text-white rounded-xl sm:rounded-2xl font-bold text-[14.5px] sm:text-[15px] lg:text-lg hover:bg-[#111F38] active:scale-[0.99] disabled:opacity-50 transition-all flex items-center justify-center gap-2.5 sm:gap-3 shadow-lg shadow-[#0A1628]/10 group"
+            className="w-full h-[50px] sm:h-[52px] lg:h-[54px] bg-[#0A1628] text-white rounded-xl sm:rounded-2xl font-semibold text-[15px] sm:text-base lg:text-[17px] tracking-[-0.01em] hover:bg-[#111F38] active:scale-[0.985] disabled:opacity-50 transition-all flex items-center justify-center gap-2.5 shadow-lg shadow-[#0A1628]/10 group cursor-pointer"
           >
             {loading ? (
               <span className="flex h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -319,41 +318,41 @@ export default function LoginPage() {
       </form>
 
       {/* Divider */}
-      <div className="relative my-6 sm:my-7 lg:my-10 animate-fade-up delay-300">
+      <div className="relative my-6 sm:my-7 lg:my-8 animate-fade-up delay-300">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-[#E4E4E7]" />
         </div>
-        <div className="relative flex justify-center text-[11px] sm:text-xs lg:text-sm font-bold uppercase tracking-[0.2em]">
-          <span className="bg-[#fafafa] px-3 sm:px-4 text-[#A1A1AA]">o continuar con</span>
+        <div className="relative flex justify-center text-[12px] sm:text-[13px] font-medium tracking-normal">
+          <span className="bg-[#fafafa] lg:bg-white px-4 text-[#A1A1AA]">o continuar con</span>
         </div>
       </div>
 
       {/* Google Login Container */}
-      <div className="flex flex-col items-center gap-4 animate-fade-up delay-400 min-h-[44px]">
+      <div className="flex flex-col items-center gap-3 animate-fade-up delay-400 min-h-[44px]">
         {GOOGLE_CLIENT_ID ? (
           // Sin overflow-hidden ni rounded-xl: el iframe del botón de Google
           // tiene su propio styling. Recortarlo bloqueaba los clicks en mobile.
           // min-w para garantizar que Google Sign-In tenga un width válido (≥200px).
           <div
             id="google-btn-parent"
-            className="w-full max-w-[400px] min-w-[200px] flex justify-center"
+            className="w-full min-w-[200px] flex justify-center"
             ref={googleBtnRef}
           />
         ) : (
-          <p className="text-[10px] font-bold text-[#B45309] uppercase tracking-widest text-center px-4 py-2 bg-amber-50 rounded-lg border border-amber-200">
-            Configuración de Google Pendiente (NEXT_PUBLIC_GOOGLE_CLIENT_ID)
+          <p className="text-[11px] sm:text-[12px] font-semibold text-[#B45309] text-center px-4 py-2.5 bg-amber-50 rounded-xl border border-amber-200 w-full">
+            Configuración de Google pendiente
           </p>
         )}
-        {googleLoading && <p className="text-[10px] font-bold text-[#52525B] animate-pulse uppercase tracking-widest">Verificando cuenta...</p>}
+        {googleLoading && <p className="text-[12px] font-medium text-[#71717A] animate-pulse">Verificando cuenta…</p>}
       </div>
 
       {/* Footer del Formulario */}
-      <div className="mt-8 sm:mt-10 lg:mt-12 text-center animate-fade-up delay-500">
-        <p className="text-[#71717A] font-medium text-[13px] sm:text-sm">
+      <div className="mt-6 sm:mt-8 text-center animate-fade-up delay-500">
+        <p className="text-[#A1A1AA] font-normal text-[13px] sm:text-[14px] tracking-[-0.005em]">
           ¿Aún no tiene acceso institucional?
         </p>
         <Link href="/register"
-              className="mt-1.5 sm:mt-2 inline-block text-[#8B1414] font-bold text-[14px] sm:text-base hover:underline">
+              className="mt-1.5 inline-block text-[#8B1414] font-semibold text-[14px] sm:text-[15px] hover:text-[#6C0606] hover:underline underline-offset-2 transition-colors">
           Solicitar Usuario Autorizado
         </Link>
       </div>

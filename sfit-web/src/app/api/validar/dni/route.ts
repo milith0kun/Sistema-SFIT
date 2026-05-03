@@ -22,6 +22,19 @@ export async function POST(request: NextRequest) {
     const data = await consultarDni(parsed.data.dni);
     return apiResponse(data);
   } catch (err) {
+    // DEV FALLBACK: Si estamos en localhost y falla por origen/token, damos datos mockeados
+    // para no bloquear el desarrollo.
+    if (process.env.NODE_ENV === "development" && err instanceof ApiPeruError && (err.kind === "origin" || err.kind === "auth" || err.kind === "network")) {
+      console.warn(`[DEV] apiperu.dev falló (${err.kind}). Usando MOCK para DNI.`);
+      return apiResponse({
+        nombres: "USUARIO MOCK",
+        apellido_paterno: "DE",
+        apellido_materno: "PRUEBA",
+        nombre_completo: "USUARIO MOCK DE PRUEBA",
+        codigo_verificacion: "1"
+      });
+    }
+
     if (err instanceof ApiPeruError) {
       console.error(`[validar/dni] ${err.kind}: ${err.message}`, err.code ?? "");
       switch (err.kind) {

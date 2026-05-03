@@ -1,10 +1,10 @@
-import { ShieldCheck, Smartphone, Zap, Globe, Apple } from "lucide-react";
+import { ShieldCheck, Smartphone, Zap, Globe, Apple, Layers, BarChart3, MapPin } from "lucide-react";
 
-const STATS = [
-  { value: "7",   label: "Niveles de acceso" },
-  { value: "19",  label: "Módulos funcionales" },
-  { value: "100%", label: "Trazabilidad" },
-  { value: "24/7", label: "Disponibilidad" },
+const FEATURES = [
+  { icon: ShieldCheck, title: "Seguridad multinivel", desc: "7 roles con permisos granulares y JWT" },
+  { icon: Layers,      title: "19 módulos integrados", desc: "Desde inspecciones hasta gamificación" },
+  { icon: MapPin,      title: "Cobertura territorial", desc: "Multi-municipalidad con aislamiento de datos" },
+  { icon: BarChart3,   title: "Analítica en tiempo real", desc: "Dashboards, KPIs y reportería avanzada" },
 ];
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -20,23 +20,23 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="absolute -bottom-[10%] -left-[10%] w-[600px] h-[600px] bg-[#8B1414]/10 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute top-[10%] -right-[10%] w-[400px] h-[400px] bg-[#1E50A0]/10 rounded-full blur-[100px] pointer-events-none" />
         
-        {/* Marca de agua sutil */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-[0.02] pointer-events-none select-none">
-          <img src="/logo.svg" alt="" width={600} height={600} className="object-contain" />
+        {/* Marca de agua sutil — visible como sombra de fondo */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-[0.15] pointer-events-none select-none">
+          <img src="/logo.svg" alt="" width={700} height={700} className="object-contain blur-[0.5px] drop-shadow-[0_0_60px_rgba(139,20,20,0.3)]" />
         </div>
 
-        <div className="relative z-10 flex flex-col h-full px-12 py-12 xl:px-16">
-          {/* Logo institucional — mismo logo horizontal que la sidebar */}
-          <div className="flex items-center mb-16 animate-fade-in shrink-0">
+        <div className="relative z-10 flex flex-col h-full px-12 py-10 xl:px-16 xl:py-12">
+          {/* Logo institucional */}
+          <div className="flex items-center mb-10 animate-fade-in shrink-0">
             <img
               src="/logo-horizontal.svg"
               alt="SFIT — Sistema de Fiscalización Inteligente del Transporte"
-              className="h-16 xl:h-20 2xl:h-24 w-auto object-contain"
+              className="h-14 xl:h-16 2xl:h-20 w-auto object-contain"
               style={{ filter: "brightness(0) invert(1)" }}
             />
           </div>
 
-          <div className="flex-1 flex flex-col justify-center min-h-0 overflow-hidden">
+          <div className="flex-1 flex flex-col justify-center min-h-0 overflow-y-auto">
             {/* Badge */}
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 mb-6 w-fit animate-fade-up shrink-0">
               <span className="w-2 h-2 rounded-full bg-[#8B1414] animate-pulse" />
@@ -52,39 +52,41 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             </h1>
 
             {/* Descripción */}
-            <p className="text-white/70 text-lg leading-relaxed mb-10 max-w-md animate-fade-up delay-200 font-medium shrink-0">
+            <p className="text-white/70 text-lg leading-relaxed mb-8 max-w-md animate-fade-up delay-200 font-medium shrink-0">
               Acceda a la infraestructura digital centralizada para el control operativo y seguridad vial.
             </p>
 
-            {/* Estadísticas en Grid */}
-            <div className="grid grid-cols-2 gap-4 mb-10 animate-fade-up delay-300 shrink-0">
-              {STATS.map((s, i) => (
-                <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/[0.07] transition-all group">
-                  <div className="text-2xl font-bold text-white mb-1 tracking-tight group-hover:translate-x-1 transition-transform origin-left">{s.value}</div>
-                  <div className="text-[11px] font-bold text-white/40 uppercase tracking-widest">{s.label}</div>
+            {/* Características del sistema */}
+            <div className="flex flex-col gap-3 mb-8 animate-fade-up delay-300 shrink-0">
+              {FEATURES.map((f, i) => (
+                <div key={i} className="flex items-start gap-3.5 group">
+                  <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 group-hover:bg-[#8B1414]/20 group-hover:border-[#8B1414]/30 transition-all">
+                    <f.icon size={16} className="text-[#D9B0B0] group-hover:text-white transition-colors" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-semibold text-white leading-tight tracking-[-0.005em]">{f.title}</div>
+                    <div className="text-[11px] text-white/40 leading-snug mt-0.5">{f.desc}</div>
+                  </div>
                 </div>
               ))}
             </div>
 
-            {/* App Móvil */}
-            <div className="animate-fade-up delay-400 p-6 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-sm shrink-0">
-              <div className="flex items-center gap-2 mb-4">
-                <Smartphone size={18} className="text-[#8B1414]" />
-                <span className="text-xs font-bold text-white uppercase tracking-widest">Aplicación Móvil</span>
-              </div>
+            {/* Descargar App — sin tarjeta, botones directos */}
+            <div className="animate-fade-up delay-400 shrink-0">
+              <p className="text-[11px] font-medium text-white/30 uppercase tracking-widest mb-3">Disponible en móvil</p>
               <div className="flex flex-wrap gap-3">
-                <a href="#" className="flex items-center gap-3 bg-black px-4 py-2.5 rounded-xl border border-white/10 hover:bg-zinc-900 transition-colors group">
+                <a href="https://play.google.com/store/apps/details?id=com.sfit.sfit_app" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 bg-white/[0.06] px-4 py-2.5 rounded-xl border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all">
                   <PlayStoreIcon />
                   <div className="text-left">
-                    <div className="text-[8px] text-white/40 uppercase tracking-tighter leading-none mb-1">Disponible en</div>
-                    <div className="text-[12px] text-white font-bold leading-none">Google Play</div>
+                    <div className="text-[8px] text-white/40 uppercase tracking-tight leading-none mb-1">Disponible en</div>
+                    <div className="text-[12px] text-white font-semibold leading-none">Google Play</div>
                   </div>
                 </a>
-                <a href="#" className="flex items-center gap-3 bg-black px-4 py-2.5 rounded-xl border border-white/10 hover:bg-zinc-900 transition-colors group">
-                  <Apple size={18} className="text-white fill-white" />
+                <a href="#" className="flex items-center gap-3 bg-white/[0.03] px-4 py-2.5 rounded-xl border border-white/5 opacity-40 cursor-default">
+                  <Apple size={18} className="text-white/70" />
                   <div className="text-left">
-                    <div className="text-[8px] text-white/40 uppercase tracking-tighter leading-none mb-1">Consíguelo en</div>
-                    <div className="text-[12px] text-white font-bold leading-none">App Store</div>
+                    <div className="text-[8px] text-white/40 uppercase tracking-tight leading-none mb-1">Próximamente</div>
+                    <div className="text-[12px] text-white/70 font-semibold leading-none">App Store</div>
                   </div>
                 </a>
               </div>
@@ -92,18 +94,15 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </div>
 
           {/* Footer del panel */}
-          <div className="mt-auto pt-10 flex items-center justify-between border-t border-white/5 animate-fade-in delay-500 shrink-0">
-            <div className="flex items-center gap-4">
-              <ShieldCheck size={18} className="text-[#8B1414]" />
-              <span className="text-[10px] font-bold text-white/40 uppercase tracking-[0.15em]">Seguridad Institucional AES-256</span>
-            </div>
-            <span className="text-[10px] font-bold text-white/20 uppercase tracking-[0.15em]">© 2026 SFIT</span>
+          <div className="mt-auto pt-6 flex items-center justify-between border-t border-white/5 animate-fade-in delay-500 shrink-0">
+            <span className="text-[10px] font-medium text-white/25 uppercase tracking-[0.12em]">Seguridad Institucional AES-256</span>
+            <span className="text-[10px] font-medium text-white/20 uppercase tracking-[0.12em]">© 2026 SFIT</span>
           </div>
         </div>
       </aside>
 
       {/* ── Panel Derecho (Formulario) ─────────────────────────────── */}
-      <main className="flex-1 flex flex-col bg-[#fafafa] relative lg:overflow-hidden lg:h-full">
+      <main className="flex-1 flex flex-col bg-[#fafafa] relative lg:h-full">
         {/* Header móvil */}
         <div className="lg:hidden flex items-center justify-between gap-3 px-4 py-3 border-b border-[#E4E4E7] bg-white shrink-0">
           <img
@@ -114,10 +113,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <span className="text-[9px] sm:text-[10px] font-bold text-[#71717A] uppercase tracking-widest px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-[#f4f4f5] border border-[#E4E4E7] whitespace-nowrap">Acceso Seguro</span>
         </div>
 
-        <div className="flex-1 flex flex-col items-center lg:justify-center px-5 sm:px-8 md:p-12 py-5 sm:py-7 lg:overflow-hidden">
-          {/* Form wrapper con max-width reducido en mobile + card-style sutil
-              en mobile para que no quede edge-to-edge ni se vea monótono. */}
-          <div className="w-full max-w-[360px] sm:max-w-[400px] lg:max-w-[420px] animate-fade-in flex flex-col">
+        <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-10 md:px-14 lg:px-20 py-8 sm:py-10 lg:py-12 overflow-y-auto">
+          {/* Form wrapper centrado vertical y horizontalmente */}
+          <div className="w-full max-w-[380px] sm:max-w-[420px] lg:max-w-[480px] animate-fade-in flex flex-col lg:bg-white lg:rounded-2xl lg:border lg:border-[#E4E4E7]/60 lg:shadow-[0_1px_3px_rgba(0,0,0,0.04)] lg:px-10 lg:py-10 xl:px-12 xl:py-12">
             {children}
           </div>
         </div>
