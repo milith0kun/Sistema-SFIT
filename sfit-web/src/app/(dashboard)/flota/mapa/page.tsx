@@ -85,6 +85,7 @@ export default function FlotaMapaPage() {
   const [detail, setDetail] = useState<LocationDetail | null>(null);
   const [routeWaypoints, setRouteWaypoints] = useState<Waypoint[] | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [mapView, setMapView] = useState<"2d" | "3d">("2d");
 
   const [paused, setPaused] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -293,6 +294,19 @@ export default function FlotaMapaPage() {
         <ArrowLeft size={12} />Volver
       </Link>
       <button
+        onClick={() => setMapView(v => v === "2d" ? "3d" : "2d")}
+        title={mapView === "2d" ? "Cambiar a vista 3D (satélite + tilt)" : "Cambiar a vista 2D"}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px",
+          borderRadius: 7, border: "1px solid rgba(255,255,255,0.18)",
+          background: mapView === "3d" ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.06)",
+          color: mapView === "3d" ? INK9 : "rgba(255,255,255,0.85)",
+          fontSize: "0.8125rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+        }}
+      >
+        {mapView === "3d" ? "3D" : "2D"}
+      </button>
+      <button
         onClick={() => void handleManualRefresh()}
         disabled={refreshing}
         title="Refrescar ahora"
@@ -387,6 +401,7 @@ export default function FlotaMapaPage() {
               polylines={polylinesPayload}
               height="calc(100vh - 240px)"
               style={{ minHeight: 500, borderRadius: 0 }}
+              view={mapView}
             />
           )}
         </div>

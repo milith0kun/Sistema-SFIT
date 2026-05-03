@@ -41,6 +41,12 @@ interface Props {
   onMapClick?: (lat: number, lng: number) => void;
   /** Callback cuando el usuario suelta un marcador draggable. */
   onMarkerDragEnd?: (index: number, lat: number, lng: number) => void;
+  /**
+   * Modo de visualización. `"2d"` (default) usa roadmap plano. `"3d"` activa
+   * mapType `hybrid` con tilt 67.5° (aerial 45°+) y muestra edificios 3D
+   * en zonas con cobertura. Toggle nativo de Google Maps, sin libs extra.
+   */
+  view?: "2d" | "3d";
 }
 
 const DEFAULT_CENTER: LatLng = { lat: -13.5178, lng: -71.9785 }; // Cusco
@@ -132,6 +138,7 @@ export function GoogleMapView({
   apiKey,
   onMapClick,
   onMarkerDragEnd,
+  view = "2d",
 }: Props) {
   const divRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
@@ -154,20 +161,38 @@ export function GoogleMapView({
       if (!active || !divRef.current) return;
       const g = (window as unknown as { google: typeof google }).google;
 
+      // Estilos solo aplican a mapTypeId roadmap; en hybrid los POIs van con el satélite.
+      const baseOptions: google.maps.MapOptions = view === "3d"
+        ? {
+            center,
+            zoom,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: false,
+            zoomControl: true,
+            mapTypeId: g.maps.MapTypeId.HYBRID,
+            tilt: 67.5,
+            heading: 0,
+            draggableCursor: onMapClickRef.current ? "crosshair" : undefined,
+          }
+        : {
+            center,
+            zoom,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: false,
+            zoomControl: true,
+            mapTypeId: g.maps.MapTypeId.ROADMAP,
+            tilt: 0,
+            draggableCursor: onMapClickRef.current ? "crosshair" : undefined,
+            styles: [
+              { featureType: "poi", stylers: [{ visibility: "off" }] },
+              { featureType: "transit", stylers: [{ visibility: "off" }] },
+            ],
+          };
+
       if (!mapRef.current) {
-        mapRef.current = new g.maps.Map(divRef.current, {
-          center,
-          zoom,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: false,
-          zoomControl: true,
-          draggableCursor: onMapClickRef.current ? "crosshair" : undefined,
-          styles: [
-            { featureType: "poi", stylers: [{ visibility: "off" }] },
-            { featureType: "transit", stylers: [{ visibility: "off" }] },
-          ],
-        });
+        mapRef.current = new g.maps.Map(divRef.current, baseOptions);
 
         // Click listener — uses ref so always calls latest handler
         clickListenerRef.current = mapRef.current.addListener(
@@ -181,7 +206,10 @@ export function GoogleMapView({
       } else {
         mapRef.current.setCenter(center);
         mapRef.current.setZoom(zoom);
-        mapRef.current.setOptions({ draggableCursor: onMapClickRef.current ? "crosshair" : undefined });
+        mapRef.current.setOptions(baseOptions);
+        // setMapTypeId / setTilt explícitos para forzar el cambio en re-render.
+        mapRef.current.setMapTypeId(view === "3d" ? g.maps.MapTypeId.HYBRID : g.maps.MapTypeId.ROADMAP);
+        mapRef.current.setTilt(view === "3d" ? 67.5 : 0);
       }
 
       // Clear existing markers
@@ -242,7 +270,7 @@ export function GoogleMapView({
 
     return () => { active = false; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [center.lat, center.lng, zoom, JSON.stringify(markers), JSON.stringify(polyline), JSON.stringify(polylines), key]);
+  }, [center.lat, center.lng, zoom, JSON.stringify(markers), JSON.stringify(polyline), JSON.stringify(polylines), key, view]);
 
   if (noKey) {
     return (

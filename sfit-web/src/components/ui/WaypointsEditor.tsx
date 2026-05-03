@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Trash2, MapPin, RotateCcw, Undo2, ArrowUp, ArrowDown, Move, Route as RouteIcon,
-  Loader2, AlertTriangle, CheckCircle,
+  Loader2, AlertTriangle, CheckCircle, Layers, Box,
 } from "lucide-react";
 import { GoogleMapView, type MapPolyline } from "./GoogleMapView";
 
@@ -16,6 +16,12 @@ interface WaypointsEditorProps {
   readOnly?: boolean;
   /** Si true, los marcadores se pueden arrastrar para reposicionar (requiere onChange). */
   draggable?: boolean;
+  /**
+   * Capturas GPS históricas a superponer al mapa (polilíneas grises
+   * detrás de los waypoints actuales). Útil en la página de captures
+   * para comparar el trazado oficial contra los recorridos reales.
+   */
+  historicalCaptures?: Array<{ id?: string; points: { lat: number; lng: number }[]; color?: string; opacity?: number }>;
 }
 
 const DEFAULT_CENTER = { lat: -13.5178, lng: -71.9785 }; // Cusco
@@ -54,6 +60,7 @@ export function WaypointsEditor({
   height = 360,
   readOnly = false,
   draggable = true,
+  historicalCaptures = [],
 }: WaypointsEditorProps) {
   const canDrag = !readOnly && draggable && !!onChange;
 
@@ -61,6 +68,9 @@ export function WaypointsEditor({
   const [snapEnabled, setSnapEnabled] = useState(false);
   const [snap, setSnap] = useState<SnapState>({ state: "idle" });
   const snapAbortRef = useRef<{ cancelled: boolean } | null>(null);
+
+  // Toggle 2D/3D del mapa.
+  const [view, setView] = useState<"2d" | "3d">("2d");
 
   // Cuando snap está activo y hay >=2 puntos, llama a DirectionsService.
   useEffect(() => {
@@ -218,17 +228,29 @@ export function WaypointsEditor({
   // Polilínea: si hay snap, usa el path de la malla vial (gruesa, INK9). Si no, recta INK9.
   const polylineDirect = waypoints.map((w) => ({ lat: w.lat, lng: w.lng }));
   const polylines: MapPolyline[] = useMemo(() => {
+    const lines: MapPolyline[] = [];
+    // Capturas históricas — abajo del stack, sutil para contexto.
+    for (const c of historicalCaptures) {
+      if (c.points.length > 1) {
+        lines.push({
+          path: c.points,
+          color: c.color ?? INK3,
+          weight: 2,
+          opacity: c.opacity ?? 0.45,
+        });
+      }
+    }
     if (snap.state === "ok") {
-      return [
+      lines.push(
         // Recta sutil (referencia visual de los puntos)
         { path: polylineDirect, color: INK3, weight: 2, opacity: 0.5 },
         // Trazado real siguiendo calles (principal)
         { path: snap.path, color: INK9, weight: 5, opacity: 0.95 },
-      ];
+      );
     }
-    return [];
+    return lines;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [snap, JSON.stringify(polylineDirect)]);
+  }, [snap, JSON.stringify(polylineDirect), JSON.stringify(historicalCaptures)]);
 
   const center =
     waypoints.length > 0
@@ -293,6 +315,23 @@ export function WaypointsEditor({
           )}
 
           <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+            <button
+              type="button"
+              onClick={() => setView(v => v === "2d" ? "3d" : "2d")}
+              title={view === "2d" ? "Cambiar a vista 3D (satélite + tilt)" : "Cambiar a vista 2D (mapa plano)"}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                height: 26, padding: "0 9px", borderRadius: 6,
+                border: `1px solid ${view === "3d" ? INK9 : INK2}`,
+                background: view === "3d" ? INK9 : "#fff",
+                color: view === "3d" ? "#fff" : INK6,
+                fontSize: "0.6875rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                transition: "all 120ms",
+              }}
+            >
+              {view === "3d" ? <Box size={11} /> : <Layers size={11} />}
+              {view === "3d" ? "3D" : "2D"}
+            </button>
             {waypoints.length > 0 && (
               <button
                 type="button"
@@ -325,6 +364,31 @@ export function WaypointsEditor({
         </div>
       )}
 
+      {/* Mini-toolbar para modo readOnly: solo el toggle 2D/3D. */}
+      {readOnly && (
+        <div style={{
+          display: "flex", justifyContent: "flex-end",
+          padding: "6px 0", marginBottom: 6,
+        }}>
+          <button
+            type="button"
+            onClick={() => setView(v => v === "2d" ? "3d" : "2d")}
+            title={view === "2d" ? "Cambiar a 3D" : "Cambiar a 2D"}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              height: 26, padding: "0 10px", borderRadius: 6,
+              border: `1px solid ${view === "3d" ? INK9 : INK2}`,
+              background: view === "3d" ? INK9 : "#fff",
+              color: view === "3d" ? "#fff" : INK6,
+              fontSize: "0.6875rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
+            {view === "3d" ? <Box size={11} /> : <Layers size={11} />}
+            {view === "3d" ? "3D" : "2D"}
+          </button>
+        </div>
+      )}
+
       {/* Mapa */}
       <GoogleMapView
         center={center}
@@ -334,6 +398,7 @@ export function WaypointsEditor({
         polylineColor={INK9}
         polylines={polylines}
         height={height}
+        view={view}
         onMapClick={handleMapClick}
         onMarkerDragEnd={handleMarkerDragEnd}
         style={{ borderRadius: 10 }}
