@@ -759,8 +759,11 @@ export default function EmpresaDetallePage({ params }: Props) {
                 return true;
               });
               // Tipos que la empresa tiene pero ya no están en el catálogo activo:
-              // los mostramos igual, marcados como obsoletos, para no perder la trazabilidad.
-              const orphanKeys = company.vehicleTypeKeys.filter(k => !seenKeys.has(k));
+              // los mostramos igual marcados como obsoletos. Deduplicamos también
+              // por si vehicleTypeKeys tiene la misma key repetida.
+              const orphanKeys = Array.from(new Set(
+                company.vehicleTypeKeys.filter(k => !seenKeys.has(k))
+              ));
 
               if (!canManage) {
                 // Vista de solo lectura para roles sin permisos de gestión
@@ -775,7 +778,7 @@ export default function EmpresaDetallePage({ params }: Props) {
                 }
                 return (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {company.vehicleTypeKeys.map(k => (
+                    {Array.from(new Set(company.vehicleTypeKeys)).map(k => (
                       <span key={k} style={{
                         display: "inline-flex", alignItems: "center", gap: 5,
                         padding: "4px 10px", borderRadius: 6,
@@ -803,12 +806,12 @@ export default function EmpresaDetallePage({ params }: Props) {
               return (
                 <>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {types.map(t => {
+                    {uniqueTypes.map(t => {
                       const isOn = selected.has(t.key);
                       const loading = togglingType === t.key;
                       return (
                         <button
-                          key={t.key}
+                          key={`type-${t.key}`}
                           type="button"
                           onClick={() => { void toggleVehicleType(t.key); }}
                           disabled={loading}
@@ -836,7 +839,7 @@ export default function EmpresaDetallePage({ params }: Props) {
                       const loading = togglingType === k;
                       return (
                         <button
-                          key={k}
+                          key={`orphan-${k}`}
                           type="button"
                           onClick={() => { void toggleVehicleType(k); }}
                           disabled={loading}
