@@ -46,6 +46,19 @@ export interface IRoute extends Document {
   destinationDistrictCode?: string;   // UBIGEO 6
   traversedDistrictCodes: string[];   // UBIGEO 6 — distritos que cruza
 
+  /**
+   * Sentido del trazado. "circular" para rutas que regresan al punto de
+   * partida. "ida"/"vuelta" se usan en pares ligados via `siblingRouteId`.
+   */
+  direction?: "ida" | "vuelta" | "circular";
+
+  /**
+   * Cuando una ruta tiene ida y vuelta como dos polilíneas distintas,
+   * `siblingRouteId` apunta a la otra mitad. Permite al conductor en la
+   * app elegir "ida" o "vuelta" del mismo recorrido lógico.
+   */
+  siblingRouteId?: mongoose.Types.ObjectId;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -86,6 +99,9 @@ const RouteSchema = new Schema<IRoute>(
     originDistrictCode:      { type: String, trim: true },
     destinationDistrictCode: { type: String, trim: true },
     traversedDistrictCodes:  { type: [String], default: [], index: true },
+
+    direction: { type: String, enum: ["ida", "vuelta", "circular"] },
+    siblingRouteId: { type: Schema.Types.ObjectId, ref: "Route" },
   },
   { timestamps: true },
 );
