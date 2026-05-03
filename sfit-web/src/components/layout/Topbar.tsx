@@ -7,9 +7,19 @@ import {
   Wifi, Search, ArrowLeft,
 } from "lucide-react";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
-import { buildCrumbs, ROLE_BADGE, ROLE_LABELS } from "./nav";
+import { buildCrumbs, NAV, ROLE_BADGE, ROLE_LABELS } from "./nav";
 import type { StoredUser } from "./user-storage";
 import { useBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
+
+// Set de hrefs que son "raíces" del menú lateral. Cualquier ruta exacta
+// que NO esté aquí y NO sea /dashboard se considera sub-página y muestra
+// el botón "atrás" en el topbar mobile. Esto cubre detail (/[id]),
+// creación (/nuevo, /nueva), edición (/[id]/editar) y vistas internas
+// (/flota/mapa, /vehiculos/[id]/qr, etc.) sin tener que listar cada caso.
+const NAV_ROOTS = new Set<string>([
+  "/dashboard",
+  ...NAV.map(n => n.href),
+]);
 
 function useNow() {
   const [now, setNow] = useState(() => new Date());
@@ -55,26 +65,11 @@ export function Topbar({
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
   const municipalityName = useMunicipalityName();
 
-  // Detectar si la ruta actual es un "detalle" (subpágina con segmentos
-  // adicionales o una ruta de creación/edición). En esos casos mostramos
-  // un botón de back en mobile, sticky en el topbar, para que el usuario
-  // pueda volver al listado sin tener que scrollear hasta el header del
-  // form (donde está el botón "Volver" del PageHeader).
+  // Si pathname NO está en NAV_ROOTS, es una sub-página (detail/nuevo/
+  // editar/vistas internas) y mostramos el botón "atrás" en mobile.
   const isDetailPage = useMemo(() => {
     if (!pathname) return false;
-    const segs = pathname.split("/").filter(Boolean);
-    if (segs.length < 2) return false;
-    // Excluir rutas raíz que naturalmente tienen 2 segmentos (ej. /admin/users)
-    const ROOT_TWO_SEG = new Set([
-      "/admin/users",
-      "/admin/red-nacional",
-      "/admin/empresas",
-      "/tipos-vehiculo",
-      "/red-nacional",
-    ]);
-    if (ROOT_TWO_SEG.has(pathname)) return false;
-    // Considera detalle: cualquier ruta con 2+ segmentos que no sea raíz
-    return true;
+    return !NAV_ROOTS.has(pathname);
   }, [pathname]);
 
   // Calcula la posición del dropdown relativa al viewport
@@ -201,7 +196,7 @@ export function Topbar({
             PageHeader. Click llama a router.back() (o al fallback). */}
         {isDetailPage && (
           <button
-            className="sfit-topbar-back show-mobile-only"
+            className="sfit-topbar-back"
             onClick={() => {
               if (typeof window !== "undefined" && window.history.length > 1) {
                 router.back();

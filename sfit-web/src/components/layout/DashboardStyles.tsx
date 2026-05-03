@@ -286,6 +286,12 @@ export function DashboardStyles() {
         outline: 2px solid #6C0606;
         outline-offset: 2px;
       }
+      /* En desktop completo (≥1024px) ocultar el botón "atrás" del
+         topbar — ahí el sidebar está siempre visible y el "Volver" del
+         PageHeader es accesible. En mobile/tablet (<1024px) sí se muestra. */
+      @media (min-width: 1024px) {
+        .sfit-topbar-back { display: none !important; }
+      }
       .sfit-search-btn:hover {
         border-color: #D4D4D8 !important;
         color: #09090B !important;
