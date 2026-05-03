@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   CalendarDays, ChevronDown, LogOut, Menu, Settings,
-  Wifi, Search,
+  Wifi, Search, ArrowLeft,
 } from "lucide-react";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { buildCrumbs, ROLE_BADGE, ROLE_LABELS } from "./nav";
@@ -46,12 +47,35 @@ export function Topbar({
   onOpenSidebar: () => void;
   onLogout: () => void;
 }) {
+  const router = useRouter();
   const now = useNow();
   const [open, setOpen] = useState(false);
   const pillRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
   const municipalityName = useMunicipalityName();
+
+  // Detectar si la ruta actual es un "detalle" (subpágina con segmentos
+  // adicionales o una ruta de creación/edición). En esos casos mostramos
+  // un botón de back en mobile, sticky en el topbar, para que el usuario
+  // pueda volver al listado sin tener que scrollear hasta el header del
+  // form (donde está el botón "Volver" del PageHeader).
+  const isDetailPage = useMemo(() => {
+    if (!pathname) return false;
+    const segs = pathname.split("/").filter(Boolean);
+    if (segs.length < 2) return false;
+    // Excluir rutas raíz que naturalmente tienen 2 segmentos (ej. /admin/users)
+    const ROOT_TWO_SEG = new Set([
+      "/admin/users",
+      "/admin/red-nacional",
+      "/admin/empresas",
+      "/tipos-vehiculo",
+      "/red-nacional",
+    ]);
+    if (ROOT_TWO_SEG.has(pathname)) return false;
+    // Considera detalle: cualquier ruta con 2+ segmentos que no sea raíz
+    return true;
+  }, [pathname]);
 
   // Calcula la posición del dropdown relativa al viewport
   // Esto permite usar position: fixed y evitar que el overflow:hidden
@@ -170,6 +194,42 @@ export function Topbar({
     >
       {/* ── Left ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+        {/* Botón "atrás" — sólo en mobile y sólo en páginas de detalle.
+            Como el topbar es sticky, este botón siempre está visible aunque
+            el usuario esté scrolleado adentro de un form largo, evitando
+            tener que volver al inicio para encontrar el "Volver" del
+            PageHeader. Click llama a router.back() (o al fallback). */}
+        {isDetailPage && (
+          <button
+            className="sfit-topbar-back show-mobile-only"
+            onClick={() => {
+              if (typeof window !== "undefined" && window.history.length > 1) {
+                router.back();
+              } else {
+                router.push("/dashboard");
+              }
+            }}
+            aria-label="Volver atrás"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              border: "none",
+              background: "#FFFFFF",
+              color: "#0A1628",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              flexShrink: 0,
+              boxShadow: "inset 0 0 0 1.5px #E4E4E7",
+              transition: "background 140ms, transform 100ms",
+            }}
+          >
+            <ArrowLeft size={20} strokeWidth={2.2} />
+          </button>
+        )}
+
         <button
           className="sfit-hamburger"
           onClick={onOpenSidebar}

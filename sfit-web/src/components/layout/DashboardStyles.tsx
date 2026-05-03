@@ -275,6 +275,17 @@ export function DashboardStyles() {
         outline: 2px solid #6C0606;
         outline-offset: 2px;
       }
+      .sfit-topbar-back:hover {
+        background: #F4F4F5 !important;
+        transform: scale(1.04);
+      }
+      .sfit-topbar-back:active {
+        transform: scale(0.96);
+      }
+      .sfit-topbar-back:focus-visible {
+        outline: 2px solid #6C0606;
+        outline-offset: 2px;
+      }
       .sfit-search-btn:hover {
         border-color: #D4D4D8 !important;
         color: #09090B !important;
