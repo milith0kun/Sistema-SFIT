@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -67,37 +68,28 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
     }
   }
 
-  Future<Position?> _requestPosition() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      if (mounted) {
-        setState(() { _actionError = 'El GPS está desactivado. Actívalo en ajustes.'; });
+  /// Intenta obtener una posición rápida (3s) sin bloquear el flujo.
+  /// Si el GPS no responde a tiempo o no hay permiso, devuelve null.
+  /// El servidor recibirá la primera ubicación real en el siguiente tick
+  /// del timer de actualización (cada 60s).
+  Future<Position?> _tryGetPosition({Duration timeout = const Duration(seconds: 3)}) async {
+    try {
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) return null;
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
       }
-      return null;
-    }
-
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        if (mounted) setState(() { _actionError = 'Permiso de ubicación denegado.'; });
+      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
         return null;
       }
-    }
-    if (permission == LocationPermission.deniedForever) {
-      if (mounted) setState(() { _actionError = 'Permiso de ubicación permanentemente denegado. Actívalo en ajustes del sistema.'; });
-      return null;
-    }
-
-    try {
       return await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
+        locationSettings: LocationSettings(
           accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 20),
+          timeLimit: timeout,
         ),
       );
-    } catch (e) {
-      if (mounted) setState(() { _actionError = 'No se pudo obtener la ubicación: ${e.toString()}'; });
+    } catch (_) {
       return null;
     }
   }
@@ -105,19 +97,21 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
   Future<void> _startTrip(String entryId) async {
     setState(() { _actionLoadingId = entryId; _actionError = null; });
     try {
-      final position = await _requestPosition();
-      if (position == null) {
-        setState(() { _actionLoadingId = null; });
-        return;
-      }
+      final position = await _tryGetPosition();
       final dio = ref.read(dioClientProvider).dio;
+      // Si no hay GPS aún, mandamos lat/lng = 0 como placeholder; el
+      // backend acepta `action: "start"` y el primer punto real llega
+      // cuando el GPS responda en el próximo tick del timer.
       await dio.patch('/flota/$entryId/location', data: {
-        'lat': position.latitude,
-        'lng': position.longitude,
+        'lat': position?.latitude ?? 0,
+        'lng': position?.longitude ?? 0,
         'action': 'start',
       });
       _startLocationTimer(entryId);
       await _load();
+      if (position == null && mounted) {
+        setState(() { _actionError = 'Iniciado sin GPS — registrando posición en background.'; });
+      }
     } catch (e) {
       if (mounted) setState(() { _actionError = 'Error al iniciar recorrido: ${e.toString()}'; });
     } finally {
@@ -128,19 +122,18 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
   Future<void> _endTrip(String entryId) async {
     setState(() { _actionLoadingId = entryId; _actionError = null; });
     try {
-      final position = await _requestPosition();
-      if (position == null) {
-        setState(() { _actionLoadingId = null; });
-        return;
-      }
+      final position = await _tryGetPosition();
       final dio = ref.read(dioClientProvider).dio;
       await dio.patch('/flota/$entryId/location', data: {
-        'lat': position.latitude,
-        'lng': position.longitude,
+        'lat': position?.latitude ?? 0,
+        'lng': position?.longitude ?? 0,
         'action': 'end',
       });
       _stopLocationTimer();
-      await _load();
+      // Navegar directo al resumen full-screen del viaje (en lugar de solo recargar).
+      if (mounted) {
+        context.push('/conductor/trip-summary/$entryId');
+      }
     } catch (e) {
       if (mounted) setState(() { _actionError = 'Error al finalizar recorrido: ${e.toString()}'; });
     } finally {
@@ -150,7 +143,7 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
 
   Future<void> _updateLocation(String entryId) async {
     try {
-      final position = await _requestPosition();
+      final position = await _tryGetPosition();
       if (position == null) return;
       final dio = ref.read(dioClientProvider).dio;
       await dio.patch('/flota/$entryId/location', data: {
@@ -159,6 +152,92 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
         'action': 'update',
       });
     } catch (_) {}
+  }
+
+  /// Renderiza el cuerpo principal:
+  ///   - Si hay una sola FleetEntry "disponible" → "modo directo" con un
+  ///     botón gigante "Iniciar mi turno" centrado. Reduce fricción.
+  ///   - Si hay varias o estados mixtos → la lista clásica con cards.
+  Widget _buildBody() {
+    final disponibles = _entries.where((e) => e['status'] == 'disponible').toList();
+    final showBigButton = _entries.length == 1 && disponibles.length == 1;
+
+    if (showBigButton) {
+      final entry = disponibles.first;
+      final entryId = entry['id'] as String? ?? '';
+      final isLoading = _actionLoadingId == entryId;
+      final vehicle = entry['vehicle'] as Map<String, dynamic>?;
+      final route = entry['route'] as Map<String, dynamic>?;
+      final plate = vehicle?['plate'] as String? ?? '—';
+      final routeLabel = route?['name'] as String? ?? 'Sin ruta asignada';
+
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.goldBg,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.goldBorder, width: 2),
+                ),
+                child: const Icon(Icons.directions_bus_rounded, size: 48, color: AppColors.goldDark),
+              ),
+              const SizedBox(height: 18),
+              Text(plate,
+                style: AppTheme.inter(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.ink9, tabular: true)),
+              const SizedBox(height: 4),
+              Text(routeLabel, textAlign: TextAlign.center,
+                style: AppTheme.inter(fontSize: 13, color: AppColors.ink6)),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                height: 64,
+                child: FilledButton(
+                  onPressed: isLoading ? null : () => _startTrip(entryId),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.gold,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: isLoading
+                      ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
+                      : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          const Icon(Icons.play_arrow_rounded, size: 28, color: Colors.white),
+                          const SizedBox(width: 8),
+                          Text('Iniciar mi turno',
+                            style: AppTheme.inter(fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white)),
+                        ]),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text('Te pediremos GPS al iniciar. Si no responde a tiempo,\nigual arrancamos y registramos la posición en background.',
+                textAlign: TextAlign.center,
+                style: AppTheme.inter(fontSize: 11.5, color: AppColors.ink5, height: 1.4)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: AppColors.ink9,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+        itemCount: _entries.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (_, i) => _RouteCard(
+          entry: _entries[i],
+          isActionLoading: _actionLoadingId == (_entries[i]['id'] as String?),
+          onStartTrip: _startTrip,
+          onEndTrip: _endTrip,
+          onUpdateLocation: _updateLocation,
+        ),
+      ),
+    );
   }
 
   // ── Métricas derivadas ──────────────────────────────────────────
@@ -286,22 +365,7 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
                     ? _ErrorState(onRetry: _load)
                     : _entries.isEmpty
                         ? const _EmptyState()
-                        : RefreshIndicator(
-                            onRefresh: _load,
-                            color: AppColors.ink9,
-                            child: ListView.separated(
-                              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                              itemCount: _entries.length,
-                              separatorBuilder: (_, __) => const SizedBox(height: 10),
-                              itemBuilder: (_, i) => _RouteCard(
-                                entry: _entries[i],
-                                isActionLoading: _actionLoadingId == (_entries[i]['id'] as String?),
-                                onStartTrip: _startTrip,
-                                onEndTrip: _endTrip,
-                                onUpdateLocation: _updateLocation,
-                              ),
-                            ),
-                          ),
+                        : _buildBody(),
           ),
         ],
       ),

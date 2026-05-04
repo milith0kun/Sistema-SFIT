@@ -23,7 +23,7 @@ const UpdateSchema = z.object({
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL, ROLES.OPERADOR,
+    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL, ROLES.OPERADOR, ROLES.CONDUCTOR,
   ]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
@@ -33,11 +33,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   await connectDB();
   const entry = await FleetEntry.findById(id)
     .populate("vehicleId", "plate brand model vehicleTypeKey")
-    .populate("routeId", "code name")
+    .populate("routeId", "code name waypoints")
     .populate("driverId", "name status continuousHours restHours phone")
     .lean();
   if (!entry) return apiNotFound("Entrada de flota no encontrada");
-  if (!(await canAccessMunicipality(auth.session, String(entry.municipalityId)))) return apiForbidden();
+
+  // El conductor solo puede consultar SUS propias entries; el resto se valida por muni.
+  if (auth.session.role === ROLES.CONDUCTOR) {
+    const driver = await Driver.findOne({ userId: auth.session.userId }).select("_id").lean();
+    if (!driver || String(entry.driverId._id ?? entry.driverId) !== String(driver._id)) {
+      return apiForbidden();
+    }
+  } else {
+    if (!(await canAccessMunicipality(auth.session, String(entry.municipalityId)))) return apiForbidden();
+  }
 
   return apiResponse({ id: String(entry._id), ...entry });
 }

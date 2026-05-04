@@ -25,6 +25,7 @@ import '../../features/qr_scanner/presentation/pages/qr_scanner_page.dart';
 import '../../features/splash/presentation/pages/splash_page.dart';
 import '../../features/trips/presentation/pages/trip_checkin_page.dart';
 import '../../features/trips/presentation/pages/trip_checkout_page.dart';
+import '../../features/conductor/presentation/pages/trip_summary_page.dart';
 import '../../features/operator/presentation/pages/vehicle_qr_page.dart';
 import '../../features/operator/presentation/pages/nuevo_conductor_page.dart';
 import '../../features/operator/presentation/pages/nuevo_vehiculo_page.dart';
@@ -183,6 +184,13 @@ GoRouter router(Ref ref) {
             departureTime: extra['departureTime'] as String? ?? '',
             estimatedKm: extra['estimatedKm'] as double?,
           );
+        },
+      ),
+      GoRoute(
+        path: '/conductor/trip-summary/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return TripSummaryPage(entryId: id);
         },
       ),
 

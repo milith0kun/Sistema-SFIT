@@ -81,6 +81,41 @@ export async function PATCH(
     if (!entry.returnTime) {
       entry.returnTime = now.toISOString();
     }
+
+    // Métricas finales del viaje:
+    //   distanceMeters = suma haversine entre trackPoints (incluyendo el que
+    //                    se está cerrando con esta misma request)
+    //   durationSeconds = returnTime − departureTime
+    //   routeCompliancePercentage = visitedStops.length / route.waypoints.length
+    const points = [
+      ...(entry.trackPoints ?? []).map((p) => ({ lat: p.lat, lng: p.lng })),
+      { lat, lng },
+    ];
+    let total = 0;
+    for (let i = 1; i < points.length; i++) {
+      total += haversineMeters(points[i - 1], points[i]);
+    }
+    entry.distanceMeters = Math.round(total);
+
+    if (entry.departureTime && entry.returnTime) {
+      const dep = new Date(entry.departureTime);
+      const ret = new Date(entry.returnTime);
+      const seconds = Math.max(0, Math.round((ret.getTime() - dep.getTime()) / 1000));
+      entry.durationSeconds = seconds;
+    }
+
+    if (entry.routeId && entry.routeCompliancePercentage == null) {
+      try {
+        const route = await RouteModel.findById(entry.routeId).select("waypoints").lean();
+        const total = route?.waypoints?.length ?? 0;
+        const visitedCount = entry.visitedStops?.length ?? 0;
+        if (total > 0) {
+          entry.routeCompliancePercentage = Math.round((visitedCount / total) * 100);
+        }
+      } catch {
+        /* mejor effort */
+      }
+    }
   }
 
   // Detección automática de paso por paradero (solo si hay ruta asignada)
@@ -154,6 +189,9 @@ export async function PATCH(
     returnTime: entry.returnTime,
     visitedStops: entry.visitedStops ?? [],
     newlyVisited,
+    distanceMeters: entry.distanceMeters ?? null,
+    durationSeconds: entry.durationSeconds ?? null,
+    routeCompliancePercentage: entry.routeCompliancePercentage ?? null,
   });
 }
 

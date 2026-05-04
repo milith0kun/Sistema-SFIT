@@ -4,24 +4,44 @@ import { connectDB } from "@/lib/db/mongoose";
 import { FleetEntry } from "@/models/FleetEntry";
 import { Route } from "@/models/Route";
 import "@/models/Vehicle";
-import { apiResponse, apiError } from "@/lib/api/response";
+import { apiResponse } from "@/lib/api/response";
 import { haversineMeters } from "@/lib/geo/haversine";
 import type { ICurrentLocation, IVisitedStop } from "@/models/FleetEntry";
 
 /**
- * GET /api/public/flota/activas?municipalityId=<id>
+ * GET /api/public/flota/activas?municipalityId=<id>&lat=<n>&lng=<n>&limit=<n>
  *
  * Endpoint público (sin auth) para ciudadanos: lista los buses con turno
- * activo (en_ruta) con su posición GPS, ruta y ETA al próximo paradero.
+ * activo (en_ruta) con su posición GPS, ruta y ETA por cada paradero.
  * No expone datos del conductor (anonimizado).
+ *
+ * Si vienen `lat`/`lng` del ciudadano:
+ *   - Cada item incluye `distanceFromUserMeters` (haversine al bus).
+ *   - Resultado ordenado ascendente por esa distancia (los más cercanos primero).
+ * Si no vienen, mantiene orden de inserción de Mongo y omite el campo.
+ *
+ * `etaByStop[]`: para cada paradero NO visitado, calcula ETA acumulado
+ * encadenado (bus → wp1 → wp2 → ... → wpN). El último elemento es el
+ * paradero terminal de la ruta.
  */
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const municipalityId = url.searchParams.get("municipalityId");
+  const userLatStr = url.searchParams.get("lat");
+  const userLngStr = url.searchParams.get("lng");
+  const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") ?? 50)));
 
   if (!municipalityId || !isValidObjectId(municipalityId)) {
     return apiResponse({ items: [], total: 0 });
   }
+
+  const userLat = userLatStr != null && userLatStr !== "" ? Number(userLatStr) : null;
+  const userLng = userLngStr != null && userLngStr !== "" ? Number(userLngStr) : null;
+  const hasUserCoords =
+    userLat != null && userLng != null &&
+    !Number.isNaN(userLat) && !Number.isNaN(userLng) &&
+    userLat >= -90 && userLat <= 90 &&
+    userLng >= -180 && userLng <= 180;
 
   await connectDB();
 
@@ -57,29 +77,61 @@ export async function GET(request: NextRequest) {
         waypoints?: Array<{ lat: number; lng: number; label?: string; order: number }>;
       } | null;
 
-      // ── Calcular próximo paradero y ETA ──
+      // ── Calcular ETA encadenada por cada paradero pendiente ──
       const waypoints = (route?.waypoints ?? []).sort((a, b) => a.order - b.order);
       const visited = (e.visitedStops ?? []) as IVisitedStop[];
+      const visitedSet = new Set(visited.map((s) => s.stopIndex));
       const maxVisitedOrder = visited.length > 0
         ? Math.max(...visited.map((s) => s.stopIndex))
         : -1;
-      const nextWp = waypoints.find((w) => w.order > maxVisitedOrder);
 
-      let nextStop: { label: string; lat: number; lng: number; etaSeconds: number } | null = null;
-      if (nextWp) {
-        const dist = haversineMeters(
-          { lat: loc.lat, lng: loc.lng },
-          { lat: nextWp.lat, lng: nextWp.lng },
-        );
-        // Velocidad: usar speed real si > 0.5 m/s, sino 4.17 m/s (15 km/h urbano)
-        const speed = (loc.speed ?? 0) > 0.5 ? loc.speed! : 4.17;
-        nextStop = {
-          label: nextWp.label ?? `Paradero ${nextWp.order + 1}`,
-          lat: nextWp.lat,
-          lng: nextWp.lng,
-          etaSeconds: Math.round(dist / speed),
-        };
+      // Velocidad: speed real si >0.5 m/s, sino 4.17 m/s (15 km/h urbano).
+      const speed = (loc.speed ?? 0) > 0.5 ? loc.speed! : 4.17;
+
+      // ETA acumulado: bus → wp1 → wp2 → ... siguiendo el orden de la ruta.
+      const pending = waypoints.filter((w) => w.order > maxVisitedOrder);
+      const etaByStop: Array<{
+        stopIndex: number;
+        label: string;
+        lat: number;
+        lng: number;
+        distanceFromBusMeters: number;
+        etaSeconds: number;
+        visited: boolean;
+      }> = [];
+
+      let cumulativeMeters = 0;
+      let prev: { lat: number; lng: number } = { lat: loc.lat, lng: loc.lng };
+      for (const wp of pending) {
+        const segment = haversineMeters(prev, { lat: wp.lat, lng: wp.lng });
+        cumulativeMeters += segment;
+        etaByStop.push({
+          stopIndex: wp.order,
+          label: wp.label ?? `Paradero ${wp.order + 1}`,
+          lat: wp.lat,
+          lng: wp.lng,
+          distanceFromBusMeters: Math.round(cumulativeMeters),
+          etaSeconds: Math.round(cumulativeMeters / speed),
+          visited: visitedSet.has(wp.order),
+        });
+        prev = { lat: wp.lat, lng: wp.lng };
       }
+
+      // `nextStop` se conserva como compat para clientes viejos que usan el ETA
+      // del próximo paradero. Coincide con `etaByStop[0]` cuando hay pendientes.
+      const nextStop = etaByStop[0]
+        ? {
+            label: etaByStop[0].label,
+            lat: etaByStop[0].lat,
+            lng: etaByStop[0].lng,
+            etaSeconds: etaByStop[0].etaSeconds,
+          }
+        : null;
+
+      // Distancia ciudadano → bus para sort y badge "a Xm".
+      const distanceFromUserMeters = hasUserCoords
+        ? Math.round(haversineMeters({ lat: userLat, lng: userLng }, { lat: loc.lat, lng: loc.lng }))
+        : null;
 
       return {
         id: String(e._id),
@@ -106,8 +158,20 @@ export async function GET(request: NextRequest) {
           speed: loc.speed ?? null,
         },
         nextStop,
+        etaByStop,
+        distanceFromUserMeters,
       };
     });
 
-  return apiResponse({ items, total: items.length });
+  // Orden por proximidad al ciudadano si tiene coords.
+  if (hasUserCoords) {
+    items.sort((a, b) => {
+      const da = a.distanceFromUserMeters ?? Number.POSITIVE_INFINITY;
+      const db = b.distanceFromUserMeters ?? Number.POSITIVE_INFINITY;
+      return da - db;
+    });
+  }
+
+  const limited = items.slice(0, limit);
+  return apiResponse({ items: limited, total: items.length });
 }

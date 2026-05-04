@@ -46,6 +46,10 @@ export interface IFleetEntry extends Document {
   visitedStops?: IVisitedStop[];
   /** % de paraderos cubiertos al cierre (0-100). Solo se calcula al pasar a 'cerrado'. */
   routeCompliancePercentage?: number;
+  /** Distancia real recorrida (m), sumando haversine entre trackPoints. Se calcula al cerrar. */
+  distanceMeters?: number;
+  /** Duración total del turno (s). returnTime − departureTime, solo al cerrar. */
+  durationSeconds?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -100,6 +104,8 @@ const FleetEntrySchema = new Schema<IFleetEntry>(
       _id: false,
     }],
     routeCompliancePercentage: { type: Number, min: 0, max: 100 },
+    distanceMeters: { type: Number, min: 0 },
+    durationSeconds: { type: Number, min: 0 },
   },
   { timestamps: true },
 );

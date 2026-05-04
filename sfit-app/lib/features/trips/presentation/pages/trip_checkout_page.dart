@@ -78,13 +78,10 @@ class _TripCheckoutPageState extends ConsumerState<TripCheckoutPage> {
       // Detener tracking GPS
       ref.read(locationTrackingProvider.notifier).stopTracking();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Turno cerrado correctamente'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        context.go('/home');
+        // Reemplazamos la pantalla actual por el resumen full-screen del viaje
+        // (en lugar de volver a /home con snackbar). El conductor ve métricas
+        // recién calculadas: distancia, duración, paraderos, compliance.
+        context.pushReplacement('/conductor/trip-summary/${widget.entryId}');
       }
     } catch (e) {
       if (mounted) {
