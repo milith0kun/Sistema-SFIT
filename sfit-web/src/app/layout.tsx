@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
@@ -39,13 +38,10 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col font-sans antialiased">
         {/*
          * El sistema está diseñado para tema claro (paleta INK1-INK9 con fondos
-         * blancos). enableSystem hacía que el usuario con modo oscuro en su SO
-         * heredara color:#fafafa en body, dejando los valores invisibles. Hasta
-         * que exista un dark mode real, forzamos light.
+         * blancos). Hasta que exista un dark mode real, forzamos light eliminando
+         * el ThemeProvider que causaba problemas de hidratación en React.
          */}
-        <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light" enableSystem={false}>
-          {children}
-        </ThemeProvider>
+        {children}
       </body>
     </html>
   );

@@ -17,6 +17,14 @@ import {
   Server,
   Activity,
   Award,
+  Phone,
+  CarFront,
+  Landmark,
+  Map,
+  Shield,
+  ScanFace,
+  Briefcase,
+  Mail,
 } from "lucide-react";
 
 const FEATURES = [
@@ -98,12 +106,6 @@ export default function HomePage() {
         </a>
         <nav className="flex items-center gap-4 sm:gap-6 md:gap-8 shrink-0">
           <a
-            href="/consulta-publica"
-            className="hidden md:block text-[13px] font-semibold text-white/50 hover:text-white transition-colors tracking-wide"
-          >
-            Consulta Pública
-          </a>
-          <a
             href="/login"
             className="inline-flex items-center justify-center px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl bg-white/10 border border-white/15 text-white text-[12px] sm:text-[13px] font-semibold hover:bg-white/15 hover:border-white/25 transition-all backdrop-blur-sm active:scale-95 whitespace-nowrap"
           >
@@ -125,65 +127,92 @@ export default function HomePage() {
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[900px] h-[300px] bg-gradient-to-t from-[#8B1414]/8 to-transparent rounded-full blur-[100px] pointer-events-none" />
 
         <div className="container mx-auto px-4 sm:px-6 relative z-10 max-w-7xl">
-          <div className="flex flex-col items-center text-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-6 items-center pt-6 sm:pt-8 md:pt-10 pb-6 sm:pb-8">
+            
+            {/* ── Left Column: Contenido y Acciones ── */}
+            <div className="flex flex-col items-start text-left relative z-10">
+              
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 backdrop-blur-sm mb-4 animate-fade-in max-w-full">
+                <span className="flex h-1.5 w-1.5 rounded-full bg-[#EF4444] animate-pulse shrink-0" />
+                <span className="text-[9px] font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-white/70 truncate">
+                  Plataforma Nacional de Fiscalización Digital
+                </span>
+              </div>
 
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/[0.06] border border-white/10 backdrop-blur-sm mb-8 sm:mb-12 animate-fade-in max-w-full">
-              <span className="flex h-2 w-2 rounded-full bg-[#EF4444] animate-pulse shrink-0" />
-              <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] sm:tracking-[0.2em] text-white/60 truncate">
-                Plataforma Nacional de Fiscalización Digital
-              </span>
-            </div>
+              {/* Headline */}
+              <h1 className="text-white font-bold tracking-tighter mb-4 animate-fade-up leading-[0.95] text-balance"
+                  style={{ fontSize: "clamp(2rem, 5vw, 3.75rem)" }}>
+                La infraestructura para el <br className="hidden sm:block" />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#F87171] via-[#DC2626] to-[#991B1B]">Transporte Municipal</span>
+              </h1>
 
-            {/* Headline */}
-            <h1 className="text-white font-bold tracking-tighter mb-6 sm:mb-8 animate-fade-up leading-[0.95] text-balance"
-                style={{ fontSize: "clamp(2.25rem, 8vw, 5.5rem)" }}>
-              La infraestructura para el <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#F87171] via-[#DC2626] to-[#991B1B]">Transporte Municipal</span>
-            </h1>
+              {/* Subtext */}
+              <p className="max-w-xl text-white/60 text-sm sm:text-base md:text-lg leading-relaxed mb-8 animate-fade-up delay-100 font-medium text-balance">
+                Transformando la fiscalización vehicular en el Perú mediante tecnología
+                de vanguardia para municipalidades modernas y eficientes.
+              </p>
 
-            {/* Subtext */}
-            <p className="max-w-2xl text-white/60 text-base sm:text-lg md:text-2xl leading-relaxed mb-10 sm:mb-14 animate-fade-up delay-100 font-medium text-balance">
-              Transformando la fiscalización vehicular en el Perú mediante tecnología
-              de vanguardia para municipalidades modernas y eficientes.
-            </p>
+              {/* Actions (Minimalistas y adaptables) */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-10 animate-fade-up delay-150 w-full sm:w-auto">
+                <a href="/login"
+                   className="inline-flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl bg-white text-[#0A1628] font-bold text-[13px] sm:text-sm hover:bg-[#f4f4f5] hover:-translate-y-1 transition-all shadow-[0_8px_30px_-10px_rgba(255,255,255,0.2)] group active:scale-[0.98]">
+                  Acceso Institucional
+                  <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                </a>
+                <a href="/consulta-publica"
+                   className="inline-flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white font-bold text-[13px] sm:text-sm hover:bg-white/[0.08] hover:border-white/20 transition-all backdrop-blur-sm active:scale-[0.98]">
+                  Consulta Vehicular
+                </a>
+              </div>
 
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-5 mb-16 sm:mb-24 animate-fade-up delay-150 w-full sm:w-auto">
-              <a href="/login"
-                 className="inline-flex items-center justify-center gap-3 w-full sm:w-auto px-8 sm:px-12 py-4 sm:py-5 rounded-2xl bg-white text-[#0A1628] font-bold text-base sm:text-xl hover:bg-[#f4f4f5] hover:-translate-y-1 transition-all shadow-2xl shadow-white/10 group active:scale-[0.97]">
-                Acceso Institucional
-                <ArrowRight size={20} className="sm:size-6 group-hover:translate-x-1 transition-transform" />
-              </a>
-              <a href="/consulta-publica"
-                 className="inline-flex items-center justify-center gap-3 w-full sm:w-auto px-8 sm:px-12 py-4 sm:py-5 rounded-2xl bg-white/[0.06] border border-white/15 text-white font-bold text-base sm:text-xl hover:bg-white/10 hover:border-white/25 transition-all backdrop-blur-sm active:scale-[0.97]">
-                Consulta Vehicular
-              </a>
-            </div>
-
-            {/* Institutional Bar */}
-            <div className="w-full max-w-5xl py-6 sm:py-8 border-t border-white/[0.06] animate-fade-up delay-200">
-              <p className="text-[10px] font-bold text-white/25 uppercase tracking-[0.3em] mb-4 sm:mb-6">Operando bajo normativa de</p>
-              <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-3 sm:gap-x-8 md:gap-x-12">
-                {["MTC", "Municipalidades", "Gobierno Regional", "República del Perú"].map((name) => (
-                  <span key={name} className="text-[11px] sm:text-xs font-bold text-white/20 uppercase tracking-[0.15em] px-4 py-2 rounded-full border border-white/[0.06]">
-                    {name}
+              {/* Badges Institucionales (Alineados a la izquierda) */}
+              <div className="w-full pt-6 border-t border-white/[0.08] relative">
+                <div className="absolute -top-[1px] left-0 w-24 h-[1px] bg-gradient-to-r from-[#D9B0B0]/50 to-transparent" />
+                <p className="text-[9px] font-bold text-white/50 uppercase tracking-[0.25em] mb-3">
+                  Operando bajo normativa de
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="flex items-center gap-1.5 text-[9px] sm:text-[10px] font-bold text-white/80 uppercase tracking-[0.1em] px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] hover:border-white/20 transition-all cursor-default backdrop-blur-sm">
+                    <CarFront size={12} className="text-white/40" /> MTC
                   </span>
-                ))}
+                  <span className="flex items-center gap-1.5 text-[9px] sm:text-[10px] font-bold text-white/80 uppercase tracking-[0.1em] px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] hover:border-white/20 transition-all cursor-default backdrop-blur-sm">
+                    <Landmark size={12} className="text-white/40" /> Municipalidades
+                  </span>
+                  <span className="flex items-center gap-1.5 text-[9px] sm:text-[10px] font-bold text-white/80 uppercase tracking-[0.1em] px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] hover:border-white/20 transition-all cursor-default backdrop-blur-sm">
+                    <Map size={12} className="text-white/40" /> Gobierno Regional
+                  </span>
+                  <span className="flex items-center gap-1.5 text-[9px] sm:text-[10px] font-bold text-white/80 uppercase tracking-[0.1em] px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] hover:border-white/20 transition-all cursor-default backdrop-blur-sm">
+                    <Shield size={12} className="text-[#D9B0B0]/70" /> República del Perú
+                  </span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* ── Right Column: Marca de Agua Gigante ── */}
+            <div className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 w-1/2 h-full pointer-events-none justify-end items-center overflow-visible z-0">
+              {/* Glow Behind Watermark */}
+              <div className="absolute top-1/2 right-[10%] -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-br from-[#8B1414]/15 to-blue-500/5 rounded-full blur-[120px] mix-blend-screen" />
+              
+              {/* Giant Logo */}
+              <div className="relative opacity-[0.15] group-hover:opacity-25 transition-opacity duration-1000 transform translate-x-32 scale-110 drop-shadow-[0_0_50px_rgba(255,255,255,0.05)] text-white">
+                <SfitMark size={750} invert={true} />
               </div>
             </div>
+
           </div>
         </div>
       </section>
 
       {/* ── Capabilities Bento Grid (Rompemos el blanco con Navy) ────────── */}
-      <section className="py-12 sm:py-16 md:py-20 bg-[#0A1628] text-white relative overflow-hidden">
+      <section className="pt-6 sm:pt-8 md:pt-10 pb-8 sm:pb-10 md:pb-12 bg-[#0A1628] text-white relative overflow-hidden">
         {/* Pattern decorativo */}
         <div className="absolute top-0 left-0 w-full h-full opacity-[0.03]"
           style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
 
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl relative z-10">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 sm:mb-12 md:mb-16 gap-6 sm:gap-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 sm:mb-8 md:mb-10 gap-4 sm:gap-6">
             <div className="max-w-3xl">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/10 mb-4 sm:mb-6">
                  <span className="w-1.5 h-1.5 rounded-full bg-[#D9B0B0] animate-pulse" />
@@ -207,8 +236,8 @@ export default function HomePage() {
               
               <div className="relative z-10 flex flex-col h-full justify-between">
                 <div>
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-600/5 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-4 sm:mb-6 shadow-[0_0_20px_rgba(59,130,246,0.15)] group-hover:scale-105 transition-transform duration-500">
-                    <QrCode className="size-5 sm:size-6" />
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white mb-4 sm:mb-6 shadow-[0_0_25px_rgba(37,99,235,0.4)] group-hover:scale-110 group-hover:bg-blue-500 transition-all duration-500">
+                    <QrCode className="size-5 sm:size-6" strokeWidth={2.5} />
                   </div>
                   <h4 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-3 tracking-tight text-white">Inspección Digital QR</h4>
                   <p className="text-white/70 text-sm leading-relaxed max-w-md font-medium group-hover:text-white/90 transition-colors">Validación instantánea con firma electrónica y geolocalización en tiempo real para inspectores de campo.</p>
@@ -218,8 +247,8 @@ export default function HomePage() {
                 </div>
               </div>
               
-              <div className="absolute top-0 right-0 w-full h-full opacity-[0.03] group-hover:opacity-[0.05] transition-opacity duration-500 pointer-events-none translate-x-[20%] -translate-y-[15%] flex items-center justify-end">
-                 <QrCode size={250} strokeWidth={0.5} />
+              <div className="absolute top-0 right-0 w-full h-full opacity-10 group-hover:opacity-[0.15] transition-opacity duration-500 pointer-events-none translate-x-[5%] translate-y-[5%] flex items-center justify-end text-white pr-4">
+                 <QrCode size={200} strokeWidth={1} />
               </div>
             </div>
 
@@ -227,11 +256,14 @@ export default function HomePage() {
             <div className="md:col-span-2 bg-white/[0.03] border border-white/10 rounded-[1.5rem] sm:rounded-[2rem] p-6 sm:p-8 hover:bg-white/[0.06] hover:border-white/20 transition-all duration-300 group flex flex-col justify-between backdrop-blur-sm relative overflow-hidden">
                <div className="absolute bottom-0 right-0 w-[150px] h-[150px] bg-amber-500/10 rounded-full blur-[60px] pointer-events-none group-hover:bg-amber-500/20 transition-colors duration-500" />
               <div className="relative z-10">
-                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-600/5 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-4 sm:mb-5 shadow-[0_0_20px_rgba(245,158,11,0.1)] group-hover:scale-105 transition-transform duration-500">
-                   <Clock className="size-5 sm:size-6" />
+                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-500 flex items-center justify-center text-white mb-4 sm:mb-5 shadow-[0_0_25px_rgba(245,158,11,0.4)] group-hover:scale-110 group-hover:bg-amber-400 transition-all duration-500">
+                   <Clock className="size-5 sm:size-6" strokeWidth={2.5} />
                  </div>
                  <h4 className="text-lg sm:text-xl font-bold mb-2 tracking-tight text-white">Gestión de Fatiga</h4>
                  <p className="text-white/70 text-xs sm:text-sm leading-relaxed font-medium group-hover:text-white/90 transition-colors">Monitoreo predictivo de horas de conducción para prevenir accidentes.</p>
+              </div>
+              <div className="absolute top-0 right-0 w-full h-full opacity-10 group-hover:opacity-[0.15] transition-opacity duration-500 pointer-events-none translate-x-[5%] translate-y-[10%] flex items-center justify-end text-white pr-4">
+                 <Clock size={140} strokeWidth={1} />
               </div>
               <div className="mt-4 sm:mt-6 flex items-center gap-2 text-amber-400/80 text-[10px] sm:text-xs font-bold uppercase tracking-widest group-hover:text-amber-400 transition-colors relative z-10 w-fit cursor-pointer">
                 Ver más <ArrowRight size={14} />
@@ -240,25 +272,33 @@ export default function HomePage() {
 
             {/* Stats Circular - Visual */}
             <div className="md:col-span-2 bg-gradient-to-br from-[#6C0606] to-[#4A0303] rounded-[1.5rem] sm:rounded-[2rem] p-6 sm:p-8 flex flex-col items-center justify-center text-center shadow-xl min-h-[140px] sm:min-h-[160px] relative overflow-hidden group border border-white/5">
-              <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay pointer-events-none" />
-              <Activity className="size-6 sm:size-8 mb-2 sm:mb-3 text-white/90 group-hover:text-white group-hover:scale-110 transition-all duration-500" />
-              <div className="text-3xl sm:text-4xl font-black mb-1.5 tracking-tighter text-white drop-shadow-md">99.9%</div>
-              <div className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.25em] text-white/70">Uptime Garantizado</div>
+              <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay pointer-events-none z-0" />
+              
+              {/* Giant Shadow Icon */}
+              <div className="absolute inset-0 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity duration-500 pointer-events-none flex items-center justify-center text-white overflow-hidden">
+                 <Activity size={280} strokeWidth={1} className="group-hover:scale-110 transition-transform duration-700" />
+              </div>
+
+              <div className="relative z-10 flex flex-col items-center">
+                <Activity className="size-6 sm:size-8 mb-2 sm:mb-3 text-white/90 group-hover:text-white group-hover:scale-110 transition-all duration-500" />
+                <div className="text-3xl sm:text-4xl font-black mb-1.5 tracking-tighter text-white drop-shadow-md">99.9%</div>
+                <div className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.25em] text-white/70">Uptime Garantizado</div>
+              </div>
             </div>
 
             {/* Analítica */}
             <div className="md:col-span-4 bg-white/[0.02] border border-white/10 rounded-[1.5rem] sm:rounded-[2rem] p-6 sm:p-8 flex flex-col md:flex-row items-center gap-6 sm:gap-8 overflow-hidden relative group backdrop-blur-sm hover:bg-white/[0.04] hover:border-white/20 transition-all duration-300">
               <div className="absolute top-0 left-0 w-[300px] h-[300px] bg-indigo-500/10 rounded-full blur-[80px] pointer-events-none group-hover:bg-indigo-500/15 transition-colors duration-500" />
               <div className="relative z-10 flex-1">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-indigo-500/20 to-indigo-600/5 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-4 sm:mb-5 shadow-[0_0_20px_rgba(99,102,241,0.1)] group-hover:scale-105 transition-transform duration-500">
-                  <BarChart3 className="size-5 sm:size-6" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-white mb-4 sm:mb-5 shadow-[0_0_25px_rgba(79,70,229,0.4)] group-hover:scale-110 group-hover:bg-indigo-500 transition-all duration-500">
+                  <BarChart3 className="size-5 sm:size-6" strokeWidth={2.5} />
                 </div>
                 <h4 className="text-xl sm:text-2xl font-bold text-white mb-2 sm:mb-3 tracking-tight">Analítica Predictiva</h4>
                 <p className="text-white/70 text-xs sm:text-sm leading-relaxed font-medium group-hover:text-white/90 transition-colors">Tome decisiones estratégicas basadas en el rendimiento histórico de la flota y cumplimiento normativo en su jurisdicción.</p>
               </div>
               <div className="flex-1 w-full h-28 sm:h-36 bg-[#0A1628] rounded-[1.25rem] flex items-center justify-center shadow-inner relative overflow-hidden border border-white/5 mt-4 md:mt-0">
                  <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at center, rgba(255,255,255,0.2) 1px, transparent 1px)", backgroundSize: "12px 12px" }} />
-                 <Database size={60} className="text-white/5 absolute -right-2 -bottom-2 group-hover:rotate-12 group-hover:scale-105 transition-all duration-700" />
+                 <Database size={70} className="text-white/20 absolute right-2 bottom-2 group-hover:text-white/30 group-hover:rotate-12 group-hover:scale-105 transition-all duration-700" />
                  <div className="flex flex-col items-center gap-1.5 relative z-10 bg-white/[0.03] px-5 py-3 rounded-xl backdrop-blur-sm border border-white/10">
                     <span className="text-white font-black text-xl sm:text-2xl tracking-tighter drop-shadow-md">DATA AI</span>
                     <span className="text-white/60 text-[8px] font-bold uppercase tracking-[0.25em]">Insights Avanzados</span>
@@ -270,10 +310,11 @@ export default function HomePage() {
       </section>
 
       {/* ── Security & Compliance (Rompemos el blanco con Gris Institucional) ── */}
-      <section className="py-16 sm:py-24 md:py-32 bg-[#fafafa] border-y border-[#E4E4E7] relative overflow-hidden">
+      <section className="py-8 sm:py-10 md:py-12 bg-[#fafafa] border-y border-[#E4E4E7] relative overflow-hidden">
          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-indigo-500/[0.02] rounded-full blur-[100px] pointer-events-none" />
-        <div className="container mx-auto px-4 sm:px-6 max-w-7xl relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 md:gap-16 lg:gap-24 items-center">
+        <div className="container mx-auto px-4 sm:px-6 max-w-6xl relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-16 items-center">
+            {/* Left: Content */}
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#8B1414]/5 border border-[#8B1414]/10 mb-6">
                  <ShieldCheck size={14} className="text-[#8B1414]" />
@@ -281,41 +322,43 @@ export default function HomePage() {
                    Infraestructura Blindada
                  </h2>
               </div>
-              <h3 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-[#0A1628] mb-8 sm:mb-12 leading-[1.1] text-balance">
-                Seguridad de grado <br className="hidden sm:block" /> militar para la fe pública.
+              <h3 className="text-3xl sm:text-4xl md:text-4xl font-bold tracking-tight text-[#0A1628] mb-8 leading-[1.1] text-balance">
+                Seguridad de grado militar para la fe pública.
               </h3>
-              <div className="grid gap-5 sm:gap-6">
+              <div className="grid gap-2 sm:gap-4">
                 {[
                   { icon: ShieldCheck, title: "Encriptación de Punto a Punto", desc: "Protocolos AES-256 para proteger toda la información institucional y ciudadana." },
-                  { icon: Lock, title: "Trazabilidad Inalterable", desc: "Cada movimiento del sistema se registra en una cadena de logs inmodificable para auditorías." },
-                  { icon: Server, title: "Disponibilidad Geográfica", desc: "Servidores con replicación en tiempo real para garantizar el servicio 24/7 sin interrupciones." },
+                  { icon: Lock, title: "Trazabilidad Inalterable", desc: "Cada movimiento se registra en una cadena de logs inmodificable para auditorías." },
+                  { icon: Server, title: "Disponibilidad Geográfica", desc: "Servidores con replicación en tiempo real para servicio 24/7." },
                 ].map((item, i) => (
-                  <div key={i} className="flex gap-5 sm:gap-6 p-5 sm:p-6 rounded-2xl bg-white border border-[#E4E4E7]/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 group">
-                    <div className="bg-[#fafafa] border border-[#E4E4E7] p-3.5 rounded-xl text-[#0A1628] h-fit shrink-0 group-hover:bg-[#0A1628] group-hover:text-white transition-colors duration-300">
-                      <item.icon size={22} strokeWidth={2} />
+                  <div key={i} className="flex gap-4 sm:gap-5 p-4 rounded-2xl hover:bg-white hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] border border-transparent hover:border-[#E4E4E7]/60 transition-all duration-300 group">
+                    <div className="bg-white border border-[#E4E4E7] shadow-sm p-3 rounded-xl text-[#0A1628] h-fit shrink-0 group-hover:bg-[#0A1628] group-hover:text-white group-hover:border-[#0A1628] transition-colors duration-300">
+                      <item.icon size={20} strokeWidth={2} />
                     </div>
                     <div>
-                      <h4 className="font-bold text-[#0A1628] text-base sm:text-lg mb-1.5">{item.title}</h4>
-                      <p className="text-[#71717A] text-sm sm:text-[15px] leading-relaxed font-medium">{item.desc}</p>
+                      <h4 className="font-bold text-[#0A1628] text-[15px] sm:text-base mb-1">{item.title}</h4>
+                      <p className="text-[#71717A] text-[13px] sm:text-sm leading-relaxed font-medium">{item.desc}</p>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
+
+            {/* Right: Compact ISO Card */}
             <div className="relative flex justify-center lg:justify-end">
                <div className="absolute inset-0 bg-gradient-to-tr from-[#8B1414]/10 to-transparent rounded-full blur-[80px] -z-10" />
-               <div className="bg-[#0A1628] rounded-[2.5rem] sm:rounded-[3rem] w-full max-w-md aspect-[4/5] flex flex-col items-center justify-center text-center p-8 sm:p-12 shadow-[0_40px_80px_-20px_rgba(10,22,40,0.5)] border border-[#E4E4E7]/20 relative overflow-hidden group">
+               <div className="bg-[#0A1628] rounded-[2rem] w-full max-w-[340px] flex flex-col items-center justify-center text-center p-8 sm:p-10 shadow-[0_20px_60px_-15px_rgba(10,22,40,0.4)] border border-[#E4E4E7]/20 relative overflow-hidden group">
                   <div className="absolute inset-0 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity duration-700" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
                   
                   {/* Decorative animated border */}
-                  <div className="absolute inset-0 border border-white/10 rounded-[2.5rem] sm:rounded-[3rem] group-hover:border-white/20 transition-colors duration-700" />
+                  <div className="absolute inset-0 border border-white/10 rounded-[2rem] group-hover:border-white/20 transition-colors duration-700" />
                   
                   <div className="relative z-10 flex flex-col items-center">
-                    <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-white/[0.03] border border-white/10 flex items-center justify-center mb-8 group-hover:scale-110 group-hover:bg-white/[0.05] transition-all duration-700 backdrop-blur-sm">
-                       <Award strokeWidth={1.5} className="size-12 sm:size-16 text-[#D9B0B0]" />
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white/[0.03] border border-white/10 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-white/[0.05] transition-all duration-700 backdrop-blur-sm">
+                       <Award strokeWidth={2} className="size-10 sm:size-12 text-[#D9B0B0]" />
                     </div>
-                    <div className="text-white text-4xl sm:text-5xl font-black tracking-tighter mb-4">ISO 27001</div>
-                    <p className="text-white/40 font-bold text-[10px] sm:text-xs uppercase tracking-[0.25em] max-w-[200px] leading-relaxed">Estándar Global de Seguridad de la Información</p>
+                    <div className="text-white text-3xl sm:text-4xl font-black tracking-tighter mb-3">ISO 27001</div>
+                    <p className="text-white/40 font-bold text-[9px] sm:text-[10px] uppercase tracking-[0.25em] max-w-[180px] leading-relaxed">Estándar Global de Seguridad</p>
                   </div>
                </div>
             </div>
@@ -324,7 +367,7 @@ export default function HomePage() {
       </section>
 
       {/* ── Stats (Densidad Visual) ────────────────────────────── */}
-      <section className="py-12 sm:py-16 md:py-24 bg-white">
+      <section className="py-6 sm:py-8 md:py-10 bg-white">
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
             {STATS.map((s, i) => (
@@ -341,7 +384,7 @@ export default function HomePage() {
       </section>
 
       {/* ── Ecosistema de Roles (Alternancia de fondo) ─────────────── */}
-      <section className="py-16 sm:py-24 md:py-32 bg-[#fafafa] border-t border-[#E4E4E7]/60">
+      <section className="py-8 sm:py-10 md:py-12 bg-[#fafafa] border-t border-[#E4E4E7]/60">
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
           <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16 md:mb-24">
              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#0A1628]/5 border border-[#0A1628]/10 mb-6">
@@ -358,56 +401,63 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
-            {ROLES.map((r, i) => (
-              <div key={i} className="group relative p-8 sm:p-10 rounded-[1.75rem] sm:rounded-[2.5rem] bg-white border border-[#E4E4E7]/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.03)] hover:shadow-[0_30px_60px_-15px_rgba(10,22,40,0.15)] hover:-translate-y-2 transition-all duration-500 flex flex-col items-center text-center overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-[#0A1628]/[0.02] rounded-bl-full -z-10 group-hover:bg-[#0A1628]/[0.05] transition-colors duration-500" />
-                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-[1.25rem] bg-[#fafafa] border border-[#E4E4E7] flex items-center justify-center text-[#0A1628] mb-6 sm:mb-8 group-hover:bg-[#0A1628] group-hover:text-white transition-colors duration-300">
-                  <Users className="size-6 sm:size-7" />
-                </div>
-                <span className="text-lg sm:text-xl font-bold text-[#0A1628] mb-3 sm:mb-4 tracking-tight">{r.role}</span>
-                <span className="text-sm sm:text-[15px] text-[#71717A] font-medium leading-relaxed flex-1">{r.desc}</span>
-                <div className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-[#E4E4E7]/60 w-full opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500">
-                   <span className="text-[10px] font-bold text-[#0A1628] uppercase tracking-[0.2em] flex items-center justify-center gap-2">
-                     Módulos Específicos <ArrowRight size={12} />
-                   </span>
-                </div>
-              </div>
-            ))}
+          {/* Contenedor del Carrusel Horizontal */}
+          <div className="relative w-full overflow-hidden">
+             {/* Gradientes laterales para indicar scroll */}
+             <div className="absolute top-0 left-0 bottom-0 w-8 sm:w-16 bg-gradient-to-r from-[#fafafa] to-transparent z-10 pointer-events-none" />
+             <div className="absolute top-0 right-0 bottom-0 w-8 sm:w-16 bg-gradient-to-l from-[#fafafa] to-transparent z-10 pointer-events-none" />
+             
+             <div className="flex overflow-x-auto snap-x snap-mandatory gap-5 sm:gap-6 pb-12 pt-4 px-4 sm:px-8 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+               {ROLES.map((r, i) => (
+                 <div key={i} className="shrink-0 w-[280px] sm:w-[320px] snap-center group relative p-8 sm:p-10 rounded-[1.75rem] sm:rounded-[2.5rem] bg-white border border-[#E4E4E7]/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.03)] hover:shadow-[0_30px_60px_-15px_rgba(10,22,40,0.15)] hover:-translate-y-2 transition-all duration-500 flex flex-col items-center text-center overflow-hidden">
+                   <div className="absolute top-0 right-0 w-32 h-32 bg-[#0A1628]/[0.02] rounded-bl-full -z-10 group-hover:bg-[#0A1628]/[0.05] transition-colors duration-500" />
+                   <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-[1.25rem] bg-[#fafafa] border border-[#E4E4E7] flex items-center justify-center text-[#0A1628] mb-6 sm:mb-8 group-hover:bg-[#0A1628] group-hover:text-white transition-colors duration-300 shadow-sm">
+                     <Users className="size-6 sm:size-7" />
+                   </div>
+                   <span className="text-lg sm:text-xl font-bold text-[#0A1628] mb-3 sm:mb-4 tracking-tight">{r.role}</span>
+                   <span className="text-sm sm:text-[15px] text-[#71717A] font-medium leading-relaxed flex-1">{r.desc}</span>
+                   <div className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-[#E4E4E7]/60 w-full opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500">
+                      <span className="text-[10px] font-bold text-[#0A1628] uppercase tracking-[0.2em] flex items-center justify-center gap-2">
+                        Módulos Específicos <ArrowRight size={12} />
+                      </span>
+                   </div>
+                 </div>
+               ))}
+             </div>
           </div>
         </div>
       </section>
 
       {/* ── Final CTA (Impacto Visual Máximo) ────────────────────────── */}
-      <section className="py-16 sm:py-24 md:py-32 bg-white relative">
-        <div className="container mx-auto px-4 sm:px-6 max-w-7xl relative">
-          <div className="bg-[#0A1628] rounded-[2rem] sm:rounded-[3rem] md:rounded-[4rem] p-8 sm:p-14 md:p-24 lg:p-32 text-center relative overflow-hidden shadow-[0_48px_100px_-24px_rgba(10,22,40,0.6)]">
+      <section className="py-8 sm:py-10 md:py-12 bg-white relative">
+        <div className="container mx-auto px-4 sm:px-6 max-w-5xl relative">
+          <div className="bg-[#0A1628] rounded-[2rem] sm:rounded-[2.5rem] p-8 sm:p-10 md:p-12 text-center relative overflow-hidden shadow-[0_30px_80px_-20px_rgba(10,22,40,0.4)]">
             {/* Efectos de fondo internos */}
-            <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
-            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#DC2626]/20 rounded-full blur-[140px] pointer-events-none" />
-            <div className="absolute -bottom-40 -left-20 w-[500px] h-[500px] bg-blue-600/15 rounded-full blur-[120px] pointer-events-none" />
-            <div className="absolute inset-0 border border-white/10 rounded-[2rem] sm:rounded-[3rem] md:rounded-[4rem] pointer-events-none" />
+            <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
+            <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[#DC2626]/10 rounded-full blur-[100px] pointer-events-none" />
+            <div className="absolute -bottom-20 -left-10 w-[300px] h-[300px] bg-blue-600/10 rounded-full blur-[80px] pointer-events-none" />
+            <div className="absolute inset-0 border border-white/10 rounded-[2rem] sm:rounded-[2.5rem] pointer-events-none" />
 
-            <div className="relative z-10 max-w-4xl mx-auto">
-              <div className="mb-10 sm:mb-14 md:mb-16 flex justify-center">
-                <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-[1.5rem] sm:rounded-[2rem] bg-gradient-to-br from-white/10 to-white/[0.02] border border-white/20 flex items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.1)] rotate-12 group hover:rotate-0 hover:scale-110 transition-all duration-700 backdrop-blur-md">
-                  <SfitMark size={48} invert />
+            <div className="relative z-10 max-w-3xl mx-auto">
+              <div className="mb-6 sm:mb-8 flex justify-center">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[1.25rem] bg-gradient-to-br from-white/10 to-white/[0.02] border border-white/20 flex items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.05)] rotate-12 group hover:rotate-0 hover:scale-110 transition-all duration-700 backdrop-blur-md">
+                  <SfitMark size={36} invert />
                 </div>
               </div>
-              <h2 className="text-white font-bold tracking-tighter mb-8 sm:mb-10 md:mb-12 leading-[0.95] text-balance" style={{ fontSize: "clamp(2rem, 7vw, 5.5rem)" }}>
+              <h2 className="text-white font-bold tracking-tight mb-4 sm:mb-6 leading-[1.05] text-balance text-3xl sm:text-4xl md:text-[2.75rem]">
                 El futuro de la gestión <br className="hidden sm:block" /> municipal empieza aquí.
               </h2>
-              <p className="text-white/60 text-lg sm:text-xl md:text-2xl lg:text-3xl mb-10 sm:mb-14 md:mb-16 font-medium leading-relaxed text-balance max-w-3xl mx-auto">
+              <p className="text-white/60 text-base sm:text-lg md:text-xl mb-8 sm:mb-10 font-medium leading-relaxed text-balance max-w-2xl mx-auto">
                 Únase a la red institucional más avanzada del país y transforme su fiscalización hoy mismo.
               </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 md:gap-8">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 md:gap-5">
                 <a href="/login"
-                   className="inline-flex items-center justify-center px-8 sm:px-12 md:px-14 py-4 sm:py-5 md:py-6 rounded-[1.25rem] sm:rounded-[1.5rem] bg-white text-[#0A1628] font-bold text-base sm:text-xl md:text-2xl hover:bg-[#f4f4f5] hover:scale-105 transition-all shadow-2xl shadow-white/10 w-full sm:w-auto active:scale-95 group">
+                   className="inline-flex items-center justify-center px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl bg-white text-[#0A1628] font-bold text-sm sm:text-base hover:bg-[#f4f4f5] hover:scale-105 transition-all shadow-xl shadow-white/5 w-full sm:w-auto active:scale-95 group">
                   Acceder Ahora
-                  <ArrowRight className="size-5 sm:size-6 md:size-7 ml-3 group-hover:translate-x-2 transition-transform" />
+                  <ArrowRight className="size-4 sm:size-5 ml-2 group-hover:translate-x-1.5 transition-transform" />
                 </a>
-                <a href="mailto:184193@unsaac.edu.pe"
-                   className="inline-flex items-center justify-center px-8 sm:px-12 md:px-14 py-4 sm:py-5 md:py-6 rounded-[1.25rem] sm:rounded-[1.5rem] bg-white/[0.05] border border-white/15 text-white font-bold text-base sm:text-xl md:text-2xl hover:bg-white/10 hover:border-white/25 hover:scale-105 transition-all backdrop-blur-sm w-full sm:w-auto active:scale-95">
+                <a href="mailto:soporte@sfit.pe"
+                   className="inline-flex items-center justify-center px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl bg-white/[0.05] border border-white/15 text-white font-bold text-sm sm:text-base hover:bg-white/10 hover:border-white/25 hover:scale-105 transition-all backdrop-blur-sm w-full sm:w-auto active:scale-95">
                   Solicitar Información
                 </a>
               </div>
@@ -417,10 +467,11 @@ export default function HomePage() {
       </section>
 
       {/* ── Footer (Premium & Completo) ────────────────────────────── */}
-      <footer className="py-16 sm:py-20 md:py-28 bg-[#fafafa] border-t border-[#E4E4E7]/60">
+      <footer className="py-10 sm:py-12 md:py-16 bg-[#fafafa] border-t border-[#E4E4E7]/60">
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-10 sm:gap-12 md:gap-16 lg:gap-20 mb-16 sm:mb-20 md:mb-24">
-            <div className="sm:col-span-2 lg:col-span-3 pr-0 lg:pr-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-10 sm:gap-12 md:gap-16 mb-16 sm:mb-20">
+            {/* Branding & Contacto */}
+            <div className="sm:col-span-2 lg:col-span-2 pr-0 lg:pr-8">
               <div className="flex items-center gap-4 mb-8 sm:mb-10">
                 <div className="bg-gradient-to-br from-[#0A1628] to-[#1a2b4c] p-3 rounded-[1.25rem] shadow-[0_8px_20px_-6px_rgba(10,22,40,0.4)] border border-[#0A1628]/10">
                   <SfitMark size={32} invert />
@@ -430,35 +481,107 @@ export default function HomePage() {
                   <span className="text-[#8B1414] text-[10px] font-bold tracking-[0.15em] uppercase mt-1.5">Institucional</span>
                 </div>
               </div>
-              <p className="text-[#71717A] text-base sm:text-lg md:text-xl max-w-md leading-relaxed font-medium">
-                La plataforma definitiva para la modernización del transporte público y la fiscalización inteligente en el Perú.
+              <p className="text-[#71717A] text-[15px] sm:text-base max-w-md leading-relaxed font-medium mb-8">
+                Sistema integral de control y fiscalización del transporte público. Optimizando la seguridad vial y la eficiencia municipal en todo el Perú.
               </p>
+              
+              <div className="flex flex-col gap-4">
+                 <a href="mailto:soporte@sfit.pe" className="flex items-center gap-3 text-[#52525B] text-sm hover:text-[#8B1414] transition-colors group w-fit">
+                    <div className="w-8 h-8 rounded-full bg-white border border-[#E4E4E7] flex items-center justify-center group-hover:border-[#8B1414]/30 group-hover:bg-[#8B1414]/5 transition-colors">
+                      <Mail size={14} className="group-hover:text-[#8B1414]" />
+                    </div>
+                    <span className="font-bold">soporte@sfit.pe</span>
+                 </a>
+                 <div className="flex items-center gap-3 text-[#52525B] text-sm group w-fit">
+                    <div className="w-8 h-8 rounded-full bg-white border border-[#E4E4E7] flex items-center justify-center">
+                      <Phone size={14} />
+                    </div>
+                    <span className="font-bold">+51 (01) 345-6789</span>
+                 </div>
+                 <div className="flex items-center gap-3 text-[#52525B] text-sm group w-fit">
+                    <div className="w-8 h-8 rounded-full bg-white border border-[#E4E4E7] flex items-center justify-center">
+                      <Clock size={14} />
+                    </div>
+                    <span className="font-bold text-[#71717A]">Soporte técnico 24/7 para autoridades.</span>
+                 </div>
+              </div>
             </div>
+
+            {/* Plataforma */}
             <div className="lg:col-span-1">
-              <h5 className="text-[#0A1628] font-black text-[11px] uppercase tracking-[0.3em] mb-6 sm:mb-8">Solución</h5>
+              <h5 className="text-[#0A1628] font-black text-[11px] uppercase tracking-[0.25em] mb-6 sm:mb-8">Plataforma</h5>
               <ul className="space-y-4 sm:space-y-5">
-                <li><a href="/consulta-publica" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[15px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Consulta Pública</a></li>
-                <li><a href="/login" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[15px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Acceso Institucional</a></li>
-                <li><a href="/registro" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[15px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Solicitar Acceso</a></li>
+                <li><a href="/login" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[14px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Portal Administrativo</a></li>
+                <li><a href="/app" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[14px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> App Móvil (Fiscales)</a></li>
+                <li><a href="/reportes" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[14px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Buzón de Denuncias</a></li>
               </ul>
             </div>
+
+            {/* Marco Legal */}
             <div className="lg:col-span-1">
-              <h5 className="text-[#0A1628] font-black text-[11px] uppercase tracking-[0.3em] mb-6 sm:mb-8">Institucional</h5>
+              <h5 className="text-[#0A1628] font-black text-[11px] uppercase tracking-[0.25em] mb-6 sm:mb-8">Marco Legal</h5>
               <ul className="space-y-4 sm:space-y-5">
-                <li><a href="/normativa" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[15px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Base Legal</a></li>
-                <li><a href="/noticias" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[15px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Actualizaciones</a></li>
-                <li><a href="/manual" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[15px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Guías de Usuario</a></li>
+                <li><a href="/normativa" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[14px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Ley Transp. 27181</a></li>
+                <li><a href="/directivas" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[14px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Resoluciones MTC</a></li>
+                <li><a href="/terminos" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[14px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Términos de Servicio</a></li>
+                <li><a href="/privacidad" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[14px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Datos Personales</a></li>
               </ul>
             </div>
-            <div className="lg:col-span-1">
-              <h5 className="text-[#0A1628] font-black text-[11px] uppercase tracking-[0.3em] mb-6 sm:mb-8">Legal</h5>
-              <ul className="space-y-4 sm:space-y-5">
-                <li><a href="/privacidad" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[15px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Privacidad</a></li>
-                <li><a href="/terminos" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[15px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Términos</a></li>
-                <li><a href="/seguridad" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[15px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Seguridad</a></li>
-              </ul>
+
+            {/* Integraciones */}
+            <div className="lg:col-span-2">
+              <h5 className="text-[#0A1628] font-black text-[11px] uppercase tracking-[0.25em] mb-6 sm:mb-8">Integraciones Oficiales</h5>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                 
+                 {/* RENIEC */}
+                 <div className="flex items-center gap-3.5 p-3.5 sm:p-4 bg-white rounded-xl border border-[#E4E4E7]/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] hover:shadow-md hover:-translate-y-0.5 transition-all group cursor-default">
+                    <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors shrink-0">
+                      <ScanFace size={20} strokeWidth={2} />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-[#A1A1AA] uppercase tracking-widest">Identidad</span>
+                      <span className="text-[#0A1628] font-black text-sm">RENIEC API</span>
+                    </div>
+                 </div>
+
+                 {/* SUNAT */}
+                 <div className="flex items-center gap-3.5 p-3.5 sm:p-4 bg-white rounded-xl border border-[#E4E4E7]/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] hover:shadow-md hover:-translate-y-0.5 transition-all group cursor-default">
+                    <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors shrink-0">
+                      <Briefcase size={20} strokeWidth={2} />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-[#A1A1AA] uppercase tracking-widest">Tributario</span>
+                      <span className="text-[#0A1628] font-black text-sm">SUNAT Online</span>
+                    </div>
+                 </div>
+
+                 {/* MTC */}
+                 <div className="flex items-center gap-3.5 p-3.5 sm:p-4 bg-white rounded-xl border border-[#E4E4E7]/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] hover:shadow-md hover:-translate-y-0.5 transition-all group cursor-default">
+                    <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center text-[#8B1414] group-hover:bg-[#8B1414] group-hover:text-white transition-colors shrink-0">
+                      <CarFront size={20} strokeWidth={2} />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-[#A1A1AA] uppercase tracking-widest">Vehicular</span>
+                      <span className="text-[#0A1628] font-black text-sm">MTC / SUNARP</span>
+                    </div>
+                 </div>
+
+                 {/* ISO */}
+                 <div className="flex items-center gap-3.5 p-3.5 sm:p-4 bg-white rounded-xl border border-[#E4E4E7]/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] hover:shadow-md hover:-translate-y-0.5 transition-all group cursor-default">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
+                      <Award size={20} strokeWidth={2} />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-[#A1A1AA] uppercase tracking-widest">Seguridad</span>
+                      <span className="text-[#0A1628] font-black text-sm">ISO 27001</span>
+                    </div>
+                 </div>
+
+              </div>
             </div>
           </div>
+
+          {/* Bottom Bar */}
           <div className="pt-8 sm:pt-10 md:pt-12 border-t border-[#E4E4E7]/80 flex flex-col md:flex-row items-center justify-between gap-6 sm:gap-8">
             <div className="text-[11px] sm:text-xs font-bold text-[#A1A1AA] tracking-[0.25em] uppercase text-center md:text-left">
               © 2026 SFIT · República del Perú
@@ -471,7 +594,7 @@ export default function HomePage() {
                <div className="w-px h-5 bg-[#E4E4E7]" />
                <div className="flex items-center gap-2.5">
                  <CheckCircle2 size={18} className="text-emerald-500" strokeWidth={2} />
-                 <span className="text-[10px] sm:text-[11px] font-bold text-[#52525B] uppercase tracking-widest pt-0.5">Sistemas Operativos</span>
+                 <span className="text-[10px] sm:text-[11px] font-bold text-[#52525B] uppercase tracking-widest pt-0.5">Gobierno Digital</span>
                </div>
             </div>
           </div>

@@ -125,7 +125,79 @@ async function main() {
     }
   }
 
-  console.log("\n🎯 Login en la app: conductor@sfit.test / Sfit2026!");
+  // 4. Bonus: que el super_admin también pueda probar preview-as → conductor.
+  //    El preview-as mantiene el userId del super_admin, así que necesita su
+  //    propio Driver record y FleetEntries para que las pantallas no salgan
+  //    vacías al hacer preview.
+  const superUser = await UserModel.findOne({ email: "superadmin@sfit.test" })
+    .lean<{ _id: Types.ObjectId; municipalityId?: Types.ObjectId; dni?: string; name?: string }>();
+  if (superUser) {
+    let superDriver = await DriverModel.findOne({ userId: superUser._id })
+      .lean<{ _id: Types.ObjectId; municipalityId: Types.ObjectId }>();
+    if (!superDriver) {
+      const muniId = superUser.municipalityId ?? condUser.municipalityId;
+      const veh = await VehicleModel.findOne({ municipalityId: muniId, active: true })
+        .lean<{ _id: Types.ObjectId; companyId?: Types.ObjectId }>();
+      const created = await DriverModel.create({
+        userId: superUser._id,
+        municipalityId: muniId,
+        companyId: veh?.companyId,
+        name: superUser.name ?? "Super Admin (preview)",
+        dni: superUser.dni ?? "71551120",
+        licenseNumber: "PREVIEW-SA",
+        licenseCategory: "A-IIb",
+        phone: "999999999",
+        status: "apto",
+        continuousHours: 0,
+        restHours: 8,
+        reputationScore: 100,
+        active: true,
+      });
+      superDriver = { _id: created._id as Types.ObjectId, municipalityId: muniId };
+      console.log(`✓ Driver creado para super_admin (preview): ${created._id}`);
+    } else {
+      console.log(`✓ Driver del super_admin ya existe: ${superDriver._id}`);
+    }
+
+    // FleetEntries para super_admin (al menos 2 disponibles).
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+    const supExistingCount = await FleetEntryModel.countDocuments({
+      driverId: superDriver._id,
+      date: { $gte: today, $lt: tomorrow },
+    });
+    if (supExistingCount < 2) {
+      const vehicles = await VehicleModel.find({
+        municipalityId: superDriver.municipalityId,
+        active: true,
+      }).limit(2).lean<Array<{ _id: Types.ObjectId }>>();
+      const routes = await RouteModel.find({
+        municipalityId: superDriver.municipalityId,
+        status: "activa",
+      }).limit(2).lean<Array<{ _id: Types.ObjectId }>>();
+      const toCreate = Math.max(0, 2 - supExistingCount);
+      for (let i = 0; i < toCreate && vehicles[i % vehicles.length]; i++) {
+        const dep = new Date(today); dep.setHours(7 + i * 4, 0, 0, 0);
+        await FleetEntryModel.create({
+          municipalityId: superDriver.municipalityId,
+          vehicleId: vehicles[i % vehicles.length]._id,
+          driverId: superDriver._id,
+          routeId: routes[i % Math.max(1, routes.length)]?._id,
+          date: today,
+          departureTime: dep,
+          status: "disponible",
+          checklistComplete: false,
+          trackPoints: [],
+          visitedStops: [],
+        });
+      }
+      console.log(`✓ ${toCreate} FleetEntry(s) creado(s) para super_admin de hoy.`);
+    }
+  }
+
+  console.log("\n🎯 Logins de prueba:");
+  console.log("   - conductor@sfit.test / Sfit2026!  (conductor real)");
+  console.log("   - superadmin@sfit.test / 12345678  (super_admin → puede hacer preview-as conductor)");
   await mongoose.disconnect();
   process.exit(0);
 }
