@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/services/location_smoother.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -37,6 +38,11 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
   // GPS del ciudadano
   Position? _userPos;
   bool _gpsRequested = false;
+
+  // Smoothers por bus para que los marcadores "deslicen" entre polls de 8s
+  // en lugar de saltar. Se limpian cuando un bus deja de estar activo.
+  final Map<String, LocationSmoother> _smoothers = {};
+  final Map<String, LatLng> _smoothedPositions = {};
 
   @override
   void initState() {
@@ -103,11 +109,27 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
       final items = (data['items'] as List? ?? const [])
           .map((e) => BusData.fromJson(e as Map<String, dynamic>))
           .toList();
+
+      // Actualizar smoothers — uno por cada bus activo. Reduce el "salto"
+      // visible del marcador entre polls de 8s.
+      final activeIds = items.map((b) => b.id).toSet();
+      _smoothers.removeWhere((id, _) => !activeIds.contains(id));
+      _smoothedPositions.removeWhere((id, _) => !activeIds.contains(id));
+      for (final b in items) {
+        final smoother = _smoothers.putIfAbsent(b.id, LocationSmoother.new);
+        _smoothedPositions[b.id] = smoother.smooth(LatLng(b.lat, b.lng));
+      }
+
       if (mounted) setState(() { _buses = items; _loading = false; });
     } catch (_) {
       if (mounted && _loading) setState(() => _loading = false);
     }
   }
+
+  /// Posición visual del bus (suavizada). Cae a la posición cruda si no
+  /// hay smoother todavía (primer fetch).
+  LatLng _displayPos(BusData b) =>
+      _smoothedPositions[b.id] ?? LatLng(b.lat, b.lng);
 
   // ── Lista filtrada ──────────────────────────────────────────────────
   List<BusData> get _filtered {
@@ -242,6 +264,7 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
                           mapCtl: _mapCtl,
                           userPos: _userPos,
                           statusColor: _statusColor,
+                          displayPos: _displayPos,
                           onTapBus: (b) => BusDetailSheet.show(context, b),
                         )
                       : _ListView(
@@ -323,6 +346,9 @@ class _MapView extends StatelessWidget {
   final MapController mapCtl;
   final Position? userPos;
   final Color Function(String) statusColor;
+  /// Resolver de posición visual del bus (smoothed). Cae a (b.lat, b.lng) si
+  /// no hay smoother todavía.
+  final LatLng Function(BusData) displayPos;
   final void Function(BusData) onTapBus;
 
   const _MapView({
@@ -330,6 +356,7 @@ class _MapView extends StatelessWidget {
     required this.mapCtl,
     required this.userPos,
     required this.statusColor,
+    required this.displayPos,
     required this.onTapBus,
   });
 
@@ -365,23 +392,74 @@ class _MapView extends StatelessWidget {
               ),
             ),
           ]),
-        // Marcadores de buses
+        // Polylines reales siguiendo calles (cuando el backend tiene la
+        // geometría cacheada de Google Routes). Si no, no se dibuja para
+        // evitar líneas rectas que cruzan edificios.
+        PolylineLayer(
+          polylines: [
+            for (final b in buses)
+              if (b.polylineCoords.isNotEmpty)
+                Polyline(
+                  points: b.polylineCoords
+                      .map((c) => LatLng(c[0], c[1]))
+                      .toList(),
+                  strokeWidth: 3,
+                  color: statusColor(b.vehicleStatus).withValues(alpha: 0.45),
+                ),
+          ],
+        ),
+        // Marcadores de buses (posición smoothed + badge off-route)
         MarkerLayer(
           markers: buses.map((b) {
             final color = statusColor(b.vehicleStatus);
             return Marker(
-              point: LatLng(b.lat, b.lng),
-              width: 44, height: 44,
+              point: displayPos(b),
+              width: 48, height: 48,
               child: GestureDetector(
                 onTap: () => onTapBus(b),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2.5),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 6)],
-                  ),
-                  child: const Icon(Icons.directions_bus_rounded, size: 20, color: Colors.white),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOut,
+                      width: 44, height: 44,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.directions_bus_rounded,
+                        size: 20,
+                        color: Colors.white,
+                      ),
+                    ),
+                    if (b.isOffRoute)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          width: 16, height: 16,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFB45309), // ámbar warn
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: const Icon(
+                            Icons.warning_amber_rounded,
+                            size: 9,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             );

@@ -6,6 +6,7 @@ import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { DashboardStyles } from "@/components/layout/DashboardStyles";
+import { Toaster } from "@/components/ui/Toaster";
 import {
   clearSession,
   getClientUser,
@@ -138,6 +139,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div style={{ maxWidth: 1400, margin: "0 auto" }}>{children}</div>
         </div>
       </main>
+
+      {/* Cola global de toasts — se monta una vez para todo el dashboard */}
+      <Toaster />
     </div>
   );
 }

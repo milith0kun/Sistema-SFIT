@@ -62,11 +62,19 @@ class BusData {
   final String? routeName;
   final String? routeCode;
   final List<BusWaypoint> waypoints;
+  /// Geometría real de la ruta siguiendo calles (cacheada en backend con
+  /// Google Routes API). Si está disponible, la app dibuja la polyline con
+  /// estos coords en lugar de los waypoints crudos. Cada elemento es
+  /// `[lat, lng]`.
+  final List<List<double>> polylineCoords;
   final List<BusEtaStop> etaByStop;
   final String? nextStopLabel;
   final int? nextStopEta;
   final String? locationUpdatedAt;
   final int? distanceFromUserMeters;
+  /// Bus marcado como fuera de la ruta planeada (>100m de la polyline).
+  /// La app muestra un badge naranja en el marcador.
+  final bool isOffRoute;
 
   const BusData({
     required this.id,
@@ -79,11 +87,13 @@ class BusData {
     this.routeName,
     this.routeCode,
     this.waypoints = const [],
+    this.polylineCoords = const [],
     this.etaByStop = const [],
     this.nextStopLabel,
     this.nextStopEta,
     this.locationUpdatedAt,
     this.distanceFromUserMeters,
+    this.isOffRoute = false,
   });
 
   factory BusData.fromJson(Map<String, dynamic> j) {
@@ -92,6 +102,14 @@ class BusData {
     final ns = j['nextStop'] as Map<String, dynamic>?;
     final etaList = (j['etaByStop'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     final wpList = (route?['waypoints'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    final polyRaw = route?['polylineCoords'] as List?;
+    final polyCoords = polyRaw
+            ?.map<List<double>>((p) {
+              final list = (p as List).cast<num>();
+              return [list[0].toDouble(), list[1].toDouble()];
+            })
+            .toList() ??
+        const <List<double>>[];
     return BusData(
       id: j['id'] as String? ?? '',
       plate: j['plate'] as String? ?? '—',
@@ -103,11 +121,13 @@ class BusData {
       routeName: route?['name'] as String?,
       routeCode: route?['code'] as String?,
       waypoints: wpList.map(BusWaypoint.fromJson).toList(),
+      polylineCoords: polyCoords,
       etaByStop: etaList.map(BusEtaStop.fromJson).toList(),
       nextStopLabel: ns?['label'] as String?,
       nextStopEta: (ns?['etaSeconds'] as num?)?.toInt(),
       locationUpdatedAt: loc['updatedAt']?.toString(),
       distanceFromUserMeters: (j['distanceFromUserMeters'] as num?)?.toInt(),
+      isOffRoute: j['isOffRoute'] as bool? ?? false,
     );
   }
 }
