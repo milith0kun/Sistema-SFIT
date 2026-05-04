@@ -31,6 +31,12 @@ import '../../features/conductor/presentation/pages/available_trips_page.dart';
 import '../../features/operator/presentation/pages/vehicle_qr_page.dart';
 import '../../features/operator/presentation/pages/nuevo_conductor_page.dart';
 import '../../features/operator/presentation/pages/nuevo_vehiculo_page.dart';
+import '../../features/operator/presentation/pages/operator_routes_page.dart';
+import '../../features/operator/presentation/pages/operator_trips_page.dart';
+import '../../features/operator/presentation/pages/operator_trip_detail_page.dart';
+import '../../features/operator/presentation/pages/passenger_list_page.dart';
+import '../../features/operator/presentation/pages/upload_manifest_photo_page.dart';
+import '../../features/operator/presentation/pages/route_edit_page.dart' as op_route_edit;
 import '../../features/vista_publica/presentation/pages/vehicle_public_page.dart';
 import '../../features/trips/presentation/pages/route_detail_page.dart';
 import '../../features/trips/presentation/pages/route_edit_page.dart';
@@ -225,6 +231,40 @@ GoRouter router(Ref ref) {
       // ── Alta de conductor y vehículo (RF-05-01 / RF-05-02) ───
       GoRoute(path: '/nuevo-conductor', builder: (_, __) => const NuevoConductorPage()),
       GoRoute(path: '/nuevo-vehiculo',  builder: (_, __) => const NuevoVehiculoPage()),
+
+      // ── RF-09 (mobile) — Rutas, viajes, pasajeros y manifiesto del operador ──
+      GoRoute(
+        path: '/operador/rutas',
+        builder: (_, __) => const OperatorRoutesPage(),
+      ),
+      GoRoute(
+        path: '/operador/rutas/:id/editar',
+        builder: (_, st) => op_route_edit.RouteEditPage(
+          routeId: st.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/operador/viajes',
+        builder: (_, __) => const OperatorTripsPage(),
+      ),
+      GoRoute(
+        path: '/operador/viajes/:id',
+        builder: (_, st) => OperatorTripDetailPage(
+          tripId: st.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/operador/viajes/:id/pasajeros',
+        builder: (_, st) => PassengerListPage(
+          tripId: st.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/operador/viajes/:id/manifiesto',
+        builder: (_, st) => UploadManifestPhotoPage(
+          tripId: st.pathParameters['id']!,
+        ),
+      ),
 
       // ── Salida de flota (operador) ────────────────────────────
       GoRoute(path: '/flota-salida', builder: (_, __) => const FleetDeparturePage()),
