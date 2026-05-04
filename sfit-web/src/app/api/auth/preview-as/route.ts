@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
+import { Driver } from "@/models/Driver";
 import { signAccessToken, signRefreshToken } from "@/lib/auth/jwt";
 import {
   apiResponse,
@@ -74,11 +75,29 @@ export async function POST(request: NextRequest) {
 
     // JWT con MI userId + el rol elegido (no impersonamos a otro usuario,
     // solo cambiamos el rol del propio super_admin).
+    //
+    // El super_admin no tiene `municipalityId` propio (es global), pero los
+    // endpoints operativos (rutas, flota, viajes, conductores, vehiculos)
+    // requieren uno en sesión cuando el rol no es super_admin. Resolver el
+    // muni desde el Driver record asociado al super_admin, así su preview-as
+    // queda anclado a una jurisdicción concreta y los listados no rompen
+    // con "Acceso denegado".
+    let effectiveMunicipalityId = me.municipalityId?.toString();
+    let effectiveProvinceId = me.provinceId?.toString();
+    if (!effectiveMunicipalityId && role === ROLES.CONDUCTOR) {
+      const driver = await Driver.findOne({ userId: me._id })
+        .select("municipalityId")
+        .lean<{ municipalityId?: { toString(): string } } | null>();
+      if (driver?.municipalityId) {
+        effectiveMunicipalityId = String(driver.municipalityId);
+      }
+    }
+
     const payload = {
       userId: me._id.toString(),
       role,
-      municipalityId: me.municipalityId?.toString(),
-      provinceId: me.provinceId?.toString(),
+      municipalityId: effectiveMunicipalityId,
+      provinceId: effectiveProvinceId,
     };
     const accessToken = signAccessToken(payload);
     const refreshToken = signRefreshToken(payload);
