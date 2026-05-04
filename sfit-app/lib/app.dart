@@ -21,8 +21,10 @@ class SfitApp extends ConsumerWidget {
       title: 'SFIT',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      // Modo dark deshabilitado por consistencia con la web (que también
+      // está forzada a light). Si se quiere reactivar, restaurar
+      // `darkTheme: AppTheme.darkTheme` y `themeMode: ThemeMode.system`.
+      themeMode: ThemeMode.light,
       scaffoldMessengerKey: scaffoldMessengerKey,
       routerConfig: router,
       // El builder se ejecuta en cada ruta; _UpdateWrapper garantiza
