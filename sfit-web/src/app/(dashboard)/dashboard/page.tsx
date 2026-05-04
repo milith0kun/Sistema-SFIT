@@ -28,9 +28,11 @@ import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { KPIStrip, type KPIItem } from "@/components/dashboard/KPIStrip";
 import { FeatureCard } from "@/components/dashboard/FeatureCard";
 import { GoogleMapView } from "@/components/ui/GoogleMapView";
+import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { OperatorDashboard } from "./components/OperatorDashboard";
 
-type User = { name: string; email: string; role: string };
+type User = { name: string; email: string; role: string; regionId?: string };
 
 type ApiResponse<T> = { success: boolean; data?: T; error?: string };
 
@@ -234,6 +236,12 @@ export default function DashboardPage() {
   }, [user, loadSuperAdmin, loadOperador, loadFiscal, loadConductor, loadActividad, loadFleetLocations]);
 
   if (!user) return null;
+
+  // Track B — admin_regional tiene un dashboard consolidado por región:
+  // KPIs sumados de todas las provincias y tabla con desglose por provincia.
+  if (user.role === "admin_regional") {
+    return <RegionalDashboard user={user} />;
+  }
 
   // Track B — el operador tiene un dashboard especializado: KPIs propios de
   // su flota, tarjeta de empresa y CTAs rápidas para alta de viajes/conductores.
@@ -881,4 +889,257 @@ function buildTabsFor(role: string, stats: GlobalStats | null): TabConfig[] {
   return [{ key: "inicio", label: "Inicio", items: [
     { title: "Notificaciones", subtitle: "Centro de avisos", href: "/notificaciones", icon: Bell },
   ]}];
+}
+
+/* ── Dashboard del admin_regional ── */
+
+type RegionalKpis = {
+  activeVehicles: number;
+  activeDrivers: number;
+  inspectionsThisMonth: number;
+  reportsPending: number;
+  sanctionsThisMonth: number;
+  provinces: number;
+  municipalities: number;
+};
+
+type RegionalProvinceRow = {
+  provinceId: string;
+  name: string;
+  activeVehicles: number;
+  activeDrivers: number;
+  inspectionsThisMonth: number;
+  reportsPending: number;
+  sanctionsThisMonth: number;
+  municipalities: number;
+};
+
+type RegionalStats = {
+  regionId: string;
+  kpis: RegionalKpis;
+  provinces: RegionalProvinceRow[];
+};
+
+function RegionalDashboard({ user }: { user: User }) {
+  const [stats, setStats] = useState<RegionalStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const hasRegion = Boolean(user.regionId);
+
+  useEffect(() => {
+    if (!hasRegion) { setLoading(false); return; }
+    let aborted = false;
+    (async () => {
+      setLoading(true); setError(null);
+      try {
+        const token = localStorage.getItem("sfit_access_token");
+        const res = await fetch("/api/admin/stats/regional", {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        });
+        if (aborted) return;
+        const data: ApiResponse<RegionalStats> = await res.json();
+        if (!res.ok || !data.success || !data.data) {
+          setError(data.error ?? "No se pudieron cargar las estadísticas regionales.");
+          return;
+        }
+        setStats(data.data);
+      } catch {
+        if (!aborted) setError("Error de conexión.");
+      } finally {
+        if (!aborted) setLoading(false);
+      }
+    })();
+    return () => { aborted = true; };
+  }, [hasRegion]);
+
+  // Hero pills
+  const heroPills = stats ? [
+    { label: "Provincias",     value: stats.kpis.provinces },
+    { label: "Municipalidades",value: stats.kpis.municipalities },
+    { label: "Reportes",       value: stats.kpis.reportsPending, warn: stats.kpis.reportsPending > 0 },
+  ] : undefined;
+
+  const firstName = user.name.split(" ")[0] ?? user.name;
+  const greeting = (() => {
+    if (typeof window === "undefined") return "Buenos días";
+    const h = new Date().getHours();
+    if (h < 12) return "Buenos días";
+    if (h < 19) return "Buenas tardes";
+    return "Buenas noches";
+  })();
+
+  // Columnas de la tabla de provincias
+  const columns: ColumnDef<RegionalProvinceRow, unknown>[] = [
+    {
+      id: "name",
+      header: "Provincia",
+      accessorFn: (p) => p.name,
+      enableSorting: true,
+      sortingFn: (a, b) => a.original.name.localeCompare(b.original.name, "es-PE"),
+      cell: ({ row: r }) => (
+        <span style={{ fontWeight: 600, fontSize: "0.875rem", color: "#18181b" }}>
+          {r.original.name}
+        </span>
+      ),
+    },
+    {
+      id: "municipalities",
+      header: "Municipalidades",
+      accessorFn: (p) => p.municipalities,
+      enableSorting: true,
+      cell: ({ row: r }) => (
+        <span style={{ color: "#52525b", fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
+          {r.original.municipalities}
+        </span>
+      ),
+    },
+    {
+      id: "activeVehicles",
+      header: "Vehículos activos",
+      accessorFn: (p) => p.activeVehicles,
+      enableSorting: true,
+      cell: ({ row: r }) => (
+        <span style={{ color: "#18181b", fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
+          {r.original.activeVehicles}
+        </span>
+      ),
+    },
+    {
+      id: "inspectionsThisMonth",
+      header: "Inspecciones (mes)",
+      accessorFn: (p) => p.inspectionsThisMonth,
+      enableSorting: true,
+      cell: ({ row: r }) => (
+        <span style={{ color: "#52525b", fontVariantNumeric: "tabular-nums" }}>
+          {r.original.inspectionsThisMonth}
+        </span>
+      ),
+    },
+    {
+      id: "reportsPending",
+      header: "Reportes pendientes",
+      accessorFn: (p) => p.reportsPending,
+      enableSorting: true,
+      cell: ({ row: r }) => (
+        <span style={{
+          color: r.original.reportsPending > 0 ? "#B45309" : "#52525b",
+          fontVariantNumeric: "tabular-nums",
+          fontWeight: r.original.reportsPending > 0 ? 700 : 500,
+        }}>
+          {r.original.reportsPending}
+        </span>
+      ),
+    },
+    {
+      id: "sanctionsThisMonth",
+      header: "Sanciones (mes)",
+      accessorFn: (p) => p.sanctionsThisMonth,
+      enableSorting: true,
+      cell: ({ row: r }) => (
+        <span style={{
+          color: r.original.sanctionsThisMonth > 0 ? "#DC2626" : "#52525b",
+          fontVariantNumeric: "tabular-nums",
+          fontWeight: r.original.sanctionsThisMonth > 0 ? 700 : 500,
+        }}>
+          {r.original.sanctionsThisMonth}
+        </span>
+      ),
+    },
+  ];
+
+  // Sin región asignada
+  if (!hasRegion) {
+    return (
+      <div className="flex flex-col gap-4 animate-fade-in">
+        <DashboardHero
+          kicker="Administrador Regional · SFIT"
+          title={`${greeting}, ${firstName}.`}
+        />
+        <div style={{
+          background: "#fff", border: "1.5px solid #FCD34D", borderRadius: 12,
+          padding: "20px 24px", display: "flex", alignItems: "center", gap: 14,
+        }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 10, background: "#FFFBEB",
+            border: "1px solid #FCD34D",
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+          }}>
+            <TriangleAlert size={18} color="#B45309" />
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: "0.9375rem", color: "#18181b", marginBottom: 3 }}>
+              Sin región asignada
+            </div>
+            <div style={{ fontSize: "0.8125rem", color: "#52525b", lineHeight: 1.5 }}>
+              Tu cuenta de administrador regional aún no tiene una región asignada. Contacta con el super administrador para resolverlo.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4 animate-fade-in">
+      <DashboardHero
+        kicker="Administrador Regional · SFIT"
+        title={`${greeting}, ${firstName}.`}
+        subtitle="Vista consolidada de tu región: KPIs sumados y desglose por provincia."
+        pills={heroPills}
+      />
+
+      {error && (
+        <div role="alert" style={{
+          background: "#FFF5F5", border: "1.5px solid #FCA5A5", borderRadius: 10,
+          padding: "10px 14px", color: "#DC2626", fontSize: "0.875rem", fontWeight: 500,
+        }}>
+          {error}
+        </div>
+      )}
+
+      <KPIStrip cols={4} items={[
+        {
+          label: "PROVINCIAS",
+          value: stats ? stats.kpis.provinces : (loading ? "…" : 0),
+          subtitle: "en la región",
+          icon: MapPin,
+        },
+        {
+          label: "MUNICIPALIDADES",
+          value: stats ? stats.kpis.municipalities : (loading ? "…" : 0),
+          subtitle: "incorporadas",
+          icon: Building2,
+        },
+        {
+          label: "VEHÍCULOS ACTIVOS",
+          value: stats ? stats.kpis.activeVehicles : (loading ? "…" : 0),
+          subtitle: "en operación",
+          icon: Truck,
+        },
+        {
+          label: "INSPECCIONES",
+          value: stats ? stats.kpis.inspectionsThisMonth : (loading ? "…" : 0),
+          subtitle: "este mes",
+          icon: Shield,
+        },
+      ]} />
+
+      <PageHeader
+        kicker="Desglose por provincia"
+        title="Provincias de tu región"
+        subtitle="Ordena por cualquier columna para detectar provincias con mayor presión operativa."
+      />
+
+      <DataTable<RegionalProvinceRow>
+        columns={columns}
+        data={stats?.provinces ?? []}
+        loading={loading}
+        searchPlaceholder="Buscar provincia…"
+        emptyTitle="Sin provincias"
+        emptyDescription="Esta región aún no tiene provincias activas con datos para mostrar."
+        defaultPageSize={20}
+      />
+    </div>
+  );
 }
