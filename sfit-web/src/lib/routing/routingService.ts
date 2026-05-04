@@ -25,6 +25,25 @@ const CACHE_MAX = 1000;
 // cuando el bus se mueve dentro del mismo bloque
 const KEY_PRECISION = 4;
 
+/**
+ * Resuelve la API key. Preferimos `GOOGLE_ROUTES_API_KEY` (server-side,
+ * restringida por IP en producción), pero caemos a `NEXT_PUBLIC_GOOGLE_MAPS_KEY`
+ * si no hay una específica — ya está configurada para Maps tiles y aplica
+ * para Routes API si tiene esa API habilitada en Google Cloud Console.
+ *
+ * Nota: usar la public key en server-side está OK; el riesgo de
+ * `NEXT_PUBLIC_*` es que se expone al cliente. Si en producción quieres
+ * restringir Routes API por IP, configura un `GOOGLE_ROUTES_API_KEY`
+ * dedicada y este wrapper la preferirá.
+ */
+function getApiKey(): string | null {
+  return (
+    process.env.GOOGLE_ROUTES_API_KEY ||
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ||
+    null
+  );
+}
+
 type CacheEntry = { value: RoutePolyline | null; expiresAt: number };
 
 class LruCache {
@@ -101,7 +120,7 @@ export async function routeBetween(
   from: LatLng,
   to: LatLng,
 ): Promise<RoutePolyline | null> {
-  const apiKey = process.env.GOOGLE_ROUTES_API_KEY;
+  const apiKey = getApiKey();
   if (!apiKey) return null;
 
   const key = cacheKey(from, to);
@@ -162,7 +181,7 @@ export async function routeAlongWaypoints(
   waypoints: LatLng[],
 ): Promise<RoutePolyline | null> {
   if (waypoints.length < 2) return null;
-  const apiKey = process.env.GOOGLE_ROUTES_API_KEY;
+  const apiKey = getApiKey();
   if (!apiKey) return null;
 
   const origin = waypoints[0];
