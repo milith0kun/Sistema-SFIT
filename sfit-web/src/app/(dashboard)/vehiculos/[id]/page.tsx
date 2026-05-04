@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Save, Trash2, AlertTriangle, CheckCircle, Loader2, Hash, Copy, Check,
-  Car, TrendingUp, ClipboardCheck, ShieldCheck, Building2, Calendar,
+  Car, TrendingUp, ClipboardCheck, ShieldCheck, Building2, Calendar, ShieldOff,
 } from "lucide-react";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -27,8 +27,9 @@ const NO = "#DC2626"; const NO_BG = "#FFF5F5"; const NO_BD = "#FCA5A5";
 const INFO = "#1E40AF"; const INFO_BD = "#BFDBFE";
 
 const CURRENT_YEAR = new Date().getFullYear();
-const VIEW_ROLES = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
+const VIEW_ROLES = ["admin_municipal", "fiscal", "admin_provincial", "admin_regional", "super_admin", "operador"];
 const EDIT_ROLES = ["admin_municipal", "super_admin"];
+const SUSPEND_ROLES = ["admin_municipal", "fiscal", "super_admin"];
 
 type VehicleStatus = "disponible" | "en_ruta" | "en_mantenimiento" | "fuera_de_servicio";
 type InspectionStatus = "aprobada" | "observada" | "rechazada" | "pendiente";
@@ -120,6 +121,10 @@ export default function VehiculoDetallePage({ params }: Props) {
   const [notFound, setNotFound] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [canEdit, setCanEdit] = useState(false);
+  const [canSuspend, setCanSuspend] = useState(false);
+  const [showSuspend, setShowSuspend] = useState(false);
+  const [suspendReason, setSuspendReason] = useState("");
+  const [suspending, setSuspending] = useState(false);
 
   const [form, setForm] = useState<FormData>({
     plate: "", vehicleTypeKey: "", brand: "", model: "",
@@ -145,6 +150,7 @@ export default function VehiculoDetallePage({ params }: Props) {
     try { user = JSON.parse(raw); } catch { router.replace("/login"); return; }
     if (!user.role || !VIEW_ROLES.includes(user.role)) { router.replace("/dashboard"); return; }
     setCanEdit(EDIT_ROLES.includes(user.role ?? ""));
+    setCanSuspend(SUSPEND_ROLES.includes(user.role ?? ""));
     void loadVehicle();
     void loadDropdowns();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -307,6 +313,29 @@ export default function VehiculoDetallePage({ params }: Props) {
     finally { setSubmitting(false); }
   }
 
+  async function handleSuspend() {
+    if (suspendReason.trim().length < 5 || !vehicle) return;
+    setSuspending(true);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/vehiculos/${id}/suspender`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ reason: suspendReason.trim() }),
+      });
+      if (res.status === 401) return router.replace("/login");
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setServerError(data.error ?? "No se pudo suspender el vehículo.");
+        return;
+      }
+      setShowSuspend(false);
+      setSuspendReason("");
+      setVehicle((v) => v ? { ...v, status: "fuera_de_servicio" } : v);
+    } catch { setServerError("Error de conexión."); }
+    finally { setSuspending(false); }
+  }
+
   async function handleDelete() {
     if (!vehicle) return;
     setDeleting(true);
@@ -385,9 +414,26 @@ export default function VehiculoDetallePage({ params }: Props) {
   const soatWarn = soatDays != null && soatDays >= 0 && soatDays <= 30;
   const soatExpired = soatDays != null && soatDays < 0;
 
+  const canShowSuspend = canSuspend && vehicle.status !== "fuera_de_servicio";
   const headerAction = (
     <div style={{ display: "flex", gap: 8 }}>
       {backBtnPlain}
+      {canShowSuspend && (
+        <button
+          type="button"
+          onClick={() => setShowSuspend(true)}
+          disabled={submitting || deleting || suspending}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            height: 36, padding: "0 14px", borderRadius: 9,
+            border: `1.5px solid ${NO_BD}`, background: NO_BG,
+            color: NO, fontWeight: 700, fontSize: "0.875rem",
+            cursor: "pointer", fontFamily: "inherit",
+          }}
+        >
+          <ShieldOff size={14} /> Suspender
+        </button>
+      )}
       {canEdit && (
         <button form="vehiculo-form" type="submit" disabled={submitting || deleting}
           style={{
@@ -845,6 +891,83 @@ export default function VehiculoDetallePage({ params }: Props) {
           borderRadius: 8, color: INK6, fontSize: "0.8125rem",
         }}>
           Solo administradores municipales o superadministradores pueden editar o eliminar vehículos.
+        </div>
+      )}
+
+      {showSuspend && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => !suspending && setShowSuspend(false)}
+          style={{
+            position: "fixed", inset: 0,
+            background: "rgba(15,15,17,0.5)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 1000, padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff", borderRadius: 14, maxWidth: 460, width: "100%",
+              padding: "24px 24px 20px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+              border: `1px solid ${INK2}`,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <ShieldOff size={22} color={NO} />
+              <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 800, color: INK9 }}>
+                Suspender vehículo
+              </h3>
+            </div>
+            <p style={{ margin: "0 0 16px", color: INK6, fontSize: "0.875rem", lineHeight: 1.5 }}>
+              Pondrá la placa <b>{vehicle.plate}</b> fuera de servicio. Esta acción se
+              registra en el log de auditoría con motivo y autor.
+            </p>
+            <label style={{ display: "block", fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: INK5, marginBottom: 6 }}>
+              Motivo de la suspensión
+            </label>
+            <textarea
+              value={suspendReason}
+              onChange={(e) => setSuspendReason(e.target.value)}
+              placeholder="Ej: SOAT vencido y revisión técnica observada con falla grave"
+              rows={3}
+              autoFocus
+              style={{
+                width: "100%", padding: "10px 12px",
+                borderRadius: 8, border: `1px solid ${INK2}`,
+                fontSize: "0.875rem", fontFamily: "inherit",
+                resize: "vertical", color: INK9, background: "#fff",
+              }}
+            />
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+              <button
+                onClick={() => { setShowSuspend(false); setSuspendReason(""); }}
+                disabled={suspending}
+                style={{
+                  height: 36, padding: "0 16px", borderRadius: 8,
+                  border: `1.5px solid ${INK2}`, background: "#fff",
+                  color: INK6, fontSize: "0.875rem", fontWeight: 600,
+                  cursor: "pointer", fontFamily: "inherit",
+                }}
+              >Cancelar</button>
+              <button
+                onClick={handleSuspend}
+                disabled={suspending || suspendReason.trim().length < 5}
+                style={{
+                  height: 36, padding: "0 16px", borderRadius: 8,
+                  border: "none", background: NO, color: "#fff",
+                  fontSize: "0.875rem", fontWeight: 700,
+                  cursor: suspending || suspendReason.trim().length < 5 ? "not-allowed" : "pointer",
+                  opacity: suspending || suspendReason.trim().length < 5 ? 0.5 : 1,
+                  fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 6,
+                }}
+              >
+                {suspending ? <Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} /> : <ShieldOff size={14} />}
+                {suspending ? "Suspendiendo…" : "Confirmar suspensión"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

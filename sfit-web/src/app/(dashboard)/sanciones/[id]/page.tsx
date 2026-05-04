@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Gavel, Mail, Phone, Bell, FileText,
-  Car, User as UserIcon, Building2, Hash, CheckCircle, XCircle,
+  Car, User as UserIcon, Building2, Hash, CheckCircle, XCircle, Ban,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 
@@ -160,6 +160,9 @@ export default function SancionDetallePage({ params }: Props) {
   const [userRole, setUserRole] = useState("");
   const [updating, setUpdating] = useState(false);
   const [newStatus, setNewStatus] = useState<SanctionStatus | "">("");
+  const [showAnular, setShowAnular] = useState(false);
+  const [anularReason, setAnularReason] = useState("");
+  const [anulando, setAnulando] = useState(false);
 
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
@@ -205,6 +208,29 @@ export default function SancionDetallePage({ params }: Props) {
   }
 
   const canEdit = ["fiscal", "admin_municipal", "super_admin"].includes(userRole);
+  const canAnular = canEdit && sanction
+    && sanction.status !== "anulada"
+    && sanction.status !== "confirmada";
+
+  async function handleAnular() {
+    if (anularReason.trim().length < 5) return;
+    setAnulando(true);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/sanciones/${id}/anular`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ reason: anularReason.trim() }),
+      });
+      if (res.status === 401) { router.replace("/login"); return; }
+      const data = await res.json();
+      if (!res.ok || !data.success) { setError(data.error ?? "Error al anular."); return; }
+      setShowAnular(false);
+      setAnularReason("");
+      void load();
+    } catch { setError("Error de conexión."); }
+    finally { setAnulando(false); }
+  }
 
   const backBtn = (
     <Link href="/sanciones">
@@ -392,6 +418,75 @@ export default function SancionDetallePage({ params }: Props) {
               <p style={{ margin: 0, color: INK6, lineHeight: 1.65, fontSize: "0.9375rem", whiteSpace: "pre-wrap" }}>
                 {sanction.appealNotes}
               </p>
+            </SectionCard>
+          )}
+
+          {/* Anular sanción — atajo con motivo (RF-13) */}
+          {canAnular && (
+            <SectionCard
+              icon={<Ban size={14} color={RED} />}
+              title="Anular sanción"
+              subtitle="Cancela la sanción dejando registro del motivo. Acción irreversible."
+              action={
+                !showAnular ? (
+                  <button
+                    onClick={() => setShowAnular(true)}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      height: 28, padding: "0 12px", borderRadius: 7,
+                      border: `1.5px solid ${REDBD}`, background: REDBG,
+                      color: RED, fontSize: "0.75rem", fontWeight: 700,
+                      cursor: "pointer", fontFamily: "inherit",
+                    }}
+                  >
+                    <Ban size={13} /> Anular
+                  </button>
+                ) : null
+              }
+            >
+              {showAnular && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div>
+                    <label style={LABEL_S}>Motivo de la anulación</label>
+                    <textarea
+                      value={anularReason}
+                      onChange={(e) => setAnularReason(e.target.value)}
+                      placeholder="Explique el motivo (mínimo 5 caracteres)"
+                      rows={3}
+                      style={{
+                        width: "100%", padding: "10px 12px",
+                        borderRadius: 7, border: `1px solid ${INK2}`,
+                        fontSize: "0.875rem", fontFamily: "inherit",
+                        resize: "vertical", color: INK9, background: "#fff",
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    <button
+                      onClick={() => { setShowAnular(false); setAnularReason(""); }}
+                      disabled={anulando}
+                      style={{
+                        height: 32, padding: "0 14px", borderRadius: 7,
+                        border: `1.5px solid ${INK2}`, background: "#fff",
+                        color: INK6, fontSize: "0.8125rem", fontWeight: 600,
+                        cursor: "pointer", fontFamily: "inherit",
+                      }}
+                    >Cancelar</button>
+                    <button
+                      onClick={handleAnular}
+                      disabled={anulando || anularReason.trim().length < 5}
+                      style={{
+                        height: 32, padding: "0 14px", borderRadius: 7,
+                        border: "none", background: RED, color: "#fff",
+                        fontSize: "0.8125rem", fontWeight: 700,
+                        cursor: anulando || anularReason.trim().length < 5 ? "not-allowed" : "pointer",
+                        opacity: anulando || anularReason.trim().length < 5 ? 0.5 : 1,
+                        fontFamily: "inherit",
+                      }}
+                    >{anulando ? "Anulando…" : "Confirmar anulación"}</button>
+                  </div>
+                </div>
+              )}
             </SectionCard>
           )}
 

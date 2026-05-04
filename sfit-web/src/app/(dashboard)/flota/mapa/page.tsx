@@ -19,7 +19,7 @@ const RIESGO = "#B45309";
 const NO = "#DC2626"; const NO_BG = "#FFF5F5"; const NO_BD = "#FCA5A5";
 const GOLD = "#B8860B";
 
-const ALLOWED = ["super_admin", "admin_provincial", "admin_municipal", "operador"];
+const ALLOWED = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal", "operador", "fiscal"];
 const REFRESH_INTERVAL_MS = 15_000;
 
 type ActiveLocation = {

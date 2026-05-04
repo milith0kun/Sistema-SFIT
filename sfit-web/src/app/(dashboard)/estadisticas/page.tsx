@@ -128,8 +128,8 @@ export default function EstadisticasPage() {
 
   useEffect(() => {
     if (!user) return;
-    if (user.role === "super_admin" || user.role === "admin_provincial") void load(user);
-    else if (user.role === "admin_municipal") void loadMunicipal();
+    if (user.role === "super_admin" || user.role === "admin_provincial" || user.role === "admin_regional") void load(user);
+    else if (user.role === "admin_municipal" || user.role === "fiscal") void loadMunicipal();
     else setLoading(false);
   }, [user, load, loadMunicipal]);
 
@@ -181,8 +181,19 @@ export default function EstadisticasPage() {
     </div>
   );
 
-  if (user.role !== "super_admin" && user.role !== "admin_provincial" && user.role !== "admin_municipal") return <ComingSoon title="Estadísticas" rf="RF-19" />;
-  if (user.role === "admin_municipal") return <MunicipalDashboard loading={loading} error={error} data={municipalStats} />;
+  if (
+    user.role !== "super_admin" &&
+    user.role !== "admin_regional" &&
+    user.role !== "admin_provincial" &&
+    user.role !== "admin_municipal" &&
+    user.role !== "fiscal"
+  ) return <ComingSoon title="Estadísticas" rf="RF-19" />;
+
+  // Fiscal y admin_municipal usan el mismo dashboard municipal (filtrado por
+  // su muni). Para fiscal el endpoint stats/municipal acepta su rol.
+  if (user.role === "admin_municipal" || user.role === "fiscal") {
+    return <MunicipalDashboard loading={loading} error={error} data={municipalStats} />;
+  }
 
   const totalUsers = stats ? Object.values(stats.usersByRole ?? {}).reduce((a, b) => a + b, 0) : 0;
 

@@ -28,7 +28,7 @@ import { ROLES } from "@/lib/constants";
  *  - ultimasSanciones: últimas 5 sanciones emitidas en la municipalidad.
  */
 export async function GET(request: NextRequest) {
-  const auth = requireRole(request, [ROLES.ADMIN_MUNICIPAL, ROLES.SUPER_ADMIN]);
+  const auth = requireRole(request, [ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL, ROLES.SUPER_ADMIN]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
   const { session } = auth;
 
   // Para super_admin puede pasar municipalityId como query param.
-  // Para admin_municipal se usa el del JWT.
+  // Para admin_municipal/fiscal se usa el del JWT.
   let municipalityId: string | undefined;
   if (session.role === ROLES.SUPER_ADMIN) {
     municipalityId =

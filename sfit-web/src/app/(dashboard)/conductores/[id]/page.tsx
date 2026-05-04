@@ -18,8 +18,9 @@ const APTO = "#15803d"; const APTO_BG = "#F0FDF4"; const APTO_BD = "#86EFAC";
 const RIESGO = "#B45309"; const RIESGO_BG = "#FFFBEB"; const RIESGO_BD = "#FDE68A";
 const NO = "#DC2626"; const NO_BG = "#FFF5F5"; const NO_BD = "#FCA5A5";
 
-const VIEW_ROLES = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
+const VIEW_ROLES = ["admin_municipal", "fiscal", "admin_provincial", "admin_regional", "super_admin", "operador"];
 const EDIT_ROLES = ["admin_municipal", "super_admin"];
+const FATIGUE_ROLES = ["admin_municipal", "fiscal", "super_admin"];
 const LICENSE_CATEGORIES = ["A-I", "A-IIa", "A-IIb", "A-IIIa", "A-IIIb", "A-IIIc"];
 
 interface Conductor {
@@ -94,6 +95,10 @@ export default function ConductorDetallePage({ params }: Props) {
 
   const [authorized, setAuthorized] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
+  const [canMarkFatigue, setCanMarkFatigue] = useState(false);
+  const [showFatigue, setShowFatigue] = useState(false);
+  const [fatigueLevel, setFatigueLevel] = useState<"riesgo" | "no_apto">("no_apto");
+  const [markingFatigue, setMarkingFatigue] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [conductor, setConductor] = useState<Conductor | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -126,6 +131,7 @@ export default function ConductorDetallePage({ params }: Props) {
     if (!user.role || !VIEW_ROLES.includes(user.role)) { router.replace("/conductores"); return; }
     setAuthorized(true);
     setCanEdit(EDIT_ROLES.includes(user.role ?? ""));
+    setCanMarkFatigue(FATIGUE_ROLES.includes(user.role ?? ""));
     setToken(tk);
   }, [router]);
 
@@ -387,9 +393,26 @@ export default function ConductorDetallePage({ params }: Props) {
   const continuous = conductor.continuousHours ?? 0;
   const fatigaColor = continuous >= 8 ? NO : continuous >= 5 ? RIESGO : INK6;
 
+  const showFatigueBtn = canMarkFatigue && conductor.status !== "no_apto";
   const headerAction = (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
       {backBtnPlain}
+      {showFatigueBtn && (
+        <button
+          type="button"
+          onClick={() => setShowFatigue(true)}
+          disabled={submitting || markingFatigue}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            height: 36, padding: "0 14px", borderRadius: 9,
+            border: `1.5px solid ${RIESGO}`, background: "#FFFBEB",
+            color: RIESGO, fontWeight: 700, fontSize: "0.875rem",
+            cursor: "pointer", fontFamily: "inherit",
+          }}
+        >
+          <AlertTriangle size={14} /> Marcar fatiga
+        </button>
+      )}
       {canEdit && (
         <button form="conductor-form" type="submit" disabled={submitting || deleting}
           style={{
@@ -406,6 +429,26 @@ export default function ConductorDetallePage({ params }: Props) {
       )}
     </div>
   );
+
+  async function handleMarkFatigue() {
+    if (!conductor) return;
+    setMarkingFatigue(true);
+    try {
+      const res = await fetch(`/api/conductores/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ status: fatigueLevel }),
+      });
+      if (res.status === 401) { router.replace("/login"); return; }
+      const data = await res.json();
+      if (!res.ok || !data.success) { setServerError(data.error ?? "No se pudo marcar fatiga."); return; }
+      setShowFatigue(false);
+      setConductor((c) => c ? { ...c, status: fatigueLevel } : c);
+      setSuccessMsg(`Conductor marcado como ${fatigueLevel === "no_apto" ? "no apto" : "en riesgo"}.`);
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch { setServerError("Error de conexión."); }
+    finally { setMarkingFatigue(false); }
+  }
 
   const conductorInitials = (conductor.name ?? "—")
     .split(" ").map(w => w[0] ?? "").slice(0, 2).join("").toUpperCase();
@@ -866,6 +909,91 @@ export default function ConductorDetallePage({ params }: Props) {
           )}
         </div>
       </div>
+
+      {showFatigue && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => !markingFatigue && setShowFatigue(false)}
+          style={{
+            position: "fixed", inset: 0,
+            background: "rgba(15,15,17,0.5)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 1000, padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff", borderRadius: 14, maxWidth: 460, width: "100%",
+              padding: "24px 24px 20px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+              border: `1px solid ${INK2}`,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <AlertTriangle size={22} color={RIESGO} />
+              <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 800, color: INK9 }}>
+                Marcar fatiga
+              </h3>
+            </div>
+            <p style={{ margin: "0 0 16px", color: INK6, fontSize: "0.875rem", lineHeight: 1.5 }}>
+              Cambia el estado del conductor <b>{conductor.name}</b> para alertar al
+              sistema de despacho. La acción queda registrada en el log.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+              {(["riesgo", "no_apto"] as const).map((lvl) => {
+                const active = fatigueLevel === lvl;
+                const color = lvl === "no_apto" ? NO : RIESGO;
+                const bg = lvl === "no_apto" ? NO_BG : RIESGO_BG;
+                const label = lvl === "no_apto" ? "No apto (no puede operar)" : "Riesgo (alerta supervisor)";
+                return (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={() => setFatigueLevel(lvl)}
+                    style={{
+                      padding: "10px 12px", borderRadius: 8, textAlign: "left",
+                      border: active ? `1.5px solid ${color}` : `1px solid ${INK2}`,
+                      background: active ? bg : "#fff",
+                      color: active ? color : INK9,
+                      fontWeight: active ? 700 : 500, fontSize: "0.875rem",
+                      cursor: "pointer", fontFamily: "inherit",
+                    }}
+                  >{label}</button>
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowFatigue(false)}
+                disabled={markingFatigue}
+                style={{
+                  height: 36, padding: "0 16px", borderRadius: 8,
+                  border: `1.5px solid ${INK2}`, background: "#fff",
+                  color: INK6, fontSize: "0.875rem", fontWeight: 600,
+                  cursor: "pointer", fontFamily: "inherit",
+                }}
+              >Cancelar</button>
+              <button
+                onClick={handleMarkFatigue}
+                disabled={markingFatigue}
+                style={{
+                  height: 36, padding: "0 16px", borderRadius: 8,
+                  border: "none",
+                  background: fatigueLevel === "no_apto" ? NO : RIESGO,
+                  color: "#fff", fontSize: "0.875rem", fontWeight: 700,
+                  cursor: markingFatigue ? "not-allowed" : "pointer",
+                  opacity: markingFatigue ? 0.5 : 1,
+                  fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 6,
+                }}
+              >
+                {markingFatigue ? <Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} /> : <AlertTriangle size={14} />}
+                {markingFatigue ? "Aplicando…" : "Confirmar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

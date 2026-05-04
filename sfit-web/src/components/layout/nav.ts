@@ -24,38 +24,40 @@ export type NavItem = {
 
 export const NAV: NavItem[] = [
   // PANEL — todos los roles con acceso web
-  { href: "/dashboard",       label: "Dashboard",           icon: House,                 section: "PANEL",          roles: ["super_admin","admin_provincial","admin_municipal","fiscal","operador"] },
-  { href: "/notificaciones",  label: "Notificaciones",      icon: Bell,                  section: "PANEL",          roles: ["super_admin","admin_provincial","admin_municipal","fiscal","operador"] },
+  { href: "/dashboard",       label: "Dashboard",           icon: House,                 section: "PANEL",          roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal","operador"] },
+  { href: "/notificaciones",  label: "Notificaciones",      icon: Bell,                  section: "PANEL",          roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal","operador"] },
 
   // GESTIÓN — administración de cuentas
-  { href: "/usuarios",        label: "Usuarios",            icon: Users,                 section: "GESTIÓN",        roles: ["super_admin","admin_provincial","admin_municipal"] },
-  { href: "/admin/users",     label: "Aprobaciones",        icon: UserCheck,             section: "GESTIÓN",        roles: ["super_admin","admin_provincial","admin_municipal"] },
+  { href: "/usuarios",        label: "Usuarios",            icon: Users,                 section: "GESTIÓN",        roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
+  { href: "/admin/users",     label: "Aprobaciones",        icon: UserCheck,             section: "GESTIÓN",        roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
 
   // RED NACIONAL — vista cross-tenant del super_admin
   { href: "/admin/red-nacional", label: "Red nacional",     icon: MapPin,                section: "RED NACIONAL",   roles: ["super_admin"] },
-  { href: "/municipalidades", label: "Municipalidades",     icon: Building2,             section: "RED NACIONAL",   roles: ["super_admin","admin_provincial"] },
-  { href: "/admin/empresas",  label: "Empresas nacionales", icon: Building2,             section: "RED NACIONAL",   roles: ["super_admin","admin_provincial"] },
+  { href: "/admin/regiones",  label: "Regiones",            icon: MapPin,                section: "RED NACIONAL",   roles: ["super_admin"] },
+  { href: "/municipalidades", label: "Municipalidades",     icon: Building2,             section: "RED NACIONAL",   roles: ["super_admin","admin_regional","admin_provincial"] },
+  { href: "/admin/empresas",  label: "Empresas nacionales", icon: Building2,             section: "RED NACIONAL",   roles: ["super_admin","admin_regional","admin_provincial"] },
 
   // OPERACIÓN — gestión de la flota municipal
-  { href: "/empresas",        label: "Empresas",            icon: Building2,             section: "OPERACIÓN",      roles: ["super_admin","admin_provincial","admin_municipal"] },
-  { href: "/conductores",     label: "Conductores",         icon: Users,                 section: "OPERACIÓN",      roles: ["super_admin","admin_provincial","admin_municipal","operador","fiscal"] },
-  { href: "/vehiculos",       label: "Vehículos / QR",      icon: Car,                   section: "OPERACIÓN",      roles: ["super_admin","admin_provincial","admin_municipal","operador","fiscal"] },
-  { href: "/flota",           label: "Flota del día",       icon: ClipboardList,         section: "OPERACIÓN",      roles: ["super_admin","admin_provincial","admin_municipal","operador"] },
-  { href: "/rutas",           label: "Rutas y zonas",       icon: Route,                 section: "OPERACIÓN",      roles: ["super_admin","admin_provincial","admin_municipal","operador","fiscal"] },
-  { href: "/viajes",          label: "Viajes",              icon: CalendarDays,          section: "OPERACIÓN",      roles: ["super_admin","admin_provincial","admin_municipal","operador","fiscal"] },
-  { href: "/inspecciones",    label: "Inspecciones",        icon: Shield,                section: "OPERACIÓN",      roles: ["super_admin","admin_provincial","admin_municipal","fiscal"] },
-  { href: "/apelaciones",     label: "Apelaciones",         icon: MessageSquareWarning,  section: "OPERACIÓN",      roles: ["super_admin","admin_provincial","admin_municipal"] },
+  { href: "/empresas",        label: "Empresas",            icon: Building2,             section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
+  { href: "/conductores",     label: "Conductores",         icon: Users,                 section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","operador","fiscal"] },
+  { href: "/vehiculos",       label: "Vehículos / QR",      icon: Car,                   section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","operador","fiscal"] },
+  { href: "/flota",           label: "Flota del día",       icon: ClipboardList,         section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","operador","fiscal"] },
+  { href: "/rutas",           label: "Rutas y zonas",       icon: Route,                 section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","operador","fiscal"] },
+  { href: "/viajes",          label: "Viajes",              icon: CalendarDays,          section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","operador","fiscal"] },
+  { href: "/inspecciones",    label: "Inspecciones",        icon: Shield,                section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal"] },
+  { href: "/apelaciones",     label: "Apelaciones",         icon: MessageSquareWarning,  section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal"] },
 
   // CIUDADANÍA — reportes y recompensas
-  { href: "/reportes",        label: "Reportes ciudadanos", icon: Flag,                  section: "CIUDADANÍA",     roles: ["super_admin","admin_provincial","admin_municipal","fiscal"] },
-  { href: "/sanciones",       label: "Sanciones",           icon: TriangleAlert,         section: "CIUDADANÍA",     roles: ["super_admin","admin_provincial","admin_municipal","fiscal"] },
+  { href: "/reportes",        label: "Reportes ciudadanos", icon: Flag,                  section: "CIUDADANÍA",     roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal"] },
+  { href: "/sanciones",       label: "Sanciones",           icon: TriangleAlert,         section: "CIUDADANÍA",     roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal"] },
   { href: "/recompensas",     label: "Recompensas",         icon: Gift,                  section: "CIUDADANÍA",     roles: ["admin_municipal"] },
 
   // ANÁLISIS — estadísticas e inteligencia
-  { href: "/estadisticas",    label: "Estadísticas",        icon: ChartColumn,           section: "ANÁLISIS",       roles: ["super_admin","admin_provincial","admin_municipal"] },
+  { href: "/estadisticas",    label: "Estadísticas",        icon: ChartColumn,           section: "ANÁLISIS",       roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal"] },
 
   // MI CUENTA — datos personales del usuario autenticado
   { href: "/perfil",          label: "Mi perfil",           icon: CircleUserRound,       section: "MI CUENTA",      roles: ["super_admin","admin_provincial","admin_municipal","fiscal","operador","conductor","ciudadano"] },
+  { href: "/mi-empresa",      label: "Mi empresa",          icon: Building2,             section: "MI CUENTA",      roles: ["operador"] },
 ];
 
 export const SECTION_ORDER: NavSection[] = [
@@ -64,6 +66,7 @@ export const SECTION_ORDER: NavSection[] = [
 
 export const ROLE_LABELS: Record<string, string> = {
   super_admin:      "Super Administrador",
+  admin_regional:   "Administrador Regional",
   admin_provincial: "Administrador Provincial",
   admin_municipal:  "Administrador Municipal",
   fiscal:           "Fiscal / Inspector",
@@ -76,6 +79,7 @@ export const SEG_LABELS: Record<string, string> = {
   dashboard: "Dashboard",
   admin: "Administración",
   "red-nacional": "Red nacional",
+  regiones: "Regiones",
   usuarios: "Usuarios",
   municipalidades: "Municipalidades",
   "tipos-vehiculo": "Tipos de vehículo",
@@ -93,6 +97,7 @@ export const SEG_LABELS: Record<string, string> = {
   notificaciones: "Notificaciones",
   recompensas: "Recompensas",
   perfil: "Mi perfil",
+  "mi-empresa": "Mi empresa",
   users: "Aprobaciones",
 };
 
@@ -100,6 +105,7 @@ export type RoleBadgeStyle = { bg: string; color: string; border: string };
 
 export const ROLE_BADGE: Record<string, RoleBadgeStyle> = {
   super_admin:      { bg: "#FBEAEA", color: "#4A0303", border: "#D9B0B0" },
+  admin_regional:   { bg: "#EEF2FF", color: "#3730A3", border: "#C7D2FE" },
   admin_provincial: { bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE" },
   admin_municipal:  { bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE" },
   fiscal:           { bg: "#F0FDF4", color: "#15803D", border: "#86EFAC" },
@@ -115,6 +121,7 @@ const PARENT_DETAIL_LABELS: Record<string, string> = {
   usuarios:           "Detalle de usuario",
   empresas:           "Detalle de empresa",
   municipalidades:    "Detalle de municipalidad",
+  regiones:           "Detalle de región",
   conductores:        "Detalle de conductor",
   vehiculos:          "Detalle de vehículo",
   rutas:              "Detalle de ruta",
