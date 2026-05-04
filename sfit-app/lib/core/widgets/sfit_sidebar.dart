@@ -458,6 +458,7 @@ class _Footer extends StatelessWidget {
         'operador' => 'Operador',
         'admin_municipal' => 'Admin municipal',
         'admin_provincial' => 'Admin provincial',
+        'admin_regional' => 'Admin regional',
         'super_admin' => 'Super admin',
         _ => role,
       };

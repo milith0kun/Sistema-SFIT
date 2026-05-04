@@ -183,6 +183,7 @@ class AuthRepositoryImpl implements AuthRepository {
         image: model.image,
         municipalityId: model.municipalityId,
         provinceId: model.provinceId,
+        regionId: model.regionId,
         phone: model.phone,
         dni: model.dni,
       );

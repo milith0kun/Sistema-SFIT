@@ -14,6 +14,7 @@ abstract class UserModel with _$UserModel {
     String? image,
     String? municipalityId,
     String? provinceId,
+    String? regionId,
     String? phone,
     String? dni,
   }) = _UserModel;

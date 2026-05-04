@@ -534,10 +534,10 @@ class _HomePageState extends ConsumerState<HomePage> {
             page: ProfilePage(),
           ),
         ],
-      // Nota: admin_municipal, admin_provincial y super_admin son web-only
-      // (ver `UserEntity.isWebOnlyRole`). HomePage muestra `StatusScreen`
-      // para esos roles antes de llegar a `_tabsForRole`, por eso no
-      // están listados aquí.
+      // Nota: admin_municipal, admin_provincial, admin_regional y super_admin
+      // son web-only (ver `UserEntity.isWebOnlyRole`). HomePage muestra
+      // `StatusScreen` para esos roles antes de llegar a `_tabsForRole`,
+      // por eso no están listados aquí.
       _ => const [
           _Tab(
             slug: 'inicio',
@@ -572,6 +572,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         'operador'          => 'Operador de Empresa',
         'admin_municipal'   => 'Administrador Municipal',
         'admin_provincial'  => 'Administrador Provincial',
+        'admin_regional'    => 'Administrador Regional',
         'super_admin'       => 'Super Admin',
         _                   => role,
       };

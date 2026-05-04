@@ -558,6 +558,7 @@ class _RoleBadge extends StatelessWidget {
       'ciudadano' => 'Ciudadano',
       'admin_municipal' => 'Admin M.',
       'admin_provincial' => 'Admin P.',
+      'admin_regional' => 'Admin R.',
       'super_admin' => 'Super',
       _ => role.isEmpty ? '—' : role,
     };
