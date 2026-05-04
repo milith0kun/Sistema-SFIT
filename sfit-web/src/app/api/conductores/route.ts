@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       items: items.map((d) => ({
         id: String(d._id),
         municipalityId: String(d.municipalityId),
-        companyId: d.companyId ? String(d.companyId) : undefined,
+        companyId: d.companyId ? String((d.companyId as { _id?: unknown })._id ?? d.companyId) : undefined,
         companyName: (d.companyId as { razonSocial?: string } | null)?.razonSocial,
         name: d.name,
         dni: d.dni,

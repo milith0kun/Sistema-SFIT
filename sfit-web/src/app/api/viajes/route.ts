@@ -76,8 +76,11 @@ export async function GET(request: NextRequest) {
 
     const now = new Date();
     if (period === "hoy") {
-      const start = new Date(now); start.setHours(0, 0, 0, 0);
-      const end = new Date(now); end.setHours(23, 59, 59, 999);
+      // Ventana de ±24h en lugar de "hoy" estricto: el server corre en UTC y
+      // los registros se crean en hora local del cliente (Perú UTC-5), lo que
+      // causa que el filtro "hoy en UTC" pierda registros al cruzar medianoche.
+      const start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const end = new Date(now.getTime() + 24 * 60 * 60 * 1000);
       filter.startTime = { $gte: start, $lte: end };
     } else if (period === "semana") {
       const start = new Date(now); start.setDate(start.getDate() - 7);

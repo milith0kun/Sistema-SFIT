@@ -62,11 +62,16 @@ export async function GET(request: NextRequest) {
       next.setDate(next.getDate() + 1);
       filter.date = { $gte: d, $lt: next };
     } else {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      filter.date = { $gte: today, $lt: tomorrow };
+      // Ventana de ±24h en torno a ahora. Antes usábamos `today.setHours(0,0,0,0)`
+      // que es sensible al timezone del runtime: el contenedor en Dokploy corre
+      // en UTC, pero las entries se crean con date en hora local de Perú (UTC-5),
+      // así que el filtro estricto "hoy en UTC" no las encontraba al cruzar
+      // medianoche UTC. La ventana de 24h cubre el rango [ayer→mañana] en
+      // cualquier TZ y mantiene la intención semántica de "flota reciente".
+      const now = new Date();
+      const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const dayAhead = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      filter.date = { $gte: dayAgo, $lt: dayAhead };
     }
 
     const items = await FleetEntry.find(filter)

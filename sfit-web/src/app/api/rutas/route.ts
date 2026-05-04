@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
         length: r.length,
         area: r.area,
         vehicleTypeKey: r.vehicleTypeKey,
-        companyId: r.companyId ? String(r.companyId) : undefined,
+        companyId: r.companyId ? String((r.companyId as { _id?: unknown })._id ?? r.companyId) : undefined,
         companyName: (r.companyId as { razonSocial?: string } | null)?.razonSocial,
         vehicleCount: r.vehicleCount,
         status: r.status,

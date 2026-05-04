@@ -42,7 +42,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   return apiResponse({
     id: String(v._id),
     municipalityId: String(v.municipalityId),
-    companyId: v.companyId ? String(v.companyId) : undefined,
+    companyId: v.companyId ? String((v.companyId as { _id?: unknown })._id ?? v.companyId) : undefined,
     companyName: (v.companyId as { razonSocial?: string } | null)?.razonSocial,
     plate: v.plate,
     vehicleTypeKey: v.vehicleTypeKey,
