@@ -190,6 +190,13 @@ class NotificationService {
     switch (type) {
       case 'asignacion_viaje':
         return '/conductor/viajes-pendientes';
+      case 'reporte_nuevo':
+        // Tab "reportes" del fiscal en home.
+        return '/home?tab=reportes';
+      case 'apelacion_pendiente':
+        return '/fiscal/apelaciones';
+      case 'bus_off_route':
+        return '/buses-en-vivo';
       case 'fatiga':
       case 'reporte':
       case 'sancion':

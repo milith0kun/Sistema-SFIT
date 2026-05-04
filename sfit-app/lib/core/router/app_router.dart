@@ -46,6 +46,9 @@ import '../../features/feed/presentation/pages/feed_detail_page.dart';
 import '../../features/reports/presentation/pages/mis_reportes_page.dart';
 import '../../features/reports/presentation/pages/submit_report_page.dart';
 import '../../features/live_bus/presentation/pages/live_bus_map_page.dart';
+import '../../features/fiscal/presentation/pages/resolve_appeal_page.dart';
+import '../../features/fiscal/presentation/pages/my_appeals_page.dart';
+import '../../features/fiscal/presentation/pages/create_sanction_page.dart';
 
 part 'app_router.g.dart';
 
@@ -310,6 +313,26 @@ GoRouter router(Ref ref) {
 
       // ── Buses en vivo (ciudadano) ─────────────────────────────
       GoRoute(path: '/buses-en-vivo', builder: (_, __) => const LiveBusMapPage()),
+
+      // ── Fiscal: apelaciones, mis resueltas y emisión de sanciones ──
+      GoRoute(
+        path: '/fiscal/apelaciones',
+        builder: (_, __) => const ResolveAppealPage(),
+      ),
+      GoRoute(
+        path: '/fiscal/mis-apelaciones',
+        builder: (_, __) => const MyAppealsPage(),
+      ),
+      GoRoute(
+        path: '/fiscal/nueva-sancion',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return CreateSanctionPage(
+            presetVehicleId: extra?['vehicleId'] as String?,
+            presetPlate: extra?['plate'] as String?,
+          );
+        },
+      ),
 
       // ── RF-12: Historial de mis reportes (ciudadano) ──────────
       GoRoute(path: '/mis-reportes', builder: (_, __) => const MisReportesPage()),
