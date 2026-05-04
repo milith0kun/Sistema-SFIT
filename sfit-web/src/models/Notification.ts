@@ -24,6 +24,8 @@ export const NOTIFICATION_CATEGORIES = [
   "reporte",
   "canje",
   "asignacion",
+  "apelacion",
+  "flota",
   "otro",
 ] as const;
 

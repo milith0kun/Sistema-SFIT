@@ -156,6 +156,33 @@ export async function PATCH(
         // No está marcado — entrar si se alejó demasiado
         if (dev > OFF_ROUTE_ENTRY_METERS) {
           entry.offRouteSince = now;
+          // RF-18: Notificar a fiscales y admin_municipal sobre desvío.
+          // Se dispara solo en la transición null → now (no en cada update),
+          // gracias a la hysteresis. Best-effort, no bloquea la respuesta.
+          void (async () => {
+            try {
+              const { createNotificationForRoles } = await import("@/lib/notifications/create");
+              await createNotificationForRoles(
+                [ROLES.FISCAL, ROLES.ADMIN_MUNICIPAL],
+                {
+                  title: "Bus fuera de ruta",
+                  body: `Vehículo desviado ${Math.round(dev)}m de la ruta asignada.`,
+                  type: "warning",
+                  category: "flota",
+                  link: `/buses-en-vivo?busId=${String(entry._id)}`,
+                  metadata: {
+                    type: "bus_off_route",
+                    entryId: String(entry._id),
+                    vehicleId: String(entry.vehicleId),
+                    deviationMeters: Math.round(dev),
+                  },
+                  municipalityId: String(entry.municipalityId),
+                },
+              );
+            } catch {
+              /* best-effort */
+            }
+          })();
         }
       }
     }

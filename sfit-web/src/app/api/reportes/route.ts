@@ -13,6 +13,7 @@ import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { awardCoins, getNivel } from "@/lib/coins/awardCoins";
 import { verifyQrPayload, type QrPayload } from "@/lib/qr/hmac";
+import { createNotificationForRoles } from "@/lib/notifications/create";
 
 /**
  * Categorías válidas de reporte ciudadano (RF-14).
@@ -312,6 +313,25 @@ export async function POST(request: NextRequest) {
     if (auth.session.role === ROLES.CIUDADANO) {
       void awardCoins(auth.session.userId, 5, "reporte_enviado", String(doc._id));
     }
+
+    // RF-18: Notificar a fiscales y admin_municipal de la muni que entró un
+    // reporte nuevo. Best-effort, no bloquea la respuesta.
+    void createNotificationForRoles(
+      [ROLES.FISCAL, ROLES.ADMIN_MUNICIPAL],
+      {
+        title: "Nuevo reporte ciudadano",
+        body: `Categoría: ${parsed.data.category}`,
+        type: "info",
+        category: "reporte",
+        link: `/reportes/${String(doc._id)}`,
+        metadata: {
+          type: "reporte_nuevo",
+          reportId: String(doc._id),
+          category: parsed.data.category,
+        },
+        municipalityId: String(municipalityId),
+      },
+    ).catch(() => {});
 
     return apiResponse({ id: String(doc._id) }, 201);
   } catch (error) {

@@ -103,8 +103,8 @@ export async function createNotificationForRoles(
     }
 
     const recipients = await User.find(filter)
-      .select("_id")
-      .lean<{ _id: unknown }[]>();
+      .select("_id fcmTokens")
+      .lean<{ _id: unknown; fcmTokens?: string[] }[]>();
 
     if (!recipients.length) return;
 
@@ -119,6 +119,25 @@ export async function createNotificationForRoles(
     }));
 
     await Notification.insertMany(docs, { ordered: false });
+
+    // Push FCM en paralelo a todos los tokens (best-effort, no-bloqueante).
+    // Se importa dinámicamente para no inicializar Firebase Admin si no se
+    // usa el módulo (p. ej. en tests).
+    const allTokens = recipients.flatMap((u) => u.fcmTokens ?? []);
+    if (allTokens.length > 0) {
+      try {
+        const { sendPushToTokens } = await import("@/lib/notifications/fcm");
+        // Convertir metadata a Record<string, string> (FCM data solo string)
+        const data: Record<string, string> | undefined = opts.metadata
+          ? Object.fromEntries(
+              Object.entries(opts.metadata).map(([k, v]) => [k, String(v)]),
+            )
+          : undefined;
+        void sendPushToTokens(allTokens, opts.title, opts.body, data);
+      } catch {
+        // Silencioso — push es best-effort
+      }
+    }
   } catch (error) {
     console.error("[createNotificationForRoles]", error);
   }

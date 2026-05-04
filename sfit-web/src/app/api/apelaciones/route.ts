@@ -9,6 +9,7 @@ import "@/models/User";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
+import { createNotificationForRoles } from "@/lib/notifications/create";
 
 const CreateSchema = z.object({
   inspectionId: z.string().refine(isValidObjectId, { message: "inspectionId inválido" }),
@@ -69,6 +70,25 @@ export async function POST(request: NextRequest) {
       evidence:       parsed.data.evidence ?? [],
       status:         "pendiente",
     });
+
+    // RF-18: Notificar a fiscales y admin_municipal de la muni que entró
+    // una apelación. Best-effort, no bloquea la respuesta.
+    void createNotificationForRoles(
+      [ROLES.FISCAL, ROLES.ADMIN_MUNICIPAL],
+      {
+        title: "Nueva apelación",
+        body: "Un operador apeló una inspección y requiere resolución.",
+        type: "info",
+        category: "apelacion",
+        link: `/apelaciones/${String(apelacion._id)}`,
+        metadata: {
+          type: "apelacion_pendiente",
+          apelacionId: String(apelacion._id),
+          inspectionId: String(parsed.data.inspectionId),
+        },
+        municipalityId: String(inspection.municipalityId),
+      },
+    ).catch(() => {});
 
     return apiResponse({ id: String(apelacion._id), ...apelacion.toObject() }, 201);
   } catch (error) {
