@@ -10,7 +10,8 @@ import {
  * ManifestUploader — sube/visualiza fotos de manifiestos firmados de un viaje.
  *
  * Backend (Track A):
- *  - POST   /api/viajes/[id]/manifest-photo  (multipart, key "photo")
+ *  - POST   /api/viajes/[id]/manifest-photo  (multipart, key "file")
+ *    -> 201 { success, data: { url, id, manifestPhotoUrls } }
  *  - DELETE /api/viajes/[id]/manifest-photo?url=...
  *
  * El componente acepta el listado actual via props y avisa cambios al padre
@@ -75,7 +76,9 @@ export function ManifestUploader({
     const blob = await compressIfLarge(file);
     const fd = new FormData();
     const finalName = file.name.replace(/\.[^.]+$/, "") + ".jpg";
-    fd.append("photo", blob, finalName);
+    // Backend espera key "file" (no "photo"). El upload se reescribe a webp
+    // server-side con sharp y devuelve { url, id, manifestPhotoUrls }.
+    fd.append("file", blob, finalName);
     const token = typeof window !== "undefined" ? localStorage.getItem("sfit_access_token") : null;
     const res = await fetch(`/api/viajes/${tripId}/manifest-photo`, {
       method: "POST",
@@ -86,7 +89,7 @@ export function ManifestUploader({
     if (!res.ok || !data?.success) {
       throw new Error(data?.error ?? "Error al subir foto");
     }
-    return String(data.data?.photoUrl);
+    return String(data.data?.url ?? "");
   }, [tripId, compressIfLarge]);
 
   const handleFiles = useCallback(async (files: FileList | File[]) => {

@@ -5,10 +5,12 @@ import { connectDB } from "@/lib/db/mongoose";
 import { Trip } from "@/models/Trip";
 import { Driver } from "@/models/Driver";
 import { User } from "@/models/User";
+import { Vehicle } from "@/models/Vehicle";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
+import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
 
 const CreateSchema = z.object({
   municipalityId: z.string().refine(isValidObjectId).optional(),
@@ -63,6 +65,26 @@ export async function GET(request: NextRequest) {
       if (!targetId || !isValidObjectId(targetId)) return apiForbidden();
       if (!(await canAccessMunicipality(auth.session, targetId))) return apiForbidden();
       filter.municipalityId = targetId;
+    }
+
+    // Operador: si pasa role=operador o companyId=mine acota a los viajes
+    // cuya unidad pertenezca a su empresa. Sin estos params devolvemos los
+    // viajes del municipio (compat backwards). Para super_admin lo ignoramos.
+    if (auth.session.role === ROLES.OPERADOR) {
+      const wantsCompanyScope =
+        url.searchParams.get("role") === "operador" ||
+        url.searchParams.get("companyId") === "mine";
+      if (wantsCompanyScope) {
+        const companyId = await getOperatorCompanyId(auth.session.userId);
+        if (!companyId) return apiResponse({ items: [], total: 0, page, limit });
+        const vehicleIds = await Vehicle.find({ companyId })
+          .select("_id")
+          .lean<Array<{ _id: unknown }>>();
+        if (vehicleIds.length === 0) {
+          return apiResponse({ items: [], total: 0, page, limit });
+        }
+        filter.vehicleId = { $in: vehicleIds.map((v) => v._id) };
+      }
     }
 
     if (statusParam) filter.status = statusParam;

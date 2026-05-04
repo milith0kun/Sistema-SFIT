@@ -89,12 +89,16 @@ class _PassengerListPageState extends ConsumerState<PassengerListPage> {
     try {
       final dio = ref.read(dioClientProvider).dio;
       if (edit == null) {
+        // POST espera { passengers: [...] } con shape Passenger del backend.
         await dio.post(
           '/viajes/${widget.tripId}/pasajeros',
-          data: result,
+          data: {
+            'passengers': [result],
+          },
         );
         _snack('Pasajero agregado.');
       } else {
+        // PATCH acepta el partial directo del Passenger.
         await dio.patch(
           '/viajes/${widget.tripId}/pasajeros/${edit.id}',
           data: result,
@@ -494,11 +498,14 @@ class _PassengerFormState extends State<_PassengerForm> {
                   onPressed: () {
                     if (!_formKey.currentState!.validate()) return;
                     final seatStr = _seatCtl.text.trim();
+                    // Shape conforme al backend Track A (Passenger model):
+                    // documentNumber / fullName / seatNumber (string) /
+                    // phone / documentType (default DNI).
                     Navigator.pop(context, {
-                      'dni': _dniCtl.text.trim(),
-                      'name': _nameCtl.text.trim(),
-                      if (seatStr.isNotEmpty)
-                        'seat': int.tryParse(seatStr) ?? seatStr,
+                      'documentNumber': _dniCtl.text.trim(),
+                      'fullName': _nameCtl.text.trim(),
+                      'documentType': 'DNI',
+                      if (seatStr.isNotEmpty) 'seatNumber': seatStr,
                       if (_phoneCtl.text.trim().isNotEmpty)
                         'phone': _phoneCtl.text.trim(),
                     });
@@ -562,13 +569,22 @@ class _Passenger {
     this.phone,
   });
 
-  factory _Passenger.fromJson(Map<String, dynamic> j) => _Passenger(
-        id: (j['_id'] ?? j['id'] ?? '').toString(),
-        dni: (j['dni'] ?? '').toString(),
-        name: (j['name'] ?? j['nombre'] ?? '').toString(),
-        seat: (j['seat'] is num)
-            ? (j['seat'] as num).toInt()
-            : int.tryParse((j['seat'] ?? '').toString()),
-        phone: j['phone'] as String?,
-      );
+  factory _Passenger.fromJson(Map<String, dynamic> j) {
+    // El backend Track A devuelve documentNumber / fullName / seatNumber.
+    // Mantenemos compat con shapes antiguos (dni / name / seat) por si quedan
+    // mocks o respuestas legacy.
+    final docNumber = (j['documentNumber'] ?? j['dni'] ?? '').toString();
+    final name = (j['fullName'] ?? j['name'] ?? j['nombre'] ?? '').toString();
+    final rawSeat = j['seatNumber'] ?? j['seat'];
+    final seat = rawSeat is num
+        ? rawSeat.toInt()
+        : int.tryParse((rawSeat ?? '').toString());
+    return _Passenger(
+      id: (j['id'] ?? j['_id'] ?? '').toString(),
+      dni: docNumber,
+      name: name,
+      seat: seat,
+      phone: j['phone'] as String?,
+    );
+  }
 }

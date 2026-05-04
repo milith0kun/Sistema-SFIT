@@ -77,13 +77,10 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
       _nameCtl.text = (d['name'] as String?) ?? '';
       _code = (d['code'] as String?) ?? '';
       _scope = (d['serviceScope'] as String?) ?? 'urbano_distrital';
-      _originCtl.text = (d['origin'] as String?) ??
-          ((d['origenLabel'] as String?) ?? '');
-      _destinationCtl.text = (d['destination'] as String?) ??
-          ((d['destinoLabel'] as String?) ?? '');
-      _departureTimes = ((d['departureTimes'] as List?) ??
-              (d['horariosSalida'] as List?) ??
-              const [])
+      // Backend Track A: los interprovinciales usan UBIGEOs y horarios HH:mm.
+      _originCtl.text = (d['originDistrictCode'] as String?) ?? '';
+      _destinationCtl.text = (d['destinationDistrictCode'] as String?) ?? '';
+      _departureTimes = ((d['departureSchedules'] as List?) ?? const [])
           .cast<dynamic>()
           .map((e) => e.toString())
           .toList();
@@ -135,9 +132,15 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
         payload['waypoints'] = wps;
         payload['stops'] = wps.length;
       } else {
-        payload['origin'] = _originCtl.text.trim();
-        payload['destination'] = _destinationCtl.text.trim();
-        payload['departureTimes'] = _departureTimes;
+        // Backend Track A: rutas interprovinciales requieren UBIGEOs (6 dígitos)
+        // y horarios HH:mm en `departureSchedules`.
+        final origin = _originCtl.text.trim();
+        final destination = _destinationCtl.text.trim();
+        if (origin.isNotEmpty) payload['originDistrictCode'] = origin;
+        if (destination.isNotEmpty) {
+          payload['destinationDistrictCode'] = destination;
+        }
+        payload['departureSchedules'] = _departureTimes;
       }
       await dio.patch('/rutas/${widget.routeId}', data: payload);
       if (mounted) {

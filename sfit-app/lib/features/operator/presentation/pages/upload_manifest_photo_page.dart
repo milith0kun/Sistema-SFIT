@@ -36,13 +36,14 @@ class _UploadManifestPhotoPageState
     setState(() => _loading = true);
     try {
       final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get('/viajes/${widget.tripId}/manifest-photos');
+      // El backend no expone un GET dedicado de fotos del manifiesto: el
+      // listado vive en Trip.manifestPhotoUrls (Track A). Lo hidratamos desde
+      // el detalle del viaje.
+      final resp = await dio.get('/viajes/${widget.tripId}');
       final body = resp.data as Map?;
       final data = (body?['data'] as Map?) ?? body ?? const {};
-      final list = (data['items'] as List? ??
-              data['photos'] as List? ??
-              const [])
-          .map((e) => e is String ? e : (e as Map)['url'] as String? ?? '')
+      final list = (data['manifestPhotoUrls'] as List? ?? const [])
+          .map((e) => e?.toString() ?? '')
           .where((s) => s.isNotEmpty)
           .toList();
       if (mounted) {
@@ -52,7 +53,6 @@ class _UploadManifestPhotoPageState
         });
       }
     } catch (_) {
-      // Silencioso: backend puede no tener el endpoint todavía.
       if (mounted) {
         setState(() {
           _photos = const [];
@@ -86,7 +86,9 @@ class _UploadManifestPhotoPageState
       final dio = ref.read(dioClientProvider).dio;
       final bytes = await file.readAsBytes();
       final mp = MultipartFile.fromBytes(bytes, filename: file.name);
-      final form = FormData.fromMap({'photo': mp});
+      // Backend Track A espera la key "file" (no "photo"); reescribe a webp
+      // server-side y devuelve { url, id, manifestPhotoUrls }.
+      final form = FormData.fromMap({'file': mp});
       await dio.post(
         '/viajes/${widget.tripId}/manifest-photo',
         data: form,

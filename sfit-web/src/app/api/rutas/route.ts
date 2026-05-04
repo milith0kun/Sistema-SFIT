@@ -8,6 +8,7 @@ import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { SERVICE_SCOPES } from "@/models/Company";
+import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
 
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -117,6 +118,21 @@ export async function GET(request: NextRequest) {
 
     if (typeParam === "ruta" || typeParam === "zona") filter.type = typeParam;
     if (statusParam === "activa" || statusParam === "suspendida") filter.status = statusParam;
+
+    // Operador con companyId=mine: acota a las rutas asignadas a su empresa.
+    // Si no tiene empresa todavía devolvemos lista vacía (no es error de auth).
+    const companyIdParam = url.searchParams.get("companyId");
+    if (companyIdParam === "mine" && auth.session.role === ROLES.OPERADOR) {
+      const companyId = await getOperatorCompanyId(auth.session.userId);
+      if (!companyId) return apiResponse({ items: [], total: 0 });
+      filter.companyId = companyId;
+    } else if (
+      companyIdParam &&
+      companyIdParam !== "mine" &&
+      isValidObjectId(companyIdParam)
+    ) {
+      filter.companyId = companyIdParam;
+    }
 
     const items = await Route.find(filter)
       .populate("companyId", "razonSocial")
