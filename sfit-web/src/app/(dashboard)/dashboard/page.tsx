@@ -28,6 +28,7 @@ import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { KPIStrip, type KPIItem } from "@/components/dashboard/KPIStrip";
 import { FeatureCard } from "@/components/dashboard/FeatureCard";
 import { GoogleMapView } from "@/components/ui/GoogleMapView";
+import { OperatorDashboard } from "./components/OperatorDashboard";
 
 type User = { name: string; email: string; role: string };
 
@@ -233,6 +234,12 @@ export default function DashboardPage() {
   }, [user, loadSuperAdmin, loadOperador, loadFiscal, loadConductor, loadActividad, loadFleetLocations]);
 
   if (!user) return null;
+
+  // Track B — el operador tiene un dashboard especializado: KPIs propios de
+  // su flota, tarjeta de empresa y CTAs rápidas para alta de viajes/conductores.
+  if (user.role === "operador") {
+    return <OperatorDashboard user={user} />;
+  }
 
   const role = user.role;
   const roleLabel = ROLE_LABELS[role] ?? role;

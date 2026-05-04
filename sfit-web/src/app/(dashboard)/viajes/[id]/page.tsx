@@ -11,7 +11,10 @@ import {
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { GoogleMapView, type MapPolyline } from "@/components/ui/GoogleMapView";
+import { PassengerTable, type PassengerRow } from "@/components/ui/PassengerTable";
+import { ManifestUploader } from "@/components/ui/ManifestUploader";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
+import { useToast } from "@/hooks/useToast";
 
 type TripStatus = "en_curso" | "completado" | "auto_cierre" | "cerrado_automatico";
 
@@ -19,7 +22,7 @@ type Trip = {
   id: string;
   vehicle: { _id: string; plate: string; brand: string; model: string };
   driver: { _id: string; name: string };
-  route?: { _id: string; code: string; name: string } | null;
+  route?: { _id: string; code: string; name: string; serviceScope?: string } | null;
   fleetEntryId?: string | null;
   startTime?: string | null;
   endTime?: string | null;
@@ -28,6 +31,8 @@ type Trip = {
   status: TripStatus;
   autoClosedReason?: string;
   createdAt: string;
+  passengerListMode?: "count" | "list";
+  manifestPhotoUrls?: string[];
 };
 
 /* Paleta sobria */
@@ -84,9 +89,15 @@ function fmtDuration(min: number | null): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+const SCOPES_REQUIRING_LIST = new Set([
+  "interprovincial_regional",
+  "interregional_nacional",
+]);
+
 export default function ViajeDetallePage({ params }: Props) {
   const { id } = usePromise(params);
   const router = useRouter();
+  const toast = useToast();
 
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
@@ -101,6 +112,12 @@ export default function ViajeDetallePage({ params }: Props) {
   const [newStatus, setNewStatus] = useState<TripStatus | "">("");
   const [saving, setSaving] = useState(false);
   const [finishing, setFinishing] = useState(false);
+
+  // Manifest passengers (lista nominal + fotos firmadas)
+  const [passengerList, setPassengerList] = useState<PassengerRow[]>([]);
+  const [passengersLoading, setPassengersLoading] = useState(false);
+  const [passengersNotice, setPassengersNotice] = useState<string | null>(null);
+  const [manifestPhotos, setManifestPhotos] = useState<string[]>([]);
 
   // Trazado real (GPS del conductor) y planeado (waypoints de la ruta)
   const [trackPoints, setTrackPoints] = useState<Array<{ lat: number; lng: number }>>([]);
@@ -145,8 +162,11 @@ export default function ViajeDetallePage({ params }: Props) {
       } else {
         setEndTime("");
       }
+      setManifestPhotos(t.manifestPhotoUrls ?? []);
       // Cargar trazado real + ruta planeada en paralelo (defensivo: errores no rompen la página)
       void loadTrackAndRoute(t, token ?? "");
+      // Cargar lista nominal de pasajeros (si la ruta lo requiere)
+      void loadPassengers(token ?? "");
     } catch { setError("Error de conexión."); }
     finally { setLoading(false); }
   }
@@ -194,6 +214,128 @@ export default function ViajeDetallePage({ params }: Props) {
       await Promise.all(tasks);
     } finally {
       setTrackLoading(false);
+    }
+  }
+
+  async function loadPassengers(token: string) {
+    setPassengersLoading(true);
+    setPassengersNotice(null);
+    try {
+      const r = await fetch(`/api/viajes/${id}/pasajeros`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) {
+        if (r.status !== 404) setPassengersNotice("No se pudieron cargar los pasajeros.");
+        return;
+      }
+      const j = await r.json();
+      const items = (j?.data?.items ?? []) as Array<PassengerRow & { id: string }>;
+      setPassengerList(items);
+    } catch {
+      setPassengersNotice("Error de conexión al cargar pasajeros.");
+    } finally {
+      setPassengersLoading(false);
+    }
+  }
+
+  async function handleAddPassenger(p: PassengerRow) {
+    setPassengersNotice(null);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const r = await fetch(`/api/viajes/${id}/pasajeros`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ passengers: [{
+          fullName: p.fullName,
+          documentNumber: p.documentNumber,
+          documentType: p.documentType ?? "DNI",
+          seatNumber: p.seatNumber || undefined,
+          origin: p.origin || undefined,
+          destination: p.destination || undefined,
+          phone: p.phone || undefined,
+        }] }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !data?.success) {
+        setPassengersNotice(data?.error ?? "No se pudo agregar el pasajero.");
+        return;
+      }
+      if ((data.data?.totalCreated ?? 0) > 0) {
+        toast.success("Pasajero agregado.");
+        await loadPassengers(token ?? "");
+      } else if ((data.data?.totalSkipped ?? 0) > 0) {
+        const reason = data.data?.skipped?.[0]?.reason ?? "Documento duplicado";
+        setPassengersNotice(reason);
+      }
+    } catch {
+      setPassengersNotice("Error de conexión.");
+    }
+  }
+
+  async function handleEditPassenger(pid: string, partial: Partial<PassengerRow>) {
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const r = await fetch(`/api/viajes/${id}/pasajeros/${pid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify(partial),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !data?.success) {
+        setPassengersNotice(data?.error ?? "No se pudo actualizar el pasajero.");
+        return;
+      }
+      toast.success("Pasajero actualizado.");
+      await loadPassengers(token ?? "");
+    } catch {
+      setPassengersNotice("Error de conexión.");
+    }
+  }
+
+  async function handleDeletePassenger(pid: string) {
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const r = await fetch(`/api/viajes/${id}/pasajeros/${pid}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !data?.success) {
+        setPassengersNotice(data?.error ?? "No se pudo eliminar el pasajero.");
+        return;
+      }
+      toast.success("Pasajero eliminado.");
+      await loadPassengers(token ?? "");
+    } catch {
+      setPassengersNotice("Error de conexión.");
+    }
+  }
+
+  async function handleImportPassengers(file: File) {
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await fetch(`/api/viajes/${id}/pasajeros/import`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+        body: fd,
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !data?.success) {
+        setPassengersNotice(data?.error ?? "No se pudo importar el archivo.");
+        return;
+      }
+      const created = data.data?.totalCreated ?? data.data?.created?.length ?? 0;
+      const skipped = data.data?.totalSkipped ?? data.data?.skipped?.length ?? 0;
+      if (skipped > 0) {
+        toast.warn(`Importados: ${created} · Omitidos: ${skipped}`);
+      } else {
+        toast.success(`${created} pasajeros importados.`);
+      }
+      await loadPassengers(token ?? "");
+    } catch {
+      setPassengersNotice("Error de conexión durante la importación.");
     }
   }
 
@@ -459,6 +601,57 @@ export default function ViajeDetallePage({ params }: Props) {
             hasFleetEntry={!!trip.fleetEntryId}
             hasRoute={!!trip.route}
           />
+
+          {/* ── Pasajeros (manifiesto nominal) ── */}
+          {(trip.passengerListMode === "list"
+            || (trip.route?.serviceScope && SCOPES_REQUIRING_LIST.has(trip.route.serviceScope))
+            || passengerList.length > 0
+            || canEdit) && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <PassengerTable
+                passengers={passengerList}
+                editable={canEdit}
+                onAdd={canEdit ? handleAddPassenger : undefined}
+                onEdit={canEdit ? handleEditPassenger : undefined}
+                onDelete={canEdit ? handleDeletePassenger : undefined}
+                onImport={canEdit ? handleImportPassengers : undefined}
+                notice={passengersNotice}
+              />
+              {passengerList.length > 0 && (
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <a
+                    href={`/api/viajes/${trip.id}/manifiesto.xlsx`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      height: 30, padding: "0 12px", borderRadius: 7,
+                      border: `1px solid ${INK2}`, background: "#fff", color: INK6,
+                      fontSize: "0.75rem", fontWeight: 600, textDecoration: "none",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    <CheckCircle size={12} />Descargar manifiesto Excel
+                  </a>
+                </div>
+              )}
+              {passengersLoading && (
+                <div style={{ fontSize: "0.75rem", color: INK5, textAlign: "center" }}>
+                  Cargando pasajeros…
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Manifiesto firmado (fotos) ── */}
+          {(canEdit || manifestPhotos.length > 0) && (
+            <ManifestUploader
+              tripId={trip.id}
+              photos={manifestPhotos}
+              onChange={setManifestPhotos}
+              editable={canEdit}
+            />
+          )}
         </div>
 
         {/* Sidebar */}
