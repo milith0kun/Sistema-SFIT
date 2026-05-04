@@ -72,9 +72,12 @@ describe("GET /api/vehiculos", () => {
     expect(res.status).toBe(401);
   });
 
-  it("retorna 403 para conductores", async () => {
+  it("permite conductores (ven vehículos de su muni)", async () => {
+    // El conductor consulta /api/vehiculos para identificar el bus asignado
+    // a su turno (FleetEntry.vehicleId). El scope queda limitado a la muni
+    // del JWT por la lógica de filter, igual que para fiscal/operador.
     const res = await GET(req("GET", token(ROLES.CONDUCTOR)));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
   });
 
   it("retorna 200 con lista de vehículos", async () => {
