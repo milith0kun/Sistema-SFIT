@@ -39,6 +39,13 @@ export interface IRoute extends Document {
   vehicleCount: number;
   status: "activa" | "suspendida";
   frequencies?: string[];
+  /**
+   * Horarios fijos de salida en formato HH:mm (24h). Pensado para rutas
+   * interprovinciales donde el operador define salidas programadas
+   * (p.ej. ["06:00", "12:00", "18:00"]). Las urbanas suelen usar
+   * `frequencies` (cada N min) en su lugar.
+   */
+  departureSchedules?: string[];
   waypoints: IWaypoint[];
 
   serviceScope: ServiceScope;
@@ -101,6 +108,7 @@ const RouteSchema = new Schema<IRoute>(
     vehicleCount: { type: Number, default: 0 },
     status: { type: String, enum: ["activa", "suspendida"], default: "activa" },
     frequencies: { type: [String], default: [] },
+    departureSchedules: { type: [String], default: [] },
     waypoints: { type: [WaypointSchema], default: [] },
 
     serviceScope: {

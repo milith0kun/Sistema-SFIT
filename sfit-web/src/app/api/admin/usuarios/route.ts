@@ -62,6 +62,29 @@ export async function GET(request: NextRequest) {
       { provinceId: session.provinceId },
       { municipalityId: { $in: muniIds } },
     ];
+  } else if (session.role === ROLES.ADMIN_REGIONAL) {
+    if (!session.regionId) {
+      return apiError("El admin regional no tiene región asignada", 400);
+    }
+    // Resolver provincias de la región y aceptar match por regionId
+    // directo (denormalizado) o por provinceId IN provs / municipalityId
+    // IN munis para datos pre-migración.
+    await connectDB();
+    const { Province } = await import("@/models/Province");
+    const provIds = (
+      await Province.find({ regionId: session.regionId }).select("_id").lean()
+    ).map((p: { _id: unknown }) => p._id);
+    const muniIdsRegional = provIds.length > 0
+      ? (await Municipality.find({
+          provinceId: { $in: provIds as import("mongoose").Types.ObjectId[] },
+        }).select("_id").lean())
+          .map((m: { _id: unknown }) => m._id)
+      : [];
+    filter.$or = [
+      { regionId: session.regionId },
+      { provinceId: { $in: provIds } },
+      { municipalityId: { $in: muniIdsRegional } },
+    ];
   }
 
   const validRoles = Object.values(ROLES);

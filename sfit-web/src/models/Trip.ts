@@ -39,6 +39,17 @@ export interface ITrip extends Document {
   closedAt?: Date;
   autoClosedReason?: string;
   notes?: string;
+  /**
+   * URLs de fotos del manifiesto firmado. Array para soportar manifiestos
+   * largos que requieren más de una página escaneada/fotografiada.
+   */
+  manifestPhotoUrls?: string[];
+  /**
+   * Modo de registro de pasajeros del viaje:
+   *   - "count": solo se incrementa Trip.passengers (urbano).
+   *   - "list":  se registran Passenger nominalmente (interprovincial).
+   */
+  passengerListMode?: "count" | "list";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -72,6 +83,12 @@ const TripSchema = new Schema<ITrip>(
     closedAt: { type: Date },
     autoClosedReason: { type: String },
     notes: { type: String },
+    manifestPhotoUrls: { type: [String], default: [] },
+    passengerListMode: {
+      type: String,
+      enum: ["count", "list"],
+      default: "count",
+    },
   },
   { timestamps: true },
 );

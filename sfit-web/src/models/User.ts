@@ -16,6 +16,19 @@ export interface IUser extends Document {
   // Multi-tenancy
   municipalityId?: mongoose.Types.ObjectId;
   provinceId?: mongoose.Types.ObjectId;
+  /**
+   * Región (departamento) — nivel más alto de la jerarquía geográfica.
+   * Solo aplica al rol `admin_regional` (lo asigna super_admin); en otros
+   * roles se denormaliza automáticamente desde `Province.regionId` por el
+   * hook pre-save/findOneAndUpdate.
+   */
+  regionId?: mongoose.Types.ObjectId;
+  /**
+   * Empresa de transporte vinculada al usuario. Solo aplica al rol "operador":
+   * representa la empresa cuya flota gestiona. Se usa en lugar de buscar
+   * via Driver para evitar el coupling histórico operador→Driver.
+   */
+  companyId?: mongoose.Types.ObjectId;
 
   // Rol y estado (RF-01-03, RF-01-04)
   role: Role;
@@ -87,12 +100,24 @@ const UserSchema = new Schema<IUser>(
       ref: "Province",
       index: true,
     },
+    regionId: {
+      type: Schema.Types.ObjectId,
+      ref: "Region",
+      index: true,
+    },
+    companyId: {
+      type: Schema.Types.ObjectId,
+      ref: "Company",
+      default: null,
+      index: true,
+    },
 
     // Rol y estado
     role: {
       type: String,
       enum: [
         "super_admin",
+        "admin_regional",
         "admin_provincial",
         "admin_municipal",
         "fiscal",
@@ -174,7 +199,20 @@ async function deriveProvinceFromMunicipality(
   return muni?.provinceId ?? null;
 }
 
+async function deriveRegionFromProvince(
+  provId: mongoose.Types.ObjectId | string | null | undefined,
+): Promise<mongoose.Types.ObjectId | null> {
+  if (!provId) return null;
+  const Province = mongoose.models.Province;
+  if (!Province) return null;
+  const prov = await Province.findById(provId)
+    .select("regionId")
+    .lean<{ regionId?: mongoose.Types.ObjectId } | null>();
+  return prov?.regionId ?? null;
+}
+
 UserSchema.pre("save", async function () {
+  // Cadena de denormalización: muni → province → region.
   if (this.isModified("municipalityId")) {
     if (this.municipalityId) {
       const provinceId = await deriveProvinceFromMunicipality(this.municipalityId);
@@ -185,6 +223,16 @@ UserSchema.pre("save", async function () {
       // El admin_provincial es la excepción: tiene provinceId pero no muni,
       // y eso se setea explícitamente en el endpoint assign-admin-provincial.
       if (!this.isModified("provinceId")) this.provinceId = undefined;
+    }
+  }
+  // Si provinceId quedó modificado (sea por muni→prov o por asignación
+  // directa), derivar también regionId desde Province.regionId.
+  if (this.isModified("provinceId")) {
+    if (this.provinceId) {
+      const regionId = await deriveRegionFromProvince(this.provinceId);
+      if (regionId) this.regionId = regionId;
+    } else if (!this.isModified("regionId")) {
+      this.regionId = undefined;
     }
   }
 });
@@ -236,6 +284,34 @@ UserSchema.pre(["findOneAndUpdate", "updateOne", "updateMany"], async function (
       }
     }
   }
+
+  // Cadena: si provinceId quedó seteado, derivar regionId desde Province.regionId.
+  const finalProvId =
+    ("$set" in update && (update as { $set: Record<string, unknown> }).$set.provinceId) ||
+    (update as Record<string, unknown>).provinceId;
+  const regionId = await deriveRegionFromProvince(
+    finalProvId as mongoose.Types.ObjectId | string | null | undefined,
+  );
+  if (regionId) {
+    if ("$set" in update) {
+      (update as { $set: Record<string, unknown> }).$set.regionId = regionId;
+    } else {
+      (update as Record<string, unknown>).regionId = regionId;
+    }
+  } else if (!finalProvId) {
+    const setObj = (update as { $set?: Record<string, unknown> }).$set;
+    const explicitReg = setObj && "regionId" in setObj
+      ? true
+      : "regionId" in update;
+    if (!explicitReg) {
+      if ("$set" in update) {
+        (update as { $set: Record<string, unknown> }).$set.regionId = undefined;
+      } else {
+        (update as Record<string, unknown>).regionId = undefined;
+      }
+    }
+  }
+
   this.setUpdate(update);
 });
 

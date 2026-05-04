@@ -7,12 +7,17 @@ import { apiResponse, apiError, apiForbidden, apiNotFound, apiUnauthorized, apiV
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
+import { SERVICE_SCOPES } from "@/models/Company";
+import { validateRouteByScope } from "../route";
+
+const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const WaypointInputSchema = z.object({
   order: z.number().int().min(0),
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
   label: z.string().max(100).optional(),
+  districtCode: z.string().min(2).max(8).optional(),
 });
 
 const UpdateSchema = z.object({
@@ -28,6 +33,13 @@ const UpdateSchema = z.object({
   status: z.enum(["activa", "suspendida"]).optional(),
   frequencies: z.array(z.string().max(80)).optional(),
   waypoints: z.array(WaypointInputSchema).max(200).optional(),
+  serviceScope: z.enum(SERVICE_SCOPES as [string, ...string[]]).optional(),
+  originDistrictCode: z.string().min(2).max(8).optional().nullable(),
+  destinationDistrictCode: z.string().min(2).max(8).optional().nullable(),
+  departureSchedules: z
+    .array(z.string().regex(TIME_REGEX, "Formato HH:mm requerido"))
+    .max(48)
+    .optional(),
 });
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -82,6 +94,26 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return apiForbidden("No puedes editar rutas de otra empresa");
     }
   }
+
+  // Validación de scope: verifica el estado RESULTANTE tras aplicar el patch.
+  // Si el patch trae serviceScope nuevo, usamos ese; si no, el actual del doc.
+  const effectiveScope = parsed.data.serviceScope ?? route.serviceScope;
+  const effectiveWaypoints = parsed.data.waypoints ?? route.waypoints;
+  const effectiveOrigin =
+    parsed.data.originDistrictCode === undefined
+      ? route.originDistrictCode
+      : (parsed.data.originDistrictCode ?? undefined);
+  const effectiveDestination =
+    parsed.data.destinationDistrictCode === undefined
+      ? route.destinationDistrictCode
+      : (parsed.data.destinationDistrictCode ?? undefined);
+
+  const scopeErrors = validateRouteByScope(effectiveScope, {
+    waypoints: effectiveWaypoints,
+    originDistrictCode: effectiveOrigin,
+    destinationDistrictCode: effectiveDestination,
+  });
+  if (scopeErrors) return apiValidationError(scopeErrors);
 
   // Detectamos si los waypoints cambiaron — solo en ese caso recomputamos
   // la geometría real con Google Routes API.

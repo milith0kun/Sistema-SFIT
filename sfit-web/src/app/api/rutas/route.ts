@@ -7,12 +7,16 @@ import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationErro
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
+import { SERVICE_SCOPES } from "@/models/Company";
+
+const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const WaypointInputSchema = z.object({
   order: z.number().int().min(0),
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
   label: z.string().max(100).optional(),
+  districtCode: z.string().min(2).max(8).optional(),
 });
 
 const CreateSchema = z.object({
@@ -29,7 +33,58 @@ const CreateSchema = z.object({
   status: z.enum(["activa", "suspendida"]).optional(),
   frequencies: z.array(z.string().max(80)).optional(),
   waypoints: z.array(WaypointInputSchema).max(200).optional(),
+  serviceScope: z.enum(SERVICE_SCOPES as [string, ...string[]]).optional(),
+  originDistrictCode: z.string().min(2).max(8).optional(),
+  destinationDistrictCode: z.string().min(2).max(8).optional(),
+  departureSchedules: z
+    .array(z.string().regex(TIME_REGEX, "Formato HH:mm requerido"))
+    .max(48)
+    .optional(),
 });
+
+/**
+ * Reglas semánticas adicionales según `serviceScope`:
+ *  - urbano_distrital / urbano_provincial : exige al menos 2 waypoints (la
+ *    ruta se traza dentro de calles).
+ *  - interprovincial_regional / interregional_nacional : exige
+ *    `originDistrictCode` y `destinationDistrictCode` (UBIGEO 6).
+ *    Los waypoints quedan opcionales (la ruta es lineal por carretera).
+ *
+ * Devuelve un mapa de errores compatible con `apiValidationError` o `null`
+ * cuando todo es válido.
+ */
+export function validateRouteByScope(
+  scope: string | undefined,
+  data: {
+    waypoints?: { order: number; lat: number; lng: number }[];
+    originDistrictCode?: string;
+    destinationDistrictCode?: string;
+  },
+): Record<string, string[]> | null {
+  if (!scope) return null;
+  const errors: Record<string, string[]> = {};
+
+  if (scope === "urbano_distrital" || scope === "urbano_provincial") {
+    if (!data.waypoints || data.waypoints.length < 2) {
+      errors.waypoints = ["Las rutas urbanas requieren al menos 2 waypoints"];
+    }
+  }
+
+  if (scope === "interprovincial_regional" || scope === "interregional_nacional") {
+    if (!data.originDistrictCode) {
+      errors.originDistrictCode = [
+        "Las rutas interprovinciales requieren el distrito de origen (UBIGEO)",
+      ];
+    }
+    if (!data.destinationDistrictCode) {
+      errors.destinationDistrictCode = [
+        "Las rutas interprovinciales requieren el distrito de destino (UBIGEO)",
+      ];
+    }
+  }
+
+  return Object.keys(errors).length > 0 ? errors : null;
+}
 
 export async function GET(request: NextRequest) {
   const auth = requireRole(request, [
@@ -119,6 +174,15 @@ export async function POST(request: NextRequest) {
       municipalityId = auth.session.municipalityId;
     }
     if (!municipalityId) return apiError("municipalityId requerido", 400);
+
+    // Validación específica por modalidad: urbanas exigen waypoints; las
+    // interprovinciales en cambio exigen UBIGEOs de origen/destino.
+    const scopeErrors = validateRouteByScope(parsed.data.serviceScope, {
+      waypoints: parsed.data.waypoints,
+      originDistrictCode: parsed.data.originDistrictCode,
+      destinationDistrictCode: parsed.data.destinationDistrictCode,
+    });
+    if (scopeErrors) return apiValidationError(scopeErrors);
 
     await connectDB();
 
