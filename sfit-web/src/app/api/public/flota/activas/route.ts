@@ -6,7 +6,14 @@ import { Route } from "@/models/Route";
 import "@/models/Vehicle";
 import { apiResponse } from "@/lib/api/response";
 import { haversineMeters } from "@/lib/geo/haversine";
+import { routeBetween } from "@/lib/routing/routingService";
 import type { ICurrentLocation, IVisitedStop } from "@/models/FleetEntry";
+
+// Factor empírico de fallback para convertir distancia haversine a tiempo
+// realista en Cusco urbano (calles + tráfico + paradas). 1.35 viene de
+// medir varios trayectos contra Google Maps.
+const URBAN_FALLBACK_FACTOR = 1.35;
+const FALLBACK_SPEED_MS = 4.17; // 15 km/h promedio bus urbano Cusco
 
 /**
  * GET /api/public/flota/activas?municipalityId=<id>&lat=<n>&lng=<n>&limit=<n>
@@ -53,15 +60,18 @@ export async function GET(request: NextRequest) {
   })
     .populate("vehicleId", "plate brand model vehicleTypeKey status")
     .populate("routeId")
-    .select("vehicleId routeId currentLocation visitedStops departureTime")
+    .select("vehicleId routeId currentLocation visitedStops departureTime offRouteSince")
     .lean();
 
-  const items = entries
+  // Procesamos en paralelo — Google Routes para el primer hop de cada bus.
+  // Para 50 buses son 50 requests, pero el cache LRU del routing service
+  // los agrupa cuando hay coordenadas similares.
+  const items = await Promise.all(entries
     .filter((e) => {
       const loc = e.currentLocation as ICurrentLocation | undefined;
       return loc?.lat != null && loc?.lng != null;
     })
-    .map((e) => {
+    .map(async (e) => {
       const loc = e.currentLocation as ICurrentLocation;
       const vehicle = e.vehicleId as {
         plate?: string;
@@ -75,6 +85,10 @@ export async function GET(request: NextRequest) {
         name?: string;
         code?: string;
         waypoints?: Array<{ lat: number; lng: number; label?: string; order: number }>;
+        polylineGeometry?: {
+          coords?: [number, number][];
+          distanceMeters?: number;
+        } | null;
       } | null;
 
       // ── Calcular ETA encadenada por cada paradero pendiente ──
@@ -85,8 +99,8 @@ export async function GET(request: NextRequest) {
         ? Math.max(...visited.map((s) => s.stopIndex))
         : -1;
 
-      // Velocidad: speed real si >0.5 m/s, sino 4.17 m/s (15 km/h urbano).
-      const speed = (loc.speed ?? 0) > 0.5 ? loc.speed! : 4.17;
+      // Velocidad de fallback: speed real del bus si >0.5 m/s, sino default urbano.
+      const speedFallback = (loc.speed ?? 0) > 0.5 ? loc.speed! : FALLBACK_SPEED_MS;
 
       // ETA acumulado: bus → wp1 → wp2 → ... siguiendo el orden de la ruta.
       const pending = waypoints.filter((w) => w.order > maxVisitedOrder);
@@ -100,21 +114,63 @@ export async function GET(request: NextRequest) {
         visited: boolean;
       }> = [];
 
+      // Hop 1 (bus → próximo paradero): pegamos a Google Routes con tráfico
+      // real para tener distancia + duración precisas. Si falla caemos al
+      // haversine x 1.35 con la velocidad del bus (o 15 km/h default).
       let cumulativeMeters = 0;
-      let prev: { lat: number; lng: number } = { lat: loc.lat, lng: loc.lng };
-      for (const wp of pending) {
-        const segment = haversineMeters(prev, { lat: wp.lat, lng: wp.lng });
-        cumulativeMeters += segment;
+      let cumulativeSeconds = 0;
+      if (pending.length > 0) {
+        const firstStop = pending[0];
+        const googleHop = await routeBetween(
+          { lat: loc.lat, lng: loc.lng },
+          { lat: firstStop.lat, lng: firstStop.lng },
+        );
+        if (googleHop) {
+          cumulativeMeters = googleHop.distanceMeters;
+          cumulativeSeconds = googleHop.durationSeconds;
+        } else {
+          const distHaversine = haversineMeters(
+            { lat: loc.lat, lng: loc.lng },
+            { lat: firstStop.lat, lng: firstStop.lng },
+          );
+          cumulativeMeters = distHaversine * URBAN_FALLBACK_FACTOR;
+          cumulativeSeconds = cumulativeMeters / speedFallback;
+        }
+        etaByStop.push({
+          stopIndex: firstStop.order,
+          label: firstStop.label ?? `Paradero ${firstStop.order + 1}`,
+          lat: firstStop.lat,
+          lng: firstStop.lng,
+          distanceFromBusMeters: Math.round(cumulativeMeters),
+          etaSeconds: Math.round(cumulativeSeconds),
+          visited: visitedSet.has(firstStop.order),
+        });
+      }
+
+      // Hops siguientes: usamos haversine entre waypoints consecutivos
+      // multiplicado por el factor urbano. Es una aproximación rápida que no
+      // gasta cuota de Google. La geometría real de la ruta cacheada en
+      // `route.polylineGeometry` se usa solo para el dibujo, no para ETA aquí.
+      for (let i = 1; i < pending.length; i++) {
+        const prev = pending[i - 1];
+        const wp = pending[i];
+        const segHaversine = haversineMeters(
+          { lat: prev.lat, lng: prev.lng },
+          { lat: wp.lat, lng: wp.lng },
+        );
+        const segMeters = segHaversine * URBAN_FALLBACK_FACTOR;
+        const segSeconds = segMeters / speedFallback;
+        cumulativeMeters += segMeters;
+        cumulativeSeconds += segSeconds;
         etaByStop.push({
           stopIndex: wp.order,
           label: wp.label ?? `Paradero ${wp.order + 1}`,
           lat: wp.lat,
           lng: wp.lng,
           distanceFromBusMeters: Math.round(cumulativeMeters),
-          etaSeconds: Math.round(cumulativeMeters / speed),
+          etaSeconds: Math.round(cumulativeSeconds),
           visited: visitedSet.has(wp.order),
         });
-        prev = { lat: wp.lat, lng: wp.lng };
       }
 
       // `nextStop` se conserva como compat para clientes viejos que usan el ETA
@@ -149,6 +205,9 @@ export async function GET(request: NextRequest) {
                 label: w.label,
                 order: w.order,
               })),
+              // Geometría real siguiendo calles si está cacheada. La app la
+              // usa para dibujar la polyline en lugar de líneas rectas.
+              polylineCoords: route.polylineGeometry?.coords ?? null,
             }
           : null,
         currentLocation: {
@@ -160,8 +219,11 @@ export async function GET(request: NextRequest) {
         nextStop,
         etaByStop,
         distanceFromUserMeters,
+        // Marcador anonimizado: indica si el bus está fuera de la ruta
+        // planeada. No exponemos el `offRouteSince` exacto.
+        isOffRoute: Boolean((e as { offRouteSince?: Date | null }).offRouteSince),
       };
-    });
+    }));
 
   // Orden por proximidad al ciudadano si tiene coords.
   if (hasUserCoords) {

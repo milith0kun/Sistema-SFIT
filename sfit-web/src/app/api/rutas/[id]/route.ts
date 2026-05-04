@@ -83,8 +83,42 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
   }
 
+  // Detectamos si los waypoints cambiaron — solo en ese caso recomputamos
+  // la geometría real con Google Routes API.
+  const waypointsChanged = parsed.data.waypoints !== undefined;
+
   Object.assign(route, parsed.data);
   await route.save();
+
+  // Recompute geometry siguiendo calles reales si los waypoints cambiaron.
+  // No bloquea la respuesta — corre fire-and-forget. La app cae al fallback
+  // de líneas rectas hasta que termine.
+  if (waypointsChanged && route.waypoints.length >= 2) {
+    void (async () => {
+      try {
+        const { routeAlongWaypoints } = await import("@/lib/routing/routingService");
+        const geom = await routeAlongWaypoints(
+          route.waypoints.map(w => ({ lat: w.lat, lng: w.lng })),
+        );
+        if (geom) {
+          await Route.findByIdAndUpdate(route._id, {
+            polylineGeometry: {
+              coords: geom.coords,
+              distanceMeters: geom.distanceMeters,
+              durationSecondsBaseline: geom.durationSeconds,
+              computedAt: new Date(),
+            },
+          });
+        } else {
+          // Limpia geometry stale si Google falla — es preferible mostrar
+          // líneas rectas que una geometría obsoleta de waypoints viejos.
+          await Route.findByIdAndUpdate(route._id, { polylineGeometry: null });
+        }
+      } catch (err) {
+        console.warn("[rutas/[id]] recompute geometry failed", err);
+      }
+    })();
+  }
 
   // Auditoría de edición
   try {

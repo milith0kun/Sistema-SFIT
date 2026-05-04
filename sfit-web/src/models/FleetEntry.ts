@@ -50,6 +50,15 @@ export interface IFleetEntry extends Document {
   distanceMeters?: number;
   /** Duración total del turno (s). returnTime − departureTime, solo al cerrar. */
   durationSeconds?: number;
+  /**
+   * Timestamp del primer trackPoint que se detectó >100m fuera de la
+   * polyline planeada. Se limpia (null) cuando el bus regresa a ≤50m.
+   * Se usa para alertar al ciudadano de que el bus está desviado y para
+   * notificar al fiscal si lleva más de N minutos fuera.
+   */
+  offRouteSince?: Date | null;
+  /** Máxima desviación (m) registrada en el turno actual. */
+  maxDeviationMeters?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -106,6 +115,8 @@ const FleetEntrySchema = new Schema<IFleetEntry>(
     routeCompliancePercentage: { type: Number, min: 0, max: 100 },
     distanceMeters: { type: Number, min: 0 },
     durationSeconds: { type: Number, min: 0 },
+    offRouteSince: { type: Date, default: null },
+    maxDeviationMeters: { type: Number, default: 0 },
   },
   { timestamps: true },
 );

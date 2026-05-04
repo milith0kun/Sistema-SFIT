@@ -126,6 +126,32 @@ export async function POST(request: NextRequest) {
     if (duplicate) return apiError("Ya existe una ruta con ese código", 409);
 
     const created = await Route.create({ municipalityId, ...parsed.data });
+
+    // Recompute geometry siguiendo calles reales en background si hay
+    // suficientes waypoints. No bloquea la respuesta de creación.
+    if (created.waypoints && created.waypoints.length >= 2) {
+      void (async () => {
+        try {
+          const { routeAlongWaypoints } = await import("@/lib/routing/routingService");
+          const geom = await routeAlongWaypoints(
+            created.waypoints.map(w => ({ lat: w.lat, lng: w.lng })),
+          );
+          if (geom) {
+            await Route.findByIdAndUpdate(created._id, {
+              polylineGeometry: {
+                coords: geom.coords,
+                distanceMeters: geom.distanceMeters,
+                durationSecondsBaseline: geom.durationSeconds,
+                computedAt: new Date(),
+              },
+            });
+          }
+        } catch (err) {
+          console.warn("[rutas POST] recompute geometry failed", err);
+        }
+      })();
+    }
+
     return apiResponse({ id: String(created._id), ...created.toObject() }, 201);
   } catch (error) {
     console.error("[rutas POST]", error);

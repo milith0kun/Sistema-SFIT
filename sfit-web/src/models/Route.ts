@@ -59,6 +59,19 @@ export interface IRoute extends Document {
    */
   siblingRouteId?: mongoose.Types.ObjectId;
 
+  /**
+   * Geometría real de la ruta siguiendo calles (cacheada de Google Routes
+   * API). Se recomputa en cada PATCH que modifica `waypoints`. Si Google
+   * está caído o la cuota se acabó queda null y la app cae al fallback
+   * de líneas rectas entre waypoints.
+   */
+  polylineGeometry?: {
+    coords: [number, number][];        // [lat, lng] siguiendo calles
+    distanceMeters: number;
+    durationSecondsBaseline: number;   // duración Google sin tráfico
+    computedAt: Date;
+  } | null;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -102,6 +115,18 @@ const RouteSchema = new Schema<IRoute>(
 
     direction: { type: String, enum: ["ida", "vuelta", "circular"] },
     siblingRouteId: { type: Schema.Types.ObjectId, ref: "Route" },
+
+    // Geometría real cacheada — opcional, se popula en PATCH waypoints
+    polylineGeometry: {
+      type: {
+        coords: { type: [[Number]], default: [] },
+        distanceMeters: { type: Number, default: 0 },
+        durationSecondsBaseline: { type: Number, default: 0 },
+        computedAt: { type: Date, default: () => new Date() },
+        _id: false,
+      },
+      default: null,
+    },
   },
   { timestamps: true },
 );

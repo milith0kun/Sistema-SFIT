@@ -10,6 +10,12 @@ import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { haversineMeters, DEFAULT_STOP_RADIUS_METERS } from "@/lib/geo/haversine";
+import { distancePointToPolyline } from "@/lib/geo/pointToLine";
+
+// Umbrales de detección off-route. Mantener consistentes con la UI:
+// >100m considerado fuera, ≤50m considerado regresó (hysteresis).
+const OFF_ROUTE_ENTRY_METERS = 100;
+const OFF_ROUTE_EXIT_METERS = 50;
 
 const LocationSchema = z.object({
   lat: z.number().min(-90).max(90),
@@ -122,9 +128,37 @@ export async function PATCH(
   let newlyVisited: { stopIndex: number; label?: string } | null = null;
   if (entry.routeId) {
     const route = await RouteModel.findById(entry.routeId)
-      .select("waypoints")
+      .select("waypoints polylineGeometry")
       .lean();
     const waypoints = route?.waypoints ?? [];
+
+    // ── Off-route detection ──
+    // Compara el punto contra la polyline real (geometría cacheada) si
+    // existe; si no, contra los waypoints crudos (líneas rectas). Con
+    // hysteresis: entra a "fuera" sobre 100m, sale a ≤50m.
+    if (waypoints.length >= 2) {
+      const polylinePoints =
+        route?.polylineGeometry?.coords?.map(([cLat, cLng]) => ({ lat: cLat, lng: cLng })) ??
+        waypoints.map(w => ({ lat: w.lat, lng: w.lng }));
+      const dev = distancePointToPolyline({ lat, lng }, polylinePoints);
+
+      // Track máxima desviación del turno actual
+      if (dev > (entry.maxDeviationMeters ?? 0)) {
+        entry.maxDeviationMeters = Math.round(dev);
+      }
+
+      if (entry.offRouteSince) {
+        // Está marcado como fuera — salir si volvió a estar cerca
+        if (dev <= OFF_ROUTE_EXIT_METERS) {
+          entry.offRouteSince = null;
+        }
+      } else {
+        // No está marcado — entrar si se alejó demasiado
+        if (dev > OFF_ROUTE_ENTRY_METERS) {
+          entry.offRouteSince = now;
+        }
+      }
+    }
     const alreadyVisited = new Set(
       (entry.visitedStops ?? []).map((s) => s.stopIndex),
     );
