@@ -392,9 +392,10 @@ class _MapView extends StatelessWidget {
               ),
             ),
           ]),
-        // Polylines reales siguiendo calles (cuando el backend tiene la
-        // geometría cacheada de Google Routes). Si no, no se dibuja para
-        // evitar líneas rectas que cruzan edificios.
+        // Polylines de la ruta de cada bus.
+        // Preferencia: geometría real de Google Routes (siguiendo calles)
+        // si está cacheada en el backend; fallback a waypoints crudos
+        // (líneas rectas entre paraderos) si no — mejor que nada.
         PolylineLayer(
           polylines: [
             for (final b in buses)
@@ -405,6 +406,17 @@ class _MapView extends StatelessWidget {
                       .toList(),
                   strokeWidth: 3,
                   color: statusColor(b.vehicleStatus).withValues(alpha: 0.45),
+                )
+              else if (b.waypoints.length >= 2)
+                Polyline(
+                  points: b.waypoints
+                      .map((w) => LatLng(w.lat, w.lng))
+                      .toList(),
+                  strokeWidth: 2.5,
+                  color: statusColor(b.vehicleStatus).withValues(alpha: 0.30),
+                  // Patrón punteado para indicar visualmente que es una
+                  // aproximación (no la geometría real)
+                  pattern: const StrokePattern.dotted(),
                 ),
           ],
         ),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * Hook unificado de validación + lookup async (RENIEC / SUNAT / placas / etc.)
@@ -55,13 +55,22 @@ export interface UseFieldValidationOptions<R> {
   validateEmpty?: boolean;
 }
 
+interface InternalState<R> {
+  state: ValidationState;
+  error: string | null;
+  result: R | null;
+}
+
+const INITIAL: InternalState<unknown> = { state: "idle", error: null, result: null };
+
 export function useFieldValidation<R = unknown>(
   opts: UseFieldValidationOptions<R>,
 ): ValidationResult<R> {
   const { value, validate, lookup, debounce = 300, validateEmpty = false } = opts;
-  const [state, setState] = useState<ValidationState>("idle");
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<R | null>(null);
+  // Estado consolidado en un solo setter para evitar updates en cascada
+  // dentro del effect (React lint regla react-hooks/set-state-in-effect).
+  const [s, setS] = useState<InternalState<R>>(INITIAL as InternalState<R>);
+
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Token para descartar respuestas viejas si el valor cambió mientras se hacía lookup.
   const tokenRef = useRef(0);
@@ -72,58 +81,54 @@ export function useFieldValidation<R = unknown>(
   useEffect(() => { validateRef.current = validate; });
   useEffect(() => { lookupRef.current = lookup; });
 
+  /* eslint-disable react-hooks/set-state-in-effect --
+     Este hook DEBE llamar setS al cambiar `value` para mirrorear el
+     resultado de validación + lookup async. No se puede derivar de props
+     porque la validación es async (debounce + fetch). Es un caso legítimo
+     del patrón "state derivado de async work tras una prop". */
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
 
-    // Empty handling
+    // Empty handling — un solo setS evita "set-state-in-effect" cascada.
     if (!validateEmpty && (value === "" || value == null)) {
-      setState("idle");
-      setError(null);
-      setResult(null);
+      setS({ state: "idle", error: null, result: null });
       return;
     }
 
     // Sync validation
     const syncError = validateRef.current?.(value) ?? null;
     if (syncError) {
-      setState("invalid");
-      setError(syncError);
-      setResult(null);
+      setS({ state: "invalid", error: syncError, result: null });
       return;
     }
 
     // Si no hay lookup async, basta con la validación síncrona.
     if (!lookupRef.current) {
-      setState("valid");
-      setError(null);
+      setS({ state: "valid", error: null, result: null });
       return;
     }
 
     // Async lookup con debounce
-    setState("validating");
-    setError(null);
+    setS({ state: "validating", error: null, result: null });
     const myToken = ++tokenRef.current;
     timerRef.current = setTimeout(async () => {
       try {
         const res = await lookupRef.current!(value);
         if (myToken !== tokenRef.current) return;  // valor cambió, descartar
         if (res.error) {
-          setState("lookup_failed");
-          setError(res.error);
-          setResult(null);
+          setS({ state: "lookup_failed", error: res.error, result: null });
         } else if (res.result !== undefined) {
-          setState("valid");
-          setError(null);
-          setResult(res.result);
+          setS({ state: "valid", error: null, result: res.result as R });
         } else {
-          setState("valid");
-          setError(null);
+          setS({ state: "valid", error: null, result: null });
         }
       } catch (err) {
         if (myToken !== tokenRef.current) return;
-        setState("lookup_failed");
-        setError(err instanceof Error ? err.message : "Error de lookup");
-        setResult(null);
+        setS({
+          state: "lookup_failed",
+          error: err instanceof Error ? err.message : "Error de lookup",
+          result: null,
+        });
       }
     }, debounce);
 
@@ -131,12 +136,13 @@ export function useFieldValidation<R = unknown>(
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [value, debounce, validateEmpty]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   return {
-    state,
-    isValidating: state === "validating",
-    isValid: state === "valid",
-    error,
-    result,
+    state: s.state,
+    isValidating: s.state === "validating",
+    isValid: s.state === "valid",
+    error: s.error,
+    result: s.result,
   };
 }

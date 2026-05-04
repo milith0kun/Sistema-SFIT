@@ -57,6 +57,11 @@ class BusDetailSheet extends StatelessWidget {
     final waypointsLatLng = bus.waypoints
         .map((w) => LatLng(w.lat, w.lng))
         .toList();
+    // Geometría real de Google Routes (siguiendo calles) si está disponible.
+    // Si no, caemos a líneas rectas entre waypoints.
+    final realPolyline = bus.polylineCoords
+        .map((c) => LatLng(c[0], c[1]))
+        .toList();
 
     return Container(
       decoration: BoxDecoration(
@@ -160,12 +165,24 @@ class BusDetailSheet extends StatelessWidget {
                       subdomains: const ['a', 'b', 'c', 'd'],
                       userAgentPackageName: 'com.sfit.sfit_app',
                     ),
-                    if (waypointsLatLng.length >= 2)
+                    // Polyline: real de Google Routes si existe, fallback
+                    // a líneas rectas entre waypoints (punteado para indicar
+                    // visualmente que es aproximación).
+                    if (realPolyline.length >= 2)
+                      PolylineLayer(polylines: [
+                        Polyline(
+                          points: realPolyline,
+                          color: color.withValues(alpha: 0.55),
+                          strokeWidth: 3.5,
+                        ),
+                      ])
+                    else if (waypointsLatLng.length >= 2)
                       PolylineLayer(polylines: [
                         Polyline(
                           points: waypointsLatLng,
                           color: AppColors.ink3,
                           strokeWidth: 3,
+                          pattern: const StrokePattern.dotted(),
                         ),
                       ]),
                     MarkerLayer(markers: [
