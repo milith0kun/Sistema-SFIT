@@ -9,6 +9,8 @@ export interface JwtPayload {
   role: Role;
   municipalityId?: string;
   provinceId?: string;
+  /** Región del usuario; aplica a admin_regional y se denormaliza para roles inferiores. */
+  regionId?: string;
 }
 
 /** Access token: 2 horas (RF-01-08) */

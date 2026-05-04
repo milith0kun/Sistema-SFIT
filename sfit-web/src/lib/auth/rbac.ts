@@ -1,14 +1,16 @@
 import { Municipality } from "@/models/Municipality";
+import { Province } from "@/models/Province";
 import { ROLES } from "@/lib/constants";
 import type { ServiceScope } from "@/models/Company";
 import type { JwtPayload } from "./jwt";
 
 /**
  * Helpers RBAC centralizados. Implementan el aislamiento multi-tenant de
- * RNF-02 / RNF-03 y la jerarquía de la sección 4 del Readme:
- *   Super Admin  → todo
- *   Admin Provincial → su provincia
- *   Admin Municipal  → su municipalidad
+ * RNF-02 / RNF-03 y la jerarquía:
+ *   Super Admin       → todo
+ *   Admin Regional    → su región (todas las provincias y munis dentro)
+ *   Admin Provincial  → su provincia (todas las munis dentro)
+ *   Admin Municipal   → su municipalidad
  *   Operador/Fiscal/Conductor/Ciudadano → su municipalidad
  */
 
@@ -24,6 +26,20 @@ export async function canAccessMunicipality(
   if (!municipalityId) return false;
 
   if (session.role === ROLES.SUPER_ADMIN) return true;
+
+  if (session.role === ROLES.ADMIN_REGIONAL) {
+    if (!session.regionId) return false;
+    // Resolver muni → province → region y comparar.
+    const muni = await Municipality.findById(municipalityId)
+      .select("provinceId")
+      .lean<{ provinceId?: unknown } | null>();
+    if (!muni?.provinceId) return false;
+    const prov = await Province.findById(String(muni.provinceId))
+      .select("regionId")
+      .lean<{ regionId?: unknown } | null>();
+    if (!prov?.regionId) return false;
+    return String(prov.regionId) === String(session.regionId);
+  }
 
   if (session.role === ROLES.ADMIN_PROVINCIAL) {
     if (!session.provinceId) return false;
@@ -55,15 +71,63 @@ export function canAccessProvince(
       String(session.provinceId) === String(provinceId)
     );
   }
+  // admin_regional sync requiere lookup; usar canAccessProvinceAsync.
+  return false;
+}
+
+/**
+ * Versión async que resuelve la región de la provincia para el caso
+ * `admin_regional`. Usar cuando se necesita comparar provincia con la
+ * región de la sesión (que requiere ir a BD).
+ */
+export async function canAccessProvinceAsync(
+  session: JwtPayload,
+  provinceId: string,
+): Promise<boolean> {
+  if (!provinceId) return false;
+  if (session.role === ROLES.SUPER_ADMIN) return true;
+
+  if (session.role === ROLES.ADMIN_REGIONAL) {
+    if (!session.regionId) return false;
+    const prov = await Province.findById(provinceId)
+      .select("regionId")
+      .lean<{ regionId?: unknown } | null>();
+    return !!prov?.regionId && String(prov.regionId) === String(session.regionId);
+  }
+
+  if (session.role === ROLES.ADMIN_PROVINCIAL) {
+    return !!session.provinceId &&
+      String(session.provinceId) === String(provinceId);
+  }
+  return false;
+}
+
+/**
+ * `true` si la sesión puede operar sobre la región indicada.
+ * Solo super_admin y admin_regional (sobre la suya).
+ */
+export function canAccessRegion(
+  session: JwtPayload,
+  regionId: string,
+): boolean {
+  if (!regionId) return false;
+  if (session.role === ROLES.SUPER_ADMIN) return true;
+  if (session.role === ROLES.ADMIN_REGIONAL) {
+    return !!session.regionId && String(session.regionId) === String(regionId);
+  }
   return false;
 }
 
 /**
  * Filtro Mongoose para listar municipalidades según el rol de la sesión:
- *   Super Admin       → {}               (todas)
- *   Admin Provincial  → { provinceId }   (las de su provincia)
- *   Admin Municipal + → { _id }          (solo la suya)
- *   Sin scope válido  → filtro imposible { _id: null } (sin resultados)
+ *   Super Admin       → {}                                (todas)
+ *   Admin Regional    → { provinceId IN provs-de-region } (todas las munis de su región)
+ *   Admin Provincial  → { provinceId }                    (las de su provincia)
+ *   Admin Municipal + → { _id }                           (solo la suya)
+ *   Sin scope válido  → filtro imposible { _id: null }    (sin resultados)
+ *
+ * Para admin_regional el filtro es async porque requiere resolver las
+ * provincias de la región en BD; usar `scopedMunicipalityFilterAsync`.
  */
 export function scopedMunicipalityFilter(
   session: JwtPayload,
@@ -75,8 +139,33 @@ export function scopedMunicipalityFilter(
     return { provinceId: session.provinceId };
   }
 
+  // admin_regional usar la versión async; aquí devolvemos filtro imposible
+  // para forzar al caller a usar `scopedMunicipalityFilterAsync`.
+  if (session.role === ROLES.ADMIN_REGIONAL) {
+    return { _id: null };
+  }
+
   if (!session.municipalityId) return { _id: null };
   return { _id: session.municipalityId };
+}
+
+/**
+ * Versión async — única que cubre admin_regional resolviendo provincias
+ * de su región en BD. Para los demás roles devuelve lo mismo que la
+ * versión síncrona.
+ */
+export async function scopedMunicipalityFilterAsync(
+  session: JwtPayload,
+): Promise<Record<string, unknown>> {
+  if (session.role === ROLES.ADMIN_REGIONAL) {
+    if (!session.regionId) return { _id: null };
+    const provs = await Province.find({ regionId: session.regionId })
+      .select("_id")
+      .lean<Array<{ _id: unknown }>>();
+    if (provs.length === 0) return { _id: null };
+    return { provinceId: { $in: provs.map((p) => p._id) } };
+  }
+  return scopedMunicipalityFilter(session);
 }
 
 /**

@@ -9,6 +9,13 @@ import mongoose, { Schema, type Document, type Model } from "mongoose";
 export interface IProvince extends Document {
   name: string;
   region: string;
+  /**
+   * Referencia a la entidad Region (depto). Opcional para no romper
+   * data preexistente; se denormaliza desde la string `region` con el
+   * script `migrate/sync-region-ids`. Usado por el rol admin_regional
+   * para filtrar provincias de su jurisdicción.
+   */
+  regionId?: mongoose.Types.ObjectId;
   active: boolean;
   // Catálogo oficial INEI — UBIGEO peruano
   ubigeoCode?: string;     // 4 dígitos: depto(2)+prov(2), p.ej. "0801"
@@ -22,6 +29,7 @@ const ProvinceSchema = new Schema<IProvince>(
   {
     name: { type: String, required: true, trim: true },
     region: { type: String, required: true, trim: true },
+    regionId: { type: Schema.Types.ObjectId, ref: "Region", index: true },
     active: { type: Boolean, default: true },
     ubigeoCode:     { type: String, trim: true },
     departmentCode: { type: String, trim: true, index: true },

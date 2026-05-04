@@ -16,6 +16,7 @@ import { connectDB } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
 import "@/models/Municipality";
 import "@/models/Province";
+import "@/models/Region";
 import { apiResponse, apiError, apiUnauthorized, apiForbidden, apiNotFound } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
@@ -25,14 +26,15 @@ import { createNotification } from "@/lib/notifications/create";
 import { sendEmail } from "@/lib/email/email_service";
 import { accountRejectedEmailHtml, accountApprovedEmailHtml } from "@/lib/email/templates";
 
-const ALLOWED_ROLES = [ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL];
+const ALLOWED_ROLES = [ROLES.SUPER_ADMIN, ROLES.ADMIN_REGIONAL, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL];
 
 /**
  * Roles que cada actor puede asignar al aprobar/editar. Espejo de la matriz
  * que tenía /api/users/[id]/approve antes de la unificación.
  */
 const ROLES_ASSIGNABLE_BY: Record<string, Role[]> = {
-  [ROLES.SUPER_ADMIN]:      [ROLES.CIUDADANO, ROLES.CONDUCTOR, ROLES.OPERADOR, ROLES.FISCAL, ROLES.ADMIN_MUNICIPAL, ROLES.ADMIN_PROVINCIAL, ROLES.SUPER_ADMIN],
+  [ROLES.SUPER_ADMIN]:      [ROLES.CIUDADANO, ROLES.CONDUCTOR, ROLES.OPERADOR, ROLES.FISCAL, ROLES.ADMIN_MUNICIPAL, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_REGIONAL, ROLES.SUPER_ADMIN],
+  [ROLES.ADMIN_REGIONAL]:   [ROLES.CIUDADANO, ROLES.CONDUCTOR, ROLES.OPERADOR, ROLES.FISCAL, ROLES.ADMIN_MUNICIPAL, ROLES.ADMIN_PROVINCIAL],
   [ROLES.ADMIN_PROVINCIAL]: [ROLES.CIUDADANO, ROLES.CONDUCTOR, ROLES.OPERADOR, ROLES.FISCAL, ROLES.ADMIN_MUNICIPAL],
   [ROLES.ADMIN_MUNICIPAL]:  [ROLES.CIUDADANO, ROLES.CONDUCTOR, ROLES.OPERADOR, ROLES.FISCAL],
 };
@@ -40,7 +42,7 @@ const ROLES_ASSIGNABLE_BY: Record<string, Role[]> = {
 const PatchSchema = z.object({
   status: z.enum(["activo", "pendiente", "suspendido", "rechazado"]).optional(),
   role: z.enum([
-    "super_admin", "admin_provincial", "admin_municipal",
+    "super_admin", "admin_regional", "admin_provincial", "admin_municipal",
     "fiscal", "operador", "conductor", "ciudadano",
   ]).optional(),
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100).trim().optional(),
@@ -48,6 +50,7 @@ const PatchSchema = z.object({
   dni: z.string().max(20).trim().nullable().optional(),
   municipalityId: z.string().nullable().optional(),
   provinceId: z.string().nullable().optional(),
+  regionId: z.string().nullable().optional(),
   password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres").max(128).optional(),
   rejectionReason: z.string().trim().min(5, "El motivo debe tener al menos 5 caracteres").max(500).optional(),
 }).refine(
@@ -55,7 +58,8 @@ const PatchSchema = z.object({
     d.status !== undefined || d.role !== undefined ||
     d.name !== undefined || d.phone !== undefined ||
     d.dni !== undefined || d.municipalityId !== undefined ||
-    d.provinceId !== undefined || d.password !== undefined ||
+    d.provinceId !== undefined || d.regionId !== undefined ||
+    d.password !== undefined ||
     d.rejectionReason !== undefined,
   { message: "Se debe especificar al menos un campo a actualizar" },
 );
@@ -77,9 +81,10 @@ export async function GET(
     await connectDB();
 
     const user = await User.findById(id)
-      .select("name email role status municipalityId provinceId phone dni createdAt image provider")
+      .select("name email role status municipalityId provinceId regionId phone dni createdAt image provider")
       .populate("municipalityId", "name")
       .populate("provinceId", "name")
+      .populate("regionId", "name")
       .lean();
 
     if (!user) return apiNotFound("Usuario no encontrado");
@@ -87,6 +92,7 @@ export async function GET(
     // Extraer _id del populate (lean devuelve el objeto populado, no el ObjectId crudo)
     const muni = user.municipalityId as unknown as { _id: string; name: string } | null;
     const prov = user.provinceId     as unknown as { _id: string; name: string } | null;
+    const reg  = user.regionId       as unknown as { _id: string; name: string } | null;
 
     // Scope: admin_municipal solo ve usuarios de su muni
     if (session.role === ROLES.ADMIN_MUNICIPAL) {
@@ -99,6 +105,13 @@ export async function GET(
     if (session.role === ROLES.ADMIN_PROVINCIAL) {
       const userProvId = prov ? String(prov._id) : null;
       if (session.provinceId && userProvId !== String(session.provinceId)) {
+        return apiForbidden();
+      }
+    }
+    // Scope: admin_regional solo ve usuarios de su región
+    if (session.role === ROLES.ADMIN_REGIONAL) {
+      const userRegId = reg ? String(reg._id) : null;
+      if (session.regionId && userRegId !== String(session.regionId)) {
         return apiForbidden();
       }
     }
@@ -117,6 +130,8 @@ export async function GET(
       municipalityName: muni?.name ?? null,
       provinceId:       prov ? String(prov._id) : null,
       provinceName:     prov?.name ?? null,
+      regionId:         reg ? String(reg._id) : null,
+      regionName:       reg?.name ?? null,
       createdAt:        user.createdAt,
     });
   } catch (err) {
@@ -148,7 +163,7 @@ export async function PATCH(
     return apiError(first, 422);
   }
 
-  const { status, role, name, phone, dni, municipalityId, provinceId, password, rejectionReason } = parsed.data;
+  const { status, role, name, phone, dni, municipalityId, provinceId, regionId, password, rejectionReason } = parsed.data;
 
   // ── Protecciones de escalada de privilegios ───────────────────────────────
   if (password !== undefined && session.role !== ROLES.SUPER_ADMIN) {
@@ -161,20 +176,23 @@ export async function PATCH(
       return apiForbidden(`No tienes permiso para asignar el rol ${role}`);
     }
   }
-  if (session.role !== ROLES.SUPER_ADMIN && (municipalityId !== undefined || provinceId !== undefined)) {
-    return apiForbidden("Solo el super admin puede reasignar municipio o provincia");
+  if (session.role !== ROLES.SUPER_ADMIN && (municipalityId !== undefined || provinceId !== undefined || regionId !== undefined)) {
+    return apiForbidden("Solo el super admin puede reasignar región, provincia o municipio");
   }
   // Rechazar requiere motivo (RF-01-04).
   if (status === "rechazado" && !rejectionReason) {
     return apiError("Debes indicar el motivo del rechazo", 422);
   }
 
-  // Validar ObjectIds de municipio/provincia si se envían
+  // Validar ObjectIds de municipio/provincia/región si se envían
   if (municipalityId && municipalityId !== "" && !isValidObjectId(municipalityId)) {
     return apiError("municipalityId inválido", 400);
   }
   if (provinceId && provinceId !== "" && !isValidObjectId(provinceId)) {
     return apiError("provinceId inválido", 400);
+  }
+  if (regionId && regionId !== "" && !isValidObjectId(regionId)) {
+    return apiError("regionId inválido", 400);
   }
 
   try {
@@ -197,7 +215,8 @@ export async function PATCH(
     }
 
     // Aislamiento por tenant: usar canAccessMunicipality (cubre el caso
-    // admin_provincial → muni de su provincia con resolución muni→province).
+    // admin_provincial → muni de su provincia con resolución muni→province,
+    // y admin_regional → muni → province → region).
     if (target.municipalityId) {
       const allowed = await canAccessMunicipality(session, String(target.municipalityId));
       if (!allowed) return apiForbidden("El usuario no pertenece a su jurisdicción");
@@ -209,6 +228,12 @@ export async function PATCH(
       return apiForbidden("El usuario no pertenece a su provincia");
     } else if (session.role === ROLES.ADMIN_MUNICIPAL && !target.municipalityId) {
       return apiForbidden("El usuario no pertenece a su municipio");
+    } else if (session.role === ROLES.ADMIN_REGIONAL) {
+      // Sin muni: aceptamos solo si target.regionId == session.regionId
+      // (target sin región tampoco está en su jurisdicción).
+      if (!target.regionId || String(target.regionId) !== String(session.regionId)) {
+        return apiForbidden("El usuario no pertenece a su región");
+      }
     }
 
     // Construir actualización
@@ -223,6 +248,9 @@ export async function PATCH(
     }
     if (provinceId !== undefined) {
       update.provinceId = provinceId && provinceId !== "" ? provinceId : null;
+    }
+    if (regionId !== undefined) {
+      update.regionId = regionId && regionId !== "" ? regionId : null;
     }
     if (password) {
       update.password = await bcrypt.hash(password, 12);
@@ -240,9 +268,10 @@ export async function PATCH(
       { $set: update },
       { returnDocument: "after", runValidators: true }
     )
-      .select("name email role status municipalityId provinceId phone dni rejectionReason createdAt image")
+      .select("name email role status municipalityId provinceId regionId phone dni rejectionReason createdAt image")
       .populate("municipalityId", "name")
       .populate("provinceId", "name")
+      .populate("regionId", "name")
       .lean();
 
     if (!updated) return apiNotFound("Usuario no encontrado");
@@ -316,6 +345,7 @@ export async function PATCH(
       dni: updated.dni ?? null,
       municipality: updated.municipalityId as unknown as { _id: string; name: string } | null,
       province: updated.provinceId as unknown as { _id: string; name: string } | null,
+      region: updated.regionId as unknown as { _id: string; name: string } | null,
       rejectionReason: updated.rejectionReason ?? null,
       createdAt: updated.createdAt,
       image: updated.image ?? null,

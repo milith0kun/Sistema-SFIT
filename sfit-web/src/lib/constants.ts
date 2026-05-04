@@ -4,6 +4,7 @@
  */
 export const ROLES = {
   SUPER_ADMIN: "super_admin",
+  ADMIN_REGIONAL: "admin_regional",
   ADMIN_PROVINCIAL: "admin_provincial",
   ADMIN_MUNICIPAL: "admin_municipal",
   FISCAL: "fiscal",
