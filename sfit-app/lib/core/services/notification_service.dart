@@ -171,6 +171,7 @@ class NotificationService {
 
   /// Navega según el [type] del payload de la notificación.
   ///
+  /// - `asignacion_viaje` → `/conductor/viajes-pendientes` (bandeja push)
   /// - `fatiga`, `reporte`, `sancion`, `operacion` → `/home`
   /// - cualquier otro valor o null → `/notificaciones`
   static void _navigateFromPayload(String? type) {
@@ -187,6 +188,8 @@ class NotificationService {
 
   static String _routeForType(String? type) {
     switch (type) {
+      case 'asignacion_viaje':
+        return '/conductor/viajes-pendientes';
       case 'fatiga':
       case 'reporte':
       case 'sancion':

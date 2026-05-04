@@ -26,6 +26,8 @@ import '../../features/splash/presentation/pages/splash_page.dart';
 import '../../features/trips/presentation/pages/trip_checkin_page.dart';
 import '../../features/trips/presentation/pages/trip_checkout_page.dart';
 import '../../features/conductor/presentation/pages/trip_summary_page.dart';
+import '../../features/conductor/presentation/pages/pending_trips_page.dart';
+import '../../features/conductor/presentation/pages/available_trips_page.dart';
 import '../../features/operator/presentation/pages/vehicle_qr_page.dart';
 import '../../features/operator/presentation/pages/nuevo_conductor_page.dart';
 import '../../features/operator/presentation/pages/nuevo_vehiculo_page.dart';
@@ -192,6 +194,14 @@ GoRouter router(Ref ref) {
           final id = state.pathParameters['id']!;
           return TripSummaryPage(entryId: id);
         },
+      ),
+      GoRoute(
+        path: '/conductor/viajes-pendientes',
+        builder: (_, __) => const PendingTripsPage(),
+      ),
+      GoRoute(
+        path: '/conductor/viajes-disponibles',
+        builder: (_, __) => const AvailableTripsPage(),
       ),
 
       // ── Centro de notificaciones ──────────────────────────────

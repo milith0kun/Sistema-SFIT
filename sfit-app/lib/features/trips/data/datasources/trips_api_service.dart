@@ -49,6 +49,59 @@ class TripsApiService {
     });
   }
 
+  // ── Workflow asignación push/pull (Fase 1 backend, Fase 4 app) ────────────
+
+  /// GET /viajes?status=pendiente_aceptacion — viajes asignados al conductor
+  /// autenticado en espera de aceptar o rechazar (flujo PUSH del operador).
+  Future<List<Map<String, dynamic>>> getPendingTrips({int limit = 20}) async {
+    final resp = await _dio.get('/viajes', queryParameters: {
+      'status': 'pendiente_aceptacion',
+      'limit': limit,
+    });
+    final body = resp.data as Map;
+    final data = body['data'] as Map;
+    return (data['items'] as List).cast<Map<String, dynamic>>();
+  }
+
+  /// GET /viajes/disponibles — catálogo PULL: viajes en pendiente_aceptacion
+  /// SIN driver asignado en la municipalidad del conductor. Cualquiera puede
+  /// reclamarlos con `claimTrip()`.
+  Future<List<Map<String, dynamic>>> getAvailableTrips({int limit = 20}) async {
+    final resp = await _dio.get('/viajes/disponibles', queryParameters: {
+      'limit': limit,
+    });
+    final body = resp.data as Map;
+    final data = body['data'] as Map;
+    return (data['items'] as List).cast<Map<String, dynamic>>();
+  }
+
+  /// POST /viajes/:id/aceptar — el conductor confirma una asignación.
+  /// Requiere que el viaje esté en pendiente_aceptacion y el driverId
+  /// coincida con el del conductor autenticado.
+  Future<void> acceptTrip(String tripId) async {
+    await _dio.post('/viajes/$tripId/aceptar');
+  }
+
+  /// POST /viajes/:id/rechazar — el conductor declina con motivo (≥5 chars).
+  Future<void> rejectTrip(String tripId, {required String reason}) async {
+    await _dio.post('/viajes/$tripId/rechazar', data: {'rejectionReason': reason});
+  }
+
+  /// POST /viajes/:id/tomar — flujo PULL: reclama un viaje del catálogo.
+  /// Asignación atómica anti-race en backend. `direction` opcional para
+  /// rutas con ida/vuelta.
+  Future<void> claimTrip(String tripId, {String? direction}) async {
+    await _dio.post('/viajes/$tripId/tomar', data: {
+      if (direction != null) 'direction': direction,
+    });
+  }
+
+  /// POST /viajes/:id/iniciar — de aceptado a en_curso. Setea startTime
+  /// del lado server.
+  Future<void> startAssignedTrip(String tripId) async {
+    await _dio.post('/viajes/$tripId/iniciar');
+  }
+
   // ── Turno de conductor (FleetEntry) ─────────────────────────────────────────
 
   /// POST /flota — inicia un turno del conductor (crea FleetEntry en_ruta).
