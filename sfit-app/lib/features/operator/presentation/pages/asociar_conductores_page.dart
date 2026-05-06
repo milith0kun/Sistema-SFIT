@@ -1,0 +1,379 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
+
+/// Pantalla del operador "Asociar conductores".
+///
+/// El operador busca conductores de su misma muni (que aún no están en su
+/// empresa o están en otra) y los asocia con un tap. Es la otra mitad del
+/// onboarding crowd: el conductor también puede elegir empresa por sí mismo
+/// desde MiEmpresaPage.
+class AsociarConductoresPage extends ConsumerStatefulWidget {
+  const AsociarConductoresPage({super.key});
+
+  @override
+  ConsumerState<AsociarConductoresPage> createState() =>
+      _AsociarConductoresPageState();
+}
+
+class _AsociarConductoresPageState extends ConsumerState<AsociarConductoresPage> {
+  final _searchCtrl = TextEditingController();
+  Timer? _debounce;
+  bool _loading = false;
+  bool _onlyUnassigned = true;
+  List<Map<String, dynamic>> _items = [];
+  // ID de los conductores que están siendo asociados ahora mismo (para el spinner).
+  final Set<String> _associating = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _search('');
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () => _search(value));
+  }
+
+  Future<void> _search(String q) async {
+    setState(() => _loading = true);
+    try {
+      final dio = ref.read(dioClientProvider).dio;
+      final resp = await dio.get(
+        '/operador/conductores',
+        queryParameters: {
+          if (q.trim().isNotEmpty) 'q': q.trim(),
+          'onlyUnassigned': _onlyUnassigned.toString(),
+          'limit': 30,
+        },
+      );
+      final body = resp.data as Map<String, dynamic>;
+      final data = body['data'] as Map<String, dynamic>? ?? body;
+      final items = (data['items'] as List? ?? const []).cast<Map<String, dynamic>>();
+      if (!mounted) return;
+      setState(() {
+        _items = items;
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() { _items = const []; _loading = false; });
+    }
+  }
+
+  Future<void> _associate(Map<String, dynamic> driver) async {
+    final id = driver['id'] as String;
+    if (_associating.contains(id)) return;
+    setState(() => _associating.add(id));
+    try {
+      final dio = ref.read(dioClientProvider).dio;
+      final resp = await dio.post('/operador/conductores/$id/asociar');
+      final data = (resp.data as Map)['data'] as Map<String, dynamic>;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${data['name']} asociado a ${data['companyName']}'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.apto,
+        ),
+      );
+      // Refrescamos la lista.
+      await _search(_searchCtrl.text);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${_extractError(e)}'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.noApto,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _associating.remove(id));
+    }
+  }
+
+  String _extractError(Object e) {
+    final m = RegExp(r'"error"\s*:\s*"([^"]+)"').firstMatch(e.toString());
+    return m?.group(1) ?? 'No se pudo asociar';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.paper,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: const BackButton(),
+        title: Text(
+          'Asociar conductores',
+          style: AppTheme.inter(
+              fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.ink9),
+        ),
+      ),
+      body: Column(children: [
+        // ── Buscador ─────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+          child: TextField(
+            controller: _searchCtrl,
+            onChanged: _onSearchChanged,
+            decoration: InputDecoration(
+              hintText: 'Buscar por nombre o DNI',
+              hintStyle: AppTheme.inter(fontSize: 14, color: AppColors.ink4),
+              prefixIcon: const Icon(Icons.search, color: AppColors.ink5),
+              suffixIcon: _loading
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 18, height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gold),
+                      ),
+                    )
+                  : (_searchCtrl.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.close, size: 18, color: AppColors.ink5),
+                          onPressed: () { _searchCtrl.clear(); _search(''); },
+                        )
+                      : null),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AppColors.ink2),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AppColors.ink2),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AppColors.gold, width: 2),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              fillColor: Colors.white,
+              filled: true,
+            ),
+            style: AppTheme.inter(fontSize: 14, color: AppColors.ink9),
+          ),
+        ),
+        // ── Filtro: solo no asignados ────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(children: [
+            Switch.adaptive(
+              value: _onlyUnassigned,
+              activeThumbColor: AppColors.gold,
+              onChanged: (v) {
+                setState(() => _onlyUnassigned = v);
+                _search(_searchCtrl.text);
+              },
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                _onlyUnassigned
+                    ? 'Solo conductores sin mi empresa'
+                    : 'Mostrar todos los conductores',
+                style: AppTheme.inter(
+                  fontSize: 12.5, color: AppColors.ink7, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ]),
+        ),
+        // ── Lista ────────────────────────────────────────────────
+        Expanded(
+          child: _items.isEmpty && !_loading
+              ? const _EmptyState()
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  itemCount: _items.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) {
+                    final d = _items[i];
+                    final id = d['id'] as String;
+                    return _DriverTile(
+                      driver: d,
+                      isMine: d['isMine'] as bool? ?? false,
+                      busy: _associating.contains(id),
+                      onAssociate: () => _associate(d),
+                    );
+                  },
+                ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _DriverTile extends StatelessWidget {
+  final Map<String, dynamic> driver;
+  final bool isMine;
+  final bool busy;
+  final VoidCallback onAssociate;
+
+  const _DriverTile({
+    required this.driver,
+    required this.isMine,
+    required this.busy,
+    required this.onAssociate,
+  });
+
+  Color _statusColor(String? s) => switch (s) {
+        'apto' => AppColors.apto,
+        'riesgo' => AppColors.riesgo,
+        _ => AppColors.noApto,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final company = driver['companyName'] as String?;
+    final status = driver['status'] as String?;
+    final color = _statusColor(status);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isMine ? AppColors.aptoBorder : AppColors.ink2),
+      ),
+      child: Row(children: [
+        Container(
+          width: 42, height: 42,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Icon(Icons.person, color: color, size: 22),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                (driver['name'] ?? '—').toString(),
+                style: AppTheme.inter(
+                    fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.ink9),
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Row(children: [
+                const Icon(Icons.badge_outlined, size: 11, color: AppColors.ink5),
+                const SizedBox(width: 3),
+                Text(
+                  'DNI ${driver['dni'] ?? "—"}',
+                  style: AppTheme.inter(fontSize: 11, color: AppColors.ink6, tabular: true),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.credit_card, size: 11, color: AppColors.ink5),
+                const SizedBox(width: 3),
+                Flexible(
+                  child: Text(
+                    (driver['licenseNumber'] ?? '—').toString(),
+                    style: AppTheme.inter(fontSize: 11, color: AppColors.ink6, tabular: true),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ]),
+              if (company != null) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isMine ? AppColors.aptoBg : AppColors.ink1,
+                    border: Border.all(color: isMine ? AppColors.aptoBorder : AppColors.ink2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    isMine ? 'Tu empresa · $company' : company,
+                    style: AppTheme.inter(
+                      fontSize: 10, fontWeight: FontWeight.w700,
+                      color: isMine ? AppColors.apto : AppColors.ink6),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        if (isMine)
+          const Icon(Icons.check_circle, color: AppColors.apto, size: 22)
+        else
+          FilledButton(
+            onPressed: busy ? null : onAssociate,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.gold,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: busy
+                ? const SizedBox(
+                    width: 14, height: 14,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                  )
+                : Text(
+                    'Asociar',
+                    style: AppTheme.inter(
+                      fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+                  ),
+          ),
+      ]),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64, height: 64,
+              decoration: BoxDecoration(
+                color: AppColors.ink1,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.ink2),
+              ),
+              child: const Icon(Icons.person_search, size: 30, color: AppColors.ink5),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Sin conductores',
+              style: AppTheme.inter(
+                  fontSize: 14.5, fontWeight: FontWeight.w800, color: AppColors.ink9),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'No hay conductores que coincidan con tu búsqueda. Pide a los conductores que se registren en SFIT primero.',
+              textAlign: TextAlign.center,
+              style: AppTheme.inter(fontSize: 12, color: AppColors.ink6, height: 1.4),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

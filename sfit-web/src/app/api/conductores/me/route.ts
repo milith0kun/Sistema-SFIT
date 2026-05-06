@@ -94,8 +94,12 @@ const PatchSchema = z.object({
     .refine(isValidObjectId, { message: "companyId inválido" })
     .nullable()
     .optional(),
-  /** Teléfono de contacto editable por el conductor. */
-  phone: z.string().min(6).max(20).optional(),
+  /** Datos personales editables por el conductor. */
+  name: z.string().trim().min(3).max(100).optional(),
+  dni: z.string().trim().regex(/^\d{8}$/, "DNI debe tener 8 dígitos").optional(),
+  licenseNumber: z.string().trim().min(5).max(20).optional(),
+  licenseCategory: z.string().trim().min(2).max(10).optional(),
+  phone: z.string().trim().min(6).max(20).optional(),
 });
 
 /**
@@ -134,7 +138,7 @@ export async function PATCH(request: NextRequest) {
     return apiNotFound("No se encontró un registro de conductor asociado a su cuenta");
   }
 
-  const { companyId, phone } = parsed.data;
+  const { companyId, phone, name, dni, licenseNumber, licenseCategory } = parsed.data;
 
   if (companyId !== undefined) {
     if (companyId === null) {
@@ -151,8 +155,30 @@ export async function PATCH(request: NextRequest) {
   }
 
   if (phone !== undefined) driver.phone = phone;
+  if (name !== undefined) driver.name = name;
+  if (dni !== undefined) driver.dni = dni;
+  if (licenseNumber !== undefined) driver.licenseNumber = licenseNumber;
+  if (licenseCategory !== undefined) driver.licenseCategory = licenseCategory;
 
-  await driver.save();
+  // El DNI es único nacional (índice unique en Driver). Capturamos el error
+  // de Mongo y devolvemos un mensaje legible para que la app lo muestre tal
+  // cual. Sin esto, el cliente recibe "E11000 duplicate key error" crudo.
+  try {
+    await driver.save();
+  } catch (e: unknown) {
+    if (
+      e &&
+      typeof e === "object" &&
+      "code" in e &&
+      (e as { code: number }).code === 11000
+    ) {
+      const keyValue = (e as { keyValue?: Record<string, string> }).keyValue ?? {};
+      const field = Object.keys(keyValue)[0] ?? "campo";
+      const human = field === "dni" ? "DNI" : field === "licenseNumber" ? "Número de licencia" : field;
+      return apiError(`${human} ya está registrado por otro conductor`, 409);
+    }
+    throw e;
+  }
 
   const populated = await Driver.findById(driver._id)
     .populate("companyId", "razonSocial ruc")
@@ -166,6 +192,10 @@ export async function PATCH(request: NextRequest) {
     companyId: company?._id ? String(company._id) : null,
     companyName: company?.razonSocial ?? null,
     companyRuc: company?.ruc ?? null,
+    name: driver.name,
+    dni: driver.dni,
+    licenseNumber: driver.licenseNumber,
+    licenseCategory: driver.licenseCategory,
     phone: driver.phone,
   });
 }

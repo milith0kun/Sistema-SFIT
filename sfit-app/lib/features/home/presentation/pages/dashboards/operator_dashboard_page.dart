@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../shared/widgets/widgets.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
@@ -101,6 +102,12 @@ class OperatorDashboardPage extends ConsumerWidget {
                   title: 'Análisis',
                   subtitle: 'Estadísticas',
                   onTap: () => onSelectTab('analisis'),
+                ),
+                SfitFeatureCard(
+                  icon: Icons.person_add_alt_outlined,
+                  title: 'Asociar conductores',
+                  subtitle: 'Sumar a tu empresa',
+                  onTap: () => context.push('/operador/asociar-conductores'),
                 ),
               ],
             ),
