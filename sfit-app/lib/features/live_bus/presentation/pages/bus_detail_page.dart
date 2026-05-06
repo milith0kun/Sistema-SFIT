@@ -125,24 +125,47 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
     }
   }
 
+  /// Valida que un par lat/lng sea finito y dentro de rango. Evita pasar
+  /// 0/0, NaN o Infinity al mapa, lo que rompe `fitCamera` con el error
+  /// "Unsupported operation: Infinity or NaN toInt".
+  static bool _validCoord(double lat, double lng) =>
+      lat.isFinite && lng.isFinite &&
+      !(lat == 0 && lng == 0) &&
+      lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+
   void _fitCamera() {
     final b = _bus;
     if (b == null) return;
+    if (!_validCoord(b.lat, b.lng)) return;
     try {
       final pts = <LatLng>[
         LatLng(b.lat, b.lng),
-        ...b.waypoints.map((w) => LatLng(w.lat, w.lng)),
-        if (_userPos != null) LatLng(_userPos!.latitude, _userPos!.longitude),
+        for (final w in b.waypoints)
+          if (_validCoord(w.lat, w.lng)) LatLng(w.lat, w.lng),
+        for (final c in b.liveTrack)
+          if (c.length >= 2 && _validCoord(c[0], c[1])) LatLng(c[0], c[1]),
+        if (_userPos != null && _validCoord(_userPos!.latitude, _userPos!.longitude))
+          LatLng(_userPos!.latitude, _userPos!.longitude),
       ];
-      if (pts.length >= 2) {
+      // Eliminar duplicados exactos para que bounds tenga ancho/alto > 0.
+      final unique = <LatLng>{};
+      final dedup = <LatLng>[];
+      for (final p in pts) {
+        final key = LatLng(
+          double.parse(p.latitude.toStringAsFixed(6)),
+          double.parse(p.longitude.toStringAsFixed(6)),
+        );
+        if (unique.add(key)) dedup.add(p);
+      }
+      if (dedup.length >= 2) {
         _mapCtl.fitCamera(CameraFit.bounds(
-          bounds: LatLngBounds.fromPoints(pts),
+          bounds: LatLngBounds.fromPoints(dedup),
           padding: const EdgeInsets.all(48),
         ));
       } else {
         _mapCtl.move(LatLng(b.lat, b.lng), 15);
       }
-    } catch (_) {}
+    } catch (_) {/* defensive: nunca dejamos que el mapa rompa la pantalla */}
   }
 
   Color _statusColor(String s) => switch (s) {
@@ -217,9 +240,32 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
     }
 
     final color = _statusColor(bus.vehicleStatus);
-    final waypointsLatLng = bus.waypoints.map((w) => LatLng(w.lat, w.lng)).toList();
-    final realPolyline = bus.polylineCoords.map((c) => LatLng(c[0], c[1])).toList();
-    final displayPos = _smoothedPos ?? LatLng(bus.lat, bus.lng);
+    final hasValidPos = _validCoord(bus.lat, bus.lng);
+
+    // Filtramos coordenadas inválidas en cada conjunto antes de pasarlas al
+    // mapa. Sin esto, un waypoint con lat=0 lng=0 (placeholder de seed) o
+    // un trackPoint corrupto rompe `fitCamera` con el error
+    // "Unsupported operation: Infinity or NaN toInt".
+    final waypointsLatLng = bus.waypoints
+        .where((w) => _validCoord(w.lat, w.lng))
+        .map((w) => LatLng(w.lat, w.lng))
+        .toList();
+    final realPolyline = bus.polylineCoords
+        .where((c) => c.length >= 2 && _validCoord(c[0], c[1]))
+        .map((c) => LatLng(c[0], c[1]))
+        .toList();
+    // Trazo en vivo: lo que el conductor ya recorrió. Se usa como fallback
+    // de polyline cuando no hay ruta predefinida ("ruta orgánica").
+    final liveTrackLatLng = bus.liveTrack
+        .where((c) => c.length >= 2 && _validCoord(c[0], c[1]))
+        .map((c) => LatLng(c[0], c[1]))
+        .toList();
+
+    final displayPos = hasValidPos
+        ? (_smoothedPos ?? LatLng(bus.lat, bus.lng))
+        : (_userPos != null
+            ? LatLng(_userPos!.latitude, _userPos!.longitude)
+            : const LatLng(-13.5163, -71.9785)); // Plaza de Armas como fallback
 
     return Scaffold(
       backgroundColor: AppColors.paper,
@@ -246,6 +292,7 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
       ),
       body: Column(children: [
         if (_stale) _staleBanner(),
+        if (!hasValidPos) _waitingForGpsBanner(),
         // ── Mapa grande ────────────────────────────────────────────
         SizedBox(
           height: MediaQuery.of(context).size.height * 0.42,
@@ -258,7 +305,11 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
                 subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'com.sfit.sfit_app',
               ),
-              // Polyline de la ruta
+              // ── Polyline ──
+              // Prioridad: 1) ruta real (calles); 2) waypoints crudos;
+              // 3) trazo en vivo (lo que el conductor ya recorrió).
+              // El trazo en vivo permite ver la dirección del bus aunque
+              // la ruta no esté predefinida — "ruta orgánica".
               if (realPolyline.length >= 2)
                 PolylineLayer(polylines: [
                   Polyline(points: realPolyline, color: color.withValues(alpha: 0.55), strokeWidth: 4),
@@ -271,10 +322,20 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
                     strokeWidth: 3,
                     pattern: const StrokePattern.dotted(),
                   ),
+                ])
+              else if (liveTrackLatLng.length >= 2)
+                PolylineLayer(polylines: [
+                  Polyline(
+                    points: liveTrackLatLng,
+                    color: color.withValues(alpha: 0.7),
+                    strokeWidth: 4,
+                  ),
                 ]),
-              // Paraderos numerados
+              // Paraderos numerados (solo waypoints con coords válidas)
               MarkerLayer(
-                markers: bus.waypoints.map((w) {
+                markers: bus.waypoints
+                    .where((w) => _validCoord(w.lat, w.lng))
+                    .map((w) {
                   final visited = bus.etaByStop.any((s) => s.stopIndex == w.order && s.visited);
                   return Marker(
                     point: LatLng(w.lat, w.lng),
@@ -299,8 +360,8 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
                   );
                 }).toList(),
               ),
-              // Ubicación del usuario
-              if (_userPos != null)
+              // Ubicación del usuario (solo si la geolocalización es válida)
+              if (_userPos != null && _validCoord(_userPos!.latitude, _userPos!.longitude))
                 MarkerLayer(markers: [
                   Marker(
                     point: LatLng(_userPos!.latitude, _userPos!.longitude),
@@ -315,22 +376,23 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
                     ),
                   ),
                 ]),
-              // Marcador del bus (encima de todo)
-              MarkerLayer(markers: [
-                Marker(
-                  point: displayPos,
-                  width: 50, height: 50,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 6)],
+              // Marcador del bus — solo si tenemos posición válida.
+              if (hasValidPos)
+                MarkerLayer(markers: [
+                  Marker(
+                    point: displayPos,
+                    width: 50, height: 50,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 6)],
+                      ),
+                      child: const Icon(Icons.directions_bus_rounded, color: Colors.white, size: 24),
                     ),
-                    child: const Icon(Icons.directions_bus_rounded, color: Colors.white, size: 24),
                   ),
-                ),
-              ]),
+                ]),
             ],
           ),
         ),
@@ -356,6 +418,23 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
       ]),
     );
   }
+
+  Widget _waitingForGpsBanner() => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        color: AppColors.infoBg,
+        child: Row(children: [
+          const Icon(Icons.gps_not_fixed, size: 16, color: AppColors.info),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Esperando primera ubicación del bus…',
+              style: AppTheme.inter(
+                fontSize: 11.5, color: AppColors.info, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ]),
+      );
 
   Widget _staleBanner() => Container(
         width: double.infinity,

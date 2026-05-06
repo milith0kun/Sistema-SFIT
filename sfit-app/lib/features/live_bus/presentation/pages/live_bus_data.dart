@@ -70,6 +70,11 @@ class BusData {
   /// estos coords en lugar de los waypoints crudos. Cada elemento es
   /// `[lat, lng]`.
   final List<List<double>> polylineCoords;
+  /// Últimos puntos GPS reales que el conductor recorrió (los más recientes,
+  /// orden cronológico ascendente). Se usa para dibujar el trazo "en vivo"
+  /// cuando la ruta no tiene polyline ni waypoints definidos. Cada elemento
+  /// es `{lat, lng}`.
+  final List<List<double>> liveTrack;
   final List<BusEtaStop> etaByStop;
   final String? nextStopLabel;
   final int? nextStopEta;
@@ -92,6 +97,7 @@ class BusData {
     this.municipalityName,
     this.waypoints = const [],
     this.polylineCoords = const [],
+    this.liveTrack = const [],
     this.etaByStop = const [],
     this.nextStopLabel,
     this.nextStopEta,
@@ -114,6 +120,15 @@ class BusData {
             })
             .toList() ??
         const <List<double>>[];
+    // liveTrack del backend viene como [{lat,lng}, ...] (objects, no arrays).
+    final liveTrackRaw = j['liveTrack'] as List?;
+    final liveTrack = liveTrackRaw
+            ?.map<List<double>>((p) {
+              final m = p as Map<String, dynamic>;
+              return [(m['lat'] as num).toDouble(), (m['lng'] as num).toDouble()];
+            })
+            .toList() ??
+        const <List<double>>[];
     return BusData(
       id: j['id'] as String? ?? '',
       plate: j['plate'] as String? ?? '—',
@@ -127,6 +142,7 @@ class BusData {
       municipalityName: j['municipalityName'] as String?,
       waypoints: wpList.map(BusWaypoint.fromJson).toList(),
       polylineCoords: polyCoords,
+      liveTrack: liveTrack,
       etaByStop: etaList.map(BusEtaStop.fromJson).toList(),
       nextStopLabel: ns?['label'] as String?,
       nextStopEta: (ns?['etaSeconds'] as num?)?.toInt(),

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/db/mongoose";
 import { FleetEntry } from "@/models/FleetEntry";
+import { LocationPing } from "@/models/LocationPing";
 import { Route } from "@/models/Route";
 import "@/models/Vehicle";
 import "@/models/Municipality";
@@ -9,6 +10,14 @@ import { apiResponse } from "@/lib/api/response";
 import { haversineMeters } from "@/lib/geo/haversine";
 import { routeBetween } from "@/lib/routing/routingService";
 import type { ICurrentLocation, IVisitedStop } from "@/models/FleetEntry";
+
+/**
+ * Cantidad máxima de puntos del trazo en vivo que devolvemos por bus.
+ * 50 puntos a 5s de muestreo = ~4 minutos de recorrido visible. Suficiente
+ * para que el ciudadano vea la dirección en la que va el bus aún cuando la
+ * ruta no esté predefinida.
+ */
+const LIVE_TRACK_POINTS_LIMIT = 50;
 
 // Factor empírico de fallback para convertir distancia haversine a tiempo
 // realista en Cusco urbano (calles + tráfico + paradas). 1.35 viene de
@@ -90,6 +99,28 @@ export async function GET(request: NextRequest) {
     .populate("municipalityId", "name ubigeoCode")
     .select("vehicleId routeId municipalityId currentLocation visitedStops departureTime offRouteSince")
     .lean();
+
+  // Trazo en vivo (últimos N pings) por cada turno activo. Se hace en una
+  // sola query agregada para evitar N+1 cuando hay muchos buses.
+  const trackPointsByEntry = new Map<string, Array<{ lat: number; lng: number }>>();
+  if (entries.length > 0) {
+    const entryIds = entries.map((e) => e._id);
+    const ranked = await LocationPing.aggregate<{
+      _id: unknown;
+      points: Array<{ lat: number; lng: number; ts: Date }>;
+    }>([
+      { $match: { entryId: { $in: entryIds } } },
+      { $sort: { entryId: 1, ts: -1 } },
+      { $group: { _id: "$entryId", points: { $push: { lat: "$lat", lng: "$lng", ts: "$ts" } } } },
+      { $project: { points: { $slice: ["$points", LIVE_TRACK_POINTS_LIMIT] } } },
+    ]);
+    for (const r of ranked) {
+      // Reordenar a cronológico ascendente para que dibujar la polyline
+      // siga la dirección real del recorrido.
+      const ascending = [...r.points].reverse().map((p) => ({ lat: p.lat, lng: p.lng }));
+      trackPointsByEntry.set(String(r._id), ascending);
+    }
+  }
 
   // Procesamos en paralelo — Google Routes para el primer hop de cada bus.
   // Para 50 buses son 50 requests, pero el cache LRU del routing service
@@ -218,6 +249,7 @@ export async function GET(request: NextRequest) {
         ? Math.round(haversineMeters({ lat: userLat, lng: userLng }, { lat: loc.lat, lng: loc.lng }))
         : null;
 
+      const liveTrack = trackPointsByEntry.get(String(e._id)) ?? [];
       return {
         id: String(e._id),
         plate: vehicle?.plate ?? "—",
@@ -225,6 +257,7 @@ export async function GET(request: NextRequest) {
         vehicleStatus: vehicle?.status ?? "apto",
         municipalityId: muni?._id ? String(muni._id) : null,
         municipalityName: muni?.name ?? null,
+        liveTrack,
         route: route
           ? {
               id: String(route._id),
