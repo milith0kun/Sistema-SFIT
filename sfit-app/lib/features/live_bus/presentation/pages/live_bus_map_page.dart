@@ -349,30 +349,54 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
                           formatDistance: _formatDistance,
                           onTapRoute: _focusOnRoute,
                         ))
-                  : (filtered.isEmpty
-                      ? _EmptyState(
-                          noBuses: _buses.isEmpty,
-                          kind: _buses.isEmpty
-                              ? _EmptyKind.noActiveBuses
-                              : _EmptyKind.noFilterMatch,
-                          onAction: _filterRouteIds.isNotEmpty
-                              ? () => setState(_filterRouteIds.clear)
-                              : _fetch,
-                          actionLabel: _filterRouteIds.isNotEmpty
-                              ? 'Limpiar filtros'
-                              : 'Reintentar',
-                        )
-                      : _view == _ViewMode.map
-                          ? _MapView(
-                              buses: filtered,
-                              allRoutes: _routes,
-                              filterRouteIds: _filterRouteIds,
-                              mapCtl: _mapCtl,
-                              userPos: _userPos,
-                              statusColor: _statusColor,
-                              displayPos: _displayPos,
-                              onTapBus: (b) => context.push('/buses-en-vivo/${b.id}'),
-                              highlight: _highlightedRoute,
+                  : _view == _ViewMode.map
+                      // Tab Mapa: siempre mostramos el mapa con tu ubicación
+                      // y las rutas de fondo, aunque no haya buses ni filtros
+                      // coincidan. Un chip flotante avisa si no hay buses.
+                      ? Stack(children: [
+                          _MapView(
+                            buses: filtered,
+                            allRoutes: _routes,
+                            filterRouteIds: _filterRouteIds,
+                            mapCtl: _mapCtl,
+                            userPos: _userPos,
+                            statusColor: _statusColor,
+                            displayPos: _displayPos,
+                            onTapBus: (b) => context.push('/buses-en-vivo/${b.id}'),
+                            highlight: _highlightedRoute,
+                          ),
+                          if (filtered.isEmpty)
+                            Positioned(
+                              top: 12, left: 12, right: 12,
+                              child: _MapOverlayBanner(
+                                icon: _buses.isEmpty
+                                    ? Icons.directions_bus_outlined
+                                    : Icons.filter_alt_off_outlined,
+                                title: _buses.isEmpty
+                                    ? 'Sin buses transmitiendo ahora'
+                                    : 'Sin coincidencias con el filtro',
+                                actionLabel: _filterRouteIds.isNotEmpty
+                                    ? 'Limpiar'
+                                    : null,
+                                onAction: _filterRouteIds.isNotEmpty
+                                    ? () => setState(_filterRouteIds.clear)
+                                    : null,
+                              ),
+                            ),
+                        ])
+                      // Tab Buses: lista vacía → empty state full screen.
+                      : (filtered.isEmpty
+                          ? _EmptyState(
+                              noBuses: _buses.isEmpty,
+                              kind: _buses.isEmpty
+                                  ? _EmptyKind.noActiveBuses
+                                  : _EmptyKind.noFilterMatch,
+                              onAction: _filterRouteIds.isNotEmpty
+                                  ? () => setState(_filterRouteIds.clear)
+                                  : _fetch,
+                              actionLabel: _filterRouteIds.isNotEmpty
+                                  ? 'Limpiar filtros'
+                                  : 'Reintentar',
                             )
                           : _ListView(
                               buses: filtered,
@@ -1230,6 +1254,63 @@ class _EmptyState extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Card flotante encima del mapa cuando no hay buses transmitiendo o ningún
+/// bus coincide con el filtro. No reemplaza al mapa — el usuario puede seguir
+/// viendo su ubicación y las rutas de fondo.
+class _MapOverlayBanner extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  const _MapOverlayBanner({
+    required this.icon,
+    required this.title,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 8)],
+      ),
+      child: Row(children: [
+        Icon(icon, size: 16, color: AppColors.ink6),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            title,
+            style: AppTheme.inter(
+              fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.ink8),
+            maxLines: 1, overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (actionLabel != null && onAction != null) ...[
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: onAction,
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.goldDark,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              actionLabel!,
+              style: AppTheme.inter(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ]),
     );
   }
 }
