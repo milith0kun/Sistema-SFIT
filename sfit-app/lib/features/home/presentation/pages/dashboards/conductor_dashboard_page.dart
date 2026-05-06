@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../../../../shared/widgets/widgets.dart';
@@ -78,7 +79,16 @@ class _ConductorDashboardPageState extends ConsumerState<ConductorDashboardPage>
                   SfitHeroPill(label: 'Reputación', value: _loading ? '...' : '$reputation'),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
+
+              // ── Banner: completar perfil si falta empresa ──────────
+              if (!_loading && company == null)
+                _MissingCompanyBanner(
+                  onTap: () => context.push('/conductor/empresa'),
+                ),
+              if (!_loading && company == null) const SizedBox(height: 14),
+
+              const SizedBox(height: 6),
 
               SfitKpiStrip(
                 items: [
@@ -151,11 +161,71 @@ class _ConductorDashboardPageState extends ConsumerState<ConductorDashboardPage>
                     subtitle: 'Datos y licencia',
                     onTap: () => widget.onSelectTab('perfil'),
                   ),
+                  SfitFeatureCard(
+                    icon: Icons.apartment_outlined,
+                    title: 'Mi empresa',
+                    subtitle: company ?? 'Sin asociar',
+                    onTap: () => context.push('/conductor/empresa'),
+                  ),
                 ],
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Banner que invita al conductor a completar su perfil cuando no tiene
+/// empresa asociada. Sin empresa no puede iniciar turno, así que es un
+/// gating obligatorio del onboarding.
+class _MissingCompanyBanner extends StatelessWidget {
+  final VoidCallback onTap;
+  const _MissingCompanyBanner({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.goldBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.goldBorder),
+        ),
+        child: Row(children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.gold.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.apartment_rounded, color: AppColors.goldDark, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Completa tu perfil',
+                  style: AppTheme.inter(
+                    fontSize: 13.5, fontWeight: FontWeight.w800, color: AppColors.ink9),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Asóciate a una empresa para poder iniciar turno.',
+                  style: AppTheme.inter(fontSize: 11.5, color: AppColors.ink6),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(Icons.arrow_forward_rounded, size: 18, color: AppColors.goldDark),
+        ]),
       ),
     );
   }

@@ -10,6 +10,22 @@ part 'trips_api_service.g.dart';
 TripsApiService tripsApiService(Ref ref) =>
     TripsApiService(ref.watch(dioClientProvider).dio);
 
+/// Listado de FleetEntry del conductor (turnos del día). Provider invalidable:
+/// `ref.invalidate(myFleetEntriesProvider)` después de iniciar/cerrar turno
+/// fuerza el rebuild en `MyRoutesPage` y en cualquier widget que lo escuche.
+final myFleetEntriesProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final svc = ref.watch(tripsApiServiceProvider);
+  return svc.getMyFleetEntries();
+});
+
+/// Rutas asignadas al conductor. También invalidable.
+final myRoutesProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final svc = ref.watch(tripsApiServiceProvider);
+  return svc.getMyRoutes(limit: 20);
+});
+
 class TripsApiService {
   final Dio _dio;
   TripsApiService(this._dio);

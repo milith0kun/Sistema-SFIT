@@ -269,6 +269,9 @@ class _TripCheckinPageState extends ConsumerState<TripCheckinPage> {
         entryId,
         routeId: routeId,
       );
+      // Refresca la caché de turnos para que "Mis rutas" muestre el banner
+      // de turno activo de inmediato.
+      ref.invalidate(myFleetEntriesProvider);
       if (mounted) {
         context.go('/home?tab=mapa');
       }

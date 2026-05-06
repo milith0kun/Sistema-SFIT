@@ -336,7 +336,12 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
               ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
               : _view == _ViewMode.routes
                   ? (_routes.isEmpty
-                      ? const _EmptyState(noBuses: true)
+                      ? _EmptyState(
+                          noBuses: true,
+                          kind: _EmptyKind.noRoutes,
+                          onAction: _fetch,
+                          actionLabel: 'Reintentar',
+                        )
                       : _RoutesView(
                           routes: _routes,
                           hasUserGps: _userPos != null,
@@ -345,7 +350,18 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
                           onTapRoute: _focusOnRoute,
                         ))
                   : (filtered.isEmpty
-                      ? _EmptyState(noBuses: _buses.isEmpty)
+                      ? _EmptyState(
+                          noBuses: _buses.isEmpty,
+                          kind: _buses.isEmpty
+                              ? _EmptyKind.noActiveBuses
+                              : _EmptyKind.noFilterMatch,
+                          onAction: _filterRouteIds.isNotEmpty
+                              ? () => setState(_filterRouteIds.clear)
+                              : _fetch,
+                          actionLabel: _filterRouteIds.isNotEmpty
+                              ? 'Limpiar filtros'
+                              : 'Reintentar',
+                        )
                       : _view == _ViewMode.map
                           ? _MapView(
                               buses: filtered,
@@ -1091,16 +1107,74 @@ class _RoutesView extends StatelessWidget {
 }
 
 // ── Estado vacío ───────────────────────────────────────────────────────
+/// Tipo de estado vacío según el contexto de la tab. Cada variante usa un
+/// icono y mensaje distintos para guiar al ciudadano sobre qué hacer.
+enum _EmptyKind {
+  /// Tab Rutas: el catálogo está vacío (no hay rutas registradas en la zona).
+  noRoutes,
+  /// Tab Buses/Mapa: hay rutas pero ninguna tiene buses transmitiendo ahora.
+  noActiveBuses,
+  /// Hay buses pero ninguno coincide con el filtro elegido.
+  noFilterMatch,
+}
+
 class _EmptyState extends StatelessWidget {
   final bool noBuses;
-  const _EmptyState({required this.noBuses});
+  /// Permite distinguir entre "no hay rutas en el catálogo" y "no hay buses".
+  /// Si es null se infiere desde `noBuses` para conservar compat.
+  final _EmptyKind? kind;
+  /// Acción opcional para botón secundario (ej. limpiar filtros, refrescar).
+  final VoidCallback? onAction;
+  final String? actionLabel;
+
+  const _EmptyState({
+    required this.noBuses,
+    this.kind,
+    this.onAction,
+    this.actionLabel,
+  });
+
+  _EmptyKind get _kind =>
+      kind ?? (noBuses ? _EmptyKind.noActiveBuses : _EmptyKind.noFilterMatch);
 
   @override
   Widget build(BuildContext context) {
+    final (icon, title, body, accent) = switch (_kind) {
+      _EmptyKind.noRoutes => (
+          Icons.alt_route_rounded,
+          'Aún no hay rutas',
+          'No encontramos rutas registradas en tu zona. Intenta más tarde o pídele a la municipalidad que registre las rutas.',
+          AppColors.info,
+        ),
+      _EmptyKind.noActiveBuses => (
+          Icons.directions_bus_outlined,
+          'Sin buses ahora mismo',
+          'No hay buses transmitiendo en este momento. Aparecerán aquí cuando un conductor inicie su turno.',
+          AppColors.gold,
+        ),
+      _EmptyKind.noFilterMatch => (
+          Icons.filter_alt_off_outlined,
+          'Sin coincidencias',
+          'Ningún bus activo coincide con el filtro elegido. Limpiá el filtro para ver todos.',
+          AppColors.ink5,
+        ),
+    };
+
+    final accentBg = accent == AppColors.gold
+        ? AppColors.goldBg
+        : accent == AppColors.info
+            ? AppColors.infoBg
+            : AppColors.ink1;
+    final accentBorder = accent == AppColors.gold
+        ? AppColors.goldBorder
+        : accent == AppColors.info
+            ? AppColors.infoBorder
+            : AppColors.ink2;
+
     return Center(
       child: Container(
-        margin: const EdgeInsets.all(32),
-        padding: const EdgeInsets.all(24),
+        margin: const EdgeInsets.all(28),
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 22),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -1110,27 +1184,49 @@ class _EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 56, height: 56,
+              width: 64, height: 64,
               decoration: BoxDecoration(
-                color: AppColors.goldBg,
+                color: accentBg,
                 shape: BoxShape.circle,
-                border: Border.all(color: AppColors.goldBorder),
+                border: Border.all(color: accentBorder, width: 1.5),
               ),
-              child: const Icon(Icons.directions_bus_outlined, size: 28, color: AppColors.goldDark),
+              child: Icon(icon, size: 30, color: accent),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             Text(
-              noBuses ? 'Sin buses activos' : 'Sin coincidencias',
-              style: AppTheme.inter(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.ink9),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              noBuses
-                  ? 'No hay buses con turno activo en tu municipio en este momento.'
-                  : 'Cambia el filtro para ver más buses.',
+              title,
               textAlign: TextAlign.center,
-              style: AppTheme.inter(fontSize: 12, color: AppColors.ink5),
+              style: AppTheme.inter(
+                fontSize: 15.5, fontWeight: FontWeight.w800, color: AppColors.ink9),
             ),
+            const SizedBox(height: 6),
+            Text(
+              body,
+              textAlign: TextAlign.center,
+              style: AppTheme.inter(
+                fontSize: 12.5, color: AppColors.ink6, height: 1.4),
+            ),
+            if (onAction != null && actionLabel != null) ...[
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: onAction,
+                icon: Icon(
+                  _kind == _EmptyKind.noFilterMatch
+                      ? Icons.filter_alt_off
+                      : Icons.refresh,
+                  size: 16),
+                label: Text(
+                  actionLabel!,
+                  style: AppTheme.inter(fontSize: 12.5, fontWeight: FontWeight.w700),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.ink8,
+                  side: const BorderSide(color: AppColors.ink2),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
           ],
         ),
       ),

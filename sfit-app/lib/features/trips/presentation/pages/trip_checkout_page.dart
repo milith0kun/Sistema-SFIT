@@ -77,6 +77,11 @@ class _TripCheckoutPageState extends ConsumerState<TripCheckoutPage> {
       );
       // Detener tracking GPS (drena la cola offline antes de cortar el stream)
       await ref.read(locationTrackingProvider.notifier).stopTracking();
+      // Invalida la caché de turnos del conductor — sin esto, "Mis rutas"
+      // sigue mostrando el turno como en_ruta hasta que el usuario haga
+      // pull-to-refresh manual.
+      ref.invalidate(myFleetEntriesProvider);
+      ref.invalidate(myRoutesProvider);
       if (mounted) {
         // Reemplazamos la pantalla actual por el resumen full-screen del viaje
         // (en lugar de volver a /home con snackbar). El conductor ve métricas

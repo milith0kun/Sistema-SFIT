@@ -28,6 +28,7 @@ import '../../features/trips/presentation/pages/trip_checkout_page.dart';
 import '../../features/conductor/presentation/pages/trip_summary_page.dart';
 import '../../features/conductor/presentation/pages/pending_trips_page.dart';
 import '../../features/conductor/presentation/pages/available_trips_page.dart';
+import '../../features/conductor/presentation/pages/mi_empresa_page.dart';
 import '../../features/operator/presentation/pages/vehicle_qr_page.dart';
 import '../../features/operator/presentation/pages/nuevo_conductor_page.dart';
 import '../../features/operator/presentation/pages/nuevo_vehiculo_page.dart';
@@ -212,6 +213,10 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: '/conductor/viajes-disponibles',
         builder: (_, __) => const AvailableTripsPage(),
+      ),
+      GoRoute(
+        path: '/conductor/empresa',
+        builder: (_, __) => const MiEmpresaPage(),
       ),
 
       // ── Centro de notificaciones ──────────────────────────────

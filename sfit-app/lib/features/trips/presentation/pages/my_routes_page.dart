@@ -14,74 +14,28 @@ class MyRoutesPage extends ConsumerStatefulWidget {
 }
 
 class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
-  List<Map<String, dynamic>> _items = [];
-  bool _loading = true;
-  String? _error;
-
-  // Estado del turno activo del conductor
-  Map<String, dynamic>? _activeEntry;
-  bool _loadingEntry = true;
-
-  // Todos los FleetEntry del día (para calcular resumen)
-  List<Map<String, dynamic>> _allEntries = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _loadingEntry = true;
-      _error = null;
-    });
-    await Future.wait([_loadRoutes(), _loadActiveEntry()]);
-  }
-
-  Future<void> _loadRoutes() async {
-    try {
-      final svc = ref.read(tripsApiServiceProvider);
-      final items = await svc.getMyRoutes(limit: 20);
-      if (mounted) setState(() { _items = items; _loading = false; });
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _error = 'No se pudieron cargar las rutas.';
-          _loading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _loadActiveEntry() async {
-    try {
-      final svc = ref.read(tripsApiServiceProvider);
-      final entries = await svc.getMyFleetEntries();
-      final active = entries.where((e) => e['status'] == 'en_ruta').toList();
-      if (mounted) {
-        setState(() {
-          _allEntries = entries;
-          _activeEntry = active.isNotEmpty ? active.first : null;
-          _loadingEntry = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() { _allEntries = []; _activeEntry = null; _loadingEntry = false; });
-    }
+  Future<void> _refresh() async {
+    // Invalidar fuerza un re-fetch desde el backend en ambos providers.
+    ref.invalidate(myFleetEntriesProvider);
+    ref.invalidate(myRoutesProvider);
+    // Esperar a que terminen para que el RefreshIndicator se cierre cuando
+    // realmente hay datos nuevos (no antes).
+    await Future.wait([
+      ref.read(myFleetEntriesProvider.future),
+      ref.read(myRoutesProvider.future),
+    ]);
   }
 
   // ── Cálculos del resumen diario ─────────────────────────────
-  double get _totalKm => _allEntries.fold<double>(
+  double _totalKm(List<Map<String, dynamic>> entries) => entries.fold<double>(
     0.0,
     (sum, e) => sum + ((e['km'] as num?)?.toDouble() ?? 0.0),
   );
 
-  double get _totalHours {
+  double _totalHours(List<Map<String, dynamic>> entries) {
     double total = 0.0;
     final today = DateTime.now();
-    for (final e in _allEntries) {
+    for (final e in entries) {
       final dep = e['departureTime'] as String?;
       final ret = e['returnTime'] as String?;
       if (dep == null) continue;
@@ -104,7 +58,7 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
     return DateTime.parse(s);
   }
 
-  int get _completedTrips => _allEntries
+  int _completedTrips(List<Map<String, dynamic>> entries) => entries
       .where((e) {
         final s = e['status'] as String? ?? '';
         return s == 'cerrado' || s == 'auto_cierre';
@@ -113,7 +67,17 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final hasActiveTrip = _activeEntry != null;
+    final entriesAsync = ref.watch(myFleetEntriesProvider);
+    final routesAsync = ref.watch(myRoutesProvider);
+
+    final allEntries = entriesAsync.valueOrNull ?? const <Map<String, dynamic>>[];
+    final activeEntry = allEntries.where((e) => e['status'] == 'en_ruta').toList();
+    final activeFirst = activeEntry.isNotEmpty ? activeEntry.first : null;
+    final hasActiveTrip = activeFirst != null;
+    final loadingEntry = entriesAsync.isLoading;
+    final loading = routesAsync.isLoading;
+    final error = routesAsync.hasError ? 'No se pudieron cargar las rutas.' : null;
+    final items = routesAsync.valueOrNull ?? const <Map<String, dynamic>>[];
 
     return SafeArea(
       child: Stack(
@@ -144,7 +108,7 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
               ),
 
               // ── Banner turno activo ──────────────────────────────
-              if (_loadingEntry)
+              if (loadingEntry)
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   child: LinearProgressIndicator(color: AppColors.gold),
@@ -153,13 +117,13 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                   child: _ActiveTripBanner(
-                    entry: _activeEntry!,
+                    entry: activeFirst,
                     onClose: () {
-                      final id = _activeEntry!['id'] as String? ?? '';
-                      final vehicle = _activeEntry!['vehicle'] as Map<String, dynamic>?;
+                      final id = activeFirst['id'] as String? ?? '';
+                      final vehicle = activeFirst['vehicle'] as Map<String, dynamic>?;
                       final plate = vehicle?['plate'] as String? ?? '—';
-                      final departure = _activeEntry!['departureTime'] as String? ?? '';
-                      final km = (_activeEntry!['km'] as num?)?.toDouble();
+                      final departure = activeFirst['departureTime'] as String? ?? '';
+                      final km = (activeFirst['km'] as num?)?.toDouble();
                       context.push(
                         '/viaje-checkout/$id',
                         extra: {
@@ -173,13 +137,13 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
                 ),
 
               // ── Resumen de hoy ───────────────────────────────────
-              if (!_loadingEntry && _allEntries.isNotEmpty)
+              if (!loadingEntry && allEntries.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                   child: _DailySummaryRow(
-                    totalKm: _totalKm,
-                    totalHours: _totalHours,
-                    completed: _completedTrips,
+                    totalKm: _totalKm(allEntries),
+                    totalHours: _totalHours(allEntries),
+                    completed: _completedTrips(allEntries),
                   ),
                 ),
 
@@ -187,15 +151,15 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
 
               // ── Lista de rutas ──────────────────────────────────
               Expanded(
-                child: _loading
+                child: loading
                     ? const Center(
                         child: CircularProgressIndicator(color: AppColors.gold))
-                    : _error != null
-                        ? _ErrorState(message: _error!, onRetry: _load)
-                        : _items.isEmpty
+                    : error != null
+                        ? _ErrorState(message: error, onRetry: _refresh)
+                        : items.isEmpty
                             ? _EmptyState(hasActiveTrip: hasActiveTrip)
                             : RefreshIndicator(
-                                onRefresh: _load,
+                                onRefresh: _refresh,
                                 color: AppColors.gold,
                                 child: ListView.separated(
                                   // Padding extra al fondo para que el FAB no tape el último ítem
@@ -203,14 +167,14 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
                                     16, 4, 16,
                                     hasActiveTrip ? 24 : 90,
                                   ),
-                                  itemCount: _items.length,
+                                  itemCount: items.length,
                                   separatorBuilder: (_, __) =>
                                       const SizedBox(height: 8),
                                   itemBuilder: (_, i) =>
                                       _RouteCard(
-                                        data: _items[i],
+                                        data: items[i],
                                         onTap: () {
-                                          final route = _items[i];
+                                          final route = items[i];
                                           context.push(
                                             '/ruta-detalle',
                                             extra: {
@@ -227,7 +191,7 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
           ),
 
           // ── FAB — sólo cuando NO hay turno activo ────────────────
-          if (!_loadingEntry && !hasActiveTrip)
+          if (!loadingEntry && !hasActiveTrip)
             Positioned(
               bottom: 16,
               right: 16,

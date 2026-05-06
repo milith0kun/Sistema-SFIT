@@ -1,12 +1,17 @@
 import { NextRequest } from "next/server";
+import { isValidObjectId } from "mongoose";
+import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { Driver } from "@/models/Driver";
 import { User } from "@/models/User";
+import { Company } from "@/models/Company";
 import {
   apiResponse,
+  apiError,
   apiForbidden,
   apiNotFound,
   apiUnauthorized,
+  apiValidationError,
 } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
@@ -79,5 +84,88 @@ export async function GET(request: NextRequest) {
     active: driver.active,
     createdAt: driver.createdAt,
     updatedAt: driver.updatedAt,
+  });
+}
+
+const PatchSchema = z.object({
+  /** ID de la empresa a la que el conductor se asocia. null para desasociarse. */
+  companyId: z
+    .string()
+    .refine(isValidObjectId, { message: "companyId inválido" })
+    .nullable()
+    .optional(),
+  /** Teléfono de contacto editable por el conductor. */
+  phone: z.string().min(6).max(20).optional(),
+});
+
+/**
+ * PATCH /api/conductores/me
+ *
+ * El propio conductor puede actualizar su `companyId` (asociarse a una
+ * empresa de transporte) y `phone`. No se le permite cambiar campos
+ * sensibles (DNI, licencia, status, municipalityId) — eso queda reservado
+ * a operador/admin.
+ *
+ * Sin este endpoint el conductor estaba bloqueado en el onboarding por el
+ * RBAC del PATCH /api/conductores/[id] que solo permite admin/operador.
+ */
+export async function PATCH(request: NextRequest) {
+  const auth = requireRole(request, [ROLES.CONDUCTOR]);
+  if ("error" in auth) {
+    return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const parsed = PatchSchema.safeParse(body);
+  if (!parsed.success) {
+    const errors: Record<string, string[]> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path[0]?.toString() ?? "general";
+      errors[key] = [...(errors[key] ?? []), issue.message];
+    }
+    return apiValidationError(errors);
+  }
+
+  await connectDB();
+
+  // Resolvemos el Driver por userId (vínculo directo) para no depender del DNI.
+  const driver = await Driver.findOne({ userId: auth.session.userId, active: true });
+  if (!driver) {
+    return apiNotFound("No se encontró un registro de conductor asociado a su cuenta");
+  }
+
+  const { companyId, phone } = parsed.data;
+
+  if (companyId !== undefined) {
+    if (companyId === null) {
+      driver.companyId = undefined;
+    } else {
+      // Validar que la empresa exista y esté activa antes de asociarla.
+      const company = await Company.findById(companyId).select("_id status").lean();
+      if (!company) return apiError("Empresa no encontrada", 404);
+      if ((company as { status?: string }).status !== "activo") {
+        return apiError("La empresa no está activa", 400);
+      }
+      driver.companyId = company._id as never;
+    }
+  }
+
+  if (phone !== undefined) driver.phone = phone;
+
+  await driver.save();
+
+  const populated = await Driver.findById(driver._id)
+    .populate("companyId", "razonSocial ruc")
+    .lean();
+  const company = (populated?.companyId ?? null) as
+    | { _id?: unknown; razonSocial?: string; ruc?: string }
+    | null;
+
+  return apiResponse({
+    id: String(driver._id),
+    companyId: company?._id ? String(company._id) : null,
+    companyName: company?.razonSocial ?? null,
+    companyRuc: company?.ruc ?? null,
+    phone: driver.phone,
   });
 }
