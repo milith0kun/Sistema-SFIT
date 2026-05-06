@@ -267,35 +267,15 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
             ? LatLng(_userPos!.latitude, _userPos!.longitude)
             : const LatLng(-13.5163, -71.9785)); // Plaza de Armas como fallback
 
+    // Layout estilo Google Maps / Uber: mapa full screen como base, panel
+    // inferior arrastrable con la información. Banners y controles flotan
+    // encima del mapa.
     return Scaffold(
       backgroundColor: AppColors.paper,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        leading: const BackButton(),
-        title: Row(children: [
-          Icon(Icons.directions_bus_rounded, size: 20, color: color),
-          const SizedBox(width: 8),
-          Text(
-            bus.plate,
-            style: AppTheme.inter(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.ink9, tabular: true),
-          ),
-        ]),
-        actions: [
-          IconButton(
-            tooltip: 'Centrar mapa',
-            onPressed: _fitCamera,
-            icon: const Icon(Icons.center_focus_strong_outlined, size: 20, color: AppColors.ink5),
-          ),
-        ],
-      ),
-      body: Column(children: [
-        if (_stale) _staleBanner(),
-        if (!hasValidPos) _waitingForGpsBanner(),
-        // ── Mapa grande ────────────────────────────────────────────
-        SizedBox(
-          height: MediaQuery.of(context).size.height * 0.42,
+      // Sin AppBar fija — usamos un control flotante para el back y centrar.
+      body: Stack(children: [
+        // ── Mapa a pantalla completa ────────────────────────────────
+        Positioned.fill(
           child: FlutterMap(
             mapController: _mapCtl,
             options: MapOptions(initialCenter: displayPos, initialZoom: 14),
@@ -305,11 +285,8 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
                 subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'com.sfit.sfit_app',
               ),
-              // ── Polyline ──
-              // Prioridad: 1) ruta real (calles); 2) waypoints crudos;
+              // Polyline: 1) ruta real (calles); 2) waypoints crudos;
               // 3) trazo en vivo (lo que el conductor ya recorrió).
-              // El trazo en vivo permite ver la dirección del bus aunque
-              // la ruta no esté predefinida — "ruta orgánica".
               if (realPolyline.length >= 2)
                 PolylineLayer(polylines: [
                   Polyline(points: realPolyline, color: color.withValues(alpha: 0.55), strokeWidth: 4),
@@ -331,7 +308,6 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
                     strokeWidth: 4,
                   ),
                 ]),
-              // Paraderos numerados (solo waypoints con coords válidas)
               MarkerLayer(
                 markers: bus.waypoints
                     .where((w) => _validCoord(w.lat, w.lng))
@@ -360,7 +336,6 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
                   );
                 }).toList(),
               ),
-              // Ubicación del usuario (solo si la geolocalización es válida)
               if (_userPos != null && _validCoord(_userPos!.latitude, _userPos!.longitude))
                 MarkerLayer(markers: [
                   Marker(
@@ -376,7 +351,6 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
                     ),
                   ),
                 ]),
-              // Marcador del bus — solo si tenemos posición válida.
               if (hasValidPos)
                 MarkerLayer(markers: [
                   Marker(
@@ -396,61 +370,185 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
             ],
           ),
         ),
-        // ── Ficha de datos + timeline ──────────────────────────────
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
-            children: [
-              _busSummaryCard(bus, color),
-              const SizedBox(height: 14),
-              _kpiStrip(bus),
-              if (bus.etaByStop.isNotEmpty) ...[
-                const SizedBox(height: 18),
-                _sectionLabel('LÍNEA DE TIEMPO — PARADEROS PENDIENTES'),
-                const SizedBox(height: 8),
-                _timeline(bus),
+        // ── Controles flotantes superiores ──────────────────────────
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 8,
+          left: 12,
+          right: 12,
+          child: Row(children: [
+            _floatingIconButton(
+              icon: Icons.arrow_back_rounded,
+              onTap: () => Navigator.of(context).maybePop(),
+              tooltip: 'Volver',
+            ),
+            const SizedBox(width: 8),
+            // Pill con la placa del bus para que se sepa de qué bus es el mapa.
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 8)],
+                ),
+                child: Row(children: [
+                  Icon(Icons.directions_bus_rounded, size: 17, color: color),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      bus.plate,
+                      style: AppTheme.inter(
+                        fontSize: 14, fontWeight: FontWeight.w800,
+                        color: AppColors.ink9, tabular: true),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (bus.routeCode != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.ink9,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        bus.routeCode!,
+                        style: AppTheme.inter(
+                          fontSize: 10, fontWeight: FontWeight.w800,
+                          color: Colors.white, letterSpacing: 0.4),
+                      ),
+                    ),
+                ]),
+              ),
+            ),
+            const SizedBox(width: 8),
+            _floatingIconButton(
+              icon: Icons.center_focus_strong_outlined,
+              onTap: _fitCamera,
+              tooltip: 'Centrar mapa',
+            ),
+          ]),
+        ),
+        // ── Banners flotantes (solo cuando aplica) ──────────────────
+        if (_stale || !hasValidPos)
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 64,
+            left: 12,
+            right: 12,
+            child: Column(children: [
+              if (_stale) _floatingBanner(_staleBannerContent()),
+              if (!hasValidPos) ...[
+                if (_stale) const SizedBox(height: 8),
+                _floatingBanner(_waitingGpsBannerContent()),
               ],
-              const SizedBox(height: 18),
-              _actionButtons(bus),
-            ],
+            ]),
+          ),
+        // ── Bottom sheet arrastrable con la info ────────────────────
+        DraggableScrollableSheet(
+          initialChildSize: 0.32,
+          minChildSize: 0.18,
+          maxChildSize: 0.88,
+          snap: true,
+          snapSizes: const [0.18, 0.32, 0.88],
+          builder: (_, scrollController) => Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 16, offset: const Offset(0, -2))],
+            ),
+            child: ListView(
+              controller: scrollController,
+              padding: EdgeInsets.zero,
+              children: [
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 8, bottom: 4),
+                    width: 38, height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.ink2,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+                  child: Column(children: [
+                    _busSummaryCard(bus, color),
+                    const SizedBox(height: 12),
+                    _kpiStrip(bus),
+                    if (bus.etaByStop.isNotEmpty) ...[
+                      const SizedBox(height: 18),
+                      _sectionLabel('LÍNEA DE TIEMPO — PARADEROS PENDIENTES'),
+                      const SizedBox(height: 8),
+                      _timeline(bus),
+                    ],
+                    const SizedBox(height: 18),
+                    _actionButtons(bus),
+                    const SizedBox(height: 20),
+                  ]),
+                ),
+              ],
+            ),
           ),
         ),
       ]),
     );
   }
 
-  Widget _waitingForGpsBanner() => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        color: AppColors.infoBg,
-        child: Row(children: [
-          const Icon(Icons.gps_not_fixed, size: 16, color: AppColors.info),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Esperando primera ubicación del bus…',
-              style: AppTheme.inter(
-                fontSize: 11.5, color: AppColors.info, fontWeight: FontWeight.w600),
-            ),
+  Widget _floatingIconButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    required String tooltip,
+  }) {
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      elevation: 4,
+      shadowColor: Colors.black.withValues(alpha: 0.25),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Tooltip(
+          message: tooltip,
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Icon(icon, size: 20, color: AppColors.ink8),
           ),
-        ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _floatingBanner(Widget content) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 8)],
+        ),
+        child: content,
       );
 
-  Widget _staleBanner() => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        color: const Color(0xFFFFF8E1),
-        child: Row(children: [
-          const Icon(Icons.signal_cellular_alt_1_bar, size: 16, color: Color(0xFFB45309)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Sin transmisión reciente · última señal ${_lastSeen != null ? _ago(_lastSeen!) : "hace un rato"}',
-              style: AppTheme.inter(fontSize: 11.5, color: const Color(0xFF92400E), fontWeight: FontWeight.w600),
-            ),
+  Widget _staleBannerContent() => Row(children: [
+        const Icon(Icons.signal_cellular_alt_1_bar, size: 16, color: Color(0xFFB45309)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'Sin transmisión reciente · última señal ${_lastSeen != null ? _ago(_lastSeen!) : "hace un rato"}',
+            style: AppTheme.inter(fontSize: 11.5, color: const Color(0xFF92400E), fontWeight: FontWeight.w600),
           ),
-        ]),
-      );
+        ),
+      ]);
+
+  Widget _waitingGpsBannerContent() => Row(children: [
+        const Icon(Icons.gps_not_fixed, size: 16, color: AppColors.info),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'Esperando primera ubicación del bus…',
+            style: AppTheme.inter(fontSize: 11.5, color: AppColors.info, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ]);
 
   String _ago(DateTime t) {
     final secs = DateTime.now().difference(t).inSeconds;
