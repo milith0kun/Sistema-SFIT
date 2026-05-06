@@ -41,11 +41,11 @@ class _TripMapPageState extends ConsumerState<TripMapPage> {
         final entry = active.first;
         final entryId = entry['id'] as String? ?? entry['_id'] as String? ?? '';
         final routeObj = entry['route'] as Map<String, dynamic>?;
-        final routeId = routeObj?['_id'] as String? ?? routeObj?['id'] as String?;
-        await ref.read(locationTrackingProvider.notifier).resumeTracking(
-              entryId,
-              routeId: routeId,
-            );
+        final routeId =
+            routeObj?['_id'] as String? ?? routeObj?['id'] as String?;
+        await ref
+            .read(locationTrackingProvider.notifier)
+            .resumeTracking(entryId, routeId: routeId);
       }
     } catch (_) {}
   }
@@ -53,39 +53,6 @@ class _TripMapPageState extends ConsumerState<TripMapPage> {
   @override
   Widget build(BuildContext context) {
     final tracking = ref.watch(locationTrackingProvider);
-
-    // Snackbar efímero cuando el backend reporta un paradero recién detectado.
-    final lastLabel = tracking.lastVisitedLabel;
-    if (lastLabel != null && lastLabel != _lastSnackedLabel) {
-      _lastSnackedLabel = lastLabel;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            duration: const Duration(seconds: 3),
-            backgroundColor: AppColors.apto,
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded,
-                    color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Pasaste por: $lastLabel',
-                    style: AppTheme.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-        ref.read(locationTrackingProvider.notifier).clearLastVisitedLabel();
-      });
-    }
 
     return SafeArea(
       child: tracking.isTracking ? _buildActiveMap(tracking) : _buildNoTrip(),
@@ -101,7 +68,7 @@ class _TripMapPageState extends ConsumerState<TripMapPage> {
         try {
           _mapController.move(currentPos, _mapController.camera.zoom);
         } catch (_) {
-          // Mapa aún no completamente inicializado.
+          // Mapa aÃºn no completamente inicializado.
         }
       });
     }
@@ -132,7 +99,7 @@ class _TripMapPageState extends ConsumerState<TripMapPage> {
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
               userAgentPackageName: 'com.sfit.sfit_app',
             ),
-            // Ruta planeada (línea azul punteada que une los paraderos)
+            // Ruta planeada (lÃ­nea azul punteada que une los paraderos)
             if (waypoints.length >= 2)
               PolylineLayer(
                 polylines: [
@@ -149,16 +116,15 @@ class _TripMapPageState extends ConsumerState<TripMapPage> {
                 polylines: [
                   Polyline(
                     points: tracking.localTrack,
-                    color: AppColors.gold,
+                    color:
+                        tracking.isOffRoute ? AppColors.noApto : AppColors.gold,
                     strokeWidth: 4.5,
                   ),
                 ],
               ),
-            // Paraderos numerados (visited = verde, próximo = oro, resto = gris)
+            // Paraderos numerados (visited = verde, prÃ³ximo = oro, resto = gris)
             if (waypoints.isNotEmpty)
-              MarkerLayer(
-                markers: _buildStopMarkers(waypoints, visited),
-              ),
+              MarkerLayer(markers: _buildStopMarkers(waypoints, visited)),
             if (currentPos != null)
               MarkerLayer(
                 markers: [
@@ -168,12 +134,18 @@ class _TripMapPageState extends ConsumerState<TripMapPage> {
                     height: 44,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: AppColors.gold,
+                        color:
+                            tracking.isOffRoute
+                                ? AppColors.noApto
+                                : AppColors.gold,
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white, width: 2.5),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.gold.withValues(alpha: 0.4),
+                            color: (tracking.isOffRoute
+                                    ? AppColors.noApto
+                                    : AppColors.gold)
+                                .withValues(alpha: 0.4),
                             blurRadius: 8,
                             spreadRadius: 2,
                           ),
@@ -193,6 +165,21 @@ class _TripMapPageState extends ConsumerState<TripMapPage> {
 
         _Header(tracking: tracking),
 
+        if (tracking.isOffRoute)
+          const Positioned(
+            top: 60,
+            left: 8,
+            right: 8,
+            child: _OffRouteBanner(),
+          ),
+
+        Positioned(
+          top: tracking.isOffRoute ? 120 : 60,
+          left: 8,
+          right: 8,
+          child: _NextStopCard(tracking: tracking),
+        ),
+
         if (!_followMode && currentPos != null)
           Positioned(
             bottom: 90,
@@ -206,13 +193,17 @@ class _TripMapPageState extends ConsumerState<TripMapPage> {
                 } catch (_) {}
               },
               backgroundColor: AppColors.gold,
-              child: const Icon(Icons.my_location,
-                  color: Colors.white, size: 20),
+              child: const Icon(
+                Icons.my_location,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
           ),
 
-        // Indicador de baja precisión (si descartó muchos puntos)
-        if (tracking.discardedLowAccuracy > 0 && tracking.currentAccuracy != null)
+        // Indicador de baja precisiÃ³n (si descartÃ³ muchos puntos)
+        if (tracking.discardedLowAccuracy > 0 &&
+            tracking.currentAccuracy != null)
           Positioned(
             bottom: 76,
             left: 16,
@@ -233,7 +224,7 @@ class _TripMapPageState extends ConsumerState<TripMapPage> {
               context.push(
                 '/viaje-checkout/$entryId',
                 extra: {
-                  'vehiclePlate': '—',
+                  'vehiclePlate': 'â',
                   'departureTime': '',
                   'estimatedKm': null,
                 },
@@ -265,7 +256,7 @@ class _TripMapPageState extends ConsumerState<TripMapPage> {
     List<RouteWaypoint> waypoints,
     Set<int> visitedIndices,
   ) {
-    // Determinar el "próximo paradero" como el primero pendiente en orden.
+    // Determinar el "prÃ³ximo paradero" como el primero pendiente en orden.
     final ordered = [...waypoints]..sort((a, b) => a.order.compareTo(b.order));
     int? nextIdx;
     for (final wp in ordered) {
@@ -279,9 +270,10 @@ class _TripMapPageState extends ConsumerState<TripMapPage> {
       final isVisited = visitedIndices.contains(wp.order);
       final isNext = nextIdx != null && wp.order == nextIdx;
 
-      final (bg, fg, ring) = isVisited
-          ? (AppColors.apto, Colors.white, AppColors.aptoBorder)
-          : isNext
+      final (bg, fg, ring) =
+          isVisited
+              ? (AppColors.apto, Colors.white, AppColors.aptoBorder)
+              : isNext
               ? (AppColors.gold, Colors.white, AppColors.goldBorder)
               : (Colors.white, AppColors.ink7, AppColors.ink3);
 
@@ -431,8 +423,11 @@ class _StopMarker extends StatelessWidget {
                       border: Border.all(color: AppColors.apto, width: 1.5),
                     ),
                     alignment: Alignment.center,
-                    child: const Icon(Icons.check,
-                        size: 9, color: AppColors.apto),
+                    child: const Icon(
+                      Icons.check,
+                      size: 9,
+                      color: AppColors.apto,
+                    ),
                   ),
                 ),
             ],
@@ -484,8 +479,11 @@ class _Header extends StatelessWidget {
             ),
             const Spacer(),
             if (total > 0) ...[
-              const Icon(Icons.location_on_rounded,
-                  size: 13, color: Colors.white70),
+              const Icon(
+                Icons.location_on_rounded,
+                size: 13,
+                color: Colors.white70,
+              ),
               const SizedBox(width: 3),
               Text(
                 '$visited / $total',
@@ -541,12 +539,15 @@ class _AccuracyBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.gps_not_fixed_rounded,
-              size: 14, color: AppColors.riesgo),
+          const Icon(
+            Icons.gps_not_fixed_rounded,
+            size: 14,
+            color: AppColors.riesgo,
+          ),
           const SizedBox(width: 6),
           Flexible(
             child: Text(
-              'Señal GPS débil (±${accuracy.toStringAsFixed(0)} m) — $discarded puntos descartados',
+              'SeÃ±al GPS dÃ©bil (Â±${accuracy.toStringAsFixed(0)} m) â $discarded puntos descartados',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppTheme.inter(
@@ -554,6 +555,148 @@ class _AccuracyBadge extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: AppColors.riesgo,
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OffRouteBanner extends StatelessWidget {
+  const _OffRouteBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.noApto.withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.warning_amber_rounded,
+            color: Colors.white,
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Desvío de ruta detectado',
+                  style: AppTheme.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  'Por favor, reincorpórese a la ruta asignada.',
+                  style: AppTheme.inter(
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NextStopCard extends StatelessWidget {
+  final TrackingState tracking;
+  const _NextStopCard({required this.tracking});
+
+  @override
+  Widget build(BuildContext context) {
+    final waypoints = tracking.routeWaypoints;
+    final visited = tracking.visitedStopIndices;
+    final ordered = [...waypoints]..sort((a, b) => a.order.compareTo(b.order));
+
+    RouteWaypoint? nextStop;
+    for (final wp in ordered) {
+      if (!visited.contains(wp.order)) {
+        nextStop = wp;
+        break;
+      }
+    }
+
+    if (nextStop == null) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.panel,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.goldBg,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.goldBorder),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              '${nextStop.order + 1}',
+              style: AppTheme.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppColors.goldDark,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Próximo Paradero',
+                  style: AppTheme.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.ink5,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                Text(
+                  nextStop.label ?? 'Desconocido',
+                  style: AppTheme.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
         ],

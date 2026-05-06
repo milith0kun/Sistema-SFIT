@@ -3,6 +3,7 @@ import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { FleetEntry } from "@/models/FleetEntry";
+import { LocationPing } from "@/models/LocationPing";
 import { Driver } from "@/models/Driver";
 import { Route as RouteModel } from "@/models/Route";
 import { apiResponse, apiError, apiForbidden, apiNotFound, apiUnauthorized } from "@/lib/api/response";
@@ -16,6 +17,30 @@ import { distancePointToPolyline } from "@/lib/geo/pointToLine";
 // >100m considerado fuera, ≤50m considerado regresó (hysteresis).
 const OFF_ROUTE_ENTRY_METERS = 100;
 const OFF_ROUTE_EXIT_METERS = 50;
+
+// Rate limit anti-flood por conductor: máximo 60 puntos/minuto (1 Hz). La app
+// envía cada 8s en condiciones normales, dejando margen para drain de cola
+// offline. Map en memoria — válido para la instancia única de Dokploy.
+const RATE_LIMIT_MAX = 60;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const rateLimitByDriver = new Map<string, { count: number; reset: number }>();
+
+function checkDriverRateLimit(driverId: string): { ok: true } | { ok: false; retryAfterSec: number } {
+  const now = Date.now();
+  const entry = rateLimitByDriver.get(driverId);
+  if (!entry || entry.reset <= now) {
+    rateLimitByDriver.set(driverId, { count: 1, reset: now + RATE_LIMIT_WINDOW_MS });
+    if (rateLimitByDriver.size > 5_000) {
+      for (const [k, v] of rateLimitByDriver) if (v.reset <= now) rateLimitByDriver.delete(k);
+    }
+    return { ok: true };
+  }
+  if (entry.count >= RATE_LIMIT_MAX) {
+    return { ok: false, retryAfterSec: Math.ceil((entry.reset - now) / 1000) };
+  }
+  entry.count += 1;
+  return { ok: true };
+}
 
 const LocationSchema = z.object({
   lat: z.number().min(-90).max(90),
@@ -60,6 +85,13 @@ export async function PATCH(
   if (auth.session.role === ROLES.CONDUCTOR) {
     const driver = await Driver.findOne({ userId: auth.session.userId }).select("_id").lean();
     if (!driver || String(entry.driverId) !== String(driver._id)) return apiForbidden();
+    const rl = checkDriverRateLimit(String(driver._id));
+    if (!rl.ok) {
+      return new Response(JSON.stringify({ success: false, error: "Too many location updates" }), {
+        status: 429,
+        headers: { "content-type": "application/json", "Retry-After": String(rl.retryAfterSec) },
+      });
+    }
   } else {
     if (!(await canAccessMunicipality(auth.session, String(entry.municipalityId)))) {
       return apiForbidden();
@@ -89,14 +121,15 @@ export async function PATCH(
     }
 
     // Métricas finales del viaje:
-    //   distanceMeters = suma haversine entre trackPoints (incluyendo el que
-    //                    se está cerrando con esta misma request)
+    //   distanceMeters = suma haversine entre LocationPings del turno
+    //                    (incluyendo el punto que se está cerrando con esta request)
     //   durationSeconds = returnTime − departureTime
     //   routeCompliancePercentage = visitedStops.length / route.waypoints.length
-    const points = [
-      ...(entry.trackPoints ?? []).map((p) => ({ lat: p.lat, lng: p.lng })),
-      { lat, lng },
-    ];
+    const pings = await LocationPing.find({ entryId: entry._id })
+      .sort({ ts: 1 })
+      .select("lat lng")
+      .lean<Array<{ lat: number; lng: number }>>();
+    const points = [...pings, { lat, lng }];
     let total = 0;
     for (let i = 1; i < points.length; i++) {
       total += haversineMeters(points[i - 1], points[i]);
@@ -219,26 +252,21 @@ export async function PATCH(
 
   await entry.save();
 
-  // Push atómico del trackPoint con límite de 1000 puntos
-  await FleetEntry.updateOne(
-    { _id: id },
-    {
-      $push: {
-        trackPoints: {
-          $each: [
-            {
-              lat,
-              lng,
-              ts: now,
-              ...(accuracy !== undefined && { accuracy }),
-              ...(speed !== undefined && { speed }),
-            },
-          ],
-          $slice: -1000,
-        },
-      },
-    }
-  );
+  // Histórico GPS por turno: insertamos en colección LocationPing (sin cap).
+  // El array `trackPoints` embebido en FleetEntry quedó deprecado por límite
+  // de tamaño de documento; aún se acepta en queries legacy de lectura.
+  await LocationPing.create({
+    entryId: entry._id,
+    driverId: entry.driverId,
+    vehicleId: entry.vehicleId,
+    municipalityId: entry.municipalityId,
+    routeId: entry.routeId,
+    lat,
+    lng,
+    ts: now,
+    ...(accuracy !== undefined && { accuracy }),
+    ...(speed !== undefined && { speed }),
+  });
 
   return apiResponse({
     id: String(entry._id),
@@ -250,6 +278,7 @@ export async function PATCH(
     returnTime: entry.returnTime,
     visitedStops: entry.visitedStops ?? [],
     newlyVisited,
+    isOffRoute: !!entry.offRouteSince,
     distanceMeters: entry.distanceMeters ?? null,
     durationSeconds: entry.durationSeconds ?? null,
     routeCompliancePercentage: entry.routeCompliancePercentage ?? null,
@@ -287,8 +316,17 @@ export async function GET(
     }
   }
 
+  // Histórico desde LocationPing (sin cap). Para turnos legacy que solo tienen
+  // el array embebido `trackPoints`, hacemos fallback transparente.
+  const pings = await LocationPing.find({ entryId: id })
+    .sort({ ts: 1 })
+    .select("lat lng ts accuracy speed")
+    .lean<Array<{ lat: number; lng: number; ts: Date; accuracy?: number; speed?: number }>>();
+
+  const trackPoints = pings.length > 0 ? pings : (entry.trackPoints ?? []);
+
   return apiResponse({
-    trackPoints: entry.trackPoints ?? [],
+    trackPoints,
     currentLocation: entry.currentLocation ?? null,
     startLocation: entry.startLocation ?? null,
     endLocation: entry.endLocation ?? null,

@@ -2,7 +2,7 @@
 
 ## Descripción del sistema
 
-Plataforma multi-tenant para fiscalización y gestión de flota vehicular municipal. Una instancia sirve a múltiples municipalidades bajo una jerarquía provincial. Stack: **Next.js 16 + Flutter 3.29 + MongoDB Atlas**.
+Plataforma multi-tenant para fiscalización y gestión de flota vehicular municipal. Una instancia sirve a múltiples municipalidades bajo una jerarquía nacional → región → provincia → municipalidad. Stack: **Next.js 16.2 + Flutter 3.29 + MongoDB Atlas**. Ver [Readme.md](Readme.md) para arquitectura completa y [IMPLEMENTATION.md](IMPLEMENTATION.md) para auditoría.
 
 ## Monorepo
 
@@ -12,13 +12,15 @@ Sistema Sfit/
 └── sfit-app/   → App móvil (Flutter 3.29, Dart 3.7, Riverpod 2, GoRouter)
 ```
 
-## Jerarquía de roles
+## Jerarquía de roles (8 roles)
 
 ```
-Super Admin → Admin Provincial → Admin Municipal → Fiscal / Operador → Conductor / Ciudadano
+super_admin → admin_regional → admin_provincial → admin_municipal → fiscal / operador → conductor / ciudadano
 ```
 
-Plataformas por rol: Super Admin/Admin Provincial/Admin Municipal = Web; Fiscal/Operador = Web+Móvil; Conductor/Ciudadano = Móvil.
+Plataformas: `super_admin`, `admin_regional`, `admin_provincial`, `admin_municipal` = Web; `fiscal`, `operador` = Web + Móvil; `conductor` = Móvil; `ciudadano` = Móvil + Web pública.
+
+Identificadores exactos en [sfit-web/src/lib/constants.ts](sfit-web/src/lib/constants.ts).
 
 ## Multi-tenancy
 
@@ -30,10 +32,11 @@ RF-01 Auth · RF-02 Provincias/Municipalidades · RF-03 Tipos de vehículo · RF
 
 ## Seguridad
 
-- JWT: access 15 min, refresh 7 días
-- bcrypt: 12 rounds
-- RBAC en todos los endpoints
-- QR: HMAC-SHA256
-- Imágenes de IA: procesar en tránsito, no almacenar
+- JWT: access **2h**, refresh **7d** (HS256)
+- bcryptjs: 12 rounds
+- RBAC + scope geográfico en todos los endpoints (`scopedMunicipalityFilterAsync`)
+- Multi-tenant: filtro `municipalityId` obligatorio en queries operacionales
+- QR: HMAC-SHA256, validación offline en app móvil
+- Imágenes de IA/OCR: procesar en tránsito, no almacenar
 
 ## Responder siempre en español

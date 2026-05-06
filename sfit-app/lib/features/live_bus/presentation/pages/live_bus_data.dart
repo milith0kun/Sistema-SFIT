@@ -131,3 +131,112 @@ class BusData {
     );
   }
 }
+
+/// Bus simplificado para la lista de rutas activas (campos reducidos).
+class ActiveBusLite {
+  final String id;
+  final String plate;
+  final double lat;
+  final double lng;
+  final int? distanceFromUserMeters;
+
+  const ActiveBusLite({
+    required this.id,
+    required this.plate,
+    required this.lat,
+    required this.lng,
+    this.distanceFromUserMeters,
+  });
+
+  factory ActiveBusLite.fromJson(Map<String, dynamic> j) => ActiveBusLite(
+        id: j['id'] as String? ?? '',
+        plate: j['plate'] as String? ?? '—',
+        lat: (j['lat'] as num?)?.toDouble() ?? 0,
+        lng: (j['lng'] as num?)?.toDouble() ?? 0,
+        distanceFromUserMeters: (j['distanceFromUserMeters'] as num?)?.toInt(),
+      );
+}
+
+class NearestStop {
+  final int stopIndex;
+  final String label;
+  final double lat;
+  final double lng;
+  final int distanceFromUserMeters;
+
+  const NearestStop({
+    required this.stopIndex,
+    required this.label,
+    required this.lat,
+    required this.lng,
+    required this.distanceFromUserMeters,
+  });
+
+  factory NearestStop.fromJson(Map<String, dynamic> j) => NearestStop(
+        stopIndex: (j['stopIndex'] as num?)?.toInt() ?? 0,
+        label: j['label'] as String? ?? 'Paradero',
+        lat: (j['lat'] as num).toDouble(),
+        lng: (j['lng'] as num).toDouble(),
+        distanceFromUserMeters: (j['distanceFromUserMeters'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// Ruta activa: agregación devuelta por GET /api/public/rutas-activas.
+class ActiveRouteData {
+  final String routeId;
+  final String name;
+  final String? code;
+  final String? direction;
+  final String? vehicleTypeKey;
+  final int activeBusCount;
+  final List<BusWaypoint> waypoints;
+  final List<List<double>> polylineCoords;
+  final List<ActiveBusLite> buses;
+  final ActiveBusLite? closestBus;
+  final NearestStop? nearestStop;
+  final int? etaToUserStopSeconds;
+
+  const ActiveRouteData({
+    required this.routeId,
+    required this.name,
+    this.code,
+    this.direction,
+    this.vehicleTypeKey,
+    required this.activeBusCount,
+    this.waypoints = const [],
+    this.polylineCoords = const [],
+    this.buses = const [],
+    this.closestBus,
+    this.nearestStop,
+    this.etaToUserStopSeconds,
+  });
+
+  factory ActiveRouteData.fromJson(Map<String, dynamic> j) {
+    final wpList = (j['waypoints'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    final busesList = (j['buses'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    final polyRaw = j['polylineCoords'] as List?;
+    final polyCoords = polyRaw
+            ?.map<List<double>>((p) {
+              final list = (p as List).cast<num>();
+              return [list[0].toDouble(), list[1].toDouble()];
+            })
+            .toList() ??
+        const <List<double>>[];
+    final closest = j['closestBus'] as Map<String, dynamic>?;
+    final near = j['nearestStop'] as Map<String, dynamic>?;
+    return ActiveRouteData(
+      routeId: j['routeId'] as String? ?? '',
+      name: j['name'] as String? ?? '—',
+      code: j['code'] as String?,
+      direction: j['direction'] as String?,
+      vehicleTypeKey: j['vehicleTypeKey'] as String?,
+      activeBusCount: (j['activeBusCount'] as num?)?.toInt() ?? 0,
+      waypoints: wpList.map(BusWaypoint.fromJson).toList(),
+      polylineCoords: polyCoords,
+      buses: busesList.map(ActiveBusLite.fromJson).toList(),
+      closestBus: closest != null ? ActiveBusLite.fromJson(closest) : null,
+      nearestStop: near != null ? NearestStop.fromJson(near) : null,
+      etaToUserStopSeconds: (j['etaToUserStopSeconds'] as num?)?.toInt(),
+    );
+  }
+}

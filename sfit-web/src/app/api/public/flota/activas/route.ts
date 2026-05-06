@@ -15,6 +15,11 @@ import type { ICurrentLocation, IVisitedStop } from "@/models/FleetEntry";
 const URBAN_FALLBACK_FACTOR = 1.35;
 const FALLBACK_SPEED_MS = 4.17; // 15 km/h promedio bus urbano Cusco
 
+// Ventana de "frescura" para considerar a un bus como vivo en el mapa
+// público. Si su última actualización GPS es más vieja que esto, lo ocultamos
+// — evita buses fantasma cuando un conductor olvida hacer checkout.
+const STALE_LOCATION_THRESHOLD_MS = 2 * 60_000; // 2 minutos
+
 /**
  * GET /api/public/flota/activas?municipalityId=<id>&lat=<n>&lng=<n>&limit=<n>
  *
@@ -57,6 +62,7 @@ export async function GET(request: NextRequest) {
     municipalityId,
     "currentLocation.lat": { $exists: true },
     "currentLocation.lng": { $exists: true },
+    "currentLocation.updatedAt": { $gte: new Date(Date.now() - STALE_LOCATION_THRESHOLD_MS) },
   })
     .populate("vehicleId", "plate brand model vehicleTypeKey status")
     .populate("routeId")

@@ -11,31 +11,45 @@ import 'live_bus_data.dart';
 class BusDetailSheet extends StatelessWidget {
   final BusData bus;
   final ScrollController? scrollController;
-  const BusDetailSheet({super.key, required this.bus, this.scrollController});
+  final VoidCallback? onFollowBus;
 
-  static Future<void> show(BuildContext context, BusData bus) {
+  const BusDetailSheet({
+    super.key,
+    required this.bus,
+    this.scrollController,
+    this.onFollowBus,
+  });
+
+  static Future<void> show(
+    BuildContext context,
+    BusData bus, {
+    VoidCallback? onFollowBus,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.4,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (_, scrollController) => BusDetailSheet(
-          bus: bus,
-          scrollController: scrollController,
-        ),
-      ),
+      builder:
+          (_) => DraggableScrollableSheet(
+            initialChildSize: 0.7,
+            minChildSize: 0.4,
+            maxChildSize: 0.95,
+            expand: false,
+            builder:
+                (_, scrollController) => BusDetailSheet(
+                  bus: bus,
+                  scrollController: scrollController,
+                  onFollowBus: onFollowBus,
+                ),
+          ),
     );
   }
 
   Color _statusColor(String s) => switch (s) {
-        'apto' => AppColors.apto,
-        'riesgo' => AppColors.riesgo,
-        _ => AppColors.noApto,
-      };
+    'apto' => AppColors.apto,
+    'riesgo' => AppColors.riesgo,
+    _ => AppColors.noApto,
+  };
 
   String _formatEta(int s) {
     if (s < 60) return '< 1 min';
@@ -54,14 +68,12 @@ class BusDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _statusColor(bus.vehicleStatus);
-    final waypointsLatLng = bus.waypoints
-        .map((w) => LatLng(w.lat, w.lng))
-        .toList();
+    final waypointsLatLng =
+        bus.waypoints.map((w) => LatLng(w.lat, w.lng)).toList();
     // Geometría real de Google Routes (siguiendo calles) si está disponible.
     // Si no, caemos a líneas rectas entre waypoints.
-    final realPolyline = bus.polylineCoords
-        .map((c) => LatLng(c[0], c[1]))
-        .toList();
+    final realPolyline =
+        bus.polylineCoords.map((c) => LatLng(c[0], c[1])).toList();
 
     return Container(
       decoration: BoxDecoration(
@@ -77,7 +89,8 @@ class BusDetailSheet extends StatelessWidget {
           Center(
             child: Container(
               margin: const EdgeInsets.only(top: 8, bottom: 8),
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
                 color: AppColors.ink2,
                 borderRadius: BorderRadius.circular(2),
@@ -90,13 +103,18 @@ class BusDetailSheet extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  width: 40, height: 40,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                     border: Border.all(color: color.withValues(alpha: 0.3)),
                   ),
-                  child: Icon(Icons.directions_bus_rounded, color: color, size: 22),
+                  child: Icon(
+                    Icons.directions_bus_rounded,
+                    color: color,
+                    size: 22,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -105,12 +123,20 @@ class BusDetailSheet extends StatelessWidget {
                     children: [
                       Text(
                         bus.plate,
-                        style: AppTheme.inter(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.ink9, tabular: true),
+                        style: AppTheme.inter(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.ink9,
+                          tabular: true,
+                        ),
                       ),
                       if (bus.routeName != null)
                         Text(
                           bus.routeName!,
-                          style: AppTheme.inter(fontSize: 13, color: AppColors.ink6),
+                          style: AppTheme.inter(
+                            fontSize: 13,
+                            color: AppColors.ink6,
+                          ),
                         ),
                     ],
                   ),
@@ -128,20 +154,33 @@ class BusDetailSheet extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.goldBg,
                   border: Border.all(color: AppColors.goldBorder),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Row(children: [
-                  const Icon(Icons.my_location, size: 14, color: AppColors.goldDark),
-                  const SizedBox(width: 8),
-                  Text(
-                    'A ${_formatDistance(bus.distanceFromUserMeters!)} de tu ubicación',
-                    style: AppTheme.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.goldDark),
-                  ),
-                ]),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.my_location,
+                      size: 14,
+                      color: AppColors.goldDark,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'A ${_formatDistance(bus.distanceFromUserMeters!)} de tu ubicación',
+                      style: AppTheme.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.goldDark,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           const SizedBox(height: 12),
@@ -156,7 +195,9 @@ class BusDetailSheet extends StatelessWidget {
                   options: MapOptions(
                     initialCenter: LatLng(bus.lat, bus.lng),
                     initialZoom: 14,
-                    interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.none,
+                    ),
                   ),
                   children: [
                     TileLayer(
@@ -165,129 +206,220 @@ class BusDetailSheet extends StatelessWidget {
                       subdomains: const ['a', 'b', 'c', 'd'],
                       userAgentPackageName: 'com.sfit.sfit_app',
                     ),
-                    // Polyline: real de Google Routes si existe, fallback
-                    // a líneas rectas entre waypoints (punteado para indicar
-                    // visualmente que es aproximación).
                     if (realPolyline.length >= 2)
-                      PolylineLayer(polylines: [
-                        Polyline(
-                          points: realPolyline,
-                          color: color.withValues(alpha: 0.55),
-                          strokeWidth: 3.5,
-                        ),
-                      ])
-                    else if (waypointsLatLng.length >= 2)
-                      PolylineLayer(polylines: [
-                        Polyline(
-                          points: waypointsLatLng,
-                          color: AppColors.ink3,
-                          strokeWidth: 3,
-                          pattern: const StrokePattern.dotted(),
-                        ),
-                      ]),
-                    MarkerLayer(markers: [
-                      // Bus actual
-                      Marker(
-                        point: LatLng(bus.lat, bus.lng),
-                        width: 36, height: 36,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: color, shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4)],
+                      PolylineLayer(
+                        polylines: [
+                          Polyline(
+                            points: realPolyline,
+                            color: color.withValues(alpha: 0.55),
+                            strokeWidth: 3.5,
                           ),
-                          child: const Icon(Icons.directions_bus_rounded, color: Colors.white, size: 18),
-                        ),
+                        ],
+                      )
+                    else if (waypointsLatLng.length >= 2)
+                      PolylineLayer(
+                        polylines: [
+                          Polyline(
+                            points: waypointsLatLng,
+                            color: AppColors.ink3,
+                            strokeWidth: 3,
+                            pattern: const StrokePattern.dotted(),
+                          ),
+                        ],
                       ),
-                    ]),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: LatLng(bus.lat, bus.lng),
+                          width: 36,
+                          height: 36,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.directions_bus_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
             ),
           ),
+          if (onFollowBus != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  onFollowBus!();
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.gold,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                icon: const Icon(Icons.my_location, size: 18),
+                label: Text(
+                  'Seguir este bus',
+                  style: AppTheme.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
           const SizedBox(height: 16),
-          // Lista de paraderos con ETA
+          // Lista de paraderos con ETA (Timeline)
           if (bus.etaByStop.isNotEmpty) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Text(
-                'PARADEROS',
-                style: AppTheme.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.ink5, letterSpacing: 1.2),
+                'LÍNEA DE TIEMPO',
+                style: AppTheme.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink5,
+                  letterSpacing: 1.2,
+                ),
               ),
             ),
-            ...bus.etaByStop.asMap().entries.map((entry) {
-              final i = entry.key;
-              final s = entry.value;
-              final isFirst = i == 0;
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: AppColors.ink1)),
-                ),
-                child: Row(children: [
-                  // Marcador con número
-                  Container(
-                    width: 28, height: 28,
-                    decoration: BoxDecoration(
-                      color: isFirst ? AppColors.gold : Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: isFirst ? AppColors.gold : AppColors.ink3, width: 2),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '${s.stopIndex + 1}',
-                      style: AppTheme.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: isFirst ? Colors.white : AppColors.ink6,
-                        tabular: true,
-                      ),
-                    ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 13,
+                    top: 14,
+                    bottom: 24,
+                    child: Container(width: 2, color: AppColors.ink2),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          s.label,
-                          style: AppTheme.inter(
-                            fontSize: 14,
-                            fontWeight: isFirst ? FontWeight.w700 : FontWeight.w500,
-                            color: AppColors.ink9,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'a ${_formatDistance(s.distanceFromBusMeters)} del bus',
-                          style: AppTheme.inter(fontSize: 11, color: AppColors.ink5),
-                        ),
-                      ],
-                    ),
+                  Column(
+                    children:
+                        bus.etaByStop.asMap().entries.map((entry) {
+                          final i = entry.key;
+                          final s = entry.value;
+                          final isFirst = i == 0;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  margin: const EdgeInsets.only(top: 2),
+                                  width: 28,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color:
+                                        isFirst ? AppColors.gold : Colors.white,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color:
+                                          isFirst
+                                              ? AppColors.gold
+                                              : AppColors.ink3,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    '${s.stopIndex + 1}',
+                                    style: AppTheme.inter(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color:
+                                          isFirst
+                                              ? Colors.white
+                                              : AppColors.ink6,
+                                      tabular: true,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        s.label,
+                                        style: AppTheme.inter(
+                                          fontSize: 14,
+                                          fontWeight:
+                                              isFirst
+                                                  ? FontWeight.w700
+                                                  : FontWeight.w500,
+                                          color: AppColors.ink9,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'a ${_formatDistance(s.distanceFromBusMeters)} del bus',
+                                        style: AppTheme.inter(
+                                          fontSize: 11,
+                                          color: AppColors.ink5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        isFirst
+                                            ? AppColors.goldBg
+                                            : AppColors.ink1,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color:
+                                          isFirst
+                                              ? AppColors.goldBorder
+                                              : AppColors.ink2,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    _formatEta(s.etaSeconds),
+                                    style: AppTheme.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color:
+                                          isFirst
+                                              ? AppColors.goldDark
+                                              : AppColors.ink7,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
                   ),
-                  const SizedBox(width: 8),
-                  // ETA
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: isFirst ? AppColors.goldBg : AppColors.ink1,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: isFirst ? AppColors.goldBorder : AppColors.ink2),
-                    ),
-                    child: Text(
-                      _formatEta(s.etaSeconds),
-                      style: AppTheme.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: isFirst ? AppColors.goldDark : AppColors.ink7,
-                      ),
-                    ),
-                  ),
-                ]),
-              );
-            }),
+                ],
+              ),
+            ),
           ] else
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),

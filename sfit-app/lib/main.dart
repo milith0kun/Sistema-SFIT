@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'app.dart';
 import 'core/services/fcm_background_handler.dart';
@@ -14,6 +15,10 @@ void main() async {
   // pueda formatear fechas con locale 'es' (ej. "1 de mayo, 14:23").
   // Es rápido (~10ms) y se necesita antes del primer build.
   await initializeDateFormatting('es', null);
+
+  // Hive para storage local: cola offline de puntos GPS del conductor cuando
+  // se cae la red. El box se abre lazy desde LocationTrackingService.
+  await Hive.initFlutter();
 
   // Arrancamos la UI de inmediato. Firebase + FCM se inicializan en el
   // primer post-frame callback para no bloquear el primer frame

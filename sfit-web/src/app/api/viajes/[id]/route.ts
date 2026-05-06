@@ -4,6 +4,7 @@ import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { Trip } from "@/models/Trip";
 import { FleetEntry } from "@/models/FleetEntry";
+import { LocationPing } from "@/models/LocationPing";
 import { RouteCapture } from "@/models/RouteCapture";
 import { apiResponse, apiError, apiForbidden, apiNotFound, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
@@ -73,7 +74,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   await trip.save();
 
   // Hook auto-captura: si el viaje pasa a "completado" (o auto-cierre) y
-  // tenía routeId + trackPoints en su FleetEntry asociado, crear un
+  // tenía routeId + puntos GPS en su FleetEntry asociado, crear un
   // RouteCapture en status "raw" para alimentar la convergencia.
   // Best-effort: no rompe la respuesta si falla.
   const becameTerminal =
@@ -84,10 +85,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (becameTerminal && trip.routeId && trip.fleetEntryId) {
     void (async () => {
       try {
-        const entry = await FleetEntry.findById(trip.fleetEntryId)
-          .select("trackPoints")
-          .lean<{ trackPoints?: Array<{ lat: number; lng: number; ts: Date; accuracy?: number; speed?: number }> } | null>();
-        const tp = entry?.trackPoints ?? [];
+        // Lectura primaria desde LocationPing; fallback al array embebido
+        // para turnos legacy.
+        let tp = await LocationPing.find({ entryId: trip.fleetEntryId })
+          .sort({ ts: 1 })
+          .select("lat lng ts accuracy speed")
+          .lean<Array<{ lat: number; lng: number; ts: Date; accuracy?: number; speed?: number }>>();
+        if (tp.length === 0) {
+          const entry = await FleetEntry.findById(trip.fleetEntryId)
+            .select("trackPoints")
+            .lean<{ trackPoints?: Array<{ lat: number; lng: number; ts: Date; accuracy?: number; speed?: number }> } | null>();
+          tp = entry?.trackPoints ?? [];
+        }
         if (tp.length < 4) return; // poca data → no vale la pena guardarla
 
         const points = tp.map((p) => ({

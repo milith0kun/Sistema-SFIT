@@ -19,6 +19,8 @@
     <!-- ── Ubicación GPS — geolocator (ciudadano + conductor) ────────── -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Conductor: tracking continuo cuando la app está en background o pantalla bloqueada -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
     <!-- ── Notificaciones push — firebase_messaging ─────────────────── -->
     <!-- Android 13+: solicitud explícita de permiso de notificaciones  -->
@@ -26,8 +28,10 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
-    <!-- ── Servicio en primer plano — FCM en background ─────────────── -->
+    <!-- ── Servicio en primer plano — FCM + GPS en background ───────── -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Android 14+: tipo específico requerido para foreground service con GPS -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <!-- Forzar remoción de DATA_SYNC inyectado por dependencias de Firebase -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"
         tools:node="remove" />

@@ -296,7 +296,7 @@ class _RouteDetailPageState extends ConsumerState<RouteDetailPage> {
                         bottomRight: Radius.circular(12),
                       ),
                       child: SizedBox(
-                        height: 210,
+                        height: 260,
                         child: _RouteMap(
                           waypoints: waypoints,
                           mapController: _mapController,
@@ -470,7 +470,7 @@ class _RouteDetailPageState extends ConsumerState<RouteDetailPage> {
 }
 
 // ── Mini-mapa con waypoints + polyline ──────────────────────────────────────────
-class _RouteMap extends StatelessWidget {
+class _RouteMap extends StatefulWidget {
   final List<Map<String, dynamic>> waypoints;
   final MapController mapController;
   final VoidCallback onMapReady;
@@ -482,99 +482,366 @@ class _RouteMap extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final points = waypoints.map((w) {
-      final lat = (w['lat'] as num?)?.toDouble() ?? 0;
-      final lng = (w['lng'] as num?)?.toDouble() ?? 0;
-      return LatLng(lat, lng);
-    }).toList();
+  State<_RouteMap> createState() => _RouteMapState();
+}
 
-    // Calcular bounds
-    LatLngBounds? bounds;
-    if (points.length >= 2) {
-      bounds = LatLngBounds.fromPoints(points);
-    }
+class _RouteMapState extends State<_RouteMap> {
+  int? _selectedIndex;
+  LatLngBounds? _bounds;
 
-    final center = points.isNotEmpty ? points[0] : const LatLng(-13.5319, -71.9675);
+  List<LatLng> get _points => widget.waypoints.map((w) {
+        final lat = (w['lat'] as num?)?.toDouble() ?? 0;
+        final lng = (w['lng'] as num?)?.toDouble() ?? 0;
+        return LatLng(lat, lng);
+      }).toList();
 
-    return FlutterMap(
-      mapController: mapController,
-      options: MapOptions(
-        initialCenter: center,
-        initialZoom: 14,
-        onMapReady: () {
-          onMapReady();
-          if (bounds != null) {
-            try {
-              mapController.fitCamera(CameraFit.bounds(
-                bounds: bounds,
-                padding: const EdgeInsets.all(24),
-              ));
-            } catch (_) {}
-          }
-        },
-        interactionOptions: const InteractionOptions(
-          flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
+  void _zoomIn() {
+    try {
+      final z = widget.mapController.camera.zoom;
+      widget.mapController.move(widget.mapController.camera.center, z + 1);
+    } catch (_) {}
+  }
+
+  void _zoomOut() {
+    try {
+      final z = widget.mapController.camera.zoom;
+      widget.mapController.move(widget.mapController.camera.center, z - 1);
+    } catch (_) {}
+  }
+
+  void _fitBounds() {
+    if (_bounds == null) return;
+    try {
+      widget.mapController.fitCamera(CameraFit.bounds(
+        bounds: _bounds!,
+        padding: const EdgeInsets.all(36),
+      ));
+    } catch (_) {}
+  }
+
+  void _showStopSheet(int index) {
+    final w = widget.waypoints[index];
+    final lat = (w['lat'] as num?)?.toDouble() ?? 0;
+    final lng = (w['lng'] as num?)?.toDouble() ?? 0;
+    final order = (w['order'] as int? ?? index) + 1;
+    final isFirst = index == 0;
+    final isLast = index == widget.waypoints.length - 1;
+    final fallback = isFirst ? 'Origen' : isLast ? 'Destino' : 'Paradero $order';
+    final label = w['label'] as String? ?? fallback;
+
+    setState(() => _selectedIndex = index);
+    widget.mapController.move(LatLng(lat, lng), 16);
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36, height: 4,
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.ink2,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                _StopBadge(
+                  index: index,
+                  total: widget.waypoints.length,
+                  order: order,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label,
+                          style: AppTheme.inter(
+                            fontSize: 16, fontWeight: FontWeight.w800,
+                            color: AppColors.ink9)),
+                      const SizedBox(height: 2),
+                      Text(
+                        isFirst ? 'Origen del recorrido'
+                            : isLast ? 'Destino del recorrido'
+                            : 'Paradero intermedio · #$order',
+                        style: AppTheme.inter(fontSize: 12, color: AppColors.ink5),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Container(height: 1, color: AppColors.ink1),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Icon(Icons.my_location, size: 14, color: AppColors.ink5),
+                const SizedBox(width: 6),
+                Text('${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}',
+                    style: AppTheme.inter(
+                      fontSize: 12, color: AppColors.ink6, tabular: true)),
+              ],
+            ),
+          ],
         ),
       ),
+    ).whenComplete(() {
+      if (mounted) setState(() => _selectedIndex = null);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final points = _points;
+    if (points.length >= 2) _bounds = LatLngBounds.fromPoints(points);
+    final center = points.isNotEmpty ? points[0] : const LatLng(-13.5319, -71.9675);
+
+    return Stack(
       children: [
-        TileLayer(
-          urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-          subdomains: const ['a', 'b', 'c', 'd'],
-          userAgentPackageName: 'com.sfit.sfit_app',
+        FlutterMap(
+          mapController: widget.mapController,
+          options: MapOptions(
+            initialCenter: center,
+            initialZoom: 14,
+            minZoom: 3,
+            maxZoom: 19,
+            onMapReady: () {
+              widget.onMapReady();
+              if (_bounds != null) {
+                try {
+                  widget.mapController.fitCamera(CameraFit.bounds(
+                    bounds: _bounds!,
+                    padding: const EdgeInsets.all(36),
+                  ));
+                } catch (_) {}
+              }
+            },
+            interactionOptions: const InteractionOptions(
+              flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+            ),
+          ),
+          children: [
+            // Tiles OSM estándar — mejor detalle de calles y edificios
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.sfit.sfit_app',
+              maxZoom: 19,
+              tileProvider: NetworkTileProvider(),
+            ),
+            // Polyline en doble capa: halo blanco + dorado encima (mejor contraste sobre el mapa)
+            if (points.length >= 2) ...[
+              PolylineLayer(polylines: [
+                Polyline(
+                  points: points,
+                  color: Colors.white,
+                  strokeWidth: 7,
+                ),
+              ]),
+              PolylineLayer(polylines: [
+                Polyline(
+                  points: points,
+                  color: AppColors.gold,
+                  strokeWidth: 4.5,
+                ),
+              ]),
+            ],
+            // Marcadores de paraderos: origen verde · destino rojo · intermedios dorado
+            MarkerLayer(
+              markers: widget.waypoints.asMap().entries.map((entry) {
+                final i = entry.key;
+                final w = entry.value;
+                final lat = (w['lat'] as num?)?.toDouble() ?? 0;
+                final lng = (w['lng'] as num?)?.toDouble() ?? 0;
+                final order = (w['order'] as int? ?? i) + 1;
+                final isFirst = i == 0;
+                final isLast = i == widget.waypoints.length - 1;
+                final selected = _selectedIndex == i;
+
+                return Marker(
+                  point: LatLng(lat, lng),
+                  width: selected ? 38 : 32,
+                  height: selected ? 38 : 32,
+                  alignment: Alignment.center,
+                  child: GestureDetector(
+                    onTap: () => _showStopSheet(i),
+                    child: _StopMarker(
+                      isFirst: isFirst,
+                      isLast: isLast,
+                      order: order,
+                      selected: selected,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
         ),
-        // Polyline azul del recorrido
-        if (points.length >= 2)
-          PolylineLayer(
-            polylines: [
-              Polyline(
-                points: points,
-                color: const Color(0x993B82F6),
-                strokeWidth: 3.5,
+        // Atribución OSM (requerida por la licencia)
+        Positioned(
+          left: 6, bottom: 6,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: Text('© OpenStreetMap',
+                style: AppTheme.inter(fontSize: 8.5, color: AppColors.ink6)),
+          ),
+        ),
+        // Controles flotantes: zoom + recentrar
+        Positioned(
+          right: 8, top: 8,
+          child: Column(
+            children: [
+              _MapControlButton(
+                icon: Icons.add,
+                tooltip: 'Acercar',
+                onTap: _zoomIn,
+              ),
+              const SizedBox(height: 6),
+              _MapControlButton(
+                icon: Icons.remove,
+                tooltip: 'Alejar',
+                onTap: _zoomOut,
+              ),
+              const SizedBox(height: 6),
+              _MapControlButton(
+                icon: Icons.center_focus_strong_outlined,
+                tooltip: 'Centrar ruta',
+                onTap: _fitBounds,
               ),
             ],
           ),
-        // Marcadores de paraderos
-        MarkerLayer(
-          markers: waypoints.asMap().entries.map((entry) {
-            final i = entry.key;
-            final w = entry.value;
-            final lat = (w['lat'] as num?)?.toDouble() ?? 0;
-            final lng = (w['lng'] as num?)?.toDouble() ?? 0;
-            final order = (w['order'] as int? ?? i) + 1;
-            return Marker(
-              point: LatLng(lat, lng),
-              width: 28,
-              height: 28,
-              child: Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.ink3, width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '$order',
-                  style: AppTheme.inter(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.ink7,
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
         ),
       ],
+    );
+  }
+}
+
+// ── Marker visual de paradero ───────────────────────────────────────────────────
+class _StopMarker extends StatelessWidget {
+  final bool isFirst;
+  final bool isLast;
+  final int order;
+  final bool selected;
+
+  const _StopMarker({
+    required this.isFirst,
+    required this.isLast,
+    required this.order,
+    required this.selected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, fg, icon) = isFirst
+        ? (AppColors.apto, Colors.white, Icons.play_arrow_rounded)
+        : isLast
+            ? (AppColors.noApto, Colors.white, Icons.stop_rounded)
+            : (AppColors.gold, AppColors.ink9, null);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bg,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: selected ? 0.35 : 0.22),
+            blurRadius: selected ? 8 : 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: icon != null
+          ? Icon(icon, size: 16, color: fg)
+          : Text(
+              '$order',
+              style: AppTheme.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: fg,
+                tabular: true,
+              ),
+            ),
+    );
+  }
+}
+
+// ── Badge de paradero (usado en bottom sheet) ───────────────────────────────────
+class _StopBadge extends StatelessWidget {
+  final int index;
+  final int total;
+  final int order;
+  const _StopBadge({required this.index, required this.total, required this.order});
+
+  @override
+  Widget build(BuildContext context) {
+    final isFirst = index == 0;
+    final isLast = index == total - 1;
+    final (bg, fg, icon) = isFirst
+        ? (AppColors.apto, Colors.white, Icons.play_arrow_rounded)
+        : isLast
+            ? (AppColors.noApto, Colors.white, Icons.stop_rounded)
+            : (AppColors.gold, AppColors.ink9, null);
+
+    return Container(
+      width: 40, height: 40,
+      decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+      alignment: Alignment.center,
+      child: icon != null
+          ? Icon(icon, size: 20, color: fg)
+          : Text('$order',
+              style: AppTheme.inter(
+                fontSize: 14, fontWeight: FontWeight.w800,
+                color: fg, tabular: true)),
+    );
+  }
+}
+
+// ── Botón flotante para controles del mapa ──────────────────────────────────────
+class _MapControlButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  const _MapControlButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.white,
+        elevation: 2,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox(
+            width: 36, height: 36,
+            child: Icon(icon, size: 18, color: AppColors.ink8),
+          ),
+        ),
+      ),
     );
   }
 }

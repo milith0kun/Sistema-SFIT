@@ -75,8 +75,8 @@ class _TripCheckoutPageState extends ConsumerState<TripCheckoutPage> {
         returnTime: DateTime.now(),
         observations: _obsCtrl.text.trim().isEmpty ? null : _obsCtrl.text.trim(),
       );
-      // Detener tracking GPS
-      ref.read(locationTrackingProvider.notifier).stopTracking();
+      // Detener tracking GPS (drena la cola offline antes de cortar el stream)
+      await ref.read(locationTrackingProvider.notifier).stopTracking();
       if (mounted) {
         // Reemplazamos la pantalla actual por el resumen full-screen del viaje
         // (en lugar de volver a /home con snackbar). El conductor ve métricas
