@@ -266,8 +266,14 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
   /// stream, intenta drenar la cola para no perder puntos pendientes.
   Future<void> stopTracking() async {
     final entryId = state.entryId;
-    if (entryId != null && _lastPosition != null) {
-      _sendOrQueue(entryId: entryId, pos: _lastPosition!, action: 'end');
+    if (entryId != null) {
+      // Si no tenemos _lastPosition (el stream nunca emitió un punto válido
+      // durante el turno), pedimos uno fresco con timeout corto. Sin esto,
+      // `endLocation` y `distanceMeters` no se calculan en el backend.
+      final endPos = _lastPosition ?? await _safeGetPosition();
+      if (endPos != null) {
+        _sendOrQueue(entryId: entryId, pos: endPos, action: 'end');
+      }
     }
     // Drain final con timeout — si la red está caída, se quedan en el box
     // y se mandarán cuando vuelva.

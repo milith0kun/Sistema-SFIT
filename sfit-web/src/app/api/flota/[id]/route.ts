@@ -4,11 +4,13 @@ import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { FleetEntry } from "@/models/FleetEntry";
 import { Driver } from "@/models/Driver";
+import { LocationPing } from "@/models/LocationPing";
 import { Route as RouteModel } from "@/models/Route";
 import { apiResponse, apiError, apiForbidden, apiNotFound, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
+import { haversineMeters } from "@/lib/geo/haversine";
 
 const UpdateSchema = z.object({
   driverId: z.string().refine(isValidObjectId).optional(),
@@ -82,30 +84,86 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (!(await canAccessMunicipality(auth.session, String(entry.municipalityId)))) return apiForbidden();
   }
 
+  const wasOpen = entry.status === "en_ruta" || entry.status === "disponible";
   Object.assign(entry, parsed.data);
 
-  // Si el turno está pasando a 'cerrado', calcular cumplimiento de ruta.
+  // Si el turno está pasando a 'cerrado', calculamos las métricas finales.
+  // Antes solo se calculaba compliance — ahora endLocation, distanceMeters y
+  // durationSeconds también, leyendo desde LocationPing. Esto hace robusto el
+  // cierre aunque el último ping action='end' del LocationTrackingService no
+  // llegue (red caída, GPS apagado al cerrar, etc.).
   const closingNow =
-    parsed.data.status === "cerrado" || parsed.data.status === "auto_cierre";
-  if (closingNow && entry.routeId) {
-    try {
-      const route = await RouteModel.findById(entry.routeId)
-        .select("waypoints")
-        .lean();
-      const total = route?.waypoints?.length ?? 0;
-      const visited = (entry.visitedStops ?? []).length;
-      if (total > 0) {
-        entry.routeCompliancePercentage = Math.round(
-          Math.min(100, (visited / total) * 100),
-        );
-      } else {
-        entry.routeCompliancePercentage = 0;
+    wasOpen &&
+    (parsed.data.status === "cerrado" || parsed.data.status === "auto_cierre");
+
+  if (closingNow) {
+    const now = new Date();
+
+    // 1. Histórico GPS del turno desde la colección dedicada.
+    const pings = await LocationPing.find({ entryId: entry._id })
+      .sort({ ts: 1 })
+      .select("lat lng ts")
+      .lean<Array<{ lat: number; lng: number; ts: Date }>>();
+
+    if (pings.length > 0 && !entry.endLocation) {
+      const last = pings[pings.length - 1];
+      entry.endLocation = { lat: last.lat, lng: last.lng };
+    }
+
+    if (pings.length >= 2 && (entry.distanceMeters == null || entry.distanceMeters === 0)) {
+      let total = 0;
+      for (let i = 1; i < pings.length; i++) {
+        total += haversineMeters(pings[i - 1], pings[i]);
       }
-    } catch (e) {
-      console.error("[flota PATCH] compliance calc", e);
+      entry.distanceMeters = Math.round(total);
+    }
+
+    // 2. Duración: returnTime − departureTime. departureTime es "HH:mm" del
+    //    día de hoy (campo string legacy); returnTime puede venir en el body
+    //    como "HH:mm" o como ISO. Normalizamos a Date sobre `entry.date`.
+    if (entry.durationSeconds == null && entry.departureTime) {
+      const dep = parseTime(entry.departureTime, entry.date);
+      const ret = parseTime(entry.returnTime ?? formatHHmm(now), entry.date);
+      if (dep && ret) {
+        const diff = Math.max(0, Math.round((ret.getTime() - dep.getTime()) / 1000));
+        entry.durationSeconds = diff;
+      }
+    }
+
+    // 3. Compliance de ruta.
+    if (entry.routeId) {
+      try {
+        const route = await RouteModel.findById(entry.routeId)
+          .select("waypoints")
+          .lean();
+        const total = route?.waypoints?.length ?? 0;
+        const visited = (entry.visitedStops ?? []).length;
+        entry.routeCompliancePercentage = total > 0
+          ? Math.round(Math.min(100, (visited / total) * 100))
+          : 0;
+      } catch (e) {
+        console.error("[flota PATCH] compliance calc", e);
+      }
     }
   }
 
   await entry.save();
   return apiResponse({ id: String(entry._id), ...entry.toObject() });
+}
+
+/** Convierte "HH:mm" o ISO a Date sobre `baseDate`. */
+function parseTime(value: string, baseDate: Date): Date | null {
+  if (!value) return null;
+  const hhmm = /^(\d{2}):(\d{2})$/.exec(value);
+  if (hhmm) {
+    const d = new Date(baseDate);
+    d.setHours(parseInt(hhmm[1], 10), parseInt(hhmm[2], 10), 0, 0);
+    return d;
+  }
+  const iso = new Date(value);
+  return Number.isNaN(iso.getTime()) ? null : iso;
+}
+
+function formatHHmm(d: Date): string {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
