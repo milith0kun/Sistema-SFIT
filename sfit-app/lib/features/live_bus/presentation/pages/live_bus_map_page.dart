@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/location_smoother.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import 'bus_detail_sheet.dart';
 import 'live_bus_data.dart';
 
 /// Pantalla "Buses en vivo" para el ciudadano.
@@ -105,13 +105,16 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
         qp['lat'] = _userPos!.latitude;
         qp['lng'] = _userPos!.longitude;
       }
-      // Fetch en paralelo: buses individuales + agregación por ruta.
-      // Si el endpoint de rutas-activas no existe (backend no desplegado aún),
-      // tolerar el error y continuar con los buses solos — la tab "Rutas"
-      // mostrará vacío y las otras vistas siguen funcionales.
+      // Fetch en paralelo:
+      //   - /public/flota/activas → buses transmitiendo ahora con su ETA
+      //   - /public/rutas         → TODAS las rutas activas del municipio
+      //                              (con o sin buses) para el catálogo
+      //                              completo y polylines de fondo en el mapa
+      // Si el endpoint de rutas no existe (backend viejo), toleramos el error
+      // y continuamos con los buses solos — la tab "Rutas" muestra vacío.
       final results = await Future.wait([
         dio.get('/public/flota/activas', queryParameters: qp),
-        dio.get('/public/rutas-activas', queryParameters: qp).then<dynamic>(
+        dio.get('/public/rutas', queryParameters: qp).then<dynamic>(
               (r) => r,
               onError: (_) => null,
             ),
@@ -349,11 +352,13 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
                       : _view == _ViewMode.map
                           ? _MapView(
                               buses: filtered,
+                              allRoutes: _routes,
+                              filterRouteIds: _filterRouteIds,
                               mapCtl: _mapCtl,
                               userPos: _userPos,
                               statusColor: _statusColor,
                               displayPos: _displayPos,
-                              onTapBus: (b) => BusDetailSheet.show(context, b),
+                              onTapBus: (b) => context.push('/buses-en-vivo/${b.id}'),
                               highlight: _highlightedRoute,
                             )
                           : _ListView(
@@ -362,7 +367,7 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
                               formatDistance: _formatDistance,
                               formatEta: _formatEta,
                               hasUserGps: _userPos != null,
-                              onTapBus: (b) => BusDetailSheet.show(context, b),
+                              onTapBus: (b) => context.push('/buses-en-vivo/${b.id}'),
                             )),
         ),
       ]),
@@ -433,6 +438,13 @@ class _ViewToggle extends StatelessWidget {
 // ── Vista Mapa ─────────────────────────────────────────────────────────
 class _MapView extends StatelessWidget {
   final List<BusData> buses;
+  /// Catálogo completo de rutas del municipio. Se dibujan en gris tenue como
+  /// "fondo" para que el ciudadano vea siempre el mapa de rutas aunque no
+  /// haya buses transmitiendo, y para mostrar paraderos al filtrar una.
+  final List<ActiveRouteData> allRoutes;
+  /// Si hay una ruta filtrada, sólo dibujamos esa con paraderos numerados;
+  /// las demás se ocultan para no saturar.
+  final Set<String> filterRouteIds;
   final MapController mapCtl;
   final Position? userPos;
   final Color Function(String) statusColor;
@@ -446,6 +458,8 @@ class _MapView extends StatelessWidget {
 
   const _MapView({
     required this.buses,
+    required this.allRoutes,
+    required this.filterRouteIds,
     required this.mapCtl,
     required this.userPos,
     required this.statusColor,
@@ -502,6 +516,60 @@ class _MapView extends StatelessWidget {
           subdomains: const ['a', 'b', 'c', 'd'],
           userAgentPackageName: 'com.sfit.sfit_app',
         ),
+        // ── Polylines de TODAS las rutas como fondo ──
+        // Cuando NO hay filtro: todas en gris tenue para mostrar el mapa
+        // completo de rutas del municipio aunque no haya buses transmitiendo.
+        // Cuando hay UNA ruta filtrada: dibujamos sólo esa, resaltada.
+        PolylineLayer(
+          polylines: [
+            for (final r in allRoutes)
+              if (filterRouteIds.isEmpty || filterRouteIds.contains(r.routeId))
+                if (r.polylineCoords.isNotEmpty)
+                  Polyline(
+                    points: r.polylineCoords.map((c) => LatLng(c[0], c[1])).toList(),
+                    strokeWidth: filterRouteIds.contains(r.routeId) ? 4 : 2.5,
+                    color: filterRouteIds.contains(r.routeId)
+                        ? AppColors.gold.withValues(alpha: 0.7)
+                        : AppColors.ink4.withValues(alpha: 0.35),
+                  )
+                else if (r.waypoints.length >= 2)
+                  Polyline(
+                    points: r.waypoints.map((w) => LatLng(w.lat, w.lng)).toList(),
+                    strokeWidth: 2,
+                    color: AppColors.ink3.withValues(alpha: 0.4),
+                    pattern: const StrokePattern.dotted(),
+                  ),
+          ],
+        ),
+        // ── Paraderos numerados (solo si hay UNA ruta filtrada) ──
+        if (filterRouteIds.length == 1)
+          for (final r in allRoutes)
+            if (r.routeId == filterRouteIds.first)
+              MarkerLayer(
+                markers: r.waypoints
+                    .map((w) => Marker(
+                          point: LatLng(w.lat, w.lng),
+                          width: 24, height: 24,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: AppColors.goldDark, width: 2),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '${w.order + 1}',
+                              style: AppTheme.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.goldDark,
+                                tabular: true,
+                              ),
+                            ),
+                          ),
+                        ))
+                    .toList(),
+              ),
         // Marcador del ciudadano
         if (userPos != null)
           MarkerLayer(markers: [
@@ -518,7 +586,7 @@ class _MapView extends StatelessWidget {
               ),
             ),
           ]),
-        // Polylines de la ruta de cada bus.
+        // Polylines de la ruta de cada bus (línea más gruesa por encima).
         // Preferencia: geometría real de Google Routes (siguiendo calles)
         // si está cacheada en el backend; fallback a waypoints crudos
         // (líneas rectas entre paraderos) si no — mejor que nada.
@@ -863,27 +931,44 @@ class _RoutesView extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.aptoBg,
-                      border: Border.all(color: AppColors.aptoBorder),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Container(
-                        width: 6, height: 6,
-                        decoration: const BoxDecoration(color: AppColors.apto, shape: BoxShape.circle),
+                  // Badge: con buses → verde "X en vivo", sin buses → gris "Sin buses".
+                  if (r.activeBusCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.aptoBg,
+                        border: Border.all(color: AppColors.aptoBorder),
+                        borderRadius: BorderRadius.circular(999),
                       ),
-                      const SizedBox(width: 5),
-                      Text(
-                        '${r.activeBusCount} bus${r.activeBusCount == 1 ? "" : "es"} en vivo',
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Container(
+                          width: 6, height: 6,
+                          decoration: const BoxDecoration(color: AppColors.apto, shape: BoxShape.circle),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          '${r.activeBusCount} bus${r.activeBusCount == 1 ? "" : "es"} en vivo',
+                          style: AppTheme.inter(
+                            fontSize: 10.5, fontWeight: FontWeight.w700,
+                            color: AppColors.apto, tabular: true),
+                        ),
+                      ]),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.ink1,
+                        border: Border.all(color: AppColors.ink2),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        'Sin buses ahora',
                         style: AppTheme.inter(
                           fontSize: 10.5, fontWeight: FontWeight.w700,
-                          color: AppColors.apto, tabular: true),
+                          color: AppColors.ink5),
                       ),
-                    ]),
-                  ),
+                    ),
                 ]),
 
                 // ── Paradero más cercano + ETA al usuario ──

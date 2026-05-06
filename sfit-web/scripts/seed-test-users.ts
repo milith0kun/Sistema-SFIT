@@ -84,7 +84,11 @@ const USERS: SeedUser[] = [
     email: "ciudadano@sfit.test",
     name: "Ciudadano SFIT",
     role: "ciudadano",
-    scope: "global",
+    // El ciudadano debe pertenecer a un municipio para que el feed público
+    // (/api/public/rutas, /api/public/flota/activas) le devuelva resultados.
+    // El registro normal asigna muni desde la pantalla de signup; los seeds
+    // de prueba lo dejaban en "global" y rompían el flujo.
+    scope: "municipality",
   },
 ];
 

@@ -46,6 +46,7 @@ import '../../features/feed/presentation/pages/feed_detail_page.dart';
 import '../../features/reports/presentation/pages/mis_reportes_page.dart';
 import '../../features/reports/presentation/pages/submit_report_page.dart';
 import '../../features/live_bus/presentation/pages/live_bus_map_page.dart';
+import '../../features/live_bus/presentation/pages/bus_detail_page.dart';
 import '../../features/fiscal/presentation/pages/resolve_appeal_page.dart';
 import '../../features/fiscal/presentation/pages/my_appeals_page.dart';
 import '../../features/fiscal/presentation/pages/create_sanction_page.dart';
@@ -313,6 +314,10 @@ GoRouter router(Ref ref) {
 
       // ── Buses en vivo (ciudadano) ─────────────────────────────
       GoRoute(path: '/buses-en-vivo', builder: (_, __) => const LiveBusMapPage()),
+      GoRoute(
+        path: '/buses-en-vivo/:id',
+        builder: (_, state) => BusDetailPage(busId: state.pathParameters['id']!),
+      ),
 
       // ── Fiscal: apelaciones, mis resueltas y emisión de sanciones ──
       GoRoute(
