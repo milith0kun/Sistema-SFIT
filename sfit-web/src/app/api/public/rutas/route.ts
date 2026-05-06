@@ -3,37 +3,37 @@ import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/db/mongoose";
 import { Route } from "@/models/Route";
 import { FleetEntry } from "@/models/FleetEntry";
+import "@/models/Municipality";
 import { apiResponse } from "@/lib/api/response";
 import { haversineMeters } from "@/lib/geo/haversine";
 
 const STALE_LOCATION_THRESHOLD_MS = 2 * 60_000; // 2 min — coincide con /flota/activas
+const BBOX_DELTA_DEG = 0.3; // ~33 km — radio típico de un bus urbano
 
 type WaypointLite = { order: number; lat: number; lng: number; label?: string };
 
 /**
- * GET /api/public/rutas?municipalityId=<id>&lat=<n>&lng=<n>&limit=<n>
+ * GET /api/public/rutas?lat=&lng=&municipalityId=&limit=
  *
- * Endpoint público (sin auth) que lista TODAS las rutas activas del municipio
- * — con o sin buses transmitiendo en este momento. Pensado para que el
- * ciudadano pueda navegar el catálogo completo de rutas y verlas en el mapa
- * aún cuando no haya buses activos a esa hora.
+ * Endpoint público (sin auth) que lista rutas activas para que el ciudadano
+ * vea TODO lo cercano sin importar el municipio que las administra.
  *
- * Para cada ruta retorna:
- *   - waypoints + polylineCoords (dibujar el recorrido)
- *   - activeBusCount (cuántos buses están transmitiendo ahora mismo)
- *   - nearestStop al ciudadano si vinieron lat/lng
- *   - distanceFromUserMeters al paradero más cercano (sort cuando hay GPS)
+ * - Si vienen `lat`/`lng`: aplica bounding box ±0.3° (~33 km) usando el
+ *   primer waypoint de cada ruta como referencia, y ordena por cercanía.
+ * - Si NO vienen: devuelve todas las rutas activas (con `limit`).
+ * - `municipalityId` es opcional. Si viene, restringe al tenant; si no,
+ *   incluye todos los tenants. Mantenido por compat con el cliente viejo.
+ *
+ * Cada ítem incluye `municipalityName` para que la app pueda mostrar
+ * "Ruta C-1 · Cusco" o "Ruta SJ-2 · San Jerónimo" y el usuario sepa de
+ * qué jurisdicción es.
  */
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const municipalityId = url.searchParams.get("municipalityId");
   const userLatStr = url.searchParams.get("lat");
   const userLngStr = url.searchParams.get("lng");
-  const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") ?? 50)));
-
-  if (!municipalityId || !isValidObjectId(municipalityId)) {
-    return apiResponse({ items: [], total: 0 });
-  }
+  const limit = Math.min(150, Math.max(1, Number(url.searchParams.get("limit") ?? 60)));
 
   const userLat = userLatStr != null && userLatStr !== "" ? Number(userLatStr) : null;
   const userLng = userLngStr != null && userLngStr !== "" ? Number(userLngStr) : null;
@@ -45,19 +45,36 @@ export async function GET(request: NextRequest) {
 
   await connectDB();
 
-  // Catálogo completo de rutas activas del municipio.
-  const routes = await Route.find({ municipalityId, status: "activa" })
-    .select("name code waypoints polylineGeometry direction vehicleTypeKey serviceScope")
+  // Filtros: municipalityId solo si viene; resto siempre.
+  const baseFilter: Record<string, unknown> = { status: "activa" };
+  if (municipalityId && isValidObjectId(municipalityId)) {
+    baseFilter.municipalityId = municipalityId;
+  }
+  // Bounding box geográfico cuando hay GPS — buscamos rutas que tengan al
+  // menos un waypoint dentro de ±0.3° del usuario. No es perfecto (rutas
+  // largas con un waypoint cercano y otro lejano caben), pero alcanza para
+  // filtrar a escala de país y mantener el response chico.
+  if (hasUserCoords) {
+    baseFilter["waypoints"] = {
+      $elemMatch: {
+        lat: { $gte: userLat - BBOX_DELTA_DEG, $lte: userLat + BBOX_DELTA_DEG },
+        lng: { $gte: userLng - BBOX_DELTA_DEG, $lte: userLng + BBOX_DELTA_DEG },
+      },
+    };
+  }
+
+  const routes = await Route.find(baseFilter)
+    .populate("municipalityId", "name ubigeoCode")
+    .select("name code waypoints polylineGeometry direction vehicleTypeKey serviceScope municipalityId")
     .lean();
 
   if (routes.length === 0) {
     return apiResponse({ items: [], total: 0 });
   }
 
-  // Buses transmitiendo agrupados por ruta — usado solo para el contador.
+  // Buses transmitiendo agrupados por ruta — solo del subset que devolvemos.
   const activeEntries = await FleetEntry.find({
     status: "en_ruta",
-    municipalityId,
     routeId: { $in: routes.map((r) => r._id) },
     "currentLocation.updatedAt": { $gte: new Date(Date.now() - STALE_LOCATION_THRESHOLD_MS) },
   })
@@ -107,12 +124,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const muni = r.municipalityId as { _id?: unknown; name?: string; ubigeoCode?: string } | null;
+
     return {
       routeId: String(r._id),
       name: r.name,
       code: r.code ?? null,
       direction: r.direction ?? null,
       vehicleTypeKey: r.vehicleTypeKey ?? null,
+      municipalityId: muni?._id ? String(muni._id) : null,
+      municipalityName: muni?.name ?? null,
       activeBusCount: activeCountByRoute.get(String(r._id)) ?? 0,
       waypoints: waypoints.map((w) => ({
         lat: w.lat,

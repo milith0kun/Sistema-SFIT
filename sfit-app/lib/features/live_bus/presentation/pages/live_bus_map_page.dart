@@ -9,7 +9,6 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/location_smoother.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 import 'live_bus_data.dart';
 
 /// Pantalla "Buses en vivo" para el ciudadano.
@@ -92,15 +91,13 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
   }
 
   Future<void> _fetch() async {
-    final user = ref.read(authProvider).user;
-    final muniId = user?.municipalityId;
-    if (muniId == null || muniId.isEmpty) {
-      if (mounted) setState(() => _loading = false);
-      return;
-    }
+    // Ya NO filtramos por el municipio del ciudadano — mostramos todos los
+    // buses y rutas dentro del bounding box del backend (~33 km del usuario).
+    // El campo `municipalityName` del response permite identificar de qué
+    // jurisdicción es cada bus/ruta.
     try {
       final dio = ref.read(dioClientProvider).dio;
-      final qp = <String, dynamic>{'municipalityId': muniId, 'limit': 50};
+      final qp = <String, dynamic>{'limit': 80};
       if (_userPos != null) {
         qp['lat'] = _userPos!.latitude;
         qp['lng'] = _userPos!.longitude;
@@ -806,6 +803,20 @@ class _ListView extends StatelessWidget {
                         maxLines: 1, overflow: TextOverflow.ellipsis,
                       ),
                     ],
+                    if (b.municipalityName != null) ...[
+                      const SizedBox(height: 2),
+                      Row(children: [
+                        const Icon(Icons.apartment_rounded, size: 11, color: AppColors.ink5),
+                        const SizedBox(width: 3),
+                        Flexible(
+                          child: Text(
+                            b.municipalityName!,
+                            style: AppTheme.inter(fontSize: 10.5, color: AppColors.ink5, fontWeight: FontWeight.w500),
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ]),
+                    ],
                     const SizedBox(height: 4),
                     if (b.nextStopLabel != null)
                       RichText(
@@ -922,12 +933,25 @@ class _RoutesView extends StatelessWidget {
                     const SizedBox(width: 8),
                   ],
                   Expanded(
-                    child: Text(
-                      r.name,
-                      style: AppTheme.inter(
-                        fontSize: 14.5, fontWeight: FontWeight.w700,
-                        color: AppColors.ink9),
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          r.name,
+                          style: AppTheme.inter(
+                            fontSize: 14.5, fontWeight: FontWeight.w700,
+                            color: AppColors.ink9),
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                        ),
+                        if (r.municipalityName != null)
+                          Text(
+                            r.municipalityName!,
+                            style: AppTheme.inter(
+                              fontSize: 11, color: AppColors.ink5,
+                              fontWeight: FontWeight.w500),
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 8),

@@ -61,6 +61,9 @@ class BusData {
   final String? routeId;
   final String? routeName;
   final String? routeCode;
+  /// Nombre del municipio que administra al bus (ej. "Cusco", "San Jerónimo").
+  /// Permite al ciudadano identificar de qué jurisdicción es la unidad.
+  final String? municipalityName;
   final List<BusWaypoint> waypoints;
   /// Geometría real de la ruta siguiendo calles (cacheada en backend con
   /// Google Routes API). Si está disponible, la app dibuja la polyline con
@@ -86,6 +89,7 @@ class BusData {
     this.routeId,
     this.routeName,
     this.routeCode,
+    this.municipalityName,
     this.waypoints = const [],
     this.polylineCoords = const [],
     this.etaByStop = const [],
@@ -120,6 +124,7 @@ class BusData {
       routeId: route?['id'] as String?,
       routeName: route?['name'] as String?,
       routeCode: route?['code'] as String?,
+      municipalityName: j['municipalityName'] as String?,
       waypoints: wpList.map(BusWaypoint.fromJson).toList(),
       polylineCoords: polyCoords,
       etaByStop: etaList.map(BusEtaStop.fromJson).toList(),
@@ -188,6 +193,8 @@ class ActiveRouteData {
   final String? code;
   final String? direction;
   final String? vehicleTypeKey;
+  /// Municipio que administra esta ruta (ej. "Cusco", "San Jerónimo").
+  final String? municipalityName;
   final int activeBusCount;
   final List<BusWaypoint> waypoints;
   final List<List<double>> polylineCoords;
@@ -202,6 +209,7 @@ class ActiveRouteData {
     this.code,
     this.direction,
     this.vehicleTypeKey,
+    this.municipalityName,
     required this.activeBusCount,
     this.waypoints = const [],
     this.polylineCoords = const [],
@@ -230,6 +238,7 @@ class ActiveRouteData {
       code: j['code'] as String?,
       direction: j['direction'] as String?,
       vehicleTypeKey: j['vehicleTypeKey'] as String?,
+      municipalityName: j['municipalityName'] as String?,
       activeBusCount: (j['activeBusCount'] as num?)?.toInt() ?? 0,
       waypoints: wpList.map(BusWaypoint.fromJson).toList(),
       polylineCoords: polyCoords,

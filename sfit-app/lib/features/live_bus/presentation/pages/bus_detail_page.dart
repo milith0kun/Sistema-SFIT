@@ -9,7 +9,6 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/location_smoother.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 import 'live_bus_data.dart';
 
 /// Pantalla completa de detalle de un bus en vivo.
@@ -87,15 +86,10 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
   }
 
   Future<void> _fetch() async {
-    final user = ref.read(authProvider).user;
-    final muniId = user?.municipalityId;
-    if (muniId == null || muniId.isEmpty) {
-      if (mounted) setState(() => _loading = false);
-      return;
-    }
+    // Sin filtro por muni — el backend devuelve buses cercanos al usuario.
     try {
       final dio = ref.read(dioClientProvider).dio;
-      final qp = <String, dynamic>{'municipalityId': muniId, 'limit': 100};
+      final qp = <String, dynamic>{'limit': 150};
       if (_userPos != null) {
         qp['lat'] = _userPos!.latitude;
         qp['lng'] = _userPos!.longitude;
@@ -438,6 +432,22 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
                       bus.routeName!,
                       style: AppTheme.inter(fontSize: 13, color: AppColors.ink6),
                     ),
+                  ],
+                  if (bus.municipalityName != null) ...[
+                    const SizedBox(height: 2),
+                    Row(children: [
+                      const Icon(Icons.apartment_rounded, size: 11, color: AppColors.ink5),
+                      const SizedBox(width: 3),
+                      Flexible(
+                        child: Text(
+                          bus.municipalityName!,
+                          style: AppTheme.inter(
+                            fontSize: 11, color: AppColors.ink5,
+                            fontWeight: FontWeight.w500),
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ]),
                   ],
                 ],
               ),

@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/db/mongoose";
 import { FleetEntry } from "@/models/FleetEntry";
 import { Route } from "@/models/Route";
 import "@/models/Vehicle";
+import "@/models/Municipality";
 import { apiResponse } from "@/lib/api/response";
 import { haversineMeters } from "@/lib/geo/haversine";
 import { routeBetween } from "@/lib/routing/routingService";
@@ -20,17 +21,24 @@ const FALLBACK_SPEED_MS = 4.17; // 15 km/h promedio bus urbano Cusco
 // — evita buses fantasma cuando un conductor olvida hacer checkout.
 const STALE_LOCATION_THRESHOLD_MS = 2 * 60_000; // 2 minutos
 
+// Bounding box de búsqueda cuando hay GPS del ciudadano. ±0.3° ≈ 33 km a la
+// latitud de Cusco. Cubre toda la ciudad y los distritos vecinos.
+const BBOX_DELTA_DEG = 0.3;
+
 /**
- * GET /api/public/flota/activas?municipalityId=<id>&lat=<n>&lng=<n>&limit=<n>
+ * GET /api/public/flota/activas?lat=<n>&lng=<n>&municipalityId=<id>&limit=<n>
  *
  * Endpoint público (sin auth) para ciudadanos: lista los buses con turno
  * activo (en_ruta) con su posición GPS, ruta y ETA por cada paradero.
  * No expone datos del conductor (anonimizado).
  *
- * Si vienen `lat`/`lng` del ciudadano:
- *   - Cada item incluye `distanceFromUserMeters` (haversine al bus).
- *   - Resultado ordenado ascendente por esa distancia (los más cercanos primero).
- * Si no vienen, mantiene orden de inserción de Mongo y omite el campo.
+ * Filtros:
+ *   - `lat`/`lng` del ciudadano (opcional): aplica bounding box ±0.3° (~33km)
+ *     y ordena por cercanía. Cada item trae `distanceFromUserMeters`.
+ *   - `municipalityId` (opcional, mantenido por compat): si viene restringe
+ *     al tenant; si no, devuelve buses de cualquier municipio.
+ *
+ * Cada item trae `municipalityName` para que la app muestre la jurisdicción.
  *
  * `etaByStop[]`: para cada paradero NO visitado, calcula ETA acumulado
  * encadenado (bus → wp1 → wp2 → ... → wpN). El último elemento es el
@@ -41,11 +49,7 @@ export async function GET(request: NextRequest) {
   const municipalityId = url.searchParams.get("municipalityId");
   const userLatStr = url.searchParams.get("lat");
   const userLngStr = url.searchParams.get("lng");
-  const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") ?? 50)));
-
-  if (!municipalityId || !isValidObjectId(municipalityId)) {
-    return apiResponse({ items: [], total: 0 });
-  }
+  const limit = Math.min(150, Math.max(1, Number(url.searchParams.get("limit") ?? 60)));
 
   const userLat = userLatStr != null && userLatStr !== "" ? Number(userLatStr) : null;
   const userLng = userLngStr != null && userLngStr !== "" ? Number(userLngStr) : null;
@@ -57,16 +61,34 @@ export async function GET(request: NextRequest) {
 
   await connectDB();
 
-  const entries = await FleetEntry.find({
+  const filter: Record<string, unknown> = {
     status: "en_ruta",
-    municipalityId,
     "currentLocation.lat": { $exists: true },
     "currentLocation.lng": { $exists: true },
     "currentLocation.updatedAt": { $gte: new Date(Date.now() - STALE_LOCATION_THRESHOLD_MS) },
-  })
+  };
+  if (municipalityId && isValidObjectId(municipalityId)) {
+    filter.municipalityId = municipalityId;
+  }
+  if (hasUserCoords) {
+    // Bounding box rápido contra la posición actual del bus. No es perfecto
+    // (rutas largas siempre estarán cerca aunque el bus esté lejos), pero
+    // mantiene el response chico cuando crece la flota nacional.
+    filter["currentLocation.lat"] = {
+      $gte: userLat - BBOX_DELTA_DEG,
+      $lte: userLat + BBOX_DELTA_DEG,
+    };
+    filter["currentLocation.lng"] = {
+      $gte: userLng - BBOX_DELTA_DEG,
+      $lte: userLng + BBOX_DELTA_DEG,
+    };
+  }
+
+  const entries = await FleetEntry.find(filter)
     .populate("vehicleId", "plate brand model vehicleTypeKey status")
     .populate("routeId")
-    .select("vehicleId routeId currentLocation visitedStops departureTime offRouteSince")
+    .populate("municipalityId", "name ubigeoCode")
+    .select("vehicleId routeId municipalityId currentLocation visitedStops departureTime offRouteSince")
     .lean();
 
   // Procesamos en paralelo — Google Routes para el primer hop de cada bus.
@@ -96,6 +118,7 @@ export async function GET(request: NextRequest) {
           distanceMeters?: number;
         } | null;
       } | null;
+      const muni = e.municipalityId as { _id?: unknown; name?: string } | null;
 
       // ── Calcular ETA encadenada por cada paradero pendiente ──
       const waypoints = (route?.waypoints ?? []).sort((a, b) => a.order - b.order);
@@ -200,6 +223,8 @@ export async function GET(request: NextRequest) {
         plate: vehicle?.plate ?? "—",
         vehicleType: vehicle?.vehicleTypeKey ?? "omnibus",
         vehicleStatus: vehicle?.status ?? "apto",
+        municipalityId: muni?._id ? String(muni._id) : null,
+        municipalityName: muni?.name ?? null,
         route: route
           ? {
               id: String(route._id),
