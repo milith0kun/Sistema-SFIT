@@ -19,6 +19,49 @@ import type { ICurrentLocation, IVisitedStop } from "@/models/FleetEntry";
  */
 const LIVE_TRACK_POINTS_LIMIT = 50;
 
+/**
+ * Detección de paradas aprendidas a partir del trazo. Una parada existe
+ * cuando el bus permanece en un radio < `LEARNED_STOP_RADIUS` durante más
+ * que `LEARNED_STOP_MIN_DURATION`. Esto permite "aprender" paraderos sin
+ * que el conductor los marque manualmente — el sistema los infiere del
+ * comportamiento real.
+ */
+const LEARNED_STOP_RADIUS_M = 15;
+const LEARNED_STOP_MIN_DURATION_MS = 30_000;
+const LEARNED_STOP_MERGE_RADIUS_M = 30;
+
+function detectLearnedStops(
+  pings: Array<{ lat: number; lng: number; ts: Date }>,
+): Array<{ lat: number; lng: number; durationSeconds: number }> {
+  if (pings.length < 2) return [];
+  const stops: Array<{ lat: number; lng: number; durationSeconds: number }> = [];
+
+  let clusterStart = 0;
+  for (let i = 1; i < pings.length; i++) {
+    const head = pings[clusterStart];
+    const cur = pings[i];
+    const dist = haversineMeters(head, cur);
+    if (dist <= LEARNED_STOP_RADIUS_M) continue;
+    // Cerramos cluster anterior si duró suficiente.
+    const dur = pings[i - 1].ts.getTime() - head.ts.getTime();
+    if (dur >= LEARNED_STOP_MIN_DURATION_MS) {
+      // Centroide simple del cluster.
+      const cluster = pings.slice(clusterStart, i);
+      const cLat = cluster.reduce((s, p) => s + p.lat, 0) / cluster.length;
+      const cLng = cluster.reduce((s, p) => s + p.lng, 0) / cluster.length;
+      // Mergear si está cerca de uno ya detectado (mismo paradero visitado dos veces).
+      const existing = stops.find((s) => haversineMeters(s, { lat: cLat, lng: cLng }) <= LEARNED_STOP_MERGE_RADIUS_M);
+      if (existing) {
+        existing.durationSeconds += Math.round(dur / 1000);
+      } else {
+        stops.push({ lat: cLat, lng: cLng, durationSeconds: Math.round(dur / 1000) });
+      }
+    }
+    clusterStart = i;
+  }
+  return stops;
+}
+
 // Factor empírico de fallback para convertir distancia haversine a tiempo
 // realista en Cusco urbano (calles + tráfico + paradas). 1.35 viene de
 // medir varios trayectos contra Google Maps.
@@ -100,9 +143,13 @@ export async function GET(request: NextRequest) {
     .select("vehicleId routeId municipalityId currentLocation visitedStops departureTime offRouteSince")
     .lean();
 
-  // Trazo en vivo (últimos N pings) por cada turno activo. Se hace en una
-  // sola query agregada para evitar N+1 cuando hay muchos buses.
+  // Trazo en vivo (últimos N pings) por cada turno activo + paradas
+  // aprendidas (clusters de puntos donde el bus se quedó >30s).
   const trackPointsByEntry = new Map<string, Array<{ lat: number; lng: number }>>();
+  const learnedStopsByEntry = new Map<
+    string,
+    Array<{ lat: number; lng: number; durationSeconds: number }>
+  >();
   if (entries.length > 0) {
     const entryIds = entries.map((e) => e._id);
     const ranked = await LocationPing.aggregate<{
@@ -115,10 +162,12 @@ export async function GET(request: NextRequest) {
       { $project: { points: { $slice: ["$points", LIVE_TRACK_POINTS_LIMIT] } } },
     ]);
     for (const r of ranked) {
-      // Reordenar a cronológico ascendente para que dibujar la polyline
-      // siga la dirección real del recorrido.
-      const ascending = [...r.points].reverse().map((p) => ({ lat: p.lat, lng: p.lng }));
-      trackPointsByEntry.set(String(r._id), ascending);
+      // Reordenar a cronológico ascendente: necesario tanto para dibujar la
+      // polyline en la dirección correcta como para la detección de paradas.
+      const ascending = [...r.points].reverse();
+      const id = String(r._id);
+      trackPointsByEntry.set(id, ascending.map((p) => ({ lat: p.lat, lng: p.lng })));
+      learnedStopsByEntry.set(id, detectLearnedStops(ascending));
     }
   }
 
@@ -250,6 +299,7 @@ export async function GET(request: NextRequest) {
         : null;
 
       const liveTrack = trackPointsByEntry.get(String(e._id)) ?? [];
+      const learnedStops = learnedStopsByEntry.get(String(e._id)) ?? [];
       return {
         id: String(e._id),
         plate: vehicle?.plate ?? "—",
@@ -258,6 +308,7 @@ export async function GET(request: NextRequest) {
         municipalityId: muni?._id ? String(muni._id) : null,
         municipalityName: muni?.name ?? null,
         liveTrack,
+        learnedStops,
         route: route
           ? {
               id: String(route._id),

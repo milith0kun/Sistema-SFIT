@@ -43,14 +43,21 @@ const BTN_PRIMARY: React.CSSProperties = {
   fontFamily: "inherit", transition: "opacity 0.15s",
 };
 
-const ROLE_META: Record<string, { label: string; desc: string; needsMuni: boolean; needsProv: boolean }> = {
-  super_admin:      { label: "Super Administrador",      desc: "Acceso total al sistema — puede crear y gestionar todo", needsProv: false, needsMuni: false },
-  admin_provincial: { label: "Administrador Provincial", desc: "Supervisa todas las municipalidades de su provincia", needsProv: true,  needsMuni: false },
-  admin_municipal:  { label: "Administrador Municipal",  desc: "Administra una municipalidad específica",              needsProv: true,  needsMuni: true  },
-  fiscal:           { label: "Fiscal / Inspector", desc: "Realiza inspecciones en campo",                   needsProv: true,  needsMuni: true  },
-  operador:         { label: "Operador",          desc: "Administra la flota de una empresa de transporte",   needsProv: true,  needsMuni: true  },
-  conductor:        { label: "Conductor",         desc: "Conductor registrado en una empresa",               needsProv: true,  needsMuni: true  },
-  ciudadano:        { label: "Ciudadano",         desc: "Ciudadano reportador — acceso global, sin municipio", needsProv: false, needsMuni: false },
+// showProv/showMuni → ¿se ofrecen los selectores?
+// requireProv/requireMuni → ¿son obligatorios al guardar?
+// Para fiscal/operador/conductor el territorio es opcional: el admin puede asignarlo después.
+const ROLE_META: Record<string, {
+  label: string; desc: string;
+  showProv: boolean; showMuni: boolean;
+  requireProv: boolean; requireMuni: boolean;
+}> = {
+  super_admin:      { label: "Super Administrador",      desc: "Acceso total al sistema — puede crear y gestionar todo", showProv: false, showMuni: false, requireProv: false, requireMuni: false },
+  admin_provincial: { label: "Administrador Provincial", desc: "Supervisa todas las municipalidades de su provincia",   showProv: true,  showMuni: false, requireProv: true,  requireMuni: false },
+  admin_municipal:  { label: "Administrador Municipal",  desc: "Administra una municipalidad específica",                showProv: true,  showMuni: true,  requireProv: true,  requireMuni: true  },
+  fiscal:           { label: "Fiscal / Inspector",       desc: "Realiza inspecciones en campo",                          showProv: true,  showMuni: true,  requireProv: false, requireMuni: false },
+  operador:         { label: "Operador",                 desc: "Administra la flota de una empresa de transporte",       showProv: true,  showMuni: true,  requireProv: false, requireMuni: false },
+  conductor:        { label: "Conductor",                desc: "Conductor registrado en una empresa",                    showProv: true,  showMuni: true,  requireProv: false, requireMuni: false },
+  ciudadano:        { label: "Ciudadano",                desc: "Ciudadano reportador — acceso global, sin municipio",     showProv: false, showMuni: false, requireProv: false, requireMuni: false },
 };
 
 function generatePassword(): string {
@@ -82,7 +89,7 @@ export default function NuevoUsuarioPage() {
   const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState(() => generatePassword());
   const [showPass, setShowPass] = useState(false);
-  const [selRole,  setSelRole]  = useState<string>("admin_municipal");
+  const [selRole,  setSelRole]  = useState<string>("conductor");
   const [selProv,  setSelProv]  = useState("");
   const [selMuni,  setSelMuni]  = useState("");
   const [selStatus, setSelStatus] = useState<"activo" | "pendiente">("activo");
@@ -169,8 +176,8 @@ export default function NuevoUsuarioPage() {
     if (!name.trim())    errs.name     = "El nombre es requerido";
     if (!email.trim())   errs.email    = "El correo es requerido";
     if (password.length < 8) errs.password = "Mínimo 8 caracteres";
-    if (meta.needsProv && !selProv)  errs.provinceId     = "Seleccione la provincia";
-    if (meta.needsMuni && !selMuni)  errs.municipalityId = "Seleccione la municipalidad";
+    if (meta.requireProv && !selProv)  errs.provinceId     = "Seleccione la provincia";
+    if (meta.requireMuni && !selMuni)  errs.municipalityId = "Seleccione la municipalidad";
     if (completeNow) {
       if (!/^\d{6,12}$/.test(dni.trim()))   errs.dni   = "DNI debe tener entre 6 y 12 dígitos";
       if (phone.trim().length < 7)          errs.phone = "Teléfono requerido";
@@ -189,8 +196,8 @@ export default function NuevoUsuarioPage() {
           password,
           role:           selRole,
           status:         selStatus,
-          provinceId:     meta.needsProv ? (selProv || undefined) : undefined,
-          municipalityId: meta.needsMuni ? (selMuni || undefined) : undefined,
+          provinceId:     meta.showProv && selProv ? selProv : undefined,
+          municipalityId: meta.showMuni && selMuni ? selMuni : undefined,
           // Flujo híbrido: password siempre temporal (el usuario la cambia al primer login).
           passwordIsTemporary: true,
           completeProfileNow:  completeNow,
@@ -247,8 +254,13 @@ export default function NuevoUsuarioPage() {
   const cardHead: React.CSSProperties = {
     padding: "16px 24px", borderBottom: `1px solid ${INK1}`,
     fontWeight: 700, fontSize: "0.9375rem", color: INK9,
+    display: "flex", alignItems: "center", justifyContent: "space-between",
   };
   const cardBody: React.CSSProperties = { padding: "22px 24px" };
+  const optionalTag: React.CSSProperties = {
+    fontSize: "0.6875rem", fontWeight: 700, color: INK5,
+    letterSpacing: "0.08em", textTransform: "uppercase",
+  };
 
   return (
     <div className="flex flex-col gap-4 animate-fade-in">
@@ -276,9 +288,92 @@ export default function NuevoUsuarioPage() {
           {/* ── Columna principal ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-            {/* Datos personales */}
+            {/* 1 · Rol */}
             <div style={card}>
-              <div style={cardHead}>Datos personales</div>
+              <div style={cardHead}><span>1 · Rol del usuario</span></div>
+              <div style={cardBody}>
+                <div className="cols-2-responsive" style={{ gap: 10 }}>
+                  {Object.entries(ROLE_META).map(([role, m]) => {
+                    const selected = selRole === role;
+                    return (
+                      <button key={role} type="button"
+                        onClick={() => { setSelRole(role); setSelProv(""); setSelMuni(""); }}
+                        style={{
+                          padding: "12px 16px", borderRadius: 10, cursor: "pointer",
+                          textAlign: "left", fontFamily: "inherit",
+                          border: selected ? `2px solid ${INK9}` : `1.5px solid ${INK2}`,
+                          background: selected ? INK1 : "#fff",
+                          transition: "all 0.15s",
+                        }}>
+                        <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9, marginBottom: 3 }}>{m.label}</div>
+                        <div style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.4 }}>{m.desc}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* 2 · Asignación territorial — sólo si el rol la usa */}
+            {meta.showProv && (
+              <div style={card}>
+                <div style={cardHead}>
+                  <span>2 · Asignación territorial</span>
+                  {!meta.requireProv && <span style={optionalTag}>Opcional</span>}
+                </div>
+                <div style={cardBody}>
+                  {!meta.requireProv && (
+                    <p style={{ fontSize: "0.8125rem", color: INK6, marginBottom: 14, lineHeight: 1.5 }}>
+                      Podés dejar esto en blanco y asignarlo más tarde desde la ficha del usuario.
+                    </p>
+                  )}
+                  <div className={meta.showMuni ? "cols-2-responsive" : ""} style={meta.showMuni ? undefined : { display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+                    <div>
+                      <label style={LABEL}>
+                        Provincia {meta.requireProv && <span style={{ color: RED }}>*</span>}
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <select value={selProv} onChange={e => { setSelProv(e.target.value); setSelMuni(""); }}
+                          style={{ ...FIELD, appearance: "none", paddingRight: 36, cursor: "pointer", borderColor: fieldErrors.provinceId ? RED : INK2 }}>
+                          <option value="">— {meta.requireProv ? "Seleccione provincia" : "Sin asignar"} —</option>
+                          {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                        <svg viewBox="0 0 10 6" width="10" height="10" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} fill="none">
+                          <path d="M1 1l4 4 4-4" stroke={INK5} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                      <FieldErr k="provinceId" />
+                    </div>
+
+                    {meta.showMuni && (
+                      <div>
+                        <label style={LABEL}>
+                          Municipalidad {meta.requireMuni && <span style={{ color: RED }}>*</span>}
+                        </label>
+                        <div style={{ position: "relative" }}>
+                          <select value={selMuni} onChange={e => setSelMuni(e.target.value)}
+                            disabled={!selProv}
+                            style={{ ...FIELD, appearance: "none", paddingRight: 36, cursor: selProv ? "pointer" : "default", opacity: selProv ? 1 : 0.5, borderColor: fieldErrors.municipalityId ? RED : INK2 }}>
+                            <option value="">— {meta.requireMuni ? "Seleccione municipalidad" : "Sin asignar"} —</option>
+                            {filteredMunis.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                          </select>
+                          <svg viewBox="0 0 10 6" width="10" height="10" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} fill="none">
+                            <path d="M1 1l4 4 4-4" stroke={INK5} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                        <FieldErr k="municipalityId" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 3 · Datos del usuario */}
+            <div style={card}>
+              <div style={cardHead}>
+                <span>{meta.showProv ? "3" : "2"} · Datos del usuario</span>
+              </div>
               <div style={cardBody}>
                 <div className="cols-2-responsive">
                   <div style={{ gridColumn: "1 / -1" }}>
@@ -303,253 +398,194 @@ export default function NuevoUsuarioPage() {
                     />
                     <FieldErr k="email" />
                   </div>
-                  <div style={{ gridColumn: "1 / -1" }}>
-                    <label style={LABEL}>Contraseña inicial <span style={{ color: RED }}>*</span></label>
-                    <div style={{ position: "relative" }}>
-                      <input
-                        type={showPass ? "text" : "password"}
-                        value={password} onChange={e => setPassword(e.target.value)}
-                        style={{ ...FIELD, paddingRight: 88, borderColor: fieldErrors.password ? RED : INK2, fontFamily: showPass ? "inherit" : "monospace" }}
-                        onFocus={e => { e.currentTarget.style.borderColor = INK9; }}
-                        onBlur={e => { e.currentTarget.style.borderColor = fieldErrors.password ? RED : INK2; }}
-                      />
-                      <div style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 4 }}>
-                        <button type="button" title="Generar contraseña"
-                          onClick={() => setPassword(generatePassword())}
-                          style={{ width: 32, height: 32, border: `1.5px solid ${INK2}`, borderRadius: 7, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <RefreshCw size={13} color={INK5} />
-                        </button>
-                        <button type="button" title={showPass ? "Ocultar" : "Mostrar"}
-                          onClick={() => setShowPass(v => !v)}
-                          style={{ width: 32, height: 32, border: `1.5px solid ${INK2}`, borderRadius: 7, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          {showPass ? <EyeOff size={13} color={INK5} /> : <Eye size={13} color={INK5} />}
-                        </button>
-                      </div>
-                    </div>
-                    <FieldErr k="password" />
-                    <p style={{ fontSize: "0.75rem", color: INK5, marginTop: 6 }}>
-                      Es una contraseña <strong>temporal</strong> — el usuario deberá cambiarla en su primer ingreso. Compártesela por canal seguro.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Rol */}
-            <div style={card}>
-              <div style={cardHead}>Rol del usuario</div>
-              <div style={cardBody}>
-                <div className="cols-2-responsive" style={{ gap: 10, marginBottom: 18 }}>
-                  {Object.entries(ROLE_META).map(([role, m]) => {
-                    const selected = selRole === role;
-                    return (
-                      <button key={role} type="button" onClick={() => { setSelRole(role); setSelMuni(""); }}
-                        style={{
-                          padding: "12px 16px", borderRadius: 10, cursor: "pointer",
-                          textAlign: "left", fontFamily: "inherit",
-                          border: selected ? `2px solid ${INK9}` : `1.5px solid ${INK2}`,
-                          background: selected ? INK1 : "#fff",
-                          transition: "all 0.15s",
-                        }}>
-                        <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9, marginBottom: 3 }}>{m.label}</div>
-                        <div style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.4 }}>{m.desc}</div>
-                      </button>
-                    );
-                  })}
                 </div>
 
-                {/* Provincia / Municipio (condicional al rol) */}
-                {meta.needsProv && (
-                  <div className={meta.needsMuni ? "cols-2-responsive" : ""} style={meta.needsMuni ? undefined : { display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+                <div style={{ marginTop: 16 }}>
+                  <label style={{
+                    display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer",
+                    padding: "10px 12px", borderRadius: 9,
+                    border: `1.5px solid ${completeNow ? INK9 : INK2}`,
+                    background: completeNow ? INK1 : "#fff",
+                    transition: "all 0.15s",
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={completeNow}
+                      onChange={(e) => setCompleteNow(e.target.checked)}
+                      style={{ marginTop: 2, accentColor: INK9, cursor: "pointer" }}
+                    />
                     <div>
-                      <label style={LABEL}>Provincia <span style={{ color: RED }}>*</span></label>
-                      <div style={{ position: "relative" }}>
-                        <select value={selProv} onChange={e => { setSelProv(e.target.value); setSelMuni(""); }}
-                          style={{ ...FIELD, appearance: "none", paddingRight: 36, cursor: "pointer", borderColor: fieldErrors.provinceId ? RED : INK2 }}>
-                          <option value="">— Seleccione provincia —</option>
-                          {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
-                        <svg viewBox="0 0 10 6" width="10" height="10" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} fill="none">
-                          <path d="M1 1l4 4 4-4" stroke={INK5} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
+                      <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9 }}>
+                        Completar DNI y teléfono ahora
                       </div>
-                      <FieldErr k="provinceId" />
+                      <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 2, lineHeight: 1.4 }}>
+                        Si lo dejás desmarcado, el usuario completará DNI y teléfono en su primer ingreso.
+                        Marcalo solo si vos ya tenés esos datos a mano.
+                      </div>
                     </div>
+                  </label>
 
-                    {meta.needsMuni && (
-                      <div>
-                        <label style={LABEL}>Municipalidad <span style={{ color: RED }}>*</span></label>
-                        <div style={{ position: "relative" }}>
-                          <select value={selMuni} onChange={e => setSelMuni(e.target.value)}
-                            disabled={!selProv}
-                            style={{ ...FIELD, appearance: "none", paddingRight: 36, cursor: selProv ? "pointer" : "default", opacity: selProv ? 1 : 0.5, borderColor: fieldErrors.municipalityId ? RED : INK2 }}>
-                            <option value="">— Seleccione municipalidad —</option>
-                            {filteredMunis.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                          </select>
-                          <svg viewBox="0 0 10 6" width="10" height="10" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} fill="none">
-                            <path d="M1 1l4 4 4-4" stroke={INK5} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
+                  {completeNow && (
+                    <div style={{ marginTop: 16 }}>
+                      <div className="cols-2-responsive">
+                        <div>
+                          <label style={LABEL}>
+                            DNI <span style={{ color: RED }}>*</span>
+                            <span style={{ color: INK5, fontWeight: 500, textTransform: "none", letterSpacing: 0, marginLeft: 6 }}>
+                              (verificación RENIEC)
+                            </span>
+                          </label>
+                          <div style={{ position: "relative" }}>
+                            <input
+                              value={dni}
+                              onChange={(e) => setDni(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                              placeholder="12345678"
+                              inputMode="numeric"
+                              style={{ ...FIELD,
+                                       fontFamily: "ui-monospace,monospace",
+                                       paddingRight: 40,
+                                       borderColor: fieldErrors.dni ? RED
+                                                  : dniLookup.state === "ok" ? GRN : INK2 }}
+                            />
+                            <div style={{
+                              position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+                              pointerEvents: "none",
+                            }}>
+                              {dniLookup.state === "loading" && <Loader2 size={16} color={INK5} style={{ animation: "spin 0.7s linear infinite" }} />}
+                              {dniLookup.state === "ok"      && <CheckCircle size={16} color={GRN} />}
+                              {dniLookup.state === "not_found" && <Search size={16} color={INK5} />}
+                              {dniLookup.state === "error"   && <AlertTriangle size={16} color={RED} />}
+                            </div>
+                          </div>
+                          <FieldErr k="dni" />
                         </div>
-                        <FieldErr k="municipalityId" />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Onboarding — completar perfil ahora (opcional) */}
-            <div style={card}>
-              <div style={cardHead}>Datos personales del usuario</div>
-              <div style={cardBody}>
-                <label style={{
-                  display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer",
-                  padding: "10px 12px", borderRadius: 9,
-                  border: `1.5px solid ${completeNow ? INK9 : INK2}`,
-                  background: completeNow ? INK1 : "#fff",
-                  transition: "all 0.15s",
-                }}>
-                  <input
-                    type="checkbox"
-                    checked={completeNow}
-                    onChange={(e) => setCompleteNow(e.target.checked)}
-                    style={{ marginTop: 2, accentColor: INK9, cursor: "pointer" }}
-                  />
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9 }}>
-                      Completar perfil del usuario ahora
-                    </div>
-                    <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 2, lineHeight: 1.4 }}>
-                      Si dejás esto desmarcado, el usuario completará DNI y teléfono en su primer ingreso.
-                      Marcalo solo si vos ya tenés esos datos a mano.
-                    </div>
-                  </div>
-                </label>
-
-                {completeNow && (
-                  <div style={{ marginTop: 16 }}>
-                    <div className="cols-2-responsive">
-                      <div>
-                        <label style={LABEL}>
-                          DNI <span style={{ color: RED }}>*</span>
-                          <span style={{ color: INK5, fontWeight: 500, textTransform: "none", letterSpacing: 0, marginLeft: 6 }}>
-                            (verificación RENIEC)
-                          </span>
-                        </label>
-                        <div style={{ position: "relative" }}>
+                        <div>
+                          <label style={LABEL}>Teléfono <span style={{ color: RED }}>*</span></label>
                           <input
-                            value={dni}
-                            onChange={(e) => setDni(e.target.value.replace(/\D/g, "").slice(0, 8))}
-                            placeholder="12345678"
-                            inputMode="numeric"
-                            style={{ ...FIELD,
-                                     fontFamily: "ui-monospace,monospace",
-                                     paddingRight: 40,
-                                     borderColor: fieldErrors.dni ? RED
-                                                : dniLookup.state === "ok" ? GRN : INK2 }}
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            placeholder="+51 999 999 999"
+                            style={{ ...FIELD, borderColor: fieldErrors.phone ? RED : INK2 }}
                           />
-                          <div style={{
-                            position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
-                            pointerEvents: "none",
-                          }}>
-                            {dniLookup.state === "loading" && <Loader2 size={16} color={INK5} style={{ animation: "spin 0.7s linear infinite" }} />}
-                            {dniLookup.state === "ok"      && <CheckCircle size={16} color={GRN} />}
-                            {dniLookup.state === "not_found" && <Search size={16} color={INK5} />}
-                            {dniLookup.state === "error"   && <AlertTriangle size={16} color={RED} />}
-                          </div>
+                          <FieldErr k="phone" />
                         </div>
-                        <FieldErr k="dni" />
                       </div>
-                      <div>
-                        <label style={LABEL}>Teléfono <span style={{ color: RED }}>*</span></label>
-                        <input
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          placeholder="+51 999 999 999"
-                          style={{ ...FIELD, borderColor: fieldErrors.phone ? RED : INK2 }}
-                        />
-                        <FieldErr k="phone" />
-                      </div>
-                    </div>
 
-                    {dniLookup.state === "ok" && (
-                      <div style={{
-                        marginTop: 10, padding: "10px 14px",
-                        background: GRN_BG, border: `1.5px solid ${GRN_BD}`, borderRadius: 9,
-                        display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between",
-                      }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                          <CheckCircle size={14} color={GRN} style={{ flexShrink: 0 }} />
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: "0.6875rem", fontWeight: 700, color: GRN, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                              RENIEC
-                            </div>
-                            <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9 }}>
-                              {dniLookup.nombreCompleto}
+                      {dniLookup.state === "ok" && (
+                        <div style={{
+                          marginTop: 10, padding: "10px 14px",
+                          background: GRN_BG, border: `1.5px solid ${GRN_BD}`, borderRadius: 9,
+                          display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between",
+                        }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                            <CheckCircle size={14} color={GRN} style={{ flexShrink: 0 }} />
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: "0.6875rem", fontWeight: 700, color: GRN, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                                RENIEC
+                              </div>
+                              <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9 }}>
+                                {dniLookup.nombreCompleto}
+                              </div>
                             </div>
                           </div>
+                          {name.trim().toLowerCase() !== dniLookup.nombreCompleto.toLowerCase() && (
+                            <button
+                              type="button"
+                              onClick={() => setName(dniLookup.nombreCompleto)}
+                              style={{
+                                height: 30, padding: "0 12px", borderRadius: 8,
+                                border: `1.5px solid ${GRN}`, background: "#fff", color: GRN,
+                                fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                                flexShrink: 0,
+                              }}
+                            >
+                              Usar este nombre
+                            </button>
+                          )}
                         </div>
-                        {name.trim().toLowerCase() !== dniLookup.nombreCompleto.toLowerCase() && (
-                          <button
-                            type="button"
-                            onClick={() => setName(dniLookup.nombreCompleto)}
-                            style={{
-                              height: 30, padding: "0 12px", borderRadius: 8,
-                              border: `1.5px solid ${GRN}`, background: "#fff", color: GRN,
-                              fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-                              flexShrink: 0,
-                            }}
-                          >
-                            Usar este nombre
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    {dniLookup.state === "not_found" && (
-                      <div style={{
-                        marginTop: 10, padding: "10px 14px",
-                        background: "#FFFBEB", border: "1.5px solid #FDE68A", borderRadius: 9,
-                        fontSize: "0.75rem", color: "#92400E",
-                        display: "flex", alignItems: "center", gap: 8,
-                      }}>
-                        <AlertTriangle size={13} />
-                        DNI no encontrado en RENIEC. Verificar antes de guardar.
-                      </div>
-                    )}
-                  </div>
-                )}
+                      )}
+                      {dniLookup.state === "not_found" && (
+                        <div style={{
+                          marginTop: 10, padding: "10px 14px",
+                          background: "#FFFBEB", border: "1.5px solid #FDE68A", borderRadius: 9,
+                          fontSize: "0.75rem", color: "#92400E",
+                          display: "flex", alignItems: "center", gap: 8,
+                        }}>
+                          <AlertTriangle size={13} />
+                          DNI no encontrado en RENIEC. Verificar antes de guardar.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Estado inicial */}
+            {/* 4 · Acceso a la cuenta */}
             <div style={card}>
-              <div style={cardHead}>Estado inicial de la cuenta</div>
-              <div style={{ ...cardBody, display: "flex", gap: 10 }}>
-                {(["activo", "pendiente"] as const).map(s => {
-                  const isSelected = selStatus === s;
-                  const colors = s === "activo"
-                    ? { color: GRN,       bg: GRN_BG,   bd: GRN_BD }
-                    : { color: "#92400e", bg: "#FFFBEB", bd: "#FDE68A" };
-                  return (
-                    <button key={s} type="button" onClick={() => setSelStatus(s)}
-                      style={{
-                        flex: 1, padding: "12px 16px", borderRadius: 10, cursor: "pointer",
-                        textAlign: "left", fontFamily: "inherit",
-                        border: isSelected ? `2px solid ${colors.color}` : `1.5px solid ${INK2}`,
-                        background: isSelected ? colors.bg : "#fff",
-                        transition: "all 0.15s",
-                      }}>
-                      <div style={{ fontWeight: 700, fontSize: "0.875rem", color: isSelected ? colors.color : INK9, marginBottom: 2 }}>
-                        {s === "activo" ? "Activo" : "Pendiente"}
-                      </div>
-                      <div style={{ fontSize: "0.75rem", color: INK5 }}>
-                        {s === "activo"
-                          ? "El usuario puede iniciar sesión de inmediato"
-                          : "El usuario debe ser aprobado antes de acceder"}
-                      </div>
-                    </button>
-                  );
-                })}
+              <div style={cardHead}>
+                <span>{meta.showProv ? "4" : "3"} · Acceso a la cuenta</span>
+              </div>
+              <div style={cardBody}>
+                <div>
+                  <label style={LABEL}>Contraseña inicial <span style={{ color: RED }}>*</span></label>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type={showPass ? "text" : "password"}
+                      value={password} onChange={e => setPassword(e.target.value)}
+                      style={{ ...FIELD, paddingRight: 88, borderColor: fieldErrors.password ? RED : INK2, fontFamily: showPass ? "inherit" : "monospace" }}
+                      onFocus={e => { e.currentTarget.style.borderColor = INK9; }}
+                      onBlur={e => { e.currentTarget.style.borderColor = fieldErrors.password ? RED : INK2; }}
+                    />
+                    <div style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 4 }}>
+                      <button type="button" title="Generar contraseña"
+                        onClick={() => setPassword(generatePassword())}
+                        style={{ width: 32, height: 32, border: `1.5px solid ${INK2}`, borderRadius: 7, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <RefreshCw size={13} color={INK5} />
+                      </button>
+                      <button type="button" title={showPass ? "Ocultar" : "Mostrar"}
+                        onClick={() => setShowPass(v => !v)}
+                        style={{ width: 32, height: 32, border: `1.5px solid ${INK2}`, borderRadius: 7, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {showPass ? <EyeOff size={13} color={INK5} /> : <Eye size={13} color={INK5} />}
+                      </button>
+                    </div>
+                  </div>
+                  <FieldErr k="password" />
+                  <p style={{ fontSize: "0.75rem", color: INK5, marginTop: 6 }}>
+                    Es una contraseña <strong>temporal</strong> — el usuario deberá cambiarla en su primer ingreso. Compártesela por canal seguro.
+                  </p>
+                </div>
+
+                <div style={{ marginTop: 18 }}>
+                  <label style={LABEL}>Estado inicial</label>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    {(["activo", "pendiente"] as const).map(s => {
+                      const isSelected = selStatus === s;
+                      const colors = s === "activo"
+                        ? { color: GRN,       bg: GRN_BG,   bd: GRN_BD }
+                        : { color: "#92400e", bg: "#FFFBEB", bd: "#FDE68A" };
+                      return (
+                        <button key={s} type="button" onClick={() => setSelStatus(s)}
+                          style={{
+                            flex: 1, padding: "12px 16px", borderRadius: 10, cursor: "pointer",
+                            textAlign: "left", fontFamily: "inherit",
+                            border: isSelected ? `2px solid ${colors.color}` : `1.5px solid ${INK2}`,
+                            background: isSelected ? colors.bg : "#fff",
+                            transition: "all 0.15s",
+                          }}>
+                          <div style={{ fontWeight: 700, fontSize: "0.875rem", color: isSelected ? colors.color : INK9, marginBottom: 2 }}>
+                            {s === "activo" ? "Activo" : "Pendiente"}
+                          </div>
+                          <div style={{ fontSize: "0.75rem", color: INK5 }}>
+                            {s === "activo"
+                              ? "El usuario puede iniciar sesión de inmediato"
+                              : "El usuario debe ser aprobado antes de acceder"}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -592,11 +628,10 @@ export default function NuevoUsuarioPage() {
             </div>
 
             <div style={{ background: "#fff", border: `1.5px solid ${INK2}`, borderRadius: 14, padding: "16px 18px" }}>
-              <div style={{ fontWeight: 700, fontSize: "0.8125rem", color: INK9, marginBottom: 10 }}>Qué puede hacer cada admin</div>
+              <div style={{ fontWeight: 700, fontSize: "0.8125rem", color: INK9, marginBottom: 10 }}>Asignación territorial</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: "0.8125rem", color: INK6, lineHeight: 1.5 }}>
-                <p><strong style={{ color: INK9 }}>Super Admin</strong> — gestiona todo: crea admins provinciales y municipales, ve todos los usuarios del sistema.</p>
-                <p><strong style={{ color: INK9 }}>Admin Provincial</strong> — aprueba y gestiona usuarios de todos los municipios de su provincia.</p>
-                <p><strong style={{ color: INK9 }}>Admin Municipal</strong> — aprueba solicitudes de fiscales, operadores y conductores de su municipio.</p>
+                <p><strong style={{ color: INK9 }}>Obligatoria</strong> para Admin Provincial (provincia) y Admin Municipal (provincia + muni) — es su scope.</p>
+                <p><strong style={{ color: INK9 }}>Opcional</strong> para fiscal, operador y conductor — podés crearlos sin territorio y asignarlo después desde su ficha.</p>
               </div>
             </div>
           </div>

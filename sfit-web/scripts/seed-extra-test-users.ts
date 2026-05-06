@@ -53,6 +53,13 @@ const CONDUCTORES: SeedConductor[] = [
     licenseNumber: "Q70000003",
     phone: "984000003",
   },
+  {
+    email: "conductor4@sfit.test",
+    name: "Conductor 4 SFIT",
+    dni: "70000004",
+    licenseNumber: "Q70000004",
+    phone: "984000004",
+  },
 ];
 
 const CIUDADANOS: SeedCiudadano[] = [

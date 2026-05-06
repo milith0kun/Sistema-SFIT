@@ -51,6 +51,28 @@ class BusEtaStop {
       );
 }
 
+/// Parada detectada automáticamente del trazo en vivo del conductor.
+/// El backend la calcula en `/api/public/flota/activas`: identifica clusters
+/// de puntos GPS donde el bus permaneció >30s en un radio <15m.
+class LearnedStop {
+  final double lat;
+  final double lng;
+  /// Tiempo total que el bus pasó en este paradero (segundos).
+  final int durationSeconds;
+
+  const LearnedStop({
+    required this.lat,
+    required this.lng,
+    required this.durationSeconds,
+  });
+
+  factory LearnedStop.fromJson(Map<String, dynamic> j) => LearnedStop(
+        lat: (j['lat'] as num).toDouble(),
+        lng: (j['lng'] as num).toDouble(),
+        durationSeconds: (j['durationSeconds'] as num?)?.toInt() ?? 0,
+      );
+}
+
 class BusData {
   final String id;
   final String plate;
@@ -58,6 +80,9 @@ class BusData {
   final String vehicleStatus;
   final double lat;
   final double lng;
+  /// Velocidad reportada por el GPS del conductor (m/s). null si el bus
+  /// nunca reportó velocidad (siempre detenido o GPS sin soporte de speed).
+  final double? speed;
   final String? routeId;
   final String? routeName;
   final String? routeCode;
@@ -75,6 +100,11 @@ class BusData {
   /// cuando la ruta no tiene polyline ni waypoints definidos. Cada elemento
   /// es `{lat, lng}`.
   final List<List<double>> liveTrack;
+  /// Paradas aprendidas automáticamente: clusters del trazo donde el bus
+  /// permaneció >30s en un radio <15m. Permite mostrar "paraderos detectados"
+  /// aunque la ruta no esté formalmente definida — el sistema aprende del
+  /// recorrido real del conductor.
+  final List<LearnedStop> learnedStops;
   final List<BusEtaStop> etaByStop;
   final String? nextStopLabel;
   final int? nextStopEta;
@@ -91,6 +121,7 @@ class BusData {
     required this.vehicleStatus,
     required this.lat,
     required this.lng,
+    this.speed,
     this.routeId,
     this.routeName,
     this.routeCode,
@@ -98,6 +129,7 @@ class BusData {
     this.waypoints = const [],
     this.polylineCoords = const [],
     this.liveTrack = const [],
+    this.learnedStops = const [],
     this.etaByStop = const [],
     this.nextStopLabel,
     this.nextStopEta,
@@ -129,6 +161,12 @@ class BusData {
             })
             .toList() ??
         const <List<double>>[];
+    // Paradas aprendidas: [{lat,lng,durationSeconds}].
+    final learnedRaw = j['learnedStops'] as List?;
+    final learnedStops = learnedRaw
+            ?.map<LearnedStop>((p) => LearnedStop.fromJson(p as Map<String, dynamic>))
+            .toList() ??
+        const <LearnedStop>[];
     return BusData(
       id: j['id'] as String? ?? '',
       plate: j['plate'] as String? ?? '—',
@@ -136,6 +174,7 @@ class BusData {
       vehicleStatus: j['vehicleStatus'] as String? ?? 'apto',
       lat: (loc['lat'] as num?)?.toDouble() ?? 0,
       lng: (loc['lng'] as num?)?.toDouble() ?? 0,
+      speed: (loc['speed'] as num?)?.toDouble(),
       routeId: route?['id'] as String?,
       routeName: route?['name'] as String?,
       routeCode: route?['code'] as String?,
@@ -143,6 +182,7 @@ class BusData {
       waypoints: wpList.map(BusWaypoint.fromJson).toList(),
       polylineCoords: polyCoords,
       liveTrack: liveTrack,
+      learnedStops: learnedStops,
       etaByStop: etaList.map(BusEtaStop.fromJson).toList(),
       nextStopLabel: ns?['label'] as String?,
       nextStopEta: (ns?['etaSeconds'] as num?)?.toInt(),

@@ -40,6 +40,10 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
   /// terminó turno). Conservamos la última `_bus` para pantalla.
   bool _stale = false;
   DateTime? _lastSeen;
+  /// Tick de UI cada 1s solo para refrescar el "actualizado hace Xs" sin
+  /// esperar al próximo poll de 4s. El setState es barato porque el árbol
+  /// que cambia es chico (la pill superior).
+  Timer? _uiTick;
 
   final _smoother = LocationSmoother();
   LatLng? _smoothedPos;
@@ -48,6 +52,9 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
   void initState() {
     super.initState();
     _bootstrap();
+    _uiTick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
   }
 
   Future<void> _bootstrap() async {
@@ -61,6 +68,7 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
   @override
   void dispose() {
     _timer?.cancel();
+    _uiTick?.cancel();
     super.dispose();
   }
 
@@ -308,6 +316,35 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
                     strokeWidth: 4,
                   ),
                 ]),
+              // Paradas aprendidas (clusters detectados del trazo en vivo).
+              // Solo se muestran cuando NO hay waypoints formales para no
+              // duplicar marcadores con paraderos oficiales.
+              if (waypointsLatLng.isEmpty && bus.learnedStops.isNotEmpty)
+                MarkerLayer(
+                  markers: bus.learnedStops
+                      .where((s) => _validCoord(s.lat, s.lng))
+                      .map((s) {
+                    return Marker(
+                      point: LatLng(s.lat, s.lng),
+                      width: 22, height: 22,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.info, width: 2.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.info.withValues(alpha: 0.3),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: const Icon(Icons.local_taxi_outlined, size: 11, color: AppColors.info),
+                      ),
+                    );
+                  }).toList(),
+                ),
               MarkerLayer(
                 markers: bus.waypoints
                     .where((w) => _validCoord(w.lat, w.lng))
@@ -382,7 +419,7 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
               tooltip: 'Volver',
             ),
             const SizedBox(width: 8),
-            // Pill con la placa del bus para que se sepa de qué bus es el mapa.
+            // Pill con la placa del bus, código de ruta y estado "en vivo".
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
@@ -395,28 +432,55 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
                   Icon(Icons.directions_bus_rounded, size: 17, color: color),
                   const SizedBox(width: 6),
                   Expanded(
-                    child: Text(
-                      bus.plate,
-                      style: AppTheme.inter(
-                        fontSize: 14, fontWeight: FontWeight.w800,
-                        color: AppColors.ink9, tabular: true),
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(children: [
+                          Flexible(
+                            child: Text(
+                              bus.plate,
+                              style: AppTheme.inter(
+                                fontSize: 13.5, fontWeight: FontWeight.w800,
+                                color: AppColors.ink9, tabular: true),
+                              maxLines: 1, overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (bus.routeCode != null) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppColors.ink9,
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                              child: Text(
+                                bus.routeCode!,
+                                style: AppTheme.inter(
+                                  fontSize: 9, fontWeight: FontWeight.w800,
+                                  color: Colors.white, letterSpacing: 0.3),
+                              ),
+                            ),
+                          ],
+                        ]),
+                        if (_lastSeen != null)
+                          Row(children: [
+                            // Punto pulsante verde "en vivo".
+                            _LivePulseDot(active: !_stale && hasValidPos),
+                            const SizedBox(width: 4),
+                            Text(
+                              _stale
+                                  ? 'sin señal · ${_ago(_lastSeen!)}'
+                                  : 'actualizado ${_ago(_lastSeen!)}',
+                              style: AppTheme.inter(
+                                fontSize: 10,
+                                color: _stale ? const Color(0xFFB45309) : AppColors.ink5,
+                                fontWeight: FontWeight.w600),
+                            ),
+                          ]),
+                      ],
                     ),
                   ),
-                  if (bus.routeCode != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.ink9,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        bus.routeCode!,
-                        style: AppTheme.inter(
-                          fontSize: 10, fontWeight: FontWeight.w800,
-                          color: Colors.white, letterSpacing: 0.4),
-                      ),
-                    ),
                 ]),
               ),
             ),
@@ -680,12 +744,9 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
     ]);
   }
 
-  /// La velocidad llega como `currentLocation.speed` en el response, pero
-  /// `BusData` no la expone tipada — la leemos aprovechando que el modelo
-  /// guarda el JSON completo del fetch sólo si lo extendemos. Como no lo
-  /// expone, devolvemos null y mostramos "—". Si querés pasarla, agregar
-  /// `speed` al modelo `BusData`.
-  double? _extractSpeedFromBus(BusData _) => null;
+  /// Velocidad real reportada por el GPS del conductor. Devuelve null si
+  /// el bus nunca reportó velocidad o si está literalmente detenido.
+  double? _extractSpeedFromBus(BusData b) => b.speed;
 
   Widget _kpiTile({required IconData icon, required String label, required String value}) {
     return Container(
@@ -852,5 +913,47 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
         ),
       ),
     ]);
+  }
+}
+
+/// Punto verde pulsante para indicar que la posición se está actualizando
+/// en vivo. Se atenúa cuando el bus dejó de transmitir (`active=false`).
+class _LivePulseDot extends StatefulWidget {
+  final bool active;
+  const _LivePulseDot({required this.active});
+
+  @override
+  State<_LivePulseDot> createState() => _LivePulseDotState();
+}
+
+class _LivePulseDotState extends State<_LivePulseDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = widget.active ? AppColors.apto : const Color(0xFFB45309);
+    return AnimatedBuilder(
+      animation: _ctl,
+      builder: (_, __) => Container(
+        width: 7, height: 7,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: widget.active ? (0.5 + 0.5 * _ctl.value) : 0.7),
+          shape: BoxShape.circle,
+          boxShadow: widget.active
+              ? [BoxShadow(color: color.withValues(alpha: 0.45 * _ctl.value), blurRadius: 4 * _ctl.value, spreadRadius: _ctl.value)]
+              : null,
+        ),
+      ),
+    );
   }
 }
