@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -9,8 +8,9 @@ import '../../data/datasources/trips_api_service.dart';
 
 /// Pantalla de cierre de turno del conductor (RF-conductor).
 ///
-/// Muestra el viaje activo y permite registrar el kilometraje de retorno
-/// y observaciones antes de cerrar el turno.
+/// Muestra el viaje activo y permite registrar observaciones antes de cerrar.
+/// El kilometraje real se calcula en el backend desde los `LocationPing`
+/// (campo `distanceMeters` vía haversine) — no se pide al conductor.
 class TripCheckoutPage extends ConsumerStatefulWidget {
   final String entryId;
   final String vehiclePlate;
@@ -31,13 +31,11 @@ class TripCheckoutPage extends ConsumerStatefulWidget {
 
 class _TripCheckoutPageState extends ConsumerState<TripCheckoutPage> {
   final _formKey = GlobalKey<FormState>();
-  final _kmCtrl = TextEditingController();
   final _obsCtrl = TextEditingController();
   bool _submitting = false;
 
   @override
   void dispose() {
-    _kmCtrl.dispose();
     _obsCtrl.dispose();
     super.dispose();
   }
@@ -67,11 +65,9 @@ class _TripCheckoutPageState extends ConsumerState<TripCheckoutPage> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
     try {
-      final km = double.parse(_kmCtrl.text.replaceAll(',', '.'));
       final svc = ref.read(tripsApiServiceProvider);
       await svc.closeFleetEntry(
         widget.entryId,
-        km: km,
         returnTime: DateTime.now(),
         observations: _obsCtrl.text.trim().isEmpty ? null : _obsCtrl.text.trim(),
       );
@@ -216,53 +212,6 @@ class _TripCheckoutPageState extends ConsumerState<TripCheckoutPage> {
                 ),
                 const SizedBox(height: 16),
               ],
-
-              // ── Kilometraje al regreso ─────────────────────────────
-              Text(
-                'Kilometraje al regreso',
-                style: AppTheme.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.ink7,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _kmCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                ],
-                decoration: InputDecoration(
-                  hintText: 'Ej. 125.5',
-                  hintStyle: AppTheme.inter(fontSize: 14, color: AppColors.ink4),
-                  prefixIcon: const Icon(Icons.speed, color: AppColors.ink5),
-                  suffixText: 'km',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AppColors.ink2),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AppColors.ink2),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AppColors.gold, width: 2),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 14,
-                  ),
-                ),
-                style: AppTheme.inter(fontSize: 15, color: AppColors.ink9),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Ingresa el kilometraje';
-                  final val = double.tryParse(v.replaceAll(',', '.'));
-                  if (val == null || val < 0) return 'Valor inválido';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 18),
 
               // ── Observaciones ──────────────────────────────────────
               Text(

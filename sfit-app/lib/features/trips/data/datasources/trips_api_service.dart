@@ -185,9 +185,12 @@ class TripsApiService {
   }
 
   /// PATCH /flota/:id — cierra el turno del conductor.
+  ///
+  /// El kilometraje real lo calcula el backend desde los `LocationPing`
+  /// (campo `distanceMeters` vía haversine). El conductor sólo registra
+  /// hora de regreso y observaciones opcionales.
   Future<void> closeFleetEntry(
     String entryId, {
-    required double km,
     DateTime? returnTime,
     String? observations,
   }) async {
@@ -196,7 +199,6 @@ class TripsApiService {
     await _dio.patch('/flota/$entryId', data: {
       'status': 'cerrado',
       'returnTime': hhmm,
-      'km': km,
       if (observations != null && observations.isNotEmpty)
         'observations': observations,
     });
