@@ -54,7 +54,8 @@ const CitizenReportSchema = new Schema<ICitizenReport>(
       enum: ["pendiente", "revision", "validado", "rechazado"],
       default: "pendiente",
     },
-    description: { type: String, required: true },
+    // Opcional desde API. Si el ciudadano no la provee, queda como "".
+    description: { type: String, default: "" },
     evidenceUrl: { type: String },
     imageUrls: { type: [String], default: [] },
     fraudScore: { type: Number, default: 50, min: 0, max: 100 },

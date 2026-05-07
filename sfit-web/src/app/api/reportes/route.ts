@@ -39,9 +39,13 @@ const CreateSchema = z.object({
     error: `Categoría inválida. Valores permitidos: ${REPORT_CATEGORIES.join(", ")}`,
   }),
   vehicleTypeKey: z.string().optional(),
+  // Descripción opcional. Si el ciudadano la envía, debe tener al menos
+  // 10 caracteres — descripciones muy cortas dan falsos positivos al IA
+  // de detección de fraude.
   description: z.string()
-    .min(10, "La descripción debe tener al menos 10 caracteres")
-    .max(2000, "La descripción no puede superar los 2000 caracteres"),
+    .min(10, "Si escribes la descripción, debe tener al menos 10 caracteres")
+    .max(2000, "La descripción no puede superar los 2000 caracteres")
+    .optional(),
   evidenceUrl: z.string().url().optional(),
   imageUrls: z.array(z.string().url()).max(5).optional(),
   fraudScore: z.number().min(0).max(100).optional(),

@@ -273,7 +273,7 @@ export async function GET() {
               "application/json": {
                 schema: {
                   type: "object",
-                  required: ["category", "description"],
+                  required: ["category"],
                   properties: {
                     category: {
                       type: "string",
@@ -283,7 +283,7 @@ export async function GET() {
                         "Conducción peligrosa", "Contaminación ambiental", "Falta de señalización", "Otro",
                       ],
                     },
-                    description: { type: "string", minLength: 10, maxLength: 2000 },
+                    description: { type: "string", minLength: 10, maxLength: 2000, nullable: true },
                     vehicleId: { type: "string" },
                     evidenceUrl: { type: "string", format: "uri" },
                   },
