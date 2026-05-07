@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../../core/theme/app_colors.dart';
-import '../../../../../core/theme/app_theme.dart';
 import '../../../../../shared/widgets/widgets.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../rewards/data/datasources/rewards_api_service.dart';
@@ -74,7 +73,7 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
         color: AppColors.gold,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -87,7 +86,7 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
                   SfitHeroPill(label: 'Reportes', value: _loading ? '...' : '$_totalReportes'),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
 
               SfitKpiStrip(
                 items: [
@@ -114,7 +113,7 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               SfitQuickActionCard(
                 icon: Icons.campaign_outlined,
@@ -123,54 +122,74 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
                 onTap: () => widget.onSelectTab('reportar'),
               ),
 
-              const SfitSectionHeader(
-                icon: Icons.grid_view_rounded,
-                label: 'MÓDULOS DISPONIBLES',
-              ),
-              const SizedBox(height: 12),
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: 2.1,
-                children: [
-                  SfitFeatureCard(
-                    icon: Icons.dynamic_feed_outlined,
-                    title: 'Feed',
-                    subtitle: 'Comunidad',
-                    onTap: () => widget.onSelectTab('inicio-feed'),
+              // ── Módulos por categoría — pills + grid ──────────────
+              SfitCategorizedFeatures(
+                categories: [
+                  SfitFeatureCategory(
+                    label: 'REPORTES',
+                    icon: Icons.flag_outlined,
+                    modules: [
+                      SfitFeatureCard(
+                        icon: Icons.campaign_outlined,
+                        title: 'Reportar',
+                        subtitle: 'Nueva infracción',
+                        onTap: () => widget.onSelectTab('reportar'),
+                      ),
+                      SfitFeatureCard(
+                        icon: Icons.list_alt_outlined,
+                        title: 'Mis reportes',
+                        subtitle: 'Seguimiento',
+                        onTap: () => widget.onSelectTab('mis-reportes'),
+                      ),
+                      SfitFeatureCard(
+                        icon: Icons.qr_code_scanner_outlined,
+                        title: 'Escanear QR',
+                        subtitle: 'Info vehicular',
+                        onTap: () => context.push('/qr'),
+                      ),
+                    ],
                   ),
-                  SfitFeatureCard(
-                    icon: Icons.list_alt_outlined,
-                    title: 'Mis reportes',
-                    subtitle: 'Seguimiento',
-                    onTap: () => widget.onSelectTab('mis-reportes'),
+                  SfitFeatureCategory(
+                    label: 'COMUNIDAD',
+                    icon: Icons.groups_outlined,
+                    modules: [
+                      SfitFeatureCard(
+                        icon: Icons.dynamic_feed_outlined,
+                        title: 'Feed',
+                        subtitle: 'Comunidad',
+                        onTap: () => widget.onSelectTab('inicio-feed'),
+                      ),
+                      SfitFeatureCard(
+                        icon: Icons.leaderboard_outlined,
+                        title: 'Ranking',
+                        subtitle: 'Tabla ciudadanos',
+                        onTap: () => context.push('/ranking'),
+                      ),
+                      SfitFeatureCard(
+                        icon: Icons.emoji_events_outlined,
+                        title: 'Premios',
+                        subtitle: 'Canjear puntos',
+                        onTap: () => widget.onSelectTab('premios'),
+                      ),
+                    ],
                   ),
-                  SfitFeatureCard(
-                    icon: Icons.qr_code_scanner_outlined,
-                    title: 'Escanear QR',
-                    subtitle: 'Info vehicular',
-                    onTap: () => context.push('/qr'),
-                  ),
-                  SfitFeatureCard(
-                    icon: Icons.emoji_events_outlined,
-                    title: 'Premios',
-                    subtitle: 'Canjear puntos',
-                    onTap: () => widget.onSelectTab('premios'),
-                  ),
-                  SfitFeatureCard(
-                    icon: Icons.directions_bus_outlined,
-                    title: 'Buses en vivo',
-                    subtitle: 'Mapa en tiempo real',
-                    onTap: () => context.push('/buses-en-vivo'),
-                  ),
-                  SfitFeatureCard(
-                    icon: Icons.leaderboard_outlined,
-                    title: 'Ranking',
-                    subtitle: 'Tabla ciudadanos',
-                    onTap: () => context.push('/ranking'),
+                  SfitFeatureCategory(
+                    label: 'MÁS',
+                    icon: Icons.apps_rounded,
+                    modules: [
+                      SfitFeatureCard(
+                        icon: Icons.directions_bus_outlined,
+                        title: 'Buses en vivo',
+                        subtitle: 'Mapa en tiempo real',
+                        onTap: () => context.push('/buses-en-vivo'),
+                      ),
+                      SfitFeatureCard(
+                        icon: Icons.person_outline,
+                        title: 'Mi perfil',
+                        subtitle: 'Datos y cuenta',
+                        onTap: () => widget.onSelectTab('perfil'),
+                      ),
+                    ],
                   ),
                 ],
               ),

@@ -66,7 +66,7 @@ class _ConductorDashboardPageState extends ConsumerState<ConductorDashboardPage>
         color: AppColors.gold,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -87,8 +87,6 @@ class _ConductorDashboardPageState extends ConsumerState<ConductorDashboardPage>
                   onTap: () => context.push('/conductor/empresa'),
                 ),
               if (!_loading && company == null) const SizedBox(height: 14),
-
-              const SizedBox(height: 6),
 
               SfitKpiStrip(
                 items: [
@@ -115,7 +113,7 @@ class _ConductorDashboardPageState extends ConsumerState<ConductorDashboardPage>
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               SfitQuickActionCard(
                 icon: Icons.route_outlined,
@@ -124,54 +122,68 @@ class _ConductorDashboardPageState extends ConsumerState<ConductorDashboardPage>
                 onTap: () => widget.onSelectTab('rutas'),
               ),
 
-              const SfitSectionHeader(
-                icon: Icons.grid_view_rounded,
-                label: 'MÓDULOS DISPONIBLES',
-              ),
-              const SizedBox(height: 12),
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: 2.1,
-                children: [
-                  SfitFeatureCard(
-                    icon: Icons.timeline_outlined,
-                    title: 'Viajes',
-                    subtitle: 'Historial diario',
-                    onTap: () => widget.onSelectTab('viajes'),
+              // ── Módulos por categoría — pills + grid ──────────────
+              SfitCategorizedFeatures(
+                categories: [
+                  SfitFeatureCategory(
+                    label: 'MI TURNO',
+                    icon: Icons.play_circle_outline,
+                    modules: [
+                      SfitFeatureCard(
+                        icon: Icons.route_outlined,
+                        title: 'Mis rutas',
+                        subtitle: 'Asignadas hoy',
+                        onTap: () => widget.onSelectTab('rutas'),
+                      ),
+                      SfitFeatureCard(
+                        icon: Icons.map_outlined,
+                        title: 'Mapa',
+                        subtitle: 'Ubicación en ruta',
+                        onTap: () => widget.onSelectTab('mapa'),
+                      ),
+                      SfitFeatureCard(
+                        icon: Icons.monitor_heart_outlined,
+                        title: 'Fatiga',
+                        subtitle: 'Control preventivo',
+                        onTap: () => widget.onSelectTab('fatiga'),
+                      ),
+                    ],
                   ),
-                  SfitFeatureCard(
-                    icon: Icons.monitor_heart_outlined,
-                    title: 'Fatiga',
-                    subtitle: 'Control preventivo',
-                    onTap: () => widget.onSelectTab('fatiga'),
+                  SfitFeatureCategory(
+                    label: 'HISTORIAL',
+                    icon: Icons.history_outlined,
+                    modules: [
+                      SfitFeatureCard(
+                        icon: Icons.timeline_outlined,
+                        title: 'Viajes',
+                        subtitle: 'Historial diario',
+                        onTap: () => widget.onSelectTab('viajes'),
+                      ),
+                      SfitFeatureCard(
+                        icon: Icons.tour_outlined,
+                        title: 'Mis recorridos',
+                        subtitle: 'Histórico de turnos',
+                        onTap: () => context.push('/conductor/mis-recorridos'),
+                      ),
+                    ],
                   ),
-                  SfitFeatureCard(
-                    icon: Icons.map_outlined,
-                    title: 'Mapa',
-                    subtitle: 'Ubicación en ruta',
-                    onTap: () => widget.onSelectTab('mapa'),
-                  ),
-                  SfitFeatureCard(
-                    icon: Icons.person_outline,
-                    title: 'Mi perfil',
-                    subtitle: 'Datos y licencia',
-                    onTap: () => context.push('/conductor/perfil'),
-                  ),
-                  SfitFeatureCard(
-                    icon: Icons.apartment_outlined,
-                    title: 'Mi empresa',
-                    subtitle: company ?? 'Sin asociar',
-                    onTap: () => context.push('/conductor/empresa'),
-                  ),
-                  SfitFeatureCard(
-                    icon: Icons.route_outlined,
-                    title: 'Mis recorridos',
-                    subtitle: 'Histórico de turnos',
-                    onTap: () => context.push('/conductor/mis-recorridos'),
+                  SfitFeatureCategory(
+                    label: 'CUENTA',
+                    icon: Icons.account_circle_outlined,
+                    modules: [
+                      SfitFeatureCard(
+                        icon: Icons.apartment_outlined,
+                        title: 'Mi empresa',
+                        subtitle: company ?? 'Sin asociar',
+                        onTap: () => context.push('/conductor/empresa'),
+                      ),
+                      SfitFeatureCard(
+                        icon: Icons.person_outline,
+                        title: 'Mi perfil',
+                        subtitle: 'Datos y licencia',
+                        onTap: () => context.push('/conductor/perfil'),
+                      ),
+                    ],
                   ),
                 ],
               ),

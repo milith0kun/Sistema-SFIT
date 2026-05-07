@@ -17,7 +17,7 @@ class OperatorDashboardPage extends ConsumerWidget {
 
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -30,7 +30,7 @@ class OperatorDashboardPage extends ConsumerWidget {
                 SfitHeroPill(label: 'En ruta', value: '32'),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
 
             const SfitKpiStrip(
               items: [
@@ -57,7 +57,7 @@ class OperatorDashboardPage extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             SfitQuickActionCard(
               icon: Icons.local_shipping_outlined,
@@ -66,48 +66,68 @@ class OperatorDashboardPage extends ConsumerWidget {
               onTap: () => onSelectTab('flota'),
             ),
 
-            const SfitSectionHeader(
-              icon: Icons.grid_view_rounded,
-              label: 'MÓDULOS DISPONIBLES',
-            ),
-            const SizedBox(height: 12),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 2.1,
-              children: [
-                SfitFeatureCard(
-                  icon: Icons.groups_2_outlined,
-                  title: 'Conductores',
-                  subtitle: 'Listado y estados',
-                  onTap: () => onSelectTab('conductores'),
+            // ── Módulos por categoría — pills + grid ──────────────
+            SfitCategorizedFeatures(
+              categories: [
+                SfitFeatureCategory(
+                  label: 'OPERACIÓN',
+                  icon: Icons.local_shipping_outlined,
+                  modules: [
+                    SfitFeatureCard(
+                      icon: Icons.local_shipping_outlined,
+                      title: 'Flota',
+                      subtitle: 'Salidas y retornos',
+                      onTap: () => onSelectTab('flota'),
+                    ),
+                    SfitFeatureCard(
+                      icon: Icons.route_outlined,
+                      title: 'Rutas',
+                      subtitle: 'Control de recorridos',
+                      onTap: () => onSelectTab('rutas'),
+                    ),
+                    SfitFeatureCard(
+                      icon: Icons.bar_chart_outlined,
+                      title: 'Análisis',
+                      subtitle: 'Estadísticas',
+                      onTap: () => onSelectTab('analisis'),
+                    ),
+                  ],
                 ),
-                SfitFeatureCard(
-                  icon: Icons.directions_car_outlined,
-                  title: 'Vehículos',
-                  subtitle: 'Gestión de unidades',
-                  onTap: () => onSelectTab('vehiculos'),
+                SfitFeatureCategory(
+                  label: 'RECURSOS',
+                  icon: Icons.groups_outlined,
+                  modules: [
+                    SfitFeatureCard(
+                      icon: Icons.groups_2_outlined,
+                      title: 'Conductores',
+                      subtitle: 'Listado y estados',
+                      onTap: () => onSelectTab('conductores'),
+                    ),
+                    SfitFeatureCard(
+                      icon: Icons.directions_car_outlined,
+                      title: 'Vehículos',
+                      subtitle: 'Gestión de unidades',
+                      onTap: () => onSelectTab('vehiculos'),
+                    ),
+                    SfitFeatureCard(
+                      icon: Icons.person_add_alt_outlined,
+                      title: 'Asociar',
+                      subtitle: 'Sumar conductores',
+                      onTap: () => context.push('/operador/asociar-conductores'),
+                    ),
+                  ],
                 ),
-                SfitFeatureCard(
-                  icon: Icons.route_outlined,
-                  title: 'Rutas',
-                  subtitle: 'Control de recorridos',
-                  onTap: () => onSelectTab('rutas'),
-                ),
-                SfitFeatureCard(
-                  icon: Icons.bar_chart_outlined,
-                  title: 'Análisis',
-                  subtitle: 'Estadísticas',
-                  onTap: () => onSelectTab('analisis'),
-                ),
-                SfitFeatureCard(
-                  icon: Icons.person_add_alt_outlined,
-                  title: 'Asociar conductores',
-                  subtitle: 'Sumar a tu empresa',
-                  onTap: () => context.push('/operador/asociar-conductores'),
+                SfitFeatureCategory(
+                  label: 'CUENTA',
+                  icon: Icons.account_circle_outlined,
+                  modules: [
+                    SfitFeatureCard(
+                      icon: Icons.person_outline,
+                      title: 'Mi perfil',
+                      subtitle: 'Datos y cuenta',
+                      onTap: () => onSelectTab('perfil'),
+                    ),
+                  ],
                 ),
               ],
             ),

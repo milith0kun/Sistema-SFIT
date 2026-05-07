@@ -442,18 +442,15 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
         ? 'Subiendo fotos...'
         : _submitting ? 'Enviando...' : 'Enviar reporte';
 
-    return Scaffold(
-      backgroundColor: AppColors.paper,
-      appBar: AppBar(
-        title: const Text('Enviar reporte'),
-        backgroundColor: AppColors.paper,
-        foregroundColor: AppColors.ink9,
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+    // Si fue empujado como ruta (vino desde QR / vista pública), conserva su
+    // propio Scaffold + AppBar con back arrow del Navigator. Si está montada
+    // como tab dentro del HomePage, omite el Scaffold/AppBar interno (el
+    // HomePage ya provee el header con back) para evitar headers duplicados.
+    final pushedAsRoute = Navigator.of(context).canPop();
+
+    final body = SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -493,13 +490,13 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
                         style: AppTheme.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ink9, tabular: true),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                     SizedBox(
                       height: 50,
                       child: FilledButton(
                         onPressed: _searching ? null : _searchVehicle,
                         style: FilledButton.styleFrom(
-                          minimumSize: const Size(82, 50),
+                          minimumSize: const Size(74, 50),
                           backgroundColor: AppColors.ink9,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
@@ -514,6 +511,40 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
                   const SizedBox(height: 10),
                   _InlineError(_searchError!),
                 ],
+                const SizedBox(height: 12),
+
+                // ── Alternativa QR — divider + botón outlined ──────
+                Row(
+                  children: [
+                    const Expanded(child: Divider(color: AppColors.ink2, thickness: 1)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Text(
+                        'O escanea',
+                        style: AppTheme.inter(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.ink4, letterSpacing: 0.4),
+                      ),
+                    ),
+                    const Expanded(child: Divider(color: AppColors.ink2, thickness: 1)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: () => context.push('/qr'),
+                    icon: const Icon(Icons.qr_code_scanner_rounded, size: 18, color: AppColors.ink9),
+                    label: Text(
+                      'Escanear QR del vehículo',
+                      style: AppTheme.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ink9),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.ink3, width: 1.5),
+                      backgroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 24),
               ],
 
@@ -674,8 +705,23 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
             ],
           ),
         ),
-      ),
-    );
+      );
+
+    if (pushedAsRoute) {
+      return Scaffold(
+        backgroundColor: AppColors.paper,
+        appBar: AppBar(
+          title: const Text('Enviar reporte'),
+          backgroundColor: AppColors.paper,
+          foregroundColor: AppColors.ink9,
+          elevation: 0,
+          scrolledUnderElevation: 0.5,
+        ),
+        body: body,
+      );
+    }
+    // Embebido como tab — el HomePage ya provee el header con back arrow.
+    return ColoredBox(color: AppColors.paper, child: body);
   }
 }
 

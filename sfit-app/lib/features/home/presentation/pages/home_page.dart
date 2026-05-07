@@ -183,51 +183,40 @@ class _HomePageState extends ConsumerState<HomePage> {
         },
       ),
       appBar: AppBar(
-        toolbarHeight: 62,
+        toolbarHeight: 60,
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0.5,
         shape: const Border(bottom: BorderSide(color: AppColors.ink2, width: 1)),
-        title: Row(
-          children: [
-            const SfitMark(size: 30),
-            const SizedBox(width: 10),
-            Container(width: 1, height: 18, color: AppColors.ink2),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                activeTab.label,
-                overflow: TextOverflow.ellipsis,
-                style: AppTheme.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink9,
-                  letterSpacing: -0.3,
-                ),
+        titleSpacing: isOnHomeTab ? 4 : 0,
+        // En tabs distintos a Inicio mostramos un back arrow que regresa
+        // al tab Inicio. En Inicio dejamos el drawer hamburguesa por defecto.
+        leading: isOnHomeTab
+            ? null
+            : IconButton(
+                tooltip: 'Volver al inicio',
+                icon: const Icon(Icons.arrow_back_rounded, color: AppColors.ink9, size: 22),
+                onPressed: () {
+                  setState(() {
+                    _index = 0;
+                    _visitedTabs.add(0);
+                  });
+                },
               ),
-            ),
-          ],
+        title: _AnimatedHeaderTitle(
+          isHome: isOnHomeTab,
+          tabLabel: activeTab.label,
+          firstName: user.name.split(' ').first,
         ),
         actions: [
-          // Notificaciones
-          IconButton(
-            tooltip: 'Notificaciones',
-            icon: Badge(
-              backgroundColor: AppColors.primary,
-              isLabelVisible: _unreadNotifCount > 0,
-              label: Text(
-                _unreadNotifCount > 99 ? '99+' : '$_unreadNotifCount',
-                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
-              ),
-              child: const Icon(Icons.notifications_outlined, size: 22, color: AppColors.ink8),
-            ),
+          _NotificationBell(
+            count: _unreadNotifCount,
             onPressed: () async {
               await context.push('/notificaciones');
               if (mounted) _loadUnreadCount();
             },
           ),
-          // Avatar / menú de cuenta
           _AccountMenu(
             user: user,
             roleLabel: _roleLabel(user.role),
@@ -242,7 +231,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             },
             onLogout: () => ref.read(authProvider.notifier).logout(),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
         ],
       ),
       body: Column(
@@ -613,7 +602,6 @@ class _AccountMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = user.name;
     final email = user.email;
-    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
 
     return PopupMenuButton<String>(
       tooltip: 'Cuenta',
@@ -622,24 +610,7 @@ class _AccountMenu extends StatelessWidget {
       color: Colors.white,
       surfaceTintColor: Colors.white,
       elevation: 8,
-      icon: Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: AppColors.primaryBg,
-          shape: BoxShape.circle,
-          border: Border.all(color: AppColors.primaryBorder, width: 1),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          initial,
-          style: AppTheme.inter(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: AppColors.primary,
-          ),
-        ),
-      ),
+      icon: _Avatar(name: name, imageUrl: user.image, size: 34, fontSize: 13.5),
       onSelected: (v) {
         if (v == 'profile') onMyProfile();
         if (v == 'logout') onLogout();
@@ -658,24 +629,7 @@ class _AccountMenu extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryBg,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.primaryBorder),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        initial,
-                        style: AppTheme.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
+                    _Avatar(name: name, imageUrl: user.image, size: 40, fontSize: 15),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -1068,5 +1022,267 @@ class _QrLaunchTabState extends State<_QrLaunchTab> {
     final plate = _plateCtrl.text.trim();
     if (plate.isEmpty) return;
     context.push('/vehiculo-publico/$plate');
+  }
+}
+
+/// Título animado del AppBar.
+///
+/// En el tab Inicio muestra un saludo personalizado ("Hola, Carlos") sobre
+/// una línea kicker discreta ("INICIO"). En los demás tabs muestra el label
+/// del tab activo.
+///
+/// Cross-fade + slide vertical sutil al cambiar de tab — implementado con
+/// `AnimatedSwitcher`. Duración 220ms, easeOutCubic.
+class _AnimatedHeaderTitle extends StatelessWidget {
+  final bool isHome;
+  final String tabLabel;
+  final String firstName;
+
+  const _AnimatedHeaderTitle({
+    required this.isHome,
+    required this.tabLabel,
+    required this.firstName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Key única por contenido para que AnimatedSwitcher detecte el cambio.
+    final key = ValueKey(isHome ? 'home:$firstName' : 'tab:$tabLabel');
+
+    return Row(
+      children: [
+        // Brand mark pequeño — presencia, no protagonista.
+        const SfitMark(size: 22),
+        const SizedBox(width: 12),
+        Expanded(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, anim) {
+              final slide = Tween<Offset>(
+                begin: const Offset(0, 0.18),
+                end: Offset.zero,
+              ).animate(anim);
+              return FadeTransition(
+                opacity: anim,
+                child: SlideTransition(position: slide, child: child),
+              );
+            },
+            layoutBuilder: (current, previous) => Stack(
+              alignment: Alignment.centerLeft,
+              children: [...previous, if (current != null) current],
+            ),
+            child: isHome
+                ? _HomeGreeting(firstName: firstName, key: key)
+                : _TabTitle(label: tabLabel, key: key),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HomeGreeting extends StatelessWidget {
+  final String firstName;
+  const _HomeGreeting({required this.firstName, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'INICIO',
+          style: AppTheme.inter(
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            color: AppColors.ink5,
+            letterSpacing: 1.4,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'Hola, $firstName',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTheme.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: AppColors.ink9,
+            letterSpacing: -0.35,
+            height: 1.0,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TabTitle extends StatelessWidget {
+  final String label;
+  const _TabTitle({required this.label, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: AppTheme.inter(
+        fontSize: 17,
+        fontWeight: FontWeight.w700,
+        color: AppColors.ink9,
+        letterSpacing: -0.3,
+      ),
+    );
+  }
+}
+
+/// Avatar circular con foto de Google + fallback a inicial coloreada.
+///
+/// Si `imageUrl` está disponible, carga la imagen con `Image.network` y
+/// muestra la inicial debajo (visible mientras carga / si hay error).
+/// Anillo decorativo en `primaryBorder` para anclar al canon SFIT.
+class _Avatar extends StatelessWidget {
+  final String name;
+  final String? imageUrl;
+  final double size;
+  final double fontSize;
+
+  const _Avatar({
+    required this.name,
+    required this.imageUrl,
+    required this.size,
+    required this.fontSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: AppColors.primaryBg,
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.primaryBorder, width: 1.2),
+      ),
+      alignment: Alignment.center,
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Inicial — visible siempre como fallback.
+          Text(
+            initial,
+            style: AppTheme.inter(
+              fontSize: fontSize,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+          ),
+          // Foto Google encima si hay URL.
+          if (hasImage)
+            Positioned.fill(
+              child: Image.network(
+                imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                loadingBuilder: (ctx, child, progress) {
+                  if (progress == null) return child;
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Campana de notificaciones con badge.
+///
+/// Cuando `count > 0`, el badge late suavemente (scale 1.0 ↔ 1.08) en
+/// loop infinito con un período de 2.4s. Llama atención sin ser intrusivo.
+class _NotificationBell extends StatefulWidget {
+  final int count;
+  final VoidCallback onPressed;
+
+  const _NotificationBell({required this.count, required this.onPressed});
+
+  @override
+  State<_NotificationBell> createState() => _NotificationBellState();
+}
+
+class _NotificationBellState extends State<_NotificationBell>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    );
+    _scale = Tween<double>(begin: 1.0, end: 1.08).animate(
+      CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
+    );
+    _syncPulse();
+  }
+
+  @override
+  void didUpdateWidget(covariant _NotificationBell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.count != widget.count) _syncPulse();
+  }
+
+  void _syncPulse() {
+    if (widget.count > 0) {
+      if (!_pulse.isAnimating) _pulse.repeat(reverse: true);
+    } else {
+      _pulse.stop();
+      _pulse.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasUnread = widget.count > 0;
+    final label = widget.count > 99 ? '99+' : '${widget.count}';
+
+    return IconButton(
+      tooltip: 'Notificaciones',
+      onPressed: widget.onPressed,
+      icon: ScaleTransition(
+        scale: _scale,
+        child: Badge(
+          backgroundColor: AppColors.primary,
+          isLabelVisible: hasUnread,
+          label: Text(
+            label,
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+          ),
+          child: Icon(
+            hasUnread
+                ? Icons.notifications_active_outlined
+                : Icons.notifications_outlined,
+            size: 22,
+            color: AppColors.ink8,
+          ),
+        ),
+      ),
+    );
   }
 }

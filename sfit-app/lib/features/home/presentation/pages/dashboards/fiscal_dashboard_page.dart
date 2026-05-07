@@ -73,7 +73,7 @@ class _FiscalDashboardPageState extends ConsumerState<FiscalDashboardPage> {
 
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -93,7 +93,7 @@ class _FiscalDashboardPageState extends ConsumerState<FiscalDashboardPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
 
             SfitKpiStrip(
               items: [
@@ -120,7 +120,7 @@ class _FiscalDashboardPageState extends ConsumerState<FiscalDashboardPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             SfitQuickActionCard(
               icon: Icons.qr_code_scanner_outlined,
@@ -129,54 +129,86 @@ class _FiscalDashboardPageState extends ConsumerState<FiscalDashboardPage> {
               onTap: () => context.push('/qr', extra: {'forInspection': true}),
             ),
 
-            const SfitSectionHeader(
-              icon: Icons.grid_view_rounded,
-              label: 'MÓDULOS DISPONIBLES',
-            ),
-            const SizedBox(height: 12),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 2.1,
-              children: [
-                SfitFeatureCard(
+            // ── Módulos por categoría — pills + grid ──────────────
+            SfitCategorizedFeatures(
+              categories: [
+                SfitFeatureCategory(
+                  label: 'INSPECCIÓN',
                   icon: Icons.assignment_outlined,
-                  title: 'Inspecciones',
-                  subtitle: 'Historial',
-                  onTap: () => widget.onSelectTab('inspecciones'),
+                  modules: [
+                    SfitFeatureCard(
+                      icon: Icons.add_task_outlined,
+                      title: 'Nueva inspección',
+                      subtitle: 'Iniciar acta',
+                      onTap: () => context.push('/qr', extra: {'forInspection': true}),
+                    ),
+                    SfitFeatureCard(
+                      icon: Icons.assignment_outlined,
+                      title: 'Inspecciones',
+                      subtitle: 'Historial',
+                      onTap: () => widget.onSelectTab('inspecciones'),
+                    ),
+                    SfitFeatureCard(
+                      icon: Icons.qr_code_scanner_outlined,
+                      title: 'Escanear QR',
+                      subtitle: 'Verificar vehículo',
+                      onTap: () => widget.onSelectTab('qr'),
+                    ),
+                  ],
                 ),
-                SfitFeatureCard(
-                  icon: Icons.flag_outlined,
-                  title: 'Reportes',
-                  subtitle: 'Validar reportes',
-                  onTap: () => widget.onSelectTab('reportes'),
+                SfitFeatureCategory(
+                  label: 'VALIDACIÓN',
+                  icon: Icons.fact_check_outlined,
+                  modules: [
+                    SfitFeatureCard(
+                      icon: Icons.flag_outlined,
+                      title: 'Reportes',
+                      subtitle: 'Validar reportes',
+                      onTap: () => widget.onSelectTab('reportes'),
+                    ),
+                    SfitFeatureCard(
+                      icon: Icons.balance_outlined,
+                      title: 'Apelaciones',
+                      subtitle: 'Resolver pendientes',
+                      onTap: () => context.push('/fiscal/apelaciones'),
+                    ),
+                    SfitFeatureCard(
+                      icon: Icons.history_outlined,
+                      title: 'Mis resueltas',
+                      subtitle: 'Historial fiscal',
+                      onTap: () => context.push('/fiscal/mis-apelaciones'),
+                    ),
+                  ],
                 ),
-                SfitFeatureCard(
-                  icon: Icons.directions_car_outlined,
-                  title: 'Vehículos',
-                  subtitle: 'Consulta rápida',
-                  onTap: () => widget.onSelectTab('vehiculos-consulta'),
+                SfitFeatureCategory(
+                  label: 'CONSULTAS',
+                  icon: Icons.search_outlined,
+                  modules: [
+                    SfitFeatureCard(
+                      icon: Icons.directions_car_outlined,
+                      title: 'Vehículos',
+                      subtitle: 'Consulta rápida',
+                      onTap: () => widget.onSelectTab('vehiculos-consulta'),
+                    ),
+                    SfitFeatureCard(
+                      icon: Icons.groups_2_outlined,
+                      title: 'Conductores',
+                      subtitle: 'Consulta Sétare',
+                      onTap: () => widget.onSelectTab('conductores-consulta'),
+                    ),
+                  ],
                 ),
-                SfitFeatureCard(
-                  icon: Icons.groups_2_outlined,
-                  title: 'Conductores',
-                  subtitle: 'Consulta Sétare',
-                  onTap: () => widget.onSelectTab('conductores-consulta'),
-                ),
-                SfitFeatureCard(
-                  icon: Icons.balance_outlined,
-                  title: 'Apelaciones',
-                  subtitle: 'Resolver pendientes',
-                  onTap: () => context.push('/fiscal/apelaciones'),
-                ),
-                SfitFeatureCard(
-                  icon: Icons.history_outlined,
-                  title: 'Mis resueltas',
-                  subtitle: 'Historial fiscal',
-                  onTap: () => context.push('/fiscal/mis-apelaciones'),
+                SfitFeatureCategory(
+                  label: 'CUENTA',
+                  icon: Icons.account_circle_outlined,
+                  modules: [
+                    SfitFeatureCard(
+                      icon: Icons.person_outline,
+                      title: 'Mi perfil',
+                      subtitle: 'Datos y cuenta',
+                      onTap: () => widget.onSelectTab('perfil'),
+                    ),
+                  ],
                 ),
               ],
             ),

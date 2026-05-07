@@ -54,8 +54,15 @@ class SfitKpiCard extends StatelessWidget {
           color: Colors.white,
           border: Border.all(color: AppColors.ink2, width: 1),
           borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.ink9.withValues(alpha: 0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -100,24 +107,26 @@ class SfitKpiCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Text(
                   value,
                   style: AppTheme.inter(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
                     color: AppColors.ink9,
                     letterSpacing: -0.6,
                     height: 1.05,
                     tabular: true,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 if (subtitle != null) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     subtitle!,
                     style: AppTheme.inter(
-                      fontSize: 11.5,
+                      fontSize: 11,
                       fontWeight: FontWeight.w500,
                       color: AppColors.ink5,
                     ),

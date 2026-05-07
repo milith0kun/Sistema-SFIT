@@ -29,8 +29,8 @@ class SfitHeroPill extends StatelessWidget {
         : Colors.white.withValues(alpha: 0.55);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      constraints: const BoxConstraints(minWidth: 110),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      constraints: const BoxConstraints(minWidth: 96),
       decoration: BoxDecoration(
         color: bg,
         border: Border.all(color: border, width: 1),
@@ -43,21 +43,22 @@ class SfitHeroPill extends StatelessWidget {
           Text(
             label.toUpperCase(),
             style: AppTheme.inter(
-              fontSize: 10,
+              fontSize: 9.5,
               fontWeight: FontWeight.w700,
               color: labelColor,
-              letterSpacing: 1.4,
+              letterSpacing: 1.3,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 1),
           Text(
             value,
             style: AppTheme.inter(
-              fontSize: 22,
+              fontSize: 19,
               fontWeight: FontWeight.w700,
               color: Colors.white,
               letterSpacing: -0.5,
               tabular: true,
+              height: 1.1,
             ),
           ),
         ],
@@ -150,36 +151,36 @@ class _SfitHeroCardState extends State<SfitHeroCard>
             ),
             // Contenido
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _buildKicker(),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
                     widget.title,
                     style: AppTheme.syne(
-                      fontSize: 24,
+                      fontSize: 21,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
-                      letterSpacing: -0.6,
+                      letterSpacing: -0.5,
                       height: 1.08,
                     ),
                   ),
                   if (widget.subtitle != null) ...[
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
                       widget.subtitle!,
                       style: AppTheme.inter(
-                        fontSize: 13,
+                        fontSize: 12.5,
                         color: Colors.white.withValues(alpha: 0.75),
-                        height: 1.45,
+                        height: 1.4,
                       ),
                     ),
                   ],
                   if (widget.pills != null && widget.pills!.isNotEmpty) ...[
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,

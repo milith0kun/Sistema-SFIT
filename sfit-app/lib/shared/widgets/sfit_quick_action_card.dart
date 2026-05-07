@@ -94,114 +94,145 @@ class SfitQuickActionCard extends StatelessWidget {
 
                   // Contenido
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
-                    child: Row(
-                      children: [
-                        // Chip de ícono
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryBg,
-                            border: Border.all(color: AppColors.primaryBorder, width: 1.5),
-                            borderRadius: BorderRadius.circular(13),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.white.withValues(alpha: 0.5),
-                                blurRadius: 0,
-                                spreadRadius: 1,
-                                offset: const Offset(0, 1),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        // En pantallas estrechas (< 360px de ancho útil) la pill
+                        // se reduce a un botón circular con sólo flecha — el
+                        // texto del título queda con espacio para 2 líneas.
+                        final isCompact = constraints.maxWidth < 320;
+                        return Row(
+                          children: [
+                            // Chip de ícono
+                            Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryBg,
+                                border: Border.all(color: AppColors.primaryBorder, width: 1.5),
+                                borderRadius: BorderRadius.circular(13),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.white.withValues(alpha: 0.5),
+                                    blurRadius: 0,
+                                    spreadRadius: 1,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          child: Icon(
-                            icon,
-                            size: 24,
-                            color: AppColors.primaryDark,
-                          ),
-                        ),
-                        const SizedBox(width: 18),
+                              child: Icon(
+                                icon,
+                                size: 24,
+                                color: AppColors.primaryDark,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
 
-                        // Textos
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                label.toUpperCase(),
-                                style: AppTheme.inter(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.primaryDark,
-                                  letterSpacing: 1.6,
-                                ),
+                            // Textos
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    label.toUpperCase(),
+                                    style: AppTheme.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.primaryDark,
+                                      letterSpacing: 1.6,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    title,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTheme.inter(
+                                      fontSize: 16.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.ink,
+                                      letterSpacing: -0.2,
+                                      height: 1.18,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    subtitle,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTheme.inter(
+                                      fontSize: 12.5,
+                                      color: AppColors.ink6,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTheme.inter(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.ink,
-                                  letterSpacing: -0.15,
-                                  height: 1.2,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                subtitle,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTheme.inter(
-                                  fontSize: 13,
-                                  color: AppColors.ink6,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                            ),
 
-                        const SizedBox(width: 12),
+                            const SizedBox(width: 10),
 
-                        // CTA Pill
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                          decoration: BoxDecoration(
-                            color: AppColors.panel,
-                            borderRadius: BorderRadius.circular(9),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.panel.withValues(alpha: 0.25),
-                                blurRadius: 2,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'Acceder',
-                                style: AppTheme.inter(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
+                            // CTA — pill con texto si hay espacio, círculo icónico si no.
+                            if (isCompact)
+                              Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: AppColors.panel,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.panel.withValues(alpha: 0.25),
+                                      blurRadius: 2,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ],
+                                ),
+                                alignment: Alignment.center,
+                                child: const Icon(
+                                  Icons.arrow_outward_rounded,
+                                  size: 16,
                                   color: Colors.white,
                                 ),
+                              )
+                            else
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+                                decoration: BoxDecoration(
+                                  color: AppColors.panel,
+                                  borderRadius: BorderRadius.circular(9),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.panel.withValues(alpha: 0.25),
+                                      blurRadius: 2,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Acceder',
+                                      style: AppTheme.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    const Icon(
+                                      Icons.arrow_outward_rounded,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
+                                  ],
+                                ),
                               ),
-                              const SizedBox(width: 7),
-                              const Icon(
-                                Icons.arrow_outward_rounded,
-                                size: 14,
-                                color: Colors.white,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ],
