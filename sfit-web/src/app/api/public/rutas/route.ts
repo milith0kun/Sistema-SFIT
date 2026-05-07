@@ -3,9 +3,11 @@ import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/db/mongoose";
 import { Route } from "@/models/Route";
 import { FleetEntry } from "@/models/FleetEntry";
+import { RouteCapture } from "@/models/RouteCapture";
 import "@/models/Municipality";
 import { apiResponse } from "@/lib/api/response";
 import { haversineMeters } from "@/lib/geo/haversine";
+import { samplePolyline } from "@/lib/routes/sample";
 
 const STALE_LOCATION_THRESHOLD_MS = 2 * 60_000; // 2 min — coincide con /flota/activas
 const BBOX_DELTA_DEG = 0.3; // ~33 km — radio típico de un bus urbano
@@ -34,6 +36,7 @@ export async function GET(request: NextRequest) {
   const userLatStr = url.searchParams.get("lat");
   const userLngStr = url.searchParams.get("lng");
   const limit = Math.min(150, Math.max(1, Number(url.searchParams.get("limit") ?? 60)));
+  const includeCandidates = url.searchParams.get("includeCandidates") === "true";
 
   const userLat = userLatStr != null && userLatStr !== "" ? Number(userLatStr) : null;
   const userLng = userLngStr != null && userLngStr !== "" ? Number(userLngStr) : null;
@@ -143,8 +146,86 @@ export async function GET(request: NextRequest) {
       })),
       polylineCoords: r.polylineGeometry?.coords ?? null,
       nearestStop,
+      validated: true as boolean,
     };
   });
+
+  // includeCandidates: capturas en status="candidate" se devuelven como
+  // rutas no oficiales (validated:false). El cliente decide si mostrarlas.
+  // Mantiene back-compat: clientes viejos no envían el flag y no las ven.
+  if (includeCandidates) {
+    const capFilter: Record<string, unknown> = { status: "candidate" };
+    if (municipalityId && isValidObjectId(municipalityId)) {
+      capFilter.municipalityId = municipalityId;
+    }
+    const captures = await RouteCapture.find(capFilter)
+      .select("_id municipalityId points pointCount distanceMeters durationSeconds proposedName proposedCode createdAt")
+      .populate("municipalityId", "name ubigeoCode")
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+
+    for (const c of captures) {
+      const pts = (c.points ?? []) as Array<{ lat: number; lng: number }>;
+      if (pts.length < 2) continue;
+
+      // BBox check post-fetch (más eficiente que $elemMatch sobre array grande).
+      if (hasUserCoords) {
+        const inBbox = pts.some((p) =>
+          p.lat >= userLat - BBOX_DELTA_DEG && p.lat <= userLat + BBOX_DELTA_DEG &&
+          p.lng >= userLng - BBOX_DELTA_DEG && p.lng <= userLng + BBOX_DELTA_DEG,
+        );
+        if (!inBbox) continue;
+      }
+
+      let nearestStop: typeof items[number]["nearestStop"] = null;
+      if (hasUserCoords) {
+        let bestDist = Number.POSITIVE_INFINITY;
+        let bestIdx = 0;
+        for (let i = 0; i < pts.length; i++) {
+          const d = haversineMeters(
+            { lat: userLat, lng: userLng },
+            { lat: pts[i].lat, lng: pts[i].lng },
+          );
+          if (d < bestDist) {
+            bestDist = d;
+            bestIdx = i;
+          }
+        }
+        nearestStop = {
+          stopIndex: bestIdx,
+          label: `Punto ${bestIdx}`,
+          lat: pts[bestIdx].lat,
+          lng: pts[bestIdx].lng,
+          distanceFromUserMeters: Math.round(bestDist),
+        };
+      }
+
+      const muni = c.municipalityId as { _id?: unknown; name?: string } | null;
+      const sample = samplePolyline(pts, 60);
+
+      items.push({
+        routeId: String(c._id),
+        name: c.proposedName ?? "Ruta sin nombre",
+        code: c.proposedCode ?? null,
+        direction: null,
+        vehicleTypeKey: null,
+        municipalityId: muni?._id ? String(muni._id) : null,
+        municipalityName: muni?.name ?? null,
+        activeBusCount: 0,
+        // No hay waypoints oficiales — usamos samplePolyline como aproximación.
+        waypoints: sample.map(([lat, lng], idx) => ({
+          lat,
+          lng,
+          label: undefined,
+          order: idx,
+        })),
+        polylineCoords: sample,
+        nearestStop,
+        validated: false,
+      });
+    }
+  }
 
   // Orden: si hay GPS → paradero más cercano primero; si no → rutas con buses
   // activos primero, luego alfabético por código/nombre.
