@@ -6,11 +6,13 @@ import { FleetEntry } from "@/models/FleetEntry";
 import { Driver } from "@/models/Driver";
 import { LocationPing } from "@/models/LocationPing";
 import { Route as RouteModel } from "@/models/Route";
+import { RouteCapture } from "@/models/RouteCapture";
 import { apiResponse, apiError, apiForbidden, apiNotFound, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { haversineMeters } from "@/lib/geo/haversine";
+import { computeQualityScore, polylineLengthMeters, type GpsPoint } from "@/lib/routes/converge";
 
 const UpdateSchema = z.object({
   driverId: z.string().refine(isValidObjectId).optional(),
@@ -148,6 +150,69 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   await entry.save();
+
+  // 4. Hook auto-captura RouteCapture: best-effort, no bloquea la respuesta.
+  //    Si el turno se cerró ahora y hay >=20 LocationPings, creamos una captura.
+  //    - Con routeId         → status "raw"        (alimenta convergencia)
+  //    - Sin routeId         → status "candidate"  (operador la valida)
+  if (closingNow) {
+    void (async () => {
+      try {
+        // Idempotencia: no duplicar si ya existe captura para este turno.
+        const existing = await RouteCapture.findOne({ fleetEntryId: entry._id }).select("_id").lean();
+        if (existing) return;
+
+        const tp = await LocationPing.find({ entryId: entry._id })
+          .sort({ ts: 1 })
+          .select("lat lng ts accuracy speed")
+          .lean<Array<{ lat: number; lng: number; ts: Date; accuracy?: number; speed?: number }>>();
+        if (tp.length < 20) return;
+
+        const points = tp.map((p) => ({
+          lat: p.lat,
+          lng: p.lng,
+          ts: p.ts,
+          accuracy: p.accuracy,
+          speed: p.speed,
+        }));
+
+        const accuracies = points.map((p) => p.accuracy).filter((x): x is number => typeof x === "number");
+        const avgAccuracy = accuracies.length > 0
+          ? accuracies.reduce((s, a) => s + a, 0) / accuracies.length
+          : undefined;
+
+        const distanceMeters = polylineLengthMeters(points as GpsPoint[]);
+        const durationSeconds = points.length >= 2
+          ? Math.round((points[points.length - 1].ts.getTime() - points[0].ts.getTime()) / 1000)
+          : undefined;
+
+        const qualityScore = computeQualityScore({
+          avgAccuracy,
+          pointCount: points.length,
+          durationSeconds,
+          distanceMeters,
+        });
+
+        await RouteCapture.create({
+          routeId: entry.routeId ?? null,
+          fleetEntryId: entry._id,
+          driverId: entry.driverId,
+          vehicleId: entry.vehicleId,
+          municipalityId: entry.municipalityId,
+          points,
+          pointCount: points.length,
+          avgAccuracy,
+          distanceMeters,
+          durationSeconds,
+          qualityScore,
+          status: entry.routeId ? "raw" : "candidate",
+        });
+      } catch (e) {
+        console.error("[flota PATCH] auto-captura RouteCapture", e);
+      }
+    })();
+  }
+
   return apiResponse({ id: String(entry._id), ...entry.toObject() });
 }
 
