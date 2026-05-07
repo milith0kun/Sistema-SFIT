@@ -258,6 +258,17 @@ class ActiveRouteData {
   final ActiveBusLite? closestBus;
   final NearestStop? nearestStop;
   final int? etaToUserStopSeconds;
+  /// `true` si la ruta es oficial (modelo `Route` validado por la
+  /// municipalidad); `false` si proviene de una `RouteCapture` candidata
+  /// generada automáticamente cuando un conductor cierra turno sin asociar
+  /// ruta. Default `true` para retro-compatibilidad con backends viejos
+  /// que no envían el campo.
+  final bool validated;
+  /// Trazo simplificado de una candidata (`validated == false`). El backend
+  /// envía hasta ~60 puntos en lugar de un waypoint set completo. Cada
+  /// elemento es `[lat, lng]`. Vacío para rutas oficiales (usar
+  /// `polylineCoords` / `waypoints`).
+  final List<List<double>> samplePolyline;
 
   const ActiveRouteData({
     required this.routeId,
@@ -273,6 +284,8 @@ class ActiveRouteData {
     this.closestBus,
     this.nearestStop,
     this.etaToUserStopSeconds,
+    this.validated = true,
+    this.samplePolyline = const [],
   });
 
   factory ActiveRouteData.fromJson(Map<String, dynamic> j) {
@@ -280,6 +293,14 @@ class ActiveRouteData {
     final busesList = (j['buses'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     final polyRaw = j['polylineCoords'] as List?;
     final polyCoords = polyRaw
+            ?.map<List<double>>((p) {
+              final list = (p as List).cast<num>();
+              return [list[0].toDouble(), list[1].toDouble()];
+            })
+            .toList() ??
+        const <List<double>>[];
+    final sampleRaw = j['samplePolyline'] as List?;
+    final samplePoly = sampleRaw
             ?.map<List<double>>((p) {
               final list = (p as List).cast<num>();
               return [list[0].toDouble(), list[1].toDouble()];
@@ -302,6 +323,8 @@ class ActiveRouteData {
       closestBus: closest != null ? ActiveBusLite.fromJson(closest) : null,
       nearestStop: near != null ? NearestStop.fromJson(near) : null,
       etaToUserStopSeconds: (j['etaToUserStopSeconds'] as num?)?.toInt(),
+      validated: j['validated'] as bool? ?? true,
+      samplePolyline: samplePoly,
     );
   }
 }

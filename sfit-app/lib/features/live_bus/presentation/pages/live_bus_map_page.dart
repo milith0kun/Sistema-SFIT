@@ -102,6 +102,13 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
         qp['lat'] = _userPos!.latitude;
         qp['lng'] = _userPos!.longitude;
       }
+      // Para `/public/rutas`: pedimos que incluya candidatas (RouteCapture
+      // sin validar generadas al cerrar turno sin ruta). Las mostramos en
+      // sección aparte "Rutas sin validar" para diferenciar.
+      final qpRoutes = <String, dynamic>{
+        ...qp,
+        'includeCandidates': true,
+      };
       // Fetch en paralelo:
       //   - /public/flota/activas → buses transmitiendo ahora con su ETA
       //   - /public/rutas         → TODAS las rutas activas del municipio
@@ -111,7 +118,7 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
       // y continuamos con los buses solos — la tab "Rutas" muestra vacío.
       final results = await Future.wait([
         dio.get('/public/flota/activas', queryParameters: qp),
-        dio.get('/public/rutas', queryParameters: qp).then<dynamic>(
+        dio.get('/public/rutas', queryParameters: qpRoutes).then<dynamic>(
               (r) => r,
               onError: (_) => null,
             ),
@@ -151,7 +158,8 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
   }
 
   /// Tap en card de ruta: fija filtro a esa ruta y salta al mapa para ver
-  /// el recorrido + buses transmitiendo en ella.
+  /// el recorrido + buses transmitiendo en ella. Para candidatas (sin
+  /// validar) usamos `samplePolyline` como fuente de puntos.
   void _focusOnRoute(ActiveRouteData r) {
     setState(() {
       _filterRouteIds
@@ -164,6 +172,7 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
       try {
         final pts = <LatLng>[
           ...r.waypoints.map((w) => LatLng(w.lat, w.lng)),
+          ...r.samplePolyline.map((c) => LatLng(c[0], c[1])),
           ...r.buses.map((b) => LatLng(b.lat, b.lng)),
           if (_userPos != null) LatLng(_userPos!.latitude, _userPos!.longitude),
         ];
@@ -556,12 +565,48 @@ class _MapView extends StatelessWidget {
         // ── Polylines de TODAS las rutas como fondo ──
         // Cuando NO hay filtro: todas en gris tenue para mostrar el mapa
         // completo de rutas del municipio aunque no haya buses transmitiendo.
-        // Cuando hay UNA ruta filtrada: dibujamos sólo esa, resaltada.
+        // Cuando hay UNA ruta filtrada: dibujamos sólo esa.
+        // - Validadas se pintan con dorado al estar filtradas.
+        // - Candidatas (validated == false) se mantienen en gris siempre,
+        //   incluso filtradas, para que el ciudadano las distinga.
         PolylineLayer(
           polylines: [
             for (final r in allRoutes)
               if (filterRouteIds.isEmpty || filterRouteIds.contains(r.routeId))
-                if (r.polylineCoords.isNotEmpty)
+                if (!r.validated)
+                  // ── Candidata sin validar: trazo gris (sample u otros) ──
+                  if (r.samplePolyline.length >= 2)
+                    Polyline(
+                      points: r.samplePolyline
+                          .map((c) => LatLng(c[0], c[1]))
+                          .toList(),
+                      strokeWidth: filterRouteIds.contains(r.routeId) ? 3.5 : 2.5,
+                      color: AppColors.ink5.withValues(
+                        alpha: filterRouteIds.contains(r.routeId) ? 0.7 : 0.4,
+                      ),
+                      pattern: StrokePattern.dashed(segments: const [6.0, 4.0]),
+                    )
+                  else if (r.polylineCoords.length >= 2)
+                    Polyline(
+                      points: r.polylineCoords
+                          .map((c) => LatLng(c[0], c[1]))
+                          .toList(),
+                      strokeWidth: filterRouteIds.contains(r.routeId) ? 3.5 : 2.5,
+                      color: AppColors.ink5.withValues(
+                        alpha: filterRouteIds.contains(r.routeId) ? 0.7 : 0.4,
+                      ),
+                      pattern: StrokePattern.dashed(segments: const [6.0, 4.0]),
+                    )
+                  else if (r.waypoints.length >= 2)
+                    Polyline(
+                      points: r.waypoints.map((w) => LatLng(w.lat, w.lng)).toList(),
+                      strokeWidth: 2,
+                      color: AppColors.ink5.withValues(alpha: 0.35),
+                      pattern: const StrokePattern.dotted(),
+                    )
+                  else
+                    Polyline(points: const [], color: Colors.transparent)
+                else if (r.polylineCoords.isNotEmpty)
                   Polyline(
                     points: r.polylineCoords.map((c) => LatLng(c[0], c[1])).toList(),
                     strokeWidth: filterRouteIds.contains(r.routeId) ? 4 : 2.5,
@@ -578,10 +623,11 @@ class _MapView extends StatelessWidget {
                   ),
           ],
         ),
-        // ── Paraderos numerados (solo si hay UNA ruta filtrada) ──
+        // ── Paraderos numerados (solo si hay UNA ruta validada filtrada) ──
+        // Las candidatas no tienen waypoints oficiales; no las numeramos.
         if (filterRouteIds.length == 1)
           for (final r in allRoutes)
-            if (r.routeId == filterRouteIds.first)
+            if (r.routeId == filterRouteIds.first && r.validated)
               MarkerLayer(
                 markers: r.waypoints
                     .map((w) => Marker(
@@ -935,25 +981,116 @@ class _RoutesView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
+    // Particionamos rutas oficiales (validated) vs candidatas (unvalidated).
+    // El backend mezcla ambas en /public/rutas cuando includeCandidates=true.
+    final validated = routes.where((r) => r.validated).toList();
+    final candidates = routes.where((r) => !r.validated).toList();
+    final hasBoth = validated.isNotEmpty && candidates.isNotEmpty;
+
+    return ListView(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
-      itemCount: routes.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (_, i) {
-        final r = routes[i];
-        return InkWell(
-          onTap: () => onTapRoute(r),
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.ink2),
+      children: [
+        if (validated.isNotEmpty) ...[
+          if (hasBoth) const _RoutesSectionHeader(label: 'RUTAS VALIDADAS'),
+          for (int i = 0; i < validated.length; i++) ...[
+            _ValidatedRouteCard(
+              route: validated[i],
+              hasUserGps: hasUserGps,
+              formatEta: formatEta,
+              formatDistance: formatDistance,
+              onTap: () => onTapRoute(validated[i]),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+            if (i < validated.length - 1) const SizedBox(height: 8),
+          ],
+        ],
+        if (candidates.isNotEmpty) ...[
+          if (validated.isNotEmpty) const SizedBox(height: 18),
+          const _RoutesSectionHeader(label: 'RUTAS SIN VALIDAR'),
+          // Aviso explicativo para el ciudadano: estas rutas las generó el
+          // sistema a partir de un recorrido real de un conductor. Aún no
+          // están aprobadas oficialmente por la municipalidad.
+          Container(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              color: AppColors.ink1,
+              border: Border.all(color: AppColors.ink2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(children: [
+              const Icon(Icons.info_outline, size: 14, color: AppColors.ink6),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Recorridos capturados por conductores. Pendientes de validación oficial.',
+                  style: AppTheme.inter(
+                    fontSize: 11.5, color: AppColors.ink6, height: 1.3),
+                ),
+              ),
+            ]),
+          ),
+          for (int i = 0; i < candidates.length; i++) ...[
+            _CandidateRouteCard(
+              route: candidates[i],
+              onTap: () => onTapRoute(candidates[i]),
+            ),
+            if (i < candidates.length - 1) const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _RoutesSectionHeader extends StatelessWidget {
+  final String label;
+  const _RoutesSectionHeader({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 2, 2, 8),
+      child: Text(
+        label,
+        style: AppTheme.inter(
+          fontSize: 11, fontWeight: FontWeight.w800,
+          color: AppColors.ink5, letterSpacing: 1.2),
+      ),
+    );
+  }
+}
+
+class _ValidatedRouteCard extends StatelessWidget {
+  final ActiveRouteData route;
+  final bool hasUserGps;
+  final String Function(int?) formatEta;
+  final String Function(int?) formatDistance;
+  final VoidCallback onTap;
+
+  const _ValidatedRouteCard({
+    required this.route,
+    required this.hasUserGps,
+    required this.formatEta,
+    required this.formatDistance,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final r = route;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.ink2),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
                 // ── Encabezado: código + nombre + count ──
                 Row(children: [
                   if (r.code != null) ...[
@@ -1123,9 +1260,183 @@ class _RoutesView extends StatelessWidget {
                 ]),
               ],
             ),
-          ),
-        );
-      },
+      ),
+    );
+  }
+}
+
+/// Card de una ruta candidata (no validada). Diseño deliberadamente más
+/// sobrio que `_ValidatedRouteCard`: borde gris, badge "SIN VALIDAR",
+/// mini-mapa con la `samplePolyline` en gris y SIN contador de buses
+/// (siempre 0 para candidatas).
+class _CandidateRouteCard extends StatelessWidget {
+  final ActiveRouteData route;
+  final VoidCallback onTap;
+  const _CandidateRouteCard({required this.route, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final r = route;
+    // Puntos para el mini-mapa: priorizar samplePolyline; fallback a
+    // polylineCoords y por último a waypoints (mejor que nada).
+    final pts = <LatLng>[
+      if (r.samplePolyline.isNotEmpty)
+        ...r.samplePolyline.map((c) => LatLng(c[0], c[1]))
+      else if (r.polylineCoords.isNotEmpty)
+        ...r.polylineCoords.map((c) => LatLng(c[0], c[1]))
+      else
+        ...r.waypoints.map((w) => LatLng(w.lat, w.lng)),
+    ];
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.ink2),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Mini-mapa con el sample en gris (sólo si hay >=2 puntos).
+            if (pts.length >= 2)
+              ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(11)),
+                child: AspectRatio(
+                  aspectRatio: 16 / 6,
+                  child: IgnorePointer(
+                    child: FlutterMap(
+                      options: MapOptions(
+                        initialCameraFit: CameraFit.bounds(
+                          bounds: LatLngBounds.fromPoints(pts),
+                          padding: const EdgeInsets.all(14),
+                        ),
+                        interactionOptions: const InteractionOptions(
+                            flags: InteractiveFlag.none),
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+                          subdomains: const ['a', 'b', 'c', 'd'],
+                          userAgentPackageName: 'com.sfit.sfit_app',
+                        ),
+                        PolylineLayer(polylines: [
+                          Polyline(
+                            points: pts,
+                            color: AppColors.ink5.withValues(alpha: 0.75),
+                            strokeWidth: 3,
+                            pattern:
+                                StrokePattern.dashed(segments: const [6.0, 4.0]),
+                          ),
+                        ]),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    if (r.code != null) ...[
+                      Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.ink5,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          r.code!,
+                          style: AppTheme.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: 0.5),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            r.name,
+                            style: AppTheme.inter(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.ink8),
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                          ),
+                          if (r.municipalityName != null)
+                            Text(
+                              r.municipalityName!,
+                              style: AppTheme.inter(
+                                  fontSize: 11,
+                                  color: AppColors.ink5,
+                                  fontWeight: FontWeight.w500),
+                              maxLines: 1, overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.ink1,
+                        border: Border.all(color: AppColors.ink3),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.lock_clock,
+                            size: 11, color: AppColors.ink6),
+                        const SizedBox(width: 4),
+                        Text(
+                          'SIN VALIDAR',
+                          style: AppTheme.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.ink6,
+                              letterSpacing: 0.6),
+                        ),
+                      ]),
+                    ),
+                  ]),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Recorrido capturado por conductor — pendiente de validación oficial.',
+                    style: AppTheme.inter(
+                        fontSize: 11.5, color: AppColors.ink6, height: 1.35),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(height: 1, color: AppColors.ink1),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    const Icon(Icons.map_outlined,
+                        size: 14, color: AppColors.ink5),
+                    const SizedBox(width: 5),
+                    Text(
+                      'Toca para ver el trazo en el mapa',
+                      style: AppTheme.inter(fontSize: 11.5, color: AppColors.ink5),
+                    ),
+                    const Spacer(),
+                    const Icon(Icons.arrow_forward_rounded,
+                        size: 16, color: AppColors.ink5),
+                  ]),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
