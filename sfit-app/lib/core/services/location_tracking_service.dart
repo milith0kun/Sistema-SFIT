@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -51,6 +52,10 @@ class TrackingState {
   /// indica problemas de red — la UI puede mostrar un badge "Sin conexión".
   final int queuedPoints;
 
+  /// Cantidad acumulada (persistida) de puntos descartados por overflow del
+  /// box (cola llena al máximo). Útil para diagnóstico.
+  final int droppedByOverflow;
+
   const TrackingState({
     this.entryId,
     this.routeId,
@@ -64,6 +69,7 @@ class TrackingState {
     this.discardedLowAccuracy = 0,
     this.isOffRoute = false,
     this.queuedPoints = 0,
+    this.droppedByOverflow = 0,
   });
 
   TrackingState copyWith({
@@ -79,6 +85,7 @@ class TrackingState {
     int? discardedLowAccuracy,
     bool? isOffRoute,
     int? queuedPoints,
+    int? droppedByOverflow,
   }) => TrackingState(
     entryId: entryId ?? this.entryId,
     routeId: routeId ?? this.routeId,
@@ -95,6 +102,7 @@ class TrackingState {
     discardedLowAccuracy: discardedLowAccuracy ?? this.discardedLowAccuracy,
     isOffRoute: isOffRoute ?? this.isOffRoute,
     queuedPoints: queuedPoints ?? this.queuedPoints,
+    droppedByOverflow: droppedByOverflow ?? this.droppedByOverflow,
   );
 
   static const _kSentinel = Object();
@@ -114,6 +122,7 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
   StreamSubscription<Position>? _positionSub;
   StreamSubscription<List<ConnectivityResult>>? _connSub;
   Timer? _heartbeat;
+  Timer? _drainRetryTimer;
 
   /// Última posición conocida. La usa el heartbeat para mantener "vivo" al
   /// bus en el mapa público aunque esté detenido (sin movimiento → sin
@@ -133,19 +142,68 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
   /// Filtro de calidad: descartar puntos con accuracy mayor a este umbral (m).
   static const double _accuracyThresholdMeters = 50;
 
-  /// Box Hive para puntos pendientes cuando falla la red.
+  /// Box Hive para puntos pendientes de envío. ES la fuente de verdad: TODO
+  /// punto del stream se encola primero y un drain loop intenta subirlos.
   static const String _queueBoxName = 'location_queue_v1';
+
+  /// Box Hive para metadata persistente (contador de descartes por overflow).
+  /// Independiente del queue para no perder el contador al limpiar la cola.
+  static const String _metaBoxName = 'location_meta_v1';
+  static const String _kDroppedKey = '_dropped';
+
+  /// Capacidad máxima de la cola en disco. Al rebasarla descartamos los más
+  /// viejos pero seguimos aceptando nuevos puntos (mejor perder histórico
+  /// que romper la captura).
   static const int _maxQueueSize = 5000;
+
+  /// Pace entre envíos en el drain — el backend rate-limita a 60/min (1 Hz)
+  /// por conductor; dejamos margen.
+  static const Duration _drainPace = Duration(milliseconds: 1100);
+
+  /// Backoff exponencial al fallar el drain. Empieza en 2s, dobla hasta 60s.
+  static const Duration _backoffBase = Duration(seconds: 2);
+  static const Duration _backoffMax = Duration(seconds: 60);
+
   Box<Map<dynamic, dynamic>>? _queue;
+  Box? _meta;
   bool _draining = false;
 
-  LocationTrackingNotifier(this._svc) : super(const TrackingState());
+  /// Cantidad de fallos consecutivos en el drain. Resetea a 0 al primer
+  /// envío exitoso. Determina la espera del próximo intento (backoff).
+  int _consecutiveFailures = 0;
+
+  LocationTrackingNotifier(this._svc) : super(const TrackingState()) {
+    // Drain al boot del notifier: si quedaron puntos de un turno previo en
+    // disco, intentar subirlos sin esperar a que el conductor inicie un
+    // turno nuevo. El backend acepta pings de turnos cerrados (busca por
+    // _id; sólo verifica que driverId coincida con el conductor autenticado).
+    unawaited(_bootDrain());
+  }
+
+  Future<void> _bootDrain() async {
+    try {
+      await _ensureBoxesOpen();
+      // Refleja el estado persistido al inicio (puntos en cola y descartes).
+      state = state.copyWith(
+        queuedPoints: _queue?.length ?? 0,
+        droppedByOverflow: _readDroppedCount(),
+      );
+      if ((_queue?.isNotEmpty ?? false)) {
+        // No await: el drain corre en background mientras el constructor
+        // termina. Si falla, programa retry con backoff.
+        unawaited(_drainQueue());
+      }
+    } catch (_) {
+      // No bloquear el arranque por errores de Hive.
+    }
+  }
 
   @override
   void dispose() {
     _positionSub?.cancel();
     _connSub?.cancel();
     _heartbeat?.cancel();
+    _drainRetryTimer?.cancel();
     super.dispose();
   }
 
@@ -179,7 +237,11 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
   /// se apague o la app pase a segundo plano.
   Future<void> startTracking(String entryId, {String? routeId}) async {
     await _stopStreamsKeepState();
-    await _ensureQueueOpen();
+    await _ensureBoxesOpen();
+
+    // Drenar cualquier residuo en cola (puede ser de turnos previos abortados
+    // por kill de la app). El backend acepta pings de turnos cerrados.
+    unawaited(_drainQueue());
 
     final waypoints = await _loadRouteWaypoints(routeId);
     final pos = await _safeGetPosition();
@@ -194,11 +256,12 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
       currentPosition: pos != null ? LatLng(pos.latitude, pos.longitude) : null,
       currentAccuracy: pos?.accuracy,
       queuedPoints: _queue?.length ?? 0,
+      droppedByOverflow: _readDroppedCount(),
     );
 
     if (pos != null) {
       _lastPosition = pos;
-      _sendOrQueue(entryId: entryId, pos: pos, action: 'start');
+      await _enqueue(entryId, pos, 'start');
     }
 
     _startStreams(entryId);
@@ -208,7 +271,12 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
   Future<void> resumeTracking(String entryId, {String? routeId}) async {
     if (state.isTracking && state.entryId == entryId) return;
     await _stopStreamsKeepState();
-    await _ensureQueueOpen();
+    await _ensureBoxesOpen();
+
+    // Drenar cola pendiente de turnos anteriores antes de empezar a tomar
+    // puntos nuevos. Si el conductor estuvo offline en su turno previo y la
+    // app fue matada, esos puntos siguen en disco.
+    unawaited(_drainQueue());
 
     List<LatLng> existing = const [];
     Set<int> visited = const <int>{};
@@ -237,6 +305,7 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
       currentAccuracy: pos?.accuracy,
       visitedStopIndices: visited,
       queuedPoints: _queue?.length ?? 0,
+      droppedByOverflow: _readDroppedCount(),
     );
 
     if (pos != null) _lastPosition = pos;
@@ -272,17 +341,21 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
       // `endLocation` y `distanceMeters` no se calculan en el backend.
       final endPos = _lastPosition ?? await _safeGetPosition();
       if (endPos != null) {
-        _sendOrQueue(entryId: entryId, pos: endPos, action: 'end');
+        await _enqueue(entryId, endPos, 'end');
       }
     }
     // Drain final con timeout — si la red está caída, se quedan en el box
-    // y se mandarán cuando vuelva.
+    // y se mandarán al volver (o al próximo arranque de la app, vía
+    // _bootDrain).
     try {
       await _drainQueue().timeout(const Duration(seconds: 5));
     } catch (_) {/* best-effort */}
 
     await _stopStreamsKeepState();
-    state = const TrackingState();
+    state = TrackingState(
+      queuedPoints: _queue?.length ?? 0,
+      droppedByOverflow: _readDroppedCount(),
+    );
   }
 
   Future<void> _stopStreamsKeepState() async {
@@ -292,6 +365,8 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
     _connSub = null;
     _heartbeat?.cancel();
     _heartbeat = null;
+    // OJO: NO cancelamos _drainRetryTimer — el drain debe seguir intentando
+    // subir puntos pendientes incluso después de cerrar el turno.
   }
 
   /// Limpia el feedback efímero de "último paradero" después de mostrarlo.
@@ -328,7 +403,13 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
     // Drain de cola al recuperar conectividad.
     _connSub = Connectivity().onConnectivityChanged.listen((results) {
       final hasNet = results.any((r) => r != ConnectivityResult.none);
-      if (hasNet) _drainQueue();
+      if (hasNet) {
+        // Resetear backoff: vuelve la red, hay que reintentar ya.
+        _consecutiveFailures = 0;
+        _drainRetryTimer?.cancel();
+        _drainRetryTimer = null;
+        unawaited(_drainQueue());
+      }
     });
   }
 
@@ -355,7 +436,10 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
       currentAccuracy: pos.accuracy,
       localTrack: newTrack,
     );
-    _sendOrQueue(entryId: entryId, pos: pos);
+    // Cola = fuente de verdad: encolar siempre primero, luego dejar que el
+    // drain loop intente subirlo. Esto garantiza que ningún punto se pierda
+    // si la red cae justo en medio del envío.
+    unawaited(_enqueue(entryId, pos, null));
   }
 
   void _onHeartbeat(String entryId) {
@@ -363,7 +447,7 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
     if (since < _heartbeatPeriod) return;
     final pos = _lastPosition;
     if (pos == null) return;
-    _sendOrQueue(entryId: entryId, pos: pos);
+    unawaited(_enqueue(entryId, pos, null));
   }
 
   Future<Position?> _safeGetPosition() async {
@@ -386,43 +470,47 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
     }
   }
 
-  // ─── Envío y cola offline ───────────────────────────────────────────────
+  // ─── Persistencia ───────────────────────────────────────────────────────
 
-  Future<void> _ensureQueueOpen() async {
-    if (_queue != null && _queue!.isOpen) return;
-    _queue = await Hive.openBox<Map<dynamic, dynamic>>(_queueBoxName);
+  Future<void> _ensureBoxesOpen() async {
+    if (_queue == null || !_queue!.isOpen) {
+      _queue = await Hive.openBox<Map<dynamic, dynamic>>(_queueBoxName);
+    }
+    if (_meta == null || !_meta!.isOpen) {
+      _meta = await Hive.openBox(_metaBoxName);
+    }
   }
 
-  void _sendOrQueue({
-    required String entryId,
-    required Position pos,
-    String? action,
-  }) {
-    _lastSendAt = DateTime.now();
-    _svc
-        .sendLocation(
-          entryId: entryId,
-          lat: pos.latitude,
-          lng: pos.longitude,
-          accuracy: pos.accuracy,
-          speed: pos.speed >= 0 ? pos.speed : null,
-          action: action,
-        )
-        .then(_applyServerResponse)
-        .catchError((_) {
-          // Encolar para reintentar cuando vuelva la red.
-          _enqueue(entryId, pos, action);
-        });
+  int _readDroppedCount() {
+    final m = _meta;
+    if (m == null || !m.isOpen) return 0;
+    final v = m.get(_kDroppedKey);
+    return v is int ? v : 0;
   }
 
+  Future<void> _bumpDroppedCount(int by) async {
+    final m = _meta;
+    if (m == null || !m.isOpen) return;
+    final current = _readDroppedCount();
+    await m.put(_kDroppedKey, current + by);
+  }
+
+  /// Encola un punto. Si la cola está llena (> _maxQueueSize), descarta el
+  /// más viejo PERO incrementa el contador persistido en `_meta` para no
+  /// perder visibilidad del descarte. Es preferible perder puntos viejos
+  /// que romper la captura.
   Future<void> _enqueue(String entryId, Position pos, String? action) async {
+    await _ensureBoxesOpen();
     final box = _queue;
     if (box == null) return;
+
     if (box.length >= _maxQueueSize) {
-      // Descartar el más viejo para no inundar disco.
+      // Eliminar el más viejo (FIFO) y registrar el descarte en disco.
       final firstKey = box.keys.isNotEmpty ? box.keys.first : null;
       if (firstKey != null) await box.delete(firstKey);
+      await _bumpDroppedCount(1);
     }
+
     await box.add(<String, dynamic>{
       'entryId': entryId,
       'lat': pos.latitude,
@@ -432,13 +520,27 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
       'action': action,
       'ts': DateTime.now().millisecondsSinceEpoch,
     });
-    state = state.copyWith(queuedPoints: box.length);
+
+    state = state.copyWith(
+      queuedPoints: box.length,
+      droppedByOverflow: _readDroppedCount(),
+    );
+
+    // Disparar drain para vaciar el punto recién encolado lo antes posible.
+    // Si ya hay un drain en curso (o un retry programado), no hace nada.
+    unawaited(_drainQueue());
   }
 
-  /// Drena la cola offline en orden FIFO. Se llama cuando vuelve la red, al
-  /// hacer checkout, o lazy desde el siguiente envío exitoso.
+  // ─── Drain con backoff exponencial ──────────────────────────────────────
+
+  /// Drena la cola offline en orden FIFO. Se llama:
+  ///   - tras encolar un punto nuevo (best-effort),
+  ///   - al recuperar conectividad,
+  ///   - desde el constructor (boot drain),
+  ///   - desde un timer de retry tras un fallo (con backoff exponencial).
   Future<void> _drainQueue() async {
     if (_draining) return;
+    await _ensureBoxesOpen();
     final box = _queue;
     if (box == null || box.isEmpty) return;
     _draining = true;
@@ -456,19 +558,43 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
             accuracy: (item['accuracy'] as num?)?.toDouble(),
             speed: (item['speed'] as num?)?.toDouble(),
             action: item['action'] as String?,
-          );
+          ).then(_applyServerResponse);
           await box.delete(key);
+          // Resetear backoff al primer éxito.
+          _consecutiveFailures = 0;
+          _lastSendAt = DateTime.now();
           // Pace para no toparse con rate limit (60/min) del backend.
-          await Future.delayed(const Duration(milliseconds: 1100));
+          await Future<void>.delayed(_drainPace);
         } catch (_) {
-          // Si falla un punto, paramos el drain — se reintentará al volver.
+          // Si falla un punto, paramos el drain — programa retry con backoff
+          // y se reintentará al recuperar la red o vencer el timer.
+          _consecutiveFailures++;
+          _scheduleRetry();
           break;
         }
       }
     } finally {
       _draining = false;
-      state = state.copyWith(queuedPoints: box.length);
+      state = state.copyWith(
+        queuedPoints: box.length,
+        droppedByOverflow: _readDroppedCount(),
+      );
     }
+  }
+
+  /// Programa un reintento del drain con backoff exponencial.
+  /// 2s, 4s, 8s, 16s, 32s, máx 60s.
+  void _scheduleRetry() {
+    _drainRetryTimer?.cancel();
+    if (_consecutiveFailures <= 0) return;
+    // 2 ^ (n-1) * base, capado a _backoffMax.
+    final exp = math.min(_consecutiveFailures - 1, 10);
+    final raw = _backoffBase * math.pow(2, exp).toInt();
+    final wait = raw > _backoffMax ? _backoffMax : raw;
+    _drainRetryTimer = Timer(wait, () {
+      _drainRetryTimer = null;
+      unawaited(_drainQueue());
+    });
   }
 
   void _applyServerResponse(Map<String, dynamic> data) {
