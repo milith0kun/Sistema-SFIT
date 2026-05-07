@@ -8,6 +8,10 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/datasources/trips_api_service.dart';
 
+/// Calculadora de distancia haversine de `latlong2`. La usamos para estimar
+/// ETA al próximo paradero cuando el backend no provee uno.
+const Distance _haversine = Distance();
+
 /// Mapa en tiempo real del turno activo del conductor (RF-conductor).
 /// Muestra ruta planeada (azul), trazado real (oro) y paraderos numerados
 /// que se colorean en verde a medida que el conductor pasa por ellos.
@@ -18,16 +22,42 @@ class TripMapPage extends ConsumerStatefulWidget {
   ConsumerState<TripMapPage> createState() => _TripMapPageState();
 }
 
-class _TripMapPageState extends ConsumerState<TripMapPage> {
+class _TripMapPageState extends ConsumerState<TripMapPage>
+    with SingleTickerProviderStateMixin {
   final _mapController = MapController();
   bool _followMode = true;
   bool _mapReady = false;
-  String? _lastSnackedLabel;
+
+  // ── Animación del bus entre pings ───────────────────────────────────────
+  /// Controlador que interpola la posición visible del bus entre el último
+  /// ping renderizado (`_animFrom`) y el más reciente recibido (`_animTo`).
+  late final AnimationController _busAnim;
+  LatLng? _animFrom;
+  LatLng? _animTo;
+
+  // ── Estimación local de velocidad ───────────────────────────────────────
+  /// `TrackingState` no expone timestamps por punto: lo aproximamos
+  /// guardando el reloj de pared cada vez que `currentPosition` cambia.
+  /// Lista circular acotada a 5 muestras para velocidad media reciente
+  /// (necesaria para ETA al próximo paradero).
+  final List<_PingSample> _recentPings = <_PingSample>[];
+  static const int _maxPings = 5;
+  LatLng? _lastSeenPos;
 
   @override
   void initState() {
     super.initState();
+    _busAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
     _resumeIfActive();
+  }
+
+  @override
+  void dispose() {
+    _busAnim.dispose();
+    super.dispose();
   }
 
   Future<void> _resumeIfActive() async {
@@ -62,13 +92,18 @@ class _TripMapPageState extends ConsumerState<TripMapPage> {
   Widget _buildActiveMap(TrackingState tracking) {
     final currentPos = tracking.currentPosition;
 
+    // Detecta cambios de posición para animar el marcador y muestrear velocidad.
+    if (currentPos != null && currentPos != _lastSeenPos) {
+      _onNewPing(currentPos);
+    }
+
     if (currentPos != null && _followMode && _mapReady) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || !_mapReady) return;
         try {
           _mapController.move(currentPos, _mapController.camera.zoom);
         } catch (_) {
-          // Mapa aÃºn no completamente inicializado.
+          // Mapa aún no completamente inicializado.
         }
       });
     }
@@ -76,6 +111,7 @@ class _TripMapPageState extends ConsumerState<TripMapPage> {
     final center = currentPos ?? const LatLng(-13.5319, -71.9675);
     final waypoints = tracking.routeWaypoints;
     final visited = tracking.visitedStopIndices;
+    final speedMs = _averageRecentSpeedMs();
 
     return Stack(
       children: [
@@ -126,44 +162,53 @@ class _TripMapPageState extends ConsumerState<TripMapPage> {
             if (waypoints.isNotEmpty)
               MarkerLayer(markers: _buildStopMarkers(waypoints, visited)),
             if (currentPos != null)
-              MarkerLayer(
-                markers: [
-                  Marker(
-                    point: currentPos,
-                    width: 44,
-                    height: 44,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color:
-                            tracking.isOffRoute
+              // Capa que se redibuja a 60fps con la posición interpolada.
+              AnimatedBuilder(
+                animation: _busAnim,
+                builder: (context, _) {
+                  final animated = _interpolatedPos(currentPos);
+                  return MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: animated,
+                        width: 44,
+                        height: 44,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: tracking.isOffRoute
                                 ? AppColors.noApto
                                 : AppColors.gold,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2.5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: (tracking.isOffRoute
-                                    ? AppColors.noApto
-                                    : AppColors.gold)
-                                .withValues(alpha: 0.4),
-                            blurRadius: 8,
-                            spreadRadius: 2,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white,
+                              width: 2.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (tracking.isOffRoute
+                                        ? AppColors.noApto
+                                        : AppColors.gold)
+                                    .withValues(alpha: 0.4),
+                                blurRadius: 8,
+                                spreadRadius: 2,
+                              ),
+                            ],
                           ),
-                        ],
+                          child: const Icon(
+                            Icons.navigation_rounded,
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.navigation_rounded,
-                        color: Colors.white,
-                        size: 22,
-                      ),
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
           ],
         ),
 
-        _Header(tracking: tracking),
+        _Header(tracking: tracking, speedMs: speedMs),
 
         if (tracking.isOffRoute)
           const Positioned(
@@ -177,7 +222,7 @@ class _TripMapPageState extends ConsumerState<TripMapPage> {
           top: tracking.isOffRoute ? 120 : 60,
           left: 8,
           right: 8,
-          child: _NextStopCard(tracking: tracking),
+          child: _NextStopCard(tracking: tracking, speedMs: speedMs),
         ),
 
         if (!_followMode && currentPos != null)
@@ -292,6 +337,77 @@ class _TripMapPageState extends ConsumerState<TripMapPage> {
         ),
       );
     }).toList();
+  }
+
+  // ── Animación + muestreo de velocidad ──────────────────────────────────
+
+  /// Llamado cuando `tracking.currentPosition` cambia respecto a lo último
+  /// mostrado: arranca un nuevo tween de animación y guarda muestra para
+  /// estimar velocidad media reciente.
+  void _onNewPing(LatLng newPos) {
+    final now = DateTime.now();
+    final prev = _lastSeenPos;
+    final prevAt = _recentPings.isNotEmpty ? _recentPings.last.at : null;
+    final deltaMs = prevAt == null ? 0 : now.difference(prevAt).inMilliseconds;
+
+    // Empuja muestra para velocidad media (con timestamp del reloj de pared).
+    if (prev != null) {
+      final dist = _haversine.as(LengthUnit.Meter, prev, newPos);
+      _recentPings.add(_PingSample(at: now, meters: dist, ms: deltaMs));
+      if (_recentPings.length > _maxPings) {
+        _recentPings.removeAt(0);
+      }
+    } else {
+      _recentPings.add(_PingSample(at: now, meters: 0, ms: 0));
+    }
+
+    // Tween: desde donde se está mostrando ahora (interpolado o último origen)
+    // hasta la nueva posición. Si el delta es chico saltamos directo.
+    final from = _interpolatedPos(prev ?? newPos);
+
+    if (prev == null || deltaMs < 500) {
+      _animFrom = newPos;
+      _animTo = newPos;
+      _busAnim.value = 1.0;
+    } else {
+      _animFrom = from;
+      _animTo = newPos;
+      _busAnim.duration = Duration(milliseconds: deltaMs.clamp(500, 2000));
+      _busAnim
+        ..reset()
+        ..forward();
+    }
+
+    _lastSeenPos = newPos;
+  }
+
+  /// Interpola entre `_animFrom` y `_animTo` según `_busAnim.value`. Si la
+  /// animación no está armada todavía, devuelve la posición pasada como
+  /// fallback (la última conocida).
+  LatLng _interpolatedPos(LatLng fallback) {
+    final from = _animFrom;
+    final to = _animTo;
+    if (from == null || to == null) return fallback;
+    final t = _busAnim.value;
+    return LatLng(
+      from.latitude + (to.latitude - from.latitude) * t,
+      from.longitude + (to.longitude - from.longitude) * t,
+    );
+  }
+
+  /// Velocidad media reciente en m/s a partir de las últimas muestras
+  /// (excluyendo la primera, que tiene `ms == 0`). Devuelve `null` si no
+  /// hay suficientes datos para una estimación útil.
+  double? _averageRecentSpeedMs() {
+    if (_recentPings.length < 2) return null;
+    var totalM = 0.0;
+    var totalMs = 0;
+    for (var i = 1; i < _recentPings.length; i++) {
+      totalM += _recentPings[i].meters;
+      totalMs += _recentPings[i].ms;
+    }
+    if (totalMs <= 0) return null;
+    return totalM / (totalMs / 1000.0);
   }
 
   Widget _buildNoTrip() {
@@ -440,7 +556,12 @@ class _StopMarker extends StatelessWidget {
 
 class _Header extends StatelessWidget {
   final TrackingState tracking;
-  const _Header({required this.tracking});
+
+  /// Velocidad estimada localmente en m/s (a partir de las últimas muestras
+  /// de `currentPosition`). `null` si todavía no hay suficientes datos.
+  final double? speedMs;
+
+  const _Header({required this.tracking, this.speedMs});
 
   @override
   Widget build(BuildContext context) {
@@ -478,6 +599,10 @@ class _Header extends StatelessWidget {
               ),
             ),
             const Spacer(),
+            if (speedMs != null) ...[
+              _SpeedPill(speedMs: speedMs!),
+              const SizedBox(width: 8),
+            ],
             if (total > 0) ...[
               const Icon(
                 Icons.location_on_rounded,
@@ -515,6 +640,54 @@ class _Header extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Pill compacta con la velocidad actual del bus. Muestra "Detenido"
+/// cuando estamos por debajo de 0.5 m/s (≈ 1.8 km/h, ruido GPS).
+class _SpeedPill extends StatelessWidget {
+  final double speedMs;
+  const _SpeedPill({required this.speedMs});
+
+  @override
+  Widget build(BuildContext context) {
+    final stopped = speedMs < 0.5;
+    final kmh = (speedMs * 3.6).round();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: stopped
+            ? Colors.white.withValues(alpha: 0.08)
+            : AppColors.gold.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: stopped
+              ? Colors.white.withValues(alpha: 0.18)
+              : AppColors.gold.withValues(alpha: 0.55),
+          width: 0.8,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            stopped ? Icons.pause_circle_filled_rounded : Icons.speed_rounded,
+            size: 12,
+            color: stopped ? Colors.white70 : AppColors.goldLight,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            stopped ? 'Detenido' : '$kmh km/h',
+            style: AppTheme.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: stopped ? Colors.white70 : AppColors.goldLight,
+              tabular: true,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -620,7 +793,12 @@ class _OffRouteBanner extends StatelessWidget {
 
 class _NextStopCard extends StatelessWidget {
   final TrackingState tracking;
-  const _NextStopCard({required this.tracking});
+
+  /// Velocidad media reciente en m/s (computada en la página). `null` si
+  /// no hay suficientes datos para estimar ETA → omitimos la línea.
+  final double? speedMs;
+
+  const _NextStopCard({required this.tracking, this.speedMs});
 
   @override
   Widget build(BuildContext context) {
@@ -637,6 +815,24 @@ class _NextStopCard extends StatelessWidget {
     }
 
     if (nextStop == null) return const SizedBox.shrink();
+
+    // ── Distancia + ETA al próximo paradero ─────────────────────────────
+    // ETA naïve: distancia haversine / velocidad media reciente. Sólo
+    // mostrado cuando tenemos posición actual y velocidad > 0.5 m/s.
+    String? distanceText;
+    String? etaText;
+    final pos = tracking.currentPosition;
+    if (pos != null) {
+      final meters = _haversine.as(LengthUnit.Meter, pos, nextStop.latLng);
+      distanceText = meters >= 1000
+          ? '${(meters / 1000).toStringAsFixed(1)} km'
+          : '${meters.round()} m';
+      if (speedMs != null && speedMs! > 0.5) {
+        final secs = (meters / speedMs!).round();
+        final mins = (secs / 60).ceil().clamp(1, 999);
+        etaText = '~$mins min';
+      }
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -678,14 +874,15 @@ class _NextStopCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Próximo Paradero',
+                  'PRÓXIMO PARADERO',
                   style: AppTheme.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.ink5,
-                    letterSpacing: 0.5,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.goldLight,
+                    letterSpacing: 1.0,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
                   nextStop.label ?? 'Desconocido',
                   style: AppTheme.inter(
@@ -696,6 +893,49 @@ class _NextStopCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                if (distanceText != null || etaText != null) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      if (distanceText != null) ...[
+                        const Icon(
+                          Icons.straighten_rounded,
+                          size: 12,
+                          color: Colors.white60,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          distanceText,
+                          style: AppTheme.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white70,
+                            tabular: true,
+                          ),
+                        ),
+                      ],
+                      if (etaText != null) ...[
+                        if (distanceText != null)
+                          const SizedBox(width: 10),
+                        const Icon(
+                          Icons.access_time_rounded,
+                          size: 12,
+                          color: Colors.white60,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          etaText,
+                          style: AppTheme.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white70,
+                            tabular: true,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -703,4 +943,15 @@ class _NextStopCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Muestra de un ping GPS con su distancia respecto al ping anterior y
+/// el `delta` de tiempo (ms). Usada para promediar velocidad reciente sin
+/// depender de timestamps por punto en `TrackingState`.
+class _PingSample {
+  final DateTime at;
+  final double meters;
+  final int ms;
+
+  const _PingSample({required this.at, required this.meters, required this.ms});
 }
