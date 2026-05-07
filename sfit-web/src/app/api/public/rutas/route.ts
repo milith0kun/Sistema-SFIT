@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
     return {
       routeId: String(r._id),
       name: r.name,
-      code: r.code ?? null,
+      code: (r.code ?? null) as string | null,
       direction: r.direction ?? null,
       vehicleTypeKey: r.vehicleTypeKey ?? null,
       municipalityId: muni?._id ? String(muni._id) : null,
