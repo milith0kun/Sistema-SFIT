@@ -36,6 +36,8 @@ import '../../features/operator/presentation/pages/vehicle_qr_page.dart';
 import '../../features/operator/presentation/pages/nuevo_conductor_page.dart';
 import '../../features/operator/presentation/pages/nuevo_vehiculo_page.dart';
 import '../../features/operator/presentation/pages/operator_routes_page.dart';
+import '../../features/operator/presentation/pages/operator_candidate_detail_page.dart';
+import '../../features/operator/presentation/pages/operator_validate_capture_page.dart';
 import '../../features/operator/presentation/pages/operator_trips_page.dart';
 import '../../features/operator/presentation/pages/operator_trip_detail_page.dart';
 import '../../features/operator/presentation/pages/passenger_list_page.dart';
@@ -265,6 +267,22 @@ GoRouter router(Ref ref) {
         path: '/operador/rutas/:id/editar',
         builder: (_, st) => op_route_edit.RouteEditPage(
           routeId: st.pathParameters['id']!,
+        ),
+      ),
+
+      // ── RF-09 (mobile) — Capturas GPS candidatas del operador ────
+      GoRoute(
+        path: '/operador/rutas/candidatas/:id',
+        builder: (_, st) => OperatorCandidateDetailPage(
+          candidateId: st.pathParameters['id']!,
+          seed: st.extra is Candidate ? st.extra as Candidate : null,
+        ),
+      ),
+      GoRoute(
+        path: '/operador/rutas/candidatas/:id/validar',
+        builder: (_, st) => OperatorValidateCapturePage(
+          candidateId: st.pathParameters['id']!,
+          candidate: st.extra is Candidate ? st.extra as Candidate : null,
         ),
       ),
       GoRoute(
