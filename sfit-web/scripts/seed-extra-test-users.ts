@@ -60,6 +60,48 @@ const CONDUCTORES: SeedConductor[] = [
     licenseNumber: "Q70000004",
     phone: "984000004",
   },
+  {
+    email: "conductor5@sfit.test",
+    name: "Conductor 5 SFIT",
+    dni: "70000005",
+    licenseNumber: "Q70000005",
+    phone: "984000005",
+  },
+  {
+    email: "conductor6@sfit.test",
+    name: "Conductor 6 SFIT",
+    dni: "70000006",
+    licenseNumber: "Q70000006",
+    phone: "984000006",
+  },
+  {
+    email: "conductor7@sfit.test",
+    name: "Conductor 7 SFIT",
+    dni: "70000007",
+    licenseNumber: "Q70000007",
+    phone: "984000007",
+  },
+  {
+    email: "conductor8@sfit.test",
+    name: "Conductor 8 SFIT",
+    dni: "70000008",
+    licenseNumber: "Q70000008",
+    phone: "984000008",
+  },
+  {
+    email: "conductor9@sfit.test",
+    name: "Conductor 9 SFIT",
+    dni: "70000009",
+    licenseNumber: "Q70000009",
+    phone: "984000009",
+  },
+  {
+    email: "conductor10@sfit.test",
+    name: "Conductor 10 SFIT",
+    dni: "70000010",
+    licenseNumber: "Q70000010",
+    phone: "984000010",
+  },
 ];
 
 const CIUDADANOS: SeedCiudadano[] = [
