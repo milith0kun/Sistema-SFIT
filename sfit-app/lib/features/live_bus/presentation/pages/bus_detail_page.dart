@@ -32,6 +32,10 @@ class BusDetailPage extends ConsumerStatefulWidget {
 
 class _BusDetailPageState extends ConsumerState<BusDetailPage> {
   final _mapCtl = MapController();
+  // Permite leer el tamaño actual del bottom sheet desde `_fitCamera` para
+  // calcular un padding asimétrico — sin esto, el "centrar mapa" deja al bus
+  // bajo el sheet y parece que el botón no hace nada.
+  final _sheetCtl = DraggableScrollableController();
   Timer? _timer;
   BusData? _bus;
   Position? _userPos;
@@ -69,6 +73,7 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
   void dispose() {
     _timer?.cancel();
     _uiTick?.cancel();
+    _sheetCtl.dispose();
     super.dispose();
   }
 
@@ -165,13 +170,31 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
         );
         if (unique.add(key)) dedup.add(p);
       }
+      // Padding asimétrico: deja espacio arriba para el header pill flotante
+      // y abajo para el bottom sheet draggable. Sin esto, fitCamera centra el
+      // bus pero queda tapado por el sheet y parece que el botón no responde.
+      final mq = MediaQuery.of(context);
+      final screenH = mq.size.height;
+      final sheetFraction = _sheetCtl.isAttached ? _sheetCtl.size : 0.32;
+      final bottomPad = (screenH * sheetFraction).clamp(120.0, screenH * 0.6) + 16;
+      final topPad = mq.padding.top + 72;
+      final fitPadding = EdgeInsets.fromLTRB(48, topPad, 48, bottomPad);
       if (dedup.length >= 2) {
         _mapCtl.fitCamera(CameraFit.bounds(
           bounds: LatLngBounds.fromPoints(dedup),
-          padding: const EdgeInsets.all(48),
+          padding: fitPadding,
         ));
       } else {
-        _mapCtl.move(LatLng(b.lat, b.lng), 15);
+        // Sólo el bus: centramos pero descontamos la mitad del sheet para
+        // que el marker no quede oculto. flutter_map no permite offset
+        // directo, así que desplazamos el target hacia el norte.
+        final dy = (bottomPad - topPad) / 2;
+        // ~111_320 m por grado de latitud. Convertimos pad pixels → grados
+        // usando una aproximación válida para los zooms que usamos (14-16).
+        final metersPerPixel = 156543.03392 *
+            (b.lat.abs() < 89 ? 1 / (1 << 15).toDouble() : 1.0); // z=15
+        final latShift = (dy * metersPerPixel) / 111320.0;
+        _mapCtl.move(LatLng(b.lat - latShift, b.lng), 15);
       }
     } catch (_) {/* defensive: nunca dejamos que el mapa rompa la pantalla */}
   }
@@ -508,6 +531,7 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
           ),
         // ── Bottom sheet arrastrable con la info ────────────────────
         DraggableScrollableSheet(
+          controller: _sheetCtl,
           initialChildSize: 0.32,
           minChildSize: 0.18,
           maxChildSize: 0.88,
