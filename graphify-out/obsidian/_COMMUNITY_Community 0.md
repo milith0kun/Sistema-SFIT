@@ -1,0 +1,214 @@
+---
+type: community
+cohesion: 0.06
+members: 161
+---
+
+# Community 0
+
+**Cohesion:** 0.06 - loosely connected
+**Members:** 161 nodes
+
+## Members
+- [[ALLOWED_ROLES_2]] - code - sfit-web/src/app/api/admin/usuarios/route.ts
+- [[ALLOWED_TYPES]] - code - sfit-web/src/app/api/uploads/reports/route.ts
+- [[Body_2]] - code - sfit-web/src/app/api/rutas/[id]/recalcular/route.ts
+- [[Body_3]] - code - sfit-web/src/app/api/viajes/[id]/rechazar/route.ts
+- [[Body_4]] - code - sfit-web/src/app/api/viajes/[id]/tomar/route.ts
+- [[ChangePasswordSchema]] - code - sfit-web/src/app/api/auth/cambiar-password/route.ts
+- [[CreateSchema_1]] - code - sfit-web/src/app/api/admin/usuarios/route.ts
+- [[CreateSchema_6]] - code - sfit-web/src/app/api/regiones/route.ts
+- [[CreateSchema_9]] - code - sfit-web/src/app/api/rutas/[id]/captures/route.ts
+- [[DELETE()_1]] - code - sfit-web/src/app/api/notificaciones/token/route.ts
+- [[DELETE()_2]] - code - sfit-web/src/app/api/viajes/[id]/manifest-photo/route.ts
+- [[DELETE()_3]] - code - sfit-web/src/app/api/viajes/[id]/pasajeros/[pid]/route.ts
+- [[DeleteSchema]] - code - sfit-web/src/app/api/notificaciones/token/route.ts
+- [[GET()]] - code - sfit-web/src/app/api/admin/actividad/route.ts
+- [[GET()_1]] - code - sfit-web/src/app/api/admin/departamentos/route.ts
+- [[GET()_4]] - code - sfit-web/src/app/api/reportes/route.ts
+- [[GET()_5]] - code - sfit-web/src/app/api/ciudadano/recompensas/route.ts
+- [[GET()_6]] - code - sfit-web/src/app/api/admin/recompensas/stats/route.ts
+- [[GET()_7]] - code - sfit-web/src/app/api/admin/red-nacional/route.ts
+- [[GET()_8]] - code - sfit-web/src/app/api/admin/routing-test/route.ts
+- [[GET()_9]] - code - sfit-web/src/app/api/admin/stats/conductor/route.ts
+- [[GET()_10]] - code - sfit-web/src/app/api/admin/stats/fiscal/route.ts
+- [[GET()_11]] - code - sfit-web/src/app/api/admin/stats/global/route.ts
+- [[GET()_12]] - code - sfit-web/src/app/api/admin/stats/municipal/route.ts
+- [[GET()_13]] - code - sfit-web/src/app/api/admin/stats/municipios/route.ts
+- [[GET()_14]] - code - sfit-web/src/app/api/admin/stats/operador/route.ts
+- [[GET()_15]] - code - sfit-web/src/app/api/admin/stats/provincial/route.ts
+- [[GET()_16]] - code - sfit-web/src/app/api/admin/stats/regional/route.ts
+- [[GET()_17]] - code - sfit-web/src/app/api/admin/usuarios/route.ts
+- [[GET()_19]] - code - sfit-web/src/app/api/admin/webhooks/route.ts
+- [[GET()_20]] - code - sfit-web/src/app/api/apelaciones/route.ts
+- [[GET()_21]] - code - sfit-web/src/app/api/auth/perfil/route.ts
+- [[GET()_22]] - code - sfit-web/src/app/api/catalogo/empresa-mtc/route.ts
+- [[GET()_23]] - code - sfit-web/src/app/api/catalogo/vehiculo-mtc/route.ts
+- [[GET()_25]] - code - sfit-web/src/app/api/ciudadano/recompensas/historial/route.ts
+- [[GET()_26]] - code - sfit-web/src/app/api/conductor/fatiga/route.ts
+- [[GET()_28]] - code - sfit-web/src/app/api/conductor/preferencias/route.ts
+- [[GET()_29]] - code - sfit-web/src/app/api/operador/conductores/route.ts
+- [[GET()_30]] - code - sfit-web/src/app/api/conductores/me/route.ts
+- [[GET()_32]] - code - sfit-web/src/app/api/flota/route.ts
+- [[GET()_33]] - code - sfit-web/src/app/api/flota/active-locations/route.ts
+- [[GET()_34]] - code - sfit-web/src/app/api/flota/[id]/location/route.ts
+- [[GET()_35]] - code - sfit-web/src/app/api/health/route.ts
+- [[GET()_37]] - code - sfit-web/src/app/api/inspecciones/sugerencias/route.ts
+- [[GET()_38]] - code - sfit-web/src/app/api/public/municipalidades/route.ts
+- [[GET()_39]] - code - sfit-web/src/app/api/notificaciones/route.ts
+- [[GET()_42]] - code - sfit-web/src/app/api/operador/mi-empresa/route.ts
+- [[GET()_43]] - code - sfit-web/src/app/api/public/provincias/route.ts
+- [[GET()_45]] - code - sfit-web/src/app/api/regiones/route.ts
+- [[GET()_49]] - code - sfit-web/src/app/api/reportes/feed/route.ts
+- [[GET()_50]] - code - sfit-web/src/app/api/reportes/mis-reportes/route.ts
+- [[GET()_51]] - code - sfit-web/src/app/api/rutas/candidatas/route.ts
+- [[GET()_52]] - code - sfit-web/src/app/api/rutas/[id]/captures/route.ts
+- [[GET()_53]] - code - sfit-web/src/app/api/rutas/[id]/captures/[captureId]/preview/route.ts
+- [[GET()_54]] - code - sfit-web/src/app/api/sanciones/route.ts
+- [[GET()_55]] - code - sfit-web/src/app/api/tipos-vehiculo/route.ts
+- [[GET()_56]] - code - sfit-web/src/app/api/vehiculos/route.ts
+- [[GET()_57]] - code - sfit-web/src/app/api/vehiculos/[id]/qr/route.ts
+- [[GET()_59]] - code - sfit-web/src/app/api/viajes/route.ts
+- [[GET()_60]] - code - sfit-web/src/app/api/viajes/disponibles/route.ts
+- [[GET()_62]] - code - sfit-web/src/app/api/viajes/[id]/pasajeros/route.ts
+- [[PATCH()]] - code - sfit-web/src/app/api/admin/municipalidades/[id]/activar/route.ts
+- [[PATCH()_2]] - code - sfit-web/src/app/api/admin/usuarios/[id]/asignar-empresa/route.ts
+- [[PATCH()_3]] - code - sfit-web/src/app/api/apelaciones/[id]/resolver/route.ts
+- [[PATCH()_4]] - code - sfit-web/src/app/api/auth/perfil/route.ts
+- [[PATCH()_5]] - code - sfit-web/src/app/api/conductores/me/route.ts
+- [[PATCH()_6]] - code - sfit-web/src/app/api/flota/[id]/location/route.ts
+- [[PATCH()_7]] - code - sfit-web/src/app/api/notificaciones/route.ts
+- [[PATCH()_10]] - code - sfit-web/src/app/api/vehiculos/[id]/suspender/route.ts
+- [[PATCH()_11]] - code - sfit-web/src/app/api/viajes/[id]/pasajeros/[pid]/route.ts
+- [[PLATE_PATTERNS]] - code - sfit-web/src/app/api/ocr/placa/route.ts
+- [[POST()]] - code - sfit-web/src/app/api/empresas/route.ts
+- [[POST()_1]] - code - sfit-web/src/app/api/admin/migrate/sync-province-ids/route.ts
+- [[POST()_2]] - code - sfit-web/src/app/api/admin/migrate/sync-region-ids/route.ts
+- [[POST()_4]] - code - sfit-web/src/app/api/admin/reportes/weekly-summary/route.ts
+- [[POST()_5]] - code - sfit-web/src/app/api/admin/routes-backfill/route.ts
+- [[POST()_6]] - code - sfit-web/src/app/api/admin/usuarios/route.ts
+- [[POST()_7]] - code - sfit-web/src/app/api/admin/usuarios/[id]/assign-admin-provincial/route.ts
+- [[POST()_8]] - code - sfit-web/src/app/api/admin/usuarios/[id]/assign-admin-regional/route.ts
+- [[POST()_9]] - code - sfit-web/src/app/api/admin/webhooks/route.ts
+- [[POST()_10]] - code - sfit-web/src/app/api/apelaciones/route.ts
+- [[POST()_11]] - code - sfit-web/src/app/api/auth/cambiar-password/route.ts
+- [[POST()_20]] - code - sfit-web/src/app/api/auth/reset-password/confirm/route.ts
+- [[POST()_21]] - code - sfit-web/src/app/api/conductores/route.ts
+- [[POST()_22]] - code - sfit-web/src/app/api/flota/route.ts
+- [[POST()_24]] - code - sfit-web/src/app/api/municipalidades/route.ts
+- [[POST()_25]] - code - sfit-web/src/app/api/notificaciones/token/route.ts
+- [[POST()_26]] - code - sfit-web/src/app/api/ocr/documento/route.ts
+- [[POST()_28]] - code - sfit-web/src/app/api/operador/conductores/[id]/asociar/route.ts
+- [[POST()_29]] - code - sfit-web/src/app/api/provincias/route.ts
+- [[POST()_31]] - code - sfit-web/src/app/api/regiones/route.ts
+- [[POST()_32]] - code - sfit-web/src/app/api/reportes/route.ts
+- [[POST()_33]] - code - sfit-web/src/app/api/sanciones/[id]/apelar/route.ts
+- [[POST()_34]] - code - sfit-web/src/app/api/reportes/[id]/apoyar/route.ts
+- [[POST()_36]] - code - sfit-web/src/app/api/viajes/[id]/asignar/route.ts
+- [[POST()_37]] - code - sfit-web/src/app/api/rutas/candidatas/[id]/descartar/route.ts
+- [[POST()_39]] - code - sfit-web/src/app/api/rutas/[id]/captures/route.ts
+- [[POST()_40]] - code - sfit-web/src/app/api/rutas/[id]/recalcular/route.ts
+- [[POST()_41]] - code - sfit-web/src/app/api/sanciones/route.ts
+- [[POST()_42]] - code - sfit-web/src/app/api/sanciones/[id]/anular/route.ts
+- [[POST()_43]] - code - sfit-web/src/app/api/tipos-vehiculo/route.ts
+- [[POST()_44]] - code - sfit-web/src/app/api/uploads/reports/route.ts
+- [[POST()_45]] - code - sfit-web/src/app/api/validar/dni/route.ts
+- [[POST()_47]] - code - sfit-web/src/app/api/validar/ruc/route.ts
+- [[POST()_48]] - code - sfit-web/src/app/api/vehiculos/route.ts
+- [[POST()_49]] - code - sfit-web/src/app/api/viajes/route.ts
+- [[POST()_50]] - code - sfit-web/src/app/api/viajes/auto-close/route.ts
+- [[POST()_51]] - code - sfit-web/src/app/api/viajes/[id]/aceptar/route.ts
+- [[POST()_52]] - code - sfit-web/src/app/api/viajes/[id]/iniciar/route.ts
+- [[POST()_54]] - code - sfit-web/src/app/api/viajes/[id]/pasajeros/route.ts
+- [[POST()_56]] - code - sfit-web/src/app/api/viajes/[id]/rechazar/route.ts
+- [[POST()_57]] - code - sfit-web/src/app/api/viajes/[id]/tomar/route.ts
+- [[PatchSchema_1]] - code - sfit-web/src/app/api/auth/perfil/route.ts
+- [[PointSchema]] - code - sfit-web/src/app/api/rutas/[id]/captures/route.ts
+- [[ResolveSchema]] - code - sfit-web/src/app/api/apelaciones/[id]/resolver/route.ts
+- [[Schema_4]] - code - sfit-web/src/app/api/sanciones/[id]/apelar/route.ts
+- [[Schema_5]] - code - sfit-web/src/app/api/sanciones/[id]/anular/route.ts
+- [[Schema_6]] - code - sfit-web/src/app/api/validar/dni/route.ts
+- [[Schema_10]] - code - sfit-web/src/app/api/vehiculos/[id]/suspender/route.ts
+- [[TokenSchema]] - code - sfit-web/src/app/api/notificaciones/token/route.ts
+- [[apiError()]] - code - sfit-web/src/lib/api/response.ts
+- [[apiForbidden()]] - code - sfit-web/src/lib/api/response.ts
+- [[apiNotFound()]] - code - sfit-web/src/lib/api/response.ts
+- [[apiUnauthorized()]] - code - sfit-web/src/lib/api/response.ts
+- [[apiValidationError()]] - code - sfit-web/src/lib/api/response.ts
+- [[checkDriverRateLimit()]] - code - sfit-web/src/app/api/flota/[id]/location/route.ts
+- [[connectDB()]] - code - sfit-web/src/lib/db/mongoose.ts
+- [[driverFromSession.ts]] - code - sfit-web/src/lib/auth/driverFromSession.ts
+- [[logAction()]] - code - sfit-web/src/lib/audit/logAction.ts
+- [[logAction.ts]] - code - sfit-web/src/lib/audit/logAction.ts
+- [[requireAuth()]] - code - sfit-web/src/lib/auth/guard.ts
+- [[requireRole()]] - code - sfit-web/src/lib/auth/guard.ts
+- [[res]] - code - sfit-web/src/lib/api/response.test.ts
+- [[resolveDriverFromSession()]] - code - sfit-web/src/lib/auth/driverFromSession.ts
+- [[response.test.ts]] - code - sfit-web/src/lib/api/response.test.ts
+- [[route.ts_23]] - code - sfit-web/src/app/api/admin/usuarios/route.ts
+- [[route.ts_32]] - code - sfit-web/src/app/api/apelaciones/[id]/resolver/route.ts
+- [[route.ts_33]] - code - sfit-web/src/app/api/auth/cambiar-password/route.ts
+- [[route.ts_38]] - code - sfit-web/src/app/api/auth/perfil/route.ts
+- [[route.ts_44]] - code - sfit-web/src/app/api/catalogo/empresa-mtc/route.ts
+- [[route.ts_45]] - code - sfit-web/src/app/api/catalogo/vehiculo-mtc/route.ts
+- [[route.ts_48]] - code - sfit-web/src/app/api/ciudadano/recompensas/historial/route.ts
+- [[route.ts_62]] - code - sfit-web/src/app/api/health/route.ts
+- [[route.ts_69]] - code - sfit-web/src/app/api/notificaciones/route.ts
+- [[route.ts_70]] - code - sfit-web/src/app/api/notificaciones/token/route.ts
+- [[route.ts_71]] - code - sfit-web/src/app/api/notificaciones/[id]/route.ts
+- [[route.ts_78]] - code - sfit-web/src/app/api/ocr/placa/route.ts
+- [[route.ts_94]] - code - sfit-web/src/app/api/regiones/route.ts
+- [[route.ts_100]] - code - sfit-web/src/app/api/reportes/[id]/apelar/route.ts
+- [[route.ts_109]] - code - sfit-web/src/app/api/rutas/[id]/captures/route.ts
+- [[route.ts_111]] - code - sfit-web/src/app/api/rutas/[id]/recalcular/route.ts
+- [[route.ts_114]] - code - sfit-web/src/app/api/sanciones/[id]/anular/route.ts
+- [[route.ts_115]] - code - sfit-web/src/app/api/sanciones/[id]/apelar/route.ts
+- [[route.ts_119]] - code - sfit-web/src/app/api/uploads/reports/route.ts
+- [[route.ts_120]] - code - sfit-web/src/app/api/validar/dni/route.ts
+- [[route.ts_127]] - code - sfit-web/src/app/api/vehiculos/[id]/suspender/route.ts
+- [[route.ts_131]] - code - sfit-web/src/app/api/viajes/disponibles/route.ts
+- [[route.ts_133]] - code - sfit-web/src/app/api/viajes/[id]/aceptar/route.ts
+- [[route.ts_135]] - code - sfit-web/src/app/api/viajes/[id]/iniciar/route.ts
+- [[route.ts_141]] - code - sfit-web/src/app/api/viajes/[id]/rechazar/route.ts
+- [[route.ts_142]] - code - sfit-web/src/app/api/viajes/[id]/tomar/route.ts
+
+## Live Query (requires Dataview plugin)
+
+```dataview
+TABLE source_file, type FROM #community/Community_0
+SORT file.name ASC
+```
+
+## Connections to other communities
+- 503 edges to [[_COMMUNITY_Community 1]]
+- 200 edges to [[_COMMUNITY_Community 4]]
+- 137 edges to [[_COMMUNITY_Community 2]]
+- 88 edges to [[_COMMUNITY_Community 22]]
+- 48 edges to [[_COMMUNITY_Community 12]]
+- 41 edges to [[_COMMUNITY_Community 56]]
+- 28 edges to [[_COMMUNITY_Community 148]]
+- 23 edges to [[_COMMUNITY_Community 26]]
+- 11 edges to [[_COMMUNITY_Community 133]]
+- 5 edges to [[_COMMUNITY_Community 132]]
+- 5 edges to [[_COMMUNITY_Community 64]]
+- 4 edges to [[_COMMUNITY_Community 173]]
+- 4 edges to [[_COMMUNITY_Community 220]]
+- 4 edges to [[_COMMUNITY_Community 134]]
+- 3 edges to [[_COMMUNITY_Community 77]]
+- 3 edges to [[_COMMUNITY_Community 129]]
+- 2 edges to [[_COMMUNITY_Community 163]]
+- 2 edges to [[_COMMUNITY_Community 57]]
+- 2 edges to [[_COMMUNITY_Community 196]]
+- 2 edges to [[_COMMUNITY_Community 73]]
+- 2 edges to [[_COMMUNITY_Community 149]]
+- 2 edges to [[_COMMUNITY_Community 146]]
+- 2 edges to [[_COMMUNITY_Community 197]]
+- 1 edge to [[_COMMUNITY_Community 204]]
+- 1 edge to [[_COMMUNITY_Community 164]]
+
+## Top bridge nodes
+- [[apiError()]] - degree 262, connects to 11 communities
+- [[connectDB()]] - degree 276, connects to 10 communities
+- [[apiUnauthorized()]] - degree 245, connects to 10 communities
+- [[requireRole()]] - degree 201, connects to 9 communities
+- [[apiForbidden()]] - degree 202, connects to 7 communities

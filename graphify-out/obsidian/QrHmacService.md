@@ -1,0 +1,16 @@
+---
+source_file: "sfit-app/lib/features/qr_scanner/data/services/qr_hmac_service.dart"
+type: "code"
+community: "Community 17"
+tags:
+  - graphify/code
+  - graphify/EXTRACTED
+  - community/Community_17
+---
+
+# QrHmacService
+
+## Connections
+- [[qr_hmac_service.dart]] - `defines` [EXTRACTED]
+
+#graphify/code #graphify/EXTRACTED #community/Community_17

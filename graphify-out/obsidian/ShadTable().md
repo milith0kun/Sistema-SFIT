@@ -1,0 +1,18 @@
+---
+source_file: "sfit-web/src/components/ui/Table.tsx"
+type: "code"
+community: "Community 147"
+location: "L131"
+tags:
+  - graphify/code
+  - graphify/EXTRACTED
+  - community/Community_147
+---
+
+# ShadTable()
+
+## Connections
+- [[Table.tsx]] - `contains` [EXTRACTED]
+- [[cn()]] - `calls` [EXTRACTED]
+
+#graphify/code #graphify/EXTRACTED #community/Community_147

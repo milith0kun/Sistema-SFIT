@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>SFIT - Grafo 3D (orbit, zoom, rotacion)</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #0a0a0a; color: #e5e5e5; font-family: 'Inter', system-ui, sans-serif; overflow: hidden; }
+  #graph3d { width: 100vw; height: 100vh; }
+  .panel { position: fixed; background: rgba(15,15,15,.85); backdrop-filter: blur(6px); border: 1px solid #2a2a2a; padding: 10px 14px; border-radius: 10px; z-index: 10; font-size: 12px; line-height: 1.5; }
+  #panel-left  { top: 12px; left: 12px; max-width: 360px; }
+  #panel-right { top: 12px; right: 12px; }
+  #panel-bottom{ bottom: 12px; left: 12px; font-size: 11px; }
+  #panel-left b { color: #93c5fd; }
+  #q { background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 7px 10px; border-radius: 5px; width: 260px; font-size: 13px; }
+  #q:focus { outline: 1px solid #3b82f6; }
+  select { background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 5px 8px; border-radius: 4px; margin-left: 6px; font-size: 12px; }
+  .chip { display: inline-block; background: #1f2937; padding: 2px 8px; border-radius: 999px; margin: 2px 4px 2px 0; font-size: 11px; }
+  kbd { background: #1f2937; padding: 1px 5px; border-radius: 3px; font-size: 11px; border: 1px solid #374151; }
+</style>
+</head>
+<body>
+<div id="graph3d"></div>
+
+<div id="panel-left" class="panel"><div><b>Cargando...</b></div></div>
+
+<div id="panel-right" class="panel">
+  <input id="q" placeholder="Buscar nodo (ej. requireRole, connectDB)...">
+  <div style="margin-top:8px; font-size:11px; color:#9ca3af;">
+    Filtro: <select id="filter"><option value="all">Todas las comunidades</option></select>
+    <label style="margin-left:8px;"><input type="checkbox" id="trim" checked> ocultar grado &le; 1</label>
+  </div>
+</div>
+
+<div id="panel-bottom" class="panel">
+  <kbd>L-drag</kbd> rotar (orbit) &middot; <kbd>R-drag</kbd> mover &middot; <kbd>rueda</kbd> zoom &middot; <kbd>click</kbd> nodo &middot; <kbd>F</kbd> fit
+</div>
+
+<script id="graphData" type="application/json">__GRAPH_DATA__</script>
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script src="https://unpkg.com/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
+<script>
+const raw = JSON.parse(document.getElementById('graphData').textContent);
+const palette = ['#60a5fa','#f472b6','#34d399','#fbbf24','#a78bfa','#fb923c','#22d3ee','#f87171','#4ade80','#e879f9','#facc15','#818cf8','#94a3b8','#fb7185','#2dd4bf','#c084fc','#fca5a5','#86efac','#67e8f9','#d8b4fe'];
+const colorFor = (c) => palette[Math.abs(c) % palette.length];
+const labelInfo = (n) => `${n.label}<br><small style="color:#9ca3af;">${n.community_label} &middot; deg ${n.degree}</small><br><small style="color:#6b7280;">${n.source_file}</small>`;
+
+const allNodes = raw.nodes.map(n => ({ ...n, val: Math.max(0.5, Math.sqrt(n.degree || 1)), color: colorFor(n.community) }));
+const allLinks = raw.links;
+
+document.getElementById('panel-left').innerHTML =
+  `<b>SFIT - Grafo 3D</b><br>${allNodes.length} nodos &middot; ${allLinks.length} aristas<br>` +
+  `<small style="color:#9ca3af;">Click nodo para detalles. Buscador para enfocar.</small>`;
+
+const counts = {};
+allNodes.forEach(n => counts[n.community] = (counts[n.community]||0)+1);
+const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0, 30);
+const sel = document.getElementById('filter');
+sorted.forEach(([cid, n]) => {
+  const c = allNodes.find(x => x.community == cid);
+  const opt = document.createElement('option');
+  opt.value = cid; opt.textContent = `C${cid} - ${c.community_label} (${n})`;
+  sel.appendChild(opt);
+});
+
+const Graph = ForceGraph3D()(document.getElementById('graph3d'))
+  .backgroundColor('#0a0a0a')
+  .nodeLabel(labelInfo)
+  .nodeRelSize(3)
+  .nodeOpacity(0.95)
+  .linkColor(() => 'rgba(160,160,160,0.18)')
+  .linkWidth(0.4)
+  .linkDirectionalArrowLength(1.5)
+  .linkDirectionalArrowRelPos(0.95)
+  .onNodeClick(node => {
+    const neighbors = Graph.graphData().links.filter(l => {
+      const s = typeof l.source === 'object' ? l.source.id : l.source;
+      const t = typeof l.target === 'object' ? l.target.id : l.target;
+      return s === node.id || t === node.id;
+    }).length;
+    document.getElementById('panel-left').innerHTML =
+      `<div><b>${node.label}</b></div>` +
+      `<div class="chip">${node.community_label}</div>` +
+      `<div class="chip">deg ${node.degree}</div>` +
+      `<div class="chip">${node.file_type || 'code'}</div>` +
+      `<div style="margin-top:6px; color:#9ca3af; font-size:11px;">${node.source_file}</div>` +
+      `<div style="margin-top:8px; font-size:11px; color:#6b7280;">vecinos visibles: ${neighbors}</div>`;
+    const dist = 60;
+    const r = 1 + dist/Math.hypot(node.x||1, node.y||1, node.z||1);
+    Graph.cameraPosition({ x:(node.x||0)*r, y:(node.y||0)*r, z:(node.z||0)*r }, node, 1200);
+  });
+
+function applyFilter() {
+  const cid = sel.value;
+  const trim = document.getElementById('trim').checked;
+  let nodes = allNodes, links = allLinks;
+  if (cid !== 'all') {
+    const cidNum = parseInt(cid);
+    const keep = new Set(allNodes.filter(n => n.community === cidNum).map(n => n.id));
+    allLinks.forEach(l => {
+      const s = typeof l.source === 'object' ? l.source.id : l.source;
+      const t = typeof l.target === 'object' ? l.target.id : l.target;
+      if (keep.has(s) || keep.has(t)) { keep.add(s); keep.add(t); }
+    });
+    nodes = allNodes.filter(n => keep.has(n.id));
+    links = allLinks.filter(l => {
+      const s = typeof l.source === 'object' ? l.source.id : l.source;
+      const t = typeof l.target === 'object' ? l.target.id : l.target;
+      return keep.has(s) && keep.has(t);
+    });
+  }
+  if (trim) nodes = nodes.filter(n => n.degree > 1);
+  const ids = new Set(nodes.map(n => n.id));
+  links = links.filter(l => {
+    const s = typeof l.source === 'object' ? l.source.id : l.source;
+    const t = typeof l.target === 'object' ? l.target.id : l.target;
+    return ids.has(s) && ids.has(t);
+  });
+  Graph.graphData({ nodes: nodes.map(n => ({...n})), links: links.map(l => ({...l})) });
+}
+
+sel.addEventListener('change', applyFilter);
+document.getElementById('trim').addEventListener('change', applyFilter);
+applyFilter();
+
+document.getElementById('q').addEventListener('input', (e) => {
+  const q = e.target.value.toLowerCase().trim();
+  if (q.length < 3) return;
+  const match = allNodes.find(n => (n.label||'').toLowerCase().includes(q));
+  if (!match) return;
+  const live = Graph.graphData().nodes.find(n => n.id === match.id);
+  if (!live) {
+    document.getElementById('panel-left').innerHTML = `<b>${match.label}</b> esta filtrado.<br><small>Cambia filtro a 'Todas'.</small>`;
+    return;
+  }
+  const r = 1 + 60/Math.hypot(live.x||1, live.y||1, live.z||1);
+  Graph.cameraPosition({ x:(live.x||0)*r, y:(live.y||0)*r, z:(live.z||0)*r }, live, 1200);
+  document.getElementById('panel-left').innerHTML = `<b>${match.label}</b><br><div class="chip">${match.community_label}</div><div class="chip">deg ${match.degree}</div><br><small>${match.source_file}</small>`;
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'f' || e.key === 'F') Graph.zoomToFit(800);
+});
+</script>
+</body>
+</html>

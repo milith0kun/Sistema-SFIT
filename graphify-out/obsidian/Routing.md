@@ -1,0 +1,17 @@
+---
+source_file: "Readme.md"
+type: "document"
+community: "Community 222"
+location: "L348"
+tags:
+  - graphify/document
+  - graphify/EXTRACTED
+  - community/Community_222
+---
+
+# Routing
+
+## Connections
+- [[9. Arquitectura móvil (`sfit-app`)]] - `contains` [EXTRACTED]
+
+#graphify/document #graphify/EXTRACTED #community/Community_222

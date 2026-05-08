@@ -1,0 +1,59 @@
+# Generated / dependency folders
+**/node_modules/
+**/.next/
+**/dist/
+**/build/
+**/out/
+
+# Flutter / Dart
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/ephemeral/
+**/Pods/
+**/.gradle/
+**/Generated.xcconfig
+**/GeneratedPluginRegistrant.*
+
+# IDE / OS
+**/.idea/
+**/.vscode/
+**/.DS_Store
+**/Thumbs.db
+
+# Lockfiles (mucho ruido, poco valor semantico)
+**/package-lock.json
+**/pubspec.lock
+**/yarn.lock
+**/pnpm-lock.yaml
+
+# Generated code (Flutter)
+**/*.g.dart
+**/*.freezed.dart
+**/*.gr.dart
+
+# Coverage / logs
+**/coverage/
+**/*.log
+
+# Binarios y assets
+play-store-assets/
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.webp
+**/*.ico
+**/*.gif
+**/*.svg
+**/*.mp4
+**/*.mov
+**/*.mp3
+**/*.wav
+**/*.pdf
+
+# Solo el directorio raw es para graphify; ignora todo lo demas no-codigo
+.graphify_python
+.graphify_*.json
+.graphify_chunk_*.json
+graphify-out/cache/
