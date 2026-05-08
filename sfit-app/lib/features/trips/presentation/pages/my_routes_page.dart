@@ -93,6 +93,7 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
                     ]),
                   );
                 }
+                final featured = _findFeaturedPass(data);
                 return RefreshIndicator(
                   onRefresh: _refresh,
                   color: AppColors.gold,
@@ -112,6 +113,20 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
                         const SizedBox(height: 18),
                       ] else ...[
                         _StartShiftCard(onTap: _startNewShift),
+                        const SizedBox(height: 18),
+                      ],
+                      // ── PASADA DESTACADA — la mejor pasada con trazo válido,
+                      // mostrada de forma prominente con mini-mapa para que el
+                      // conductor vea de un vistazo cuál es su mejor recorrido
+                      // sin tener que abrir el grupo. ──────────────────────
+                      if (featured != null) ...[
+                        const _SectionHeader(label: 'PASADA DESTACADA'),
+                        const SizedBox(height: 6),
+                        _FeaturedPassCard(
+                          pass: featured,
+                          onTap: () => context.push(
+                              '/conductor/trip-summary/${featured.id}'),
+                        ),
                         const SizedBox(height: 18),
                       ],
                       if (hasRoutes) ...[
@@ -1307,6 +1322,316 @@ class _Shim extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ── Pasada destacada ────────────────────────────────────────────────────────
+//
+// Buscamos la mejor pasada del conductor para mostrarla arriba con un mini
+// mapa. Criterio: pase marcado `isBest:true` por el server con score más alto.
+// Si ninguno cumple, fallback al `bestPassId` declarado por el grupo. Si nada
+// cumple, retornamos null y la sección no se renderiza.
+//
+// Solo se considera una pasada con `track.length >= 2 Y` puntos con varianza
+// real — pasadas donde el conductor no se movió tienen track colapsado y un
+// mini-mapa explotaría con "Infinity or NaN toInt" al fitear bounds.
+
+PassData? _findFeaturedPass(MisRecorridosData data) {
+  PassData? best;
+  for (final group in data.routes) {
+    for (final pass in group.passes) {
+      if (!_passHasValidTrack(pass)) continue;
+      if (best == null) {
+        best = pass;
+        continue;
+      }
+      // Preferir las marcadas como mejores
+      if (pass.isBest && !best.isBest) {
+        best = pass;
+        continue;
+      }
+      if (!pass.isBest && best.isBest) continue;
+      // Empate en isBest → mayor score
+      final passScore = pass.score ?? 0;
+      final bestScore = best.score ?? 0;
+      if (passScore > bestScore) {
+        best = pass;
+      } else if (passScore == bestScore) {
+        // Empate en score → más reciente
+        final passDate = pass.date ?? DateTime(1970);
+        final bestDate = best.date ?? DateTime(1970);
+        if (passDate.isAfter(bestDate)) best = pass;
+      }
+    }
+  }
+  return best;
+}
+
+bool _passHasValidTrack(PassData pass) {
+  final t = pass.track;
+  if (t == null || t.length < 2) return false;
+  final first = t.first;
+  for (final p in t) {
+    if ((p.latitude - first.latitude).abs() > 1e-7 ||
+        (p.longitude - first.longitude).abs() > 1e-7) {
+      return true;
+    }
+  }
+  return false;
+}
+
+class _FeaturedPassCard extends StatelessWidget {
+  final PassData pass;
+  final VoidCallback onTap;
+
+  const _FeaturedPassCard({required this.pass, required this.onTap});
+
+  static final _dateFmt = DateFormat("d 'de' MMM, HH:mm", 'es');
+
+  @override
+  Widget build(BuildContext context) {
+    final track = pass.track!;
+    final dist = pass.distanceMeters;
+    final dur = pass.durationSeconds;
+    final compl = pass.routeCompliancePercentage;
+
+    String fmtDist(num? m) {
+      if (m == null || m == 0) return '—';
+      final d = m.toDouble();
+      if (d < 1000) return '${d.round()} m';
+      return '${(d / 1000).toStringAsFixed(1)} km';
+    }
+
+    String fmtDur(int? s) {
+      if (s == null || s == 0) return '—';
+      final h = s ~/ 3600;
+      final m = (s % 3600) ~/ 60;
+      if (h == 0) return '${m}m';
+      return '${h}h${m.toString().padLeft(2, "0")}';
+    }
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        splashColor: AppColors.goldBg.withValues(alpha: 0.5),
+        highlightColor: AppColors.goldBg.withValues(alpha: 0.2),
+        child: Ink(
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.goldBorder, width: 1.5),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.gold.withValues(alpha: 0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── Mini mapa con el trazo dorado ────────────────────
+              ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(13)),
+                child: SizedBox(
+                  height: 160,
+                  child: IgnorePointer(
+                    child: FlutterMap(
+                      options: MapOptions(
+                        initialCameraFit: CameraFit.bounds(
+                          bounds: LatLngBounds.fromPoints(track),
+                          padding: const EdgeInsets.all(20),
+                        ),
+                        interactionOptions: const InteractionOptions(
+                            flags: InteractiveFlag.none),
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+                          subdomains: const ['a', 'b', 'c', 'd'],
+                          userAgentPackageName: 'com.sfit.sfit_app',
+                        ),
+                        PolylineLayer(polylines: [
+                          Polyline(
+                            points: track,
+                            color: AppColors.gold,
+                            strokeWidth: 4,
+                          ),
+                        ]),
+                        MarkerLayer(markers: [
+                          Marker(
+                            point: track.first,
+                            width: 22,
+                            height: 22,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.apto,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: Colors.white, width: 2),
+                              ),
+                              alignment: Alignment.center,
+                              child: const Icon(Icons.play_arrow_rounded,
+                                  size: 12, color: Colors.white),
+                            ),
+                          ),
+                          Marker(
+                            point: track.last,
+                            width: 22,
+                            height: 22,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.noApto,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: Colors.white, width: 2),
+                              ),
+                              alignment: Alignment.center,
+                              child: const Icon(Icons.stop_rounded,
+                                  size: 11, color: Colors.white),
+                            ),
+                          ),
+                        ]),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // ── Encabezado: badge MEJOR + ruta + fecha ───────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.gold,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.workspace_premium_rounded,
+                              size: 12, color: Colors.white),
+                          const SizedBox(width: 3),
+                          Text(
+                            pass.isBest ? 'MEJOR' : 'RECIENTE',
+                            style: AppTheme.inter(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        pass.routeName ?? 'Recorrido sin ruta',
+                        style: AppTheme.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.ink9,
+                          letterSpacing: -0.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (pass.date != null)
+                      Text(
+                        _dateFmt.format(pass.date!.toLocal()),
+                        style: AppTheme.inter(
+                          fontSize: 11,
+                          color: AppColors.ink5,
+                          tabular: true,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              // ── Métricas en fila ─────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+                child: Row(
+                  children: [
+                    _MiniMetric(
+                      icon: Icons.straighten_rounded,
+                      label: fmtDist(dist),
+                    ),
+                    const SizedBox(width: 14),
+                    _MiniMetric(
+                      icon: Icons.schedule_rounded,
+                      label: fmtDur(dur),
+                    ),
+                    if (compl != null) ...[
+                      const SizedBox(width: 14),
+                      _MiniMetric(
+                        icon: Icons.verified_outlined,
+                        label: '$compl%',
+                        accent: compl >= 80
+                            ? AppColors.apto
+                            : compl >= 50
+                                ? AppColors.riesgo
+                                : AppColors.noApto,
+                      ),
+                    ],
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppColors.goldBg,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.goldBorder),
+                      ),
+                      child: const Icon(Icons.arrow_forward_rounded,
+                          size: 14, color: AppColors.goldDark),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniMetric extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color? accent;
+
+  const _MiniMetric({required this.icon, required this.label, this.accent});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = accent ?? AppColors.ink7;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: color),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: AppTheme.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: color,
+            tabular: true,
+          ),
+        ),
+      ],
     );
   }
 }
