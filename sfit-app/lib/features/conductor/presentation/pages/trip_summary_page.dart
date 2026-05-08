@@ -15,7 +15,17 @@ import '../../../../core/theme/app_theme.dart';
 /// routeCompliancePercentage, visitedStops).
 class TripSummaryPage extends ConsumerStatefulWidget {
   final String entryId;
-  const TripSummaryPage({super.key, required this.entryId});
+  /// Track GPS pre-cargado (de mis-recorridos en Mis rutas). Permite
+  /// renderizar el mapa de inmediato sin esperar el fetch a /flota/{id}
+  /// y evita el fallback "sin trazo" cuando el backend antiguo no devuelve
+  /// trackPoints todavía.
+  final List<LatLng>? preloadedTrack;
+
+  const TripSummaryPage({
+    super.key,
+    required this.entryId,
+    this.preloadedTrack,
+  });
 
   @override
   ConsumerState<TripSummaryPage> createState() => _TripSummaryPageState();
@@ -125,10 +135,18 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
     final totalStops = waypoints.length;
     final visitedCount = visitedStops.length;
 
-    final tpLatLng = trackPoints
+    final fromBackend = trackPoints
         .where((p) => p['lat'] != null && p['lng'] != null)
         .map((p) => LatLng((p['lat'] as num).toDouble(), (p['lng'] as num).toDouble()))
         .toList();
+
+    // Fallback al track precargado (vía go_router extra desde Mis rutas)
+    // si el backend no devolvió trackPoints. Esto cubre el caso donde el
+    // deploy del backend con el fix de trackPoints aún no propaga, pero
+    // el cliente ya tiene la data desde mis-recorridos.
+    final tpLatLng = fromBackend.isNotEmpty
+        ? fromBackend
+        : (widget.preloadedTrack ?? const <LatLng>[]);
 
     // Validación de varianza espacial — sin esto el mapa explotaría con
     // "Infinity or NaN toInt" cuando todos los GPS están colapsados en

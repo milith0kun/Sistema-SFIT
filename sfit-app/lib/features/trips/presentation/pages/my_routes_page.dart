@@ -124,8 +124,13 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
                         const SizedBox(height: 6),
                         _FeaturedPassCard(
                           pass: featured,
+                          // Pasamos el track precargado como `extra` para
+                          // que la vista map-first muestre el mapa de
+                          // inmediato sin depender del fetch al backend.
                           onTap: () => context.push(
-                              '/conductor/trip-summary/${featured.id}'),
+                            '/conductor/trip-summary/${featured.id}',
+                            extra: featured.track,
+                          ),
                         ),
                         const SizedBox(height: 18),
                       ],
@@ -795,8 +800,12 @@ class _RouteGroupTileState extends State<_RouteGroupTile> {
                     _PassRow(
                       pass: visiblePasses[i],
                       onTap: () {
+                        // Pasamos el track precargado para que el detalle
+                        // muestre el mapa de inmediato sin re-fetch.
                         context.push(
-                            '/conductor/trip-summary/${visiblePasses[i].id}');
+                          '/conductor/trip-summary/${visiblePasses[i].id}',
+                          extra: visiblePasses[i].track,
+                        );
                       },
                     ),
                     if (i < visiblePasses.length - 1)

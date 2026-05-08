@@ -25,6 +25,7 @@ import '../../features/qr_scanner/presentation/pages/qr_scanner_page.dart';
 import '../../features/splash/presentation/pages/splash_page.dart';
 import '../../features/trips/presentation/pages/trip_checkin_page.dart';
 import '../../features/trips/presentation/pages/trip_checkout_page.dart';
+import 'package:latlong2/latlong.dart';
 import '../../features/conductor/presentation/pages/trip_summary_page.dart';
 import '../../features/conductor/presentation/pages/pending_trips_page.dart';
 import '../../features/conductor/presentation/pages/available_trips_page.dart';
@@ -207,7 +208,16 @@ GoRouter router(Ref ref) {
         path: '/conductor/trip-summary/:id',
         builder: (context, state) {
           final id = state.pathParameters['id']!;
-          return TripSummaryPage(entryId: id);
+          // El caller (Mis rutas) puede pasar el track ya cargado
+          // (List<LatLng>) vía `extra` para evitar la espera del fetch
+          // /flota/{id} y mostrar el mapa inmediatamente cuando ya tenemos
+          // la data en memoria.
+          final extra = state.extra;
+          final preloadedTrack = extra is List<LatLng> ? extra : null;
+          return TripSummaryPage(
+            entryId: id,
+            preloadedTrack: preloadedTrack,
+          );
         },
       ),
       GoRoute(
