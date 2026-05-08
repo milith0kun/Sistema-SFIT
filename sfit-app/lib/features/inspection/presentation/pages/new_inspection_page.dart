@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/datasources/inspection_api_service.dart';
@@ -47,21 +46,18 @@ class _NewInspectionPageState extends ConsumerState<NewInspectionPage> {
 
   Future<void> _loadSugerencias() async {
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get('/inspecciones/sugerencias', queryParameters: {
-        'vehicleId': widget.vehicleId,
-      });
-      final data = (resp.data as Map)['data'] as Map<String, dynamic>?;
-      if (data != null && data['hayHistorial'] == true) {
-        final items = (data['sugerencias'] as List?)
-            ?.map((s) => s['item'] as String)
-            .toList() ?? [];
-        if (mounted && items.isNotEmpty) {
-          setState(() {
-            _sugerencias = items;
-            _sugerenciasLoaded = true;
-          });
-        }
+      final list = await ref
+          .read(inspectionApiServiceProvider)
+          .getInspectionSuggestions(vehicleTypeKey: widget.vehicleTypeKey);
+      final items = list
+          .map((s) => s['item'])
+          .whereType<String>()
+          .toList();
+      if (mounted && items.isNotEmpty) {
+        setState(() {
+          _sugerencias = items;
+          _sugerenciasLoaded = true;
+        });
       }
     } catch (_) {
     }

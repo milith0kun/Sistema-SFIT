@@ -157,6 +157,13 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
   /// Filtro de calidad: descartar puntos con accuracy mayor a este umbral (m).
   static const double _accuracyThresholdMeters = 50;
 
+  /// Tamaño de la ventana de "tramo reciente". Los últimos N puntos se
+  /// re-pintan con un color/grosor distinto encima del histórico para que
+  /// el conductor distinga visualmente el progreso vivo. El histórico
+  /// completo (`localTrack`) NO se trunca: la línea inicio→fin debe
+  /// permanecer visible siempre.
+  static const int _recentTrackWindow = 80;
+
   /// Box Hive para puntos pendientes de envío. ES la fuente de verdad: TODO
   /// punto del stream se encola primero y un drain loop intenta subirlos.
   static const String _queueBoxName = 'location_queue_v1';
@@ -165,6 +172,12 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
   /// Independiente del queue para no perder el contador al limpiar la cola.
   static const String _metaBoxName = 'location_meta_v1';
   static const String _kDroppedKey = '_dropped';
+
+  /// Box Hive con cache de waypoints por `routeId`. Permite que la ruta
+  /// planificada siga visible offline (al reabrir la app sin red, o si el
+  /// API falla en mitad del turno). Estructura por entrada:
+  /// `{ 'waypoints': [{order,lat,lng,label}, ...], 'cachedAt': epochMs }`.
+  static const String _routeCacheBoxName = 'route_polyline_v1';
 
   /// Capacidad máxima de la cola en disco. Al rebasarla descartamos los más
   /// viejos pero seguimos aceptando nuevos puntos (mejor perder histórico
@@ -181,6 +194,7 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
 
   Box<Map<dynamic, dynamic>>? _queue;
   Box? _meta;
+  Box? _routeCache;
   bool _draining = false;
 
   /// Cantidad de fallos consecutivos en el drain. Resetea a 0 al primer
@@ -261,13 +275,15 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
     final waypoints = await _loadRouteWaypoints(routeId);
     final pos = await _safeGetPosition();
 
+    final initialTrack =
+        pos != null ? [LatLng(pos.latitude, pos.longitude)] : const <LatLng>[];
     state = TrackingState(
       entryId: entryId,
       routeId: routeId,
       isTracking: true,
       routeWaypoints: waypoints,
-      localTrack:
-          pos != null ? [LatLng(pos.latitude, pos.longitude)] : const [],
+      localTrack: initialTrack,
+      recentTrack: initialTrack,
       currentPosition: pos != null ? LatLng(pos.latitude, pos.longitude) : null,
       currentAccuracy: pos?.accuracy,
       queuedPoints: _queue?.length ?? 0,
@@ -309,12 +325,16 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
     final pos = await _safeGetPosition();
     final ll = pos != null ? LatLng(pos.latitude, pos.longitude) : null;
     final track = [...existing, if (ll != null) ll];
+    final recentStart = track.length > _recentTrackWindow
+        ? track.length - _recentTrackWindow
+        : 0;
 
     state = TrackingState(
       entryId: entryId,
       routeId: routeId,
       isTracking: true,
       localTrack: track,
+      recentTrack: track.sublist(recentStart),
       routeWaypoints: waypoints,
       currentPosition: ll,
       currentAccuracy: pos?.accuracy,
@@ -329,9 +349,10 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
 
   Future<List<RouteWaypoint>> _loadRouteWaypoints(String? routeId) async {
     if (routeId == null) return const [];
+    await _ensureBoxesOpen();
     try {
       final raw = await _svc.getRouteWaypointsDetailed(routeId);
-      return raw
+      final waypoints = raw
           .map(
             (p) => RouteWaypoint(
               order: (p['order'] as num).toInt(),
@@ -341,9 +362,49 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
             ),
           )
           .toList();
+      // Cache para uso offline: si la próxima vez no hay red, leemos de aquí.
+      // Las rutas urbanas no cambian con frecuencia; un cache sin TTL agresivo
+      // es aceptable.
+      try {
+        await _routeCache?.put(routeId, <String, dynamic>{
+          'waypoints': waypoints
+              .map(
+                (w) => <String, dynamic>{
+                  'order': w.order,
+                  'lat': w.lat,
+                  'lng': w.lng,
+                  'label': w.label,
+                },
+              )
+              .toList(),
+          'cachedAt': DateTime.now().millisecondsSinceEpoch,
+        });
+      } catch (_) {/* best-effort */}
+      return waypoints;
     } catch (_) {
-      return const [];
+      // Sin red o error API: intentar cache local.
+      return _readCachedWaypoints(routeId);
     }
+  }
+
+  List<RouteWaypoint> _readCachedWaypoints(String routeId) {
+    final box = _routeCache;
+    if (box == null || !box.isOpen) return const [];
+    final raw = box.get(routeId);
+    if (raw is! Map) return const [];
+    final list = raw['waypoints'];
+    if (list is! List) return const [];
+    return list
+        .whereType<Map>()
+        .map(
+          (p) => RouteWaypoint(
+            order: (p['order'] as num).toInt(),
+            lat: (p['lat'] as num).toDouble(),
+            lng: (p['lng'] as num).toDouble(),
+            label: p['label'] as String?,
+          ),
+        )
+        .toList();
   }
 
   /// Detiene tracking. Llamar desde TripCheckoutPage. Antes de cortar el
@@ -443,13 +504,15 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
     _lastPosition = pos;
     final ll = LatLng(pos.latitude, pos.longitude);
     final newTrack = [...state.localTrack, ll];
-    if (newTrack.length > 500) {
-      newTrack.removeRange(0, newTrack.length - 500);
-    }
+    final recentStart = newTrack.length > _recentTrackWindow
+        ? newTrack.length - _recentTrackWindow
+        : 0;
+    final newRecent = newTrack.sublist(recentStart);
     state = state.copyWith(
       currentPosition: ll,
       currentAccuracy: pos.accuracy,
       localTrack: newTrack,
+      recentTrack: newRecent,
     );
     // Cola = fuente de verdad: encolar siempre primero, luego dejar que el
     // drain loop intente subirlo. Esto garantiza que ningún punto se pierda
@@ -493,6 +556,9 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
     }
     if (_meta == null || !_meta!.isOpen) {
       _meta = await Hive.openBox(_metaBoxName);
+    }
+    if (_routeCache == null || !_routeCache!.isOpen) {
+      _routeCache = await Hive.openBox(_routeCacheBoxName);
     }
   }
 

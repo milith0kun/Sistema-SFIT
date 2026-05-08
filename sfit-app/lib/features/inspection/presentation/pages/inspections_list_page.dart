@@ -2,10 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/sfit_loading.dart';
+import '../../../fiscal/data/datasources/fiscal_api_service.dart';
 import '../../data/datasources/inspection_api_service.dart';
 import '../../data/models/inspection_model.dart';
 
@@ -78,9 +78,7 @@ class _InspectionsListPageState extends ConsumerState<InspectionsListPage> {
   Future<void> _loadSummary() async {
     setState(() => _loadingSummary = true);
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get('/admin/stats/fiscal');
-      final data = (resp.data as Map)['data'] as Map<String, dynamic>;
+      final data = await ref.read(fiscalApiServiceProvider).getFiscalStats();
       if (mounted) {
         setState(() {
           _summary = _DailySummary(

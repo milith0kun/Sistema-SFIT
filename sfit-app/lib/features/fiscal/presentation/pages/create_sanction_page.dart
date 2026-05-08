@@ -151,21 +151,13 @@ class _CreateSanctionPageState extends ConsumerState<CreateSanctionPage> {
 
     setState(() => _submitting = true);
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.post(
-        '/sanciones',
-        data: {
-          'vehicleId': _vehicleId,
-          'faultType': _faultType,
-          'amountSoles': amount,
-          'amountUIT': _amountUitCtrl.text.trim(),
-        },
-      );
-      final body = resp.data as Map?;
-      if (body == null || body['success'] != true) {
-        throw Exception(body?['error'] ?? 'No se pudo emitir la sancion');
-      }
-      final data = body['data'];
+      final amountUit = num.tryParse(_amountUitCtrl.text.trim());
+      final sanction = await ref.read(fiscalApiServiceProvider).createSanction(
+            vehicleId: _vehicleId!,
+            faultType: _faultType!,
+            amountSoles: amount,
+            amountUIT: amountUit,
+          );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -174,16 +166,24 @@ class _CreateSanctionPageState extends ConsumerState<CreateSanctionPage> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        // Devolver al caller la sancion creada para refrescar listas
-        context.pop(data);
+        context.pop(sanction);
       }
     } catch (e) {
       if (mounted) {
-        _showSnack('Error: $e', AppColors.noApto);
+        _showSnack('Error: ${_extractError(e)}', AppColors.noApto);
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  String _extractError(Object e) {
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map && data['error'] is String) return data['error'] as String;
+      if (data is Map && data['message'] is String) return data['message'] as String;
+    }
+    return 'No se pudo completar la operación';
   }
 
   void _showSnack(String msg, Color color) {
