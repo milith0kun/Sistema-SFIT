@@ -147,6 +147,7 @@ class SfitSidebar extends ConsumerWidget {
             _NavSection(label: 'Operación', items: [
               _NavItem(icon: Icons.local_shipping_outlined, label: 'Flota', slug: 'flota'),
               _NavItem(icon: Icons.groups_2_outlined, label: 'Conductores', slug: 'conductores'),
+              _NavItem(icon: Icons.person_add_alt_1_outlined, label: 'Asociar conductores', route: '/operador/asociar-conductores'),
               _NavItem(icon: Icons.directions_car_outlined, label: 'Vehículos', slug: 'vehiculos'),
               _NavItem(icon: Icons.route_outlined, label: 'Mis rutas', route: '/operador/rutas'),
               _NavItem(icon: Icons.calendar_month_outlined, label: 'Mis viajes', route: '/operador/viajes'),
@@ -168,6 +169,7 @@ class SfitSidebar extends ConsumerWidget {
               _NavItem(icon: Icons.timeline_outlined, label: 'Viajes', slug: 'viajes'),
             ]),
             _NavSection(label: 'Mi cuenta', items: [
+              _NavItem(icon: Icons.apartment_outlined, label: 'Mi empresa', route: '/conductor/empresa'),
               _NavItem(icon: Icons.person_outline, label: 'Mi perfil', slug: 'perfil'),
             ]),
           ],

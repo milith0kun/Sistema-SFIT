@@ -162,20 +162,50 @@ class _ConductoresTabPageState extends ConsumerState<ConductoresTabPage> {
               ],
             ),
 
-            // ── FAB ────────────────────────────────────────────────
+            // ── FABs (registrar nuevo + asociar existente) ─────────
             Positioned(
               right: 16,
               bottom: 16,
-              child: FloatingActionButton(
-                heroTag: 'fab_conductores',
-                onPressed: () async {
-                  final added = await context.push<bool>('/nuevo-conductor');
-                  if (added == true && mounted) _load();
-                },
-                backgroundColor: AppColors.gold,
-                foregroundColor: Colors.white,
-                tooltip: 'Registrar conductor',
-                child: const Icon(Icons.person_add_outlined),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  FloatingActionButton.extended(
+                    heroTag: 'fab_asociar_conductores',
+                    onPressed: () async {
+                      await context.push('/operador/asociar-conductores');
+                      if (mounted) _load();
+                    },
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppColors.ink9,
+                    elevation: 2,
+                    icon: const Icon(Icons.link_rounded, size: 18),
+                    label: Text(
+                      'Asociar existente',
+                      style: AppTheme.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink9,
+                      ),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: const BorderSide(color: AppColors.ink2),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  FloatingActionButton(
+                    heroTag: 'fab_conductores',
+                    onPressed: () async {
+                      final added = await context.push<bool>('/nuevo-conductor');
+                      if (added == true && mounted) _load();
+                    },
+                    backgroundColor: AppColors.gold,
+                    foregroundColor: Colors.white,
+                    tooltip: 'Registrar conductor',
+                    child: const Icon(Icons.person_add_outlined),
+                  ),
+                ],
               ),
             ),
           ],

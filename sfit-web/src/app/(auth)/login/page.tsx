@@ -50,6 +50,15 @@ export default function LoginPage() {
   const errorRef = useRef<HTMLDivElement>(null);
   const googleBtnRef = useRef<HTMLDivElement>(null);
   const [gisReady, setGisReady] = useState(false);
+  // Guard contra disparos duplicados del callback de GIS. GIS puede invocar
+  // el callback más de una vez (animación de fade re-mide el botón → re-init,
+  // FedCM/popup transition, etc.); sin este lock haríamos 2 POST al backend
+  // y eso es lo que causaba que el login "demorara mucho".
+  const credentialInFlightRef = useRef(false);
+  // Marca si initialize() ya corrió. Solo debe llamarse una vez por sesión:
+  // re-llamarlo en cada resize registra rutas de retorno duplicadas y
+  // multiplica el callback.
+  const gisInitializedRef = useRef(false);
 
   useEffect(() => {
     emailInputRef.current?.focus();
@@ -75,13 +84,19 @@ export default function LoginPage() {
       if (!GOOGLE_CLIENT_ID || !window.google || !googleBtnRef.current) return;
 
       try {
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleGoogleCredential,
-          use_fedcm_for_prompt: false,
-          auto_select: false,
-          ux_mode: "popup",
-        });
+        // initialize() solo una vez por ciclo de vida del componente. Cada
+        // llamada extra duplica el callback que GIS dispara al recibir la
+        // credencial → doble POST al backend.
+        if (!gisInitializedRef.current) {
+          window.google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleCredential,
+            use_fedcm_for_prompt: false,
+            auto_select: false,
+            ux_mode: "popup",
+          });
+          gisInitializedRef.current = true;
+        }
 
         // Google Sign-In requiere width entre 200 y 400. Si el contenedor
         // mide < 200 (mobile pequeño con padding) tomamos 280 como fallback.
@@ -147,6 +162,14 @@ export default function LoginPage() {
   }
 
   async function handleGoogleCredential(response: { credential: string }) {
+    // GIS puede invocar este callback más de una vez con la misma credencial
+    // (ver gisInitializedRef arriba). Si hay una llamada en vuelo, ignoramos
+    // los disparos posteriores para no duplicar el POST al backend.
+    if (credentialInFlightRef.current) {
+      console.warn("[google-login] callback duplicado ignorado");
+      return;
+    }
+    credentialInFlightRef.current = true;
     setGoogleLoading(true);
     setError(null);
     // Logs explícitos para debug — el callback de GIS a veces no dispara
@@ -178,6 +201,10 @@ export default function LoginPage() {
       setError(`Error de conexión con Google: ${msg}`);
     } finally {
       setGoogleLoading(false);
+      // Si hubo error mantenemos abierto el flujo para reintentar; si fue
+      // exitoso ya estamos navegando con router.replace y este componente
+      // se desmonta, así que el ref no importa.
+      credentialInFlightRef.current = false;
     }
   }
 

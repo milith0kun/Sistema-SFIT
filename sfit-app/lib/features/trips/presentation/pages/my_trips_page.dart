@@ -1,5 +1,8 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/datasources/trips_api_service.dart';
@@ -17,6 +20,11 @@ class _MyTripsPageState extends ConsumerState<MyTripsPage> {
   List<TripModel> _items = [];
   bool _loading = true;
   String? _error;
+  // Si el backend responde 404 a /conductores/me significa que el usuario
+  // todavía no tiene un Driver doc vinculado (o no tiene companyId). En ese
+  // caso /viajes siempre devuelve [] y el empty state debe llevarlo al
+  // onboarding "Mi empresa" en lugar del genérico "sin viajes".
+  bool _missingDriverRecord = false;
 
   @override
   void initState() {
@@ -31,8 +39,20 @@ class _MyTripsPageState extends ConsumerState<MyTripsPage> {
     });
     try {
       final svc = ref.read(tripsApiServiceProvider);
-      final items = await svc.getMyTrips(limit: 30);
-      if (mounted) setState(() { _items = items; _loading = false; });
+      final dio = ref.read(dioClientProvider).dio;
+      final results = await Future.wait([
+        svc.getMyTrips(limit: 30),
+        _probeDriverRecord(dio),
+      ]);
+      final items = results[0] as List<TripModel>;
+      final hasDriver = results[1] as bool;
+      if (mounted) {
+        setState(() {
+          _items = items;
+          _missingDriverRecord = !hasDriver;
+          _loading = false;
+        });
+      }
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -40,6 +60,18 @@ class _MyTripsPageState extends ConsumerState<MyTripsPage> {
           _loading = false;
         });
       }
+    }
+  }
+
+  Future<bool> _probeDriverRecord(Dio dio) async {
+    try {
+      await dio.get('/conductores/me');
+      return true;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return false;
+      return true;
+    } catch (_) {
+      return true;
     }
   }
 
@@ -81,7 +113,7 @@ class _MyTripsPageState extends ConsumerState<MyTripsPage> {
                 : _error != null
                     ? _ErrorState(message: _error!, onRetry: _load)
                     : _items.isEmpty
-                        ? const _EmptyState()
+                        ? _EmptyState(needsCompany: _missingDriverRecord)
                         : RefreshIndicator(
                             onRefresh: _load,
                             color: AppColors.gold,
@@ -211,10 +243,68 @@ class _TripCard extends StatelessWidget {
 
 // ── Estados auxiliares ─────────────────────────────────────────────────────
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  final bool needsCompany;
+  const _EmptyState({this.needsCompany = false});
 
   @override
   Widget build(BuildContext context) {
+    if (needsCompany) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: AppColors.goldBg,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.goldBorder, width: 1.5),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(Icons.apartment_rounded,
+                    size: 30, color: AppColors.goldDark),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Asóciate a tu empresa',
+                style: AppTheme.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.ink9,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Para recibir viajes asignados primero debes vincularte a una empresa de transporte.',
+                textAlign: TextAlign.center,
+                style: AppTheme.inter(
+                  fontSize: 13,
+                  color: AppColors.ink6,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 18),
+              FilledButton.icon(
+                onPressed: () => context.push('/conductor/empresa'),
+                icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                label: const Text('Elegir empresa'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.gold,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),

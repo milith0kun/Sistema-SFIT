@@ -383,6 +383,69 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
             ),
           ),
         ),
+        // ── Banner cuando no hay GPS registrado ──────────────────
+        if (!hasValidTrack)
+          Positioned(
+            left: 16,
+            right: 16,
+            top: 88,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.ink2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFFF4E5),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.location_off_rounded,
+                        size: 18, color: Color(0xFFB45309)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'GPS no registrado',
+                          style: AppTheme.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink9,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Este viaje no tiene puntos GPS para mostrar el trazado.',
+                          style: AppTheme.inter(
+                            fontSize: 11.5,
+                            color: AppColors.ink6,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         // ── Bottom sheet draggable con métricas + paraderos ──────
         DraggableScrollableSheet(
           initialChildSize: 0.32,
@@ -585,178 +648,6 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
           ),
         ),
       ],
-    );
-  }
-
-  // ── Vista clásica (fallback cuando no hay track válido) ──────────
-  Widget _buildClassicView({
-    required String plate,
-    required String? routeName,
-    required String? captureStatus,
-    required num? distanceMeters,
-    required num? durationSeconds,
-    required num? compliance,
-    required List<Map<String, dynamic>> visitedStops,
-    required int visitedCount,
-    required int totalStops,
-  }) {
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 84,
-                height: 84,
-                decoration: BoxDecoration(
-                  color: AppColors.aptoBg,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.aptoBorder, width: 2),
-                ),
-                child: const Icon(Icons.check_rounded,
-                    size: 48, color: AppColors.apto),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Center(
-              child: Text(
-                '¡Viaje completado!',
-                style: AppTheme.inter(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.ink9),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Center(
-              child: Text(
-                plate + (routeName != null ? ' · $routeName' : ''),
-                textAlign: TextAlign.center,
-                style: AppTheme.inter(fontSize: 13, color: AppColors.ink6),
-              ),
-            ),
-            if (captureStatus != null) ...[
-              const SizedBox(height: 10),
-              Center(child: _CaptureStatusBadge(status: captureStatus)),
-            ],
-            const SizedBox(height: 24),
-            Row(children: [
-              Expanded(
-                  child: _MetricCard(
-                      icon: Icons.straighten_rounded,
-                      label: 'Distancia',
-                      value: _formatDistance(distanceMeters))),
-              const SizedBox(width: 10),
-              Expanded(
-                  child: _MetricCard(
-                      icon: Icons.schedule_rounded,
-                      label: 'Duración',
-                      value: _formatDuration(durationSeconds))),
-            ]),
-            const SizedBox(height: 10),
-            Row(children: [
-              Expanded(
-                  child: _MetricCard(
-                      icon: Icons.place_outlined,
-                      label: 'Paraderos',
-                      value: totalStops > 0
-                          ? '$visitedCount / $totalStops'
-                          : '$visitedCount')),
-              const SizedBox(width: 10),
-              Expanded(
-                  child: _MetricCard(
-                      icon: Icons.verified_outlined,
-                      label: 'Cumplimiento',
-                      value: compliance != null
-                          ? '${compliance.round()}%'
-                          : '—',
-                      accent: _complianceColor(compliance))),
-            ]),
-            const SizedBox(height: 20),
-            // Aviso de track no disponible
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.ink1,
-                border: Border.all(color: AppColors.ink2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(children: [
-                const Icon(Icons.info_outline,
-                    size: 18, color: AppColors.ink5),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'No hay trazo GPS suficiente para mostrar el mapa de este viaje.',
-                    style: AppTheme.inter(
-                        fontSize: 12, color: AppColors.ink6, height: 1.4),
-                  ),
-                ),
-              ]),
-            ),
-            if (visitedStops.isNotEmpty) ...[
-                Text('PARADEROS VISITADOS',
-                  style: AppTheme.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.ink5, letterSpacing: 1.2)),
-                const SizedBox(height: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.ink2),
-                  ),
-                  child: Column(
-                    children: visitedStops.asMap().entries.map((entry) {
-                      final i = entry.key;
-                      final s = entry.value;
-                      final isLast = i == visitedStops.length - 1;
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          border: Border(bottom: isLast ? BorderSide.none : const BorderSide(color: AppColors.ink1)),
-                        ),
-                        child: Row(children: [
-                          Container(
-                            width: 24, height: 24,
-                            decoration: const BoxDecoration(color: AppColors.aptoBg, shape: BoxShape.circle),
-                            child: const Icon(Icons.check_rounded, size: 14, color: AppColors.apto),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              s['label'] as String? ?? 'Paradero ${(s['stopIndex'] as num? ?? 0).toInt() + 1}',
-                              style: AppTheme.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.ink9),
-                            ),
-                          ),
-                          Text(
-                            _formatTime(s['visitedAt'] as String?),
-                            style: AppTheme.inter(fontSize: 12, color: AppColors.ink5, tabular: true),
-                          ),
-                        ]),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-
-              // ── Botón Listo ───────────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: FilledButton(
-                  onPressed: () => context.go('/home'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.ink9,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: Text('Listo', style: AppTheme.inter(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
-                ),
-              ),
-            ],
-          ),
-        ),
     );
   }
 
