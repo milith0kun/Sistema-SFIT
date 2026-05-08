@@ -8,6 +8,7 @@ import {
 } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const CreateSchema = z.object({
   name: z.string().min(2).max(100).trim(),
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN]);
+  const auth = requireRole(request, [...rolesFor("regiones", "create")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   try {

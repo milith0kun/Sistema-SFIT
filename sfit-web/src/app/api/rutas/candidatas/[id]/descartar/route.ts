@@ -8,6 +8,7 @@ import {
 import { requireRole } from "@/lib/auth/guard";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { ROLES } from "@/lib/constants";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 /**
  * POST /api/rutas/candidatas/[id]/descartar
@@ -20,9 +21,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.OPERADOR,
-  ]);
+  const auth = requireRole(request, [...rolesFor("rutas", "create")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;

@@ -6,11 +6,10 @@ import { apiResponse, apiError, apiForbidden, apiNotFound, apiUnauthorized } fro
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL, ROLES.OPERADOR,
-  ]);
+  const auth = requireRole(request, [...rolesFor("inspecciones", "view")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;

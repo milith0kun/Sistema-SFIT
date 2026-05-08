@@ -7,10 +7,10 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
 
+import { hasPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 const VIEW_ROLES = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
 const EDIT_ROLES = ["admin_municipal", "operador", "super_admin"];
-const DELETE_ROLES = ["admin_municipal", "super_admin"];
-
 type FleetStatus =
   | "disponible"
   | "en_ruta"
@@ -154,7 +154,7 @@ export default function FlotaDetallePage({ params }: Props) {
 
     setAuthorized(true);
     setCanEdit(EDIT_ROLES.includes(user.role ?? ""));
-    setCanDelete(DELETE_ROLES.includes(user.role ?? ""));
+    setCanDelete(hasPermission(user.role as Role ?? "", "flota", "delete"));
     setToken(tk);
   }, [router]);
 

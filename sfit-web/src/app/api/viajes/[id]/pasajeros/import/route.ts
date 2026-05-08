@@ -16,6 +16,7 @@ import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 const MAX_ROWS = 500;
@@ -109,11 +110,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN,
-    ROLES.ADMIN_MUNICIPAL,
-    ROLES.OPERADOR,
-  ]);
+  const auth = requireRole(request, [...rolesFor("viajes", "create")]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }

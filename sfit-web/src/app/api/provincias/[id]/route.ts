@@ -14,6 +14,7 @@ import {
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessProvince } from "@/lib/auth/rbac";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const UpdateProvinceSchema = z.object({
   name: z.string().min(2).max(120).optional(),
@@ -30,10 +31,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN,
-    ROLES.ADMIN_PROVINCIAL,
-  ]);
+  const auth = requireRole(request, [...rolesFor("provincias", "view")]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }
@@ -124,7 +122,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN]);
+  const auth = requireRole(request, [...rolesFor("provincias", "delete")]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }

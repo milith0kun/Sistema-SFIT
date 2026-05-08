@@ -25,7 +25,7 @@ type MunicipioRow = {
  * Roles: super_admin, admin_provincial
  */
 export async function GET(request: NextRequest) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL]);
+  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_REGIONAL]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }

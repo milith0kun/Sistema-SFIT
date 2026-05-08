@@ -7,6 +7,8 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { DashboardStyles } from "@/components/layout/DashboardStyles";
 import { Toaster } from "@/components/ui/Toaster";
+import { MobileOnlyScreen } from "@/components/auth/MobileOnlyScreen";
+import { MOBILE_ONLY_ROLES } from "@/lib/auth/roleMatrix";
 import {
   clearSession,
   getClientUser,
@@ -84,6 +86,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   if (!user) return null;
+
+  // Conductor y ciudadano operan desde la app móvil. Sólo permitimos /perfil
+  // en web para que puedan ajustar sus datos básicos.
+  if ((MOBILE_ONLY_ROLES as readonly string[]).includes(user.role) && pathname !== "/perfil") {
+    return <MobileOnlyScreen />;
+  }
 
   return (
     <div style={{ display: "flex", height: "100svh", background: "#F4F4F5", overflow: "hidden" }}>

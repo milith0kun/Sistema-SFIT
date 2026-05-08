@@ -10,6 +10,7 @@ import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { logAction } from "@/lib/audit/logAction";
 import { createNotificationForRoles } from "@/lib/notifications/create";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const Schema = z.object({
   reason: z.string().trim().min(20, "El motivo debe tener al menos 20 caracteres").max(2000),
@@ -30,7 +31,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireRole(request, [ROLES.CIUDADANO]);
+  const auth = requireRole(request, [...rolesFor("reportes", "create")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;

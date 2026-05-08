@@ -16,6 +16,7 @@ import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { logAudit } from "@/lib/audit/log";
 import { createNotificationForRoles } from "@/lib/notifications/create";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const RepresentanteLegalSchema = z.object({
   name: z.string().min(2).max(160),
@@ -46,13 +47,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN,
-    ROLES.ADMIN_PROVINCIAL,
-    ROLES.ADMIN_MUNICIPAL,
-    ROLES.FISCAL,
-    ROLES.OPERADOR,
-  ]);
+  const auth = requireRole(request, [...rolesFor("empresas", "view")]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }

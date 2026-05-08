@@ -9,6 +9,7 @@ import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { Company, SERVICE_SCOPES } from "@/models/Company";
 import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -88,10 +89,7 @@ export function validateRouteByScope(
 }
 
 export async function GET(request: NextRequest) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL,
-    ROLES.FISCAL, ROLES.OPERADOR, ROLES.CONDUCTOR,
-  ]);
+  const auth = requireRole(request, [...rolesFor("rutas", "view")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   try {
@@ -170,7 +168,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   // Operador puede crear rutas para su empresa además de admins.
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.OPERADOR]);
+  const auth = requireRole(request, [...rolesFor("rutas", "create")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   try {

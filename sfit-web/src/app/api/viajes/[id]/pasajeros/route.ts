@@ -17,6 +17,7 @@ import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const PassengerInputSchema = z.object({
   fullName: z.string().min(2).max(200),
@@ -79,14 +80,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN,
-    ROLES.ADMIN_PROVINCIAL,
-    ROLES.ADMIN_MUNICIPAL,
-    ROLES.FISCAL,
-    ROLES.OPERADOR,
-    ROLES.CONDUCTOR,
-  ]);
+  const auth = requireRole(request, [...rolesFor("viajes", "view")]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }
@@ -136,11 +130,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN,
-    ROLES.ADMIN_MUNICIPAL,
-    ROLES.OPERADOR,
-  ]);
+  const auth = requireRole(request, [...rolesFor("viajes", "create")]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }

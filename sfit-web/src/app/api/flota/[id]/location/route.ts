@@ -12,6 +12,7 @@ import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { haversineMeters, DEFAULT_STOP_RADIUS_METERS } from "@/lib/geo/haversine";
 import { distancePointToPolyline } from "@/lib/geo/pointToLine";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 // Umbrales de detección off-route. Mantener consistentes con la UI:
 // >100m considerado fuera, ≤50m considerado regresó (hysteresis).
@@ -62,9 +63,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireRole(request, [
-    ROLES.CONDUCTOR, ROLES.OPERADOR, ROLES.ADMIN_MUNICIPAL, ROLES.SUPER_ADMIN,
-  ]);
+  const auth = requireRole(request, [...rolesFor("flota", "edit")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;

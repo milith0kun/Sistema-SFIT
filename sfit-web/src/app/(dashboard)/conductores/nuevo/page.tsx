@@ -7,8 +7,8 @@ import { CheckCircle, AlertTriangle, Loader2, Search } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
-
-const CREATE_ROLES = ["admin_municipal", "operador", "super_admin"];
+import { hasPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 // Solo el operador tiene su empresa fija; admin_municipal y super_admin
 // eligen libremente del dropdown.
 const FIXED_COMPANY_ROLES = ["operador"];
@@ -108,7 +108,7 @@ export default function NuevoconductorPage() {
       return;
     }
 
-    if (!user.role || !CREATE_ROLES.includes(user.role)) {
+    if (!user.role || !hasPermission(user.role as Role, "conductores", "create")) {
       router.replace("/conductores");
       return;
     }

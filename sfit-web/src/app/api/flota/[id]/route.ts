@@ -13,6 +13,7 @@ import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { haversineMeters } from "@/lib/geo/haversine";
 import { computeQualityScore, polylineLengthMeters, type GpsPoint } from "@/lib/routes/converge";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const UpdateSchema = z.object({
   driverId: z.string().refine(isValidObjectId).optional(),
@@ -26,9 +27,7 @@ const UpdateSchema = z.object({
 });
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL, ROLES.OPERADOR, ROLES.CONDUCTOR,
-  ]);
+  const auth = requireRole(request, [...rolesFor("flota", "view")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;
@@ -85,9 +84,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.OPERADOR, ROLES.CONDUCTOR,
-  ]);
+  const auth = requireRole(request, [...rolesFor("flota", "edit")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;

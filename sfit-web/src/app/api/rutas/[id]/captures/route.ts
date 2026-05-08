@@ -140,7 +140,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.ADMIN_PROVINCIAL, ROLES.OPERADOR, ROLES.FISCAL,
+    ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_REGIONAL, ROLES.OPERADOR, ROLES.FISCAL,
   ]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 

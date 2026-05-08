@@ -8,6 +8,7 @@ import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { sendPushToUser } from "@/lib/notifications/fcm";
 import { logAction } from "@/lib/audit/logAction";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const ResolveSchema = z.object({
   status: z.enum(["aprobada", "rechazada"]),
@@ -19,7 +20,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL]);
+  const auth = requireRole(request, [...rolesFor("apelaciones", "edit")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;

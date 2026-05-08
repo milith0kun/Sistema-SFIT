@@ -15,6 +15,7 @@ import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { scopedMunicipalityFilter } from "@/lib/auth/rbac";
 import { logAudit } from "@/lib/audit/log";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 /**
  * Endpoint del catálogo UBIGEO de municipalidades (distritos).
@@ -37,11 +38,7 @@ const CreateMunicipalitySchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN,
-    ROLES.ADMIN_PROVINCIAL,
-    ROLES.ADMIN_MUNICIPAL,
-  ]);
+  const auth = requireRole(request, [...rolesFor("municipalidades", "view")]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }

@@ -14,6 +14,7 @@ import {
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const UpdateMunicipalitySchema = z.object({
   name: z.string().min(2).max(160).optional(),
@@ -31,11 +32,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN,
-    ROLES.ADMIN_PROVINCIAL,
-    ROLES.ADMIN_MUNICIPAL,
-  ]);
+  const auth = requireRole(request, [...rolesFor("municipalidades", "view")]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }
@@ -92,10 +89,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN,
-    ROLES.ADMIN_PROVINCIAL,
-  ]);
+  const auth = requireRole(request, [...rolesFor("municipalidades", "edit")]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }
@@ -173,7 +167,7 @@ export async function DELETE(
 ) {
   const auth = requireRole(request, [
     ROLES.SUPER_ADMIN,
-    ROLES.ADMIN_PROVINCIAL,
+    ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_REGIONAL,
   ]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();

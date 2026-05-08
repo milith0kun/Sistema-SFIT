@@ -6,6 +6,7 @@ import { apiResponse, apiError, apiForbidden, apiUnauthorized } from "@/lib/api/
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 /**
  * Devuelve las fallas más frecuentes para sugerir puntos prioritarios de inspección.
@@ -15,13 +16,7 @@ import { canAccessMunicipality } from "@/lib/auth/rbac";
  *    (últimas 200 inspecciones), útil para el dashboard de inspecciones.
  */
 export async function GET(request: NextRequest) {
-  const auth = requireRole(request, [
-    ROLES.FISCAL,
-    ROLES.SUPER_ADMIN,
-    ROLES.ADMIN_PROVINCIAL,
-    ROLES.ADMIN_MUNICIPAL,
-    ROLES.OPERADOR,
-  ]);
+  const auth = requireRole(request, [...rolesFor("inspecciones", "view")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const url = new URL(request.url);

@@ -5,7 +5,7 @@ import { connectDB } from "@/lib/db/mongoose";
 import { Driver } from "@/models/Driver";
 import { apiResponse, apiError, apiForbidden, apiNotFound, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
-import { ROLES } from "@/lib/constants";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 
 const UpdateSchema = z.object({
@@ -31,9 +31,7 @@ async function resolveDriver(request: NextRequest, id: string) {
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL, ROLES.OPERADOR,
-  ]);
+  const auth = requireRole(request, [...rolesFor("conductores", "view")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;
@@ -63,7 +61,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.OPERADOR, ROLES.FISCAL]);
+  const auth = requireRole(request, [...rolesFor("conductores", "edit")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;
@@ -92,7 +90,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL]);
+  const auth = requireRole(request, [...rolesFor("conductores", "delete")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;

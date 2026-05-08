@@ -10,6 +10,7 @@ import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const CreateSchema = z.object({
   municipalityId: z.string().refine(isValidObjectId).optional(),
@@ -27,10 +28,7 @@ const CreateSchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL,
-    ROLES.FISCAL, ROLES.OPERADOR, ROLES.CONDUCTOR,
-  ]);
+  const auth = requireRole(request, [...rolesFor("flota", "view")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   try {
@@ -121,9 +119,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.OPERADOR, ROLES.CONDUCTOR,
-  ]);
+  const auth = requireRole(request, [...rolesFor("flota", "create")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   try {

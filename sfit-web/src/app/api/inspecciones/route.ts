@@ -15,6 +15,7 @@ import { Municipality } from "@/models/Municipality";
 import { logAction } from "@/lib/audit/logAction";
 import { triggerWebhook } from "@/lib/webhooks/triggerWebhook";
 import { adjustVehicleReputation } from "@/lib/reputation/updateReputation";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const ChecklistItemSchema = z.object({
   item: z.string().min(1).max(200),
@@ -36,7 +37,7 @@ const CreateSchema = z.object({
 
 export async function GET(request: NextRequest) {
   const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL, ROLES.OPERADOR,
+    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_REGIONAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL, ROLES.OPERADOR,
     ROLES.CONDUCTOR,
   ]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
@@ -155,7 +156,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL]);
+  const auth = requireRole(request, [...rolesFor("inspecciones", "create")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   try {

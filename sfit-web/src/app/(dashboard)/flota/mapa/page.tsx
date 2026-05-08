@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { GoogleMapView, type MapPolyline } from "@/components/ui/GoogleMapView";
+import { hasPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 
 /* Paleta sobria */
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
@@ -19,7 +21,6 @@ const RIESGO = "#B45309";
 const NO = "#DC2626"; const NO_BG = "#FFF5F5"; const NO_BD = "#FCA5A5";
 const GOLD = "#B8860B";
 
-const ALLOWED = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal", "operador", "fiscal"];
 const REFRESH_INTERVAL_MS = 15_000;
 
 type ActiveLocation = {
@@ -74,7 +75,7 @@ function freshnessDot(iso: string | null | undefined): { color: string; status: 
 
 export default function FlotaMapaPage() {
   const router = useRouter();
-  const [user, setUser] = useState<{ role: string } | null>(null);
+  const [user, setUser] = useState<{ role: Role } | null>(null);
 
   const [activeList, setActiveList] = useState<ActiveLocation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,8 +101,8 @@ export default function FlotaMapaPage() {
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) { router.replace("/login"); return; }
-    const u = JSON.parse(raw) as { role: string };
-    if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
+    const u = JSON.parse(raw) as { role: Role };
+    if (!hasPermission(u.role, "flota", "view")) { router.replace("/dashboard"); return; }
     setUser(u);
   }, [router]);
 

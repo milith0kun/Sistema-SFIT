@@ -13,6 +13,7 @@ import { triggerWebhook } from "@/lib/webhooks/triggerWebhook";
 import { adjustVehicleReputation } from "@/lib/reputation/updateReputation";
 import { sendPushToUser } from "@/lib/notifications/fcm";
 import { createNotification } from "@/lib/notifications/create";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const UpdateSchema = z.object({
   status: z.enum(["pendiente", "revision", "validado", "rechazado"]).optional(),
@@ -25,7 +26,7 @@ const REJECTIONS_BEFORE_SUSPENSION = 3;
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL,
+    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_REGIONAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL,
   ]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL]);
+  const auth = requireRole(request, [...rolesFor("reportes", "edit")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;

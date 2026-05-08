@@ -9,6 +9,7 @@ import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { SERVICE_SCOPES } from "@/models/Company";
 import { validateRouteByScope } from "../route";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -43,10 +44,7 @@ const UpdateSchema = z.object({
 });
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL,
-    ROLES.FISCAL, ROLES.OPERADOR, ROLES.CONDUCTOR,
-  ]);
+  const auth = requireRole(request, [...rolesFor("rutas", "view")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;
@@ -62,7 +60,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   // Operador (gestor de flota de empresa) también puede editar rutas asignadas a su empresa.
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.OPERADOR]);
+  const auth = requireRole(request, [...rolesFor("rutas", "edit")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;
@@ -176,7 +174,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL]);
+  const auth = requireRole(request, [...rolesFor("rutas", "delete")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;

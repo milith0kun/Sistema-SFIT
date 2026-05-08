@@ -10,6 +10,8 @@ import {
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
+import { hasPermission, SUSPEND_ROLES } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 
 type PlacaLookup =
   | { state: "idle" }
@@ -27,9 +29,6 @@ const NO = "#DC2626"; const NO_BG = "#FFF5F5"; const NO_BD = "#FCA5A5";
 const INFO = "#1E40AF"; const INFO_BD = "#BFDBFE";
 
 const CURRENT_YEAR = new Date().getFullYear();
-const VIEW_ROLES = ["admin_municipal", "fiscal", "admin_provincial", "admin_regional", "super_admin", "operador"];
-const EDIT_ROLES = ["admin_municipal", "super_admin"];
-const SUSPEND_ROLES = ["admin_municipal", "fiscal", "super_admin"];
 
 type VehicleStatus = "disponible" | "en_ruta" | "en_mantenimiento" | "fuera_de_servicio";
 type InspectionStatus = "aprobada" | "observada" | "rechazada" | "pendiente";
@@ -146,11 +145,11 @@ export default function VehiculoDetallePage({ params }: Props) {
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
-    let user: { role?: string } = {};
+    let user: { role?: Role } = {};
     try { user = JSON.parse(raw); } catch { router.replace("/login"); return; }
-    if (!user.role || !VIEW_ROLES.includes(user.role)) { router.replace("/dashboard"); return; }
-    setCanEdit(EDIT_ROLES.includes(user.role ?? ""));
-    setCanSuspend(SUSPEND_ROLES.includes(user.role ?? ""));
+    if (!hasPermission(user.role, "vehiculos", "view")) { router.replace("/dashboard"); return; }
+    setCanEdit(hasPermission(user.role, "vehiculos", "edit"));
+    setCanSuspend(user.role ? SUSPEND_ROLES.includes(user.role) : false);
     void loadVehicle();
     void loadDropdowns();
     // eslint-disable-next-line react-hooks/exhaustive-deps

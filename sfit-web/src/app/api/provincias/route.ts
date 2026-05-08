@@ -13,6 +13,7 @@ import {
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { logAudit } from "@/lib/audit/log";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const CreateProvinceSchema = z.object({
   name: z.string().min(2).max(120),
@@ -26,10 +27,7 @@ const CreateProvinceSchema = z.object({
  * POST — Solo Super Admin.
  */
 export async function GET(request: NextRequest) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN,
-    ROLES.ADMIN_PROVINCIAL,
-  ]);
+  const auth = requireRole(request, [...rolesFor("provincias", "view")]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }

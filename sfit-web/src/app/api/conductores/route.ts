@@ -7,6 +7,7 @@ import { Company } from "@/models/Company";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES, DRIVER_STATUS } from "@/lib/constants";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
 
@@ -25,9 +26,7 @@ const CreateDriverSchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL, ROLES.OPERADOR,
-  ]);
+  const auth = requireRole(request, [...rolesFor("conductores", "view")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   try {
@@ -122,7 +121,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.OPERADOR]);
+  const auth = requireRole(request, [...rolesFor("conductores", "create")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   try {

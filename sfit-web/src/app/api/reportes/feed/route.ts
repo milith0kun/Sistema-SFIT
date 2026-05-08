@@ -7,6 +7,7 @@ import { User } from "@/models/User";
 import { apiResponse, apiError, apiUnauthorized, apiForbidden } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 /**
  * GET /api/reportes/feed
@@ -22,7 +23,7 @@ import { ROLES } from "@/lib/constants";
  * Incluye conteo de apoyos y si el usuario actual los apoyó.
  */
 export async function GET(request: NextRequest) {
-  const auth = requireRole(request, [ROLES.CIUDADANO, ROLES.FISCAL, ROLES.ADMIN_MUNICIPAL, ROLES.ADMIN_PROVINCIAL, ROLES.SUPER_ADMIN]);
+  const auth = requireRole(request, [...rolesFor("reportes", "view")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   try {

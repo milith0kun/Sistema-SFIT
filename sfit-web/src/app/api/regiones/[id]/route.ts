@@ -10,6 +10,7 @@ import {
 import { requireRole } from "@/lib/auth/guard";
 import { canAccessRegion } from "@/lib/auth/rbac";
 import { ROLES } from "@/lib/constants";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const UpdateSchema = z.object({
   name: z.string().min(2).max(100).trim().optional(),
@@ -25,7 +26,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_REGIONAL]);
+  const auth = requireRole(request, [...rolesFor("regiones", "view")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;
@@ -64,7 +65,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN]);
+  const auth = requireRole(request, [...rolesFor("regiones", "edit")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;
@@ -101,7 +102,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN]);
+  const auth = requireRole(request, [...rolesFor("regiones", "delete")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;

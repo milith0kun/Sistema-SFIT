@@ -10,6 +10,8 @@ import {
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
+import { hasPermission, FATIGUE_ROLES } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 
 /* Paleta sobria */
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
@@ -18,9 +20,6 @@ const APTO = "#15803d"; const APTO_BG = "#F0FDF4"; const APTO_BD = "#86EFAC";
 const RIESGO = "#B45309"; const RIESGO_BG = "#FFFBEB"; const RIESGO_BD = "#FDE68A";
 const NO = "#DC2626"; const NO_BG = "#FFF5F5"; const NO_BD = "#FCA5A5";
 
-const VIEW_ROLES = ["admin_municipal", "fiscal", "admin_provincial", "admin_regional", "super_admin", "operador"];
-const EDIT_ROLES = ["admin_municipal", "super_admin"];
-const FATIGUE_ROLES = ["admin_municipal", "fiscal", "super_admin"];
 const LICENSE_CATEGORIES = ["A-I", "A-IIa", "A-IIb", "A-IIIa", "A-IIIb", "A-IIIc"];
 
 interface Conductor {
@@ -126,12 +125,12 @@ export default function ConductorDetallePage({ params }: Props) {
     const raw = localStorage.getItem("sfit_user");
     const tk = localStorage.getItem("sfit_access_token");
     if (!raw || !tk) { router.replace("/login"); return; }
-    let user: { role?: string } = {};
+    let user: { role?: Role } = {};
     try { user = JSON.parse(raw); } catch { router.replace("/login"); return; }
-    if (!user.role || !VIEW_ROLES.includes(user.role)) { router.replace("/conductores"); return; }
+    if (!hasPermission(user.role, "conductores", "view")) { router.replace("/conductores"); return; }
     setAuthorized(true);
-    setCanEdit(EDIT_ROLES.includes(user.role ?? ""));
-    setCanMarkFatigue(FATIGUE_ROLES.includes(user.role ?? ""));
+    setCanEdit(hasPermission(user.role, "conductores", "edit"));
+    setCanMarkFatigue(user.role ? FATIGUE_ROLES.includes(user.role) : false);
     setToken(tk);
   }, [router]);
 

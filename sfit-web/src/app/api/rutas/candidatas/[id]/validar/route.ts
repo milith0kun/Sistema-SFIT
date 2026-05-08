@@ -12,6 +12,7 @@ import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { ROLES } from "@/lib/constants";
 import { SERVICE_SCOPES } from "@/models/Company";
 import { haversineMeters } from "@/lib/routes/converge";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const WaypointInputSchema = z.object({
   lat: z.number().min(-90).max(90),
@@ -49,9 +50,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.OPERADOR,
-  ]);
+  const auth = requireRole(request, [...rolesFor("rutas", "create")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;

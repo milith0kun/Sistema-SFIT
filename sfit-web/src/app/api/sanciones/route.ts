@@ -15,6 +15,7 @@ import { sanctionEmailHtml } from "@/lib/email/templates";
 import { Company } from "@/models/Company";
 import { Vehicle } from "@/models/Vehicle";
 import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const SANCTION_STATUS_VALUES = ["emitida", "notificada", "apelada", "confirmada", "anulada"] as const;
 
@@ -34,10 +35,7 @@ const CreateSchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL,
-    ROLES.OPERADOR, ROLES.CONDUCTOR,
-  ]);
+  const auth = requireRole(request, [...rolesFor("sanciones", "view")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   try {
@@ -168,7 +166,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL]);
+  const auth = requireRole(request, [...rolesFor("sanciones", "create")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   try {

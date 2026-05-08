@@ -29,7 +29,7 @@ type ActivityItem = {
 export async function GET(request: NextRequest) {
   const auth = requireRole(request, [
     ROLES.SUPER_ADMIN,
-    ROLES.ADMIN_PROVINCIAL,
+    ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_REGIONAL,
     ROLES.ADMIN_MUNICIPAL,
     ROLES.FISCAL,
   ]);
