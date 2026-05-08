@@ -6,6 +6,7 @@ import "@/models/Vehicle";
 import { apiResponse, apiError, apiForbidden, apiNotFound, apiUnauthorized } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 
 type PopulatedSubmitter = { _id: unknown; name?: string; email?: string; role?: string } | null;
 type PopulatedResolver  = { _id: unknown; name?: string } | null;
@@ -19,7 +20,10 @@ type PopulatedInspection = {
 } | null;
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_REGIONAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL, ROLES.OPERADOR]);
+  // OPERADOR no está en la matriz `apelaciones.view` (sólo accede a las apelaciones
+  // que él mismo envió, validado por scope abajo). Lo agregamos explícitamente aquí
+  // para preservar ese acceso, pero el resto sale de la matriz central.
+  const auth = requireRole(request, [...rolesFor("apelaciones", "view"), ROLES.OPERADOR]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   const { id } = await params;
   if (!isValidObjectId(id)) return apiError("ID inválido", 400);

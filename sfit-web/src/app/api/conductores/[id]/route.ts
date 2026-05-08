@@ -5,7 +5,7 @@ import { connectDB } from "@/lib/db/mongoose";
 import { Driver } from "@/models/Driver";
 import { apiResponse, apiError, apiForbidden, apiNotFound, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
-import { rolesFor } from "@/lib/auth/roleMatrix";
+import { rolesFor, FATIGUE_ROLES } from "@/lib/auth/roleMatrix";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 
 const UpdateSchema = z.object({
@@ -82,6 +82,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const driver = await Driver.findById(id);
   if (!driver) return apiNotFound("Conductor no encontrado");
   if (!(await canAccessMunicipality(auth.session, String(driver.municipalityId)))) return apiForbidden();
+
+  // Gate adicional: cambiar el estado de fatiga (apto/riesgo/no_apto) sólo
+  // pueden hacerlo quienes tienen autoridad de campo. El operador puede editar
+  // datos administrativos del conductor pero no marcarlo "no apto" para
+  // bypassear sus propias restricciones.
+  if (parsed.data.status !== undefined && !(FATIGUE_ROLES as readonly string[]).includes(auth.session.role)) {
+    return apiForbidden("No tienes permiso para cambiar el estado de fatiga del conductor.");
+  }
 
   Object.assign(driver, parsed.data);
   await driver.save();

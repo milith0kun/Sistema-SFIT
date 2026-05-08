@@ -40,8 +40,8 @@ const A = ROLES;
 export const ROLE_MATRIX: Record<Resource, Record<Action, Role[]>> = {
   conductores: {
     view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR],
-    create: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.OPERADOR],
-    edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR],
+    create: [A.SUPER_ADMIN, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.OPERADOR],
+    edit: [A.SUPER_ADMIN, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR],
     delete: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
   },
   vehiculos: {
@@ -153,6 +153,27 @@ export function hasPermission(
 ): boolean {
   if (!role) return false;
   return (rolesFor(resource, action) as Role[]).includes(role);
+}
+
+/**
+ * Variante para páginas web. Excluye los roles `MOBILE_ONLY_ROLES`
+ * (conductor/ciudadano) — esos roles consumen la API desde el app móvil pero
+ * son redirigidos a `MobileOnlyScreen` en la web. Sin este filtro, las pages
+ * heredarían permisos pensados para el app y mostrarían UI inalcanzable.
+ */
+export function pageRolesFor(resource: Resource, action: Action): readonly Role[] {
+  return rolesFor(resource, action).filter(
+    (r) => !(MOBILE_ONLY_ROLES as readonly Role[]).includes(r),
+  );
+}
+
+export function hasWebPermission(
+  role: Role | null | undefined,
+  resource: Resource,
+  action: Action,
+): boolean {
+  if (!role) return false;
+  return (pageRolesFor(resource, action) as Role[]).includes(role);
 }
 
 // ── Acciones especiales con su propio listado ───────────────────────────────
