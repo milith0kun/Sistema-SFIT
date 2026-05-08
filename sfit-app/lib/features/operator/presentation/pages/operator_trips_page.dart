@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../trips/data/models/trip_model.dart';
+import '../../data/datasources/operator_api_service.dart';
 
 /// Listado de viajes del operador — RF-09 (mobile).
 class OperatorTripsPage extends ConsumerStatefulWidget {
@@ -16,9 +17,6 @@ class OperatorTripsPage extends ConsumerStatefulWidget {
 }
 
 class _OperatorTripsPageState extends ConsumerState<OperatorTripsPage> {
-  bool _loading = true;
-  String? _error;
-  List<_Trip> _all = const [];
   String _filter = 'todos';
 
   static const _filters = [
@@ -28,56 +26,12 @@ class _OperatorTripsPageState extends ConsumerState<OperatorTripsPage> {
     ('completado', 'Completados'),
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _load();
-    });
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get(
-        '/viajes',
-        queryParameters: {'role': 'operador', 'limit': 50},
-      );
-      final body = resp.data as Map?;
-      final data = (body?['data'] as Map?) ?? body ?? const {};
-      final items = (data['items'] as List? ?? const [])
-          .map((e) => _Trip.fromJson(e as Map<String, dynamic>))
-          .toList();
-      if (mounted) {
-        setState(() {
-          _all = items;
-          _loading = false;
-        });
-      }
-    } catch (_) {
-      // Backend puede no tener el endpoint todavía — mostramos estado vacío
-      // sin romper la UI. El operador puede usar la web mientras tanto.
-      if (mounted) {
-        setState(() {
-          _all = const [];
-          _loading = false;
-          _error = null;
-        });
-      }
-    }
-  }
-
-  List<_Trip> get _filtered => _filter == 'todos'
-      ? _all
-      : _all.where((t) => t.status == _filter).toList();
+  List<TripModel> _applyFilter(List<TripModel> all) =>
+      _filter == 'todos' ? all : all.where((t) => t.status == _filter).toList();
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _filtered;
+    final tripsAsync = ref.watch(operadorTripsProvider);
     return Scaffold(
       backgroundColor: AppColors.paper,
       appBar: AppBar(
@@ -94,7 +48,6 @@ class _OperatorTripsPageState extends ConsumerState<OperatorTripsPage> {
         ),
       ),
       body: Column(children: [
-        // Filtros segmentados horizontales
         SizedBox(
           height: 46,
           child: ListView.separated(
@@ -130,25 +83,33 @@ class _OperatorTripsPageState extends ConsumerState<OperatorTripsPage> {
         Expanded(
           child: RefreshIndicator(
             color: AppColors.primary,
-            onRefresh: _load,
-            child: _loading
-                ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  )
-                : _error != null
-                    ? _buildError()
-                    : filtered.isEmpty
-                        ? ListView(children: [const SizedBox(height: 80), _buildEmpty()])
-                        : ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(12, 6, 12, 96),
-                            itemCount: filtered.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 8),
-                            itemBuilder: (_, i) => _TripCard(
-                              trip: filtered[i],
-                              onTap: () =>
-                                  context.push('/operador/viajes/${filtered[i].id}'),
-                            ),
-                          ),
+            onRefresh: () => ref.refresh(operadorTripsProvider.future),
+            child: tripsAsync.when(
+              loading: () => const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+              error: (_, __) => ListView(
+                children: [const SizedBox(height: 80), _buildEmpty()],
+              ),
+              data: (all) {
+                final filtered = _applyFilter(all);
+                if (filtered.isEmpty) {
+                  return ListView(
+                    children: [const SizedBox(height: 80), _buildEmpty()],
+                  );
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 96),
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) => _TripCard(
+                    trip: filtered[i],
+                    onTap: () =>
+                        context.push('/operador/viajes/${filtered[i].id}'),
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ]),
@@ -213,24 +174,10 @@ class _OperatorTripsPageState extends ConsumerState<OperatorTripsPage> {
           ]),
         ),
       );
-
-  Widget _buildError() => Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(
-            _error ?? 'Error',
-            style: AppTheme.inter(fontSize: 13, color: AppColors.ink5),
-          ),
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: _load,
-            child: const Text('Reintentar'),
-          ),
-        ]),
-      );
 }
 
 class _TripCard extends StatelessWidget {
-  final _Trip trip;
+  final TripModel trip;
   final VoidCallback onTap;
   const _TripCard({required this.trip, required this.onTap});
 
@@ -238,6 +185,9 @@ class _TripCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = _statusInfo(trip.status);
     final fmt = DateFormat('dd MMM · HH:mm', 'es');
+    final routeName = trip.route?.name ?? 'Ruta';
+    final plate = trip.vehicle?.plate;
+    final dep = trip.startedAt;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -254,7 +204,7 @@ class _TripCard extends StatelessWidget {
             Row(children: [
               Expanded(
                 child: Text(
-                  trip.routeName,
+                  routeName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTheme.inter(
@@ -284,12 +234,12 @@ class _TripCard extends StatelessWidget {
               ),
             ]),
             const SizedBox(height: 6),
-            if (trip.departureAt != null)
+            if (dep != null)
               Row(children: [
                 const Icon(Icons.schedule, size: 12, color: AppColors.ink5),
                 const SizedBox(width: 4),
                 Text(
-                  fmt.format(trip.departureAt!.toLocal()),
+                  fmt.format(dep.toLocal()),
                   style: AppTheme.inter(
                     fontSize: 11.5,
                     color: AppColors.ink6,
@@ -299,17 +249,11 @@ class _TripCard extends StatelessWidget {
               ]),
             const SizedBox(height: 8),
             Wrap(spacing: 12, runSpacing: 4, children: [
-              if (trip.vehiclePlate != null)
+              if (plate != null && plate.isNotEmpty)
                 _MetaChip(
                   icon: Icons.directions_car_outlined,
-                  text: trip.vehiclePlate!,
+                  text: plate,
                 ),
-              if (trip.driverName != null)
-                _MetaChip(icon: Icons.person_outline, text: trip.driverName!),
-              _MetaChip(
-                icon: Icons.groups_2_outlined,
-                text: '${trip.passengerCount} pax',
-              ),
             ]),
           ],
         ),
@@ -385,47 +329,3 @@ _StatusInfo _statusInfo(String status) => switch (status) {
           border: AppColors.ink2,
         ),
     };
-
-class _Trip {
-  final String id;
-  final String routeName;
-  final String status;
-  final DateTime? departureAt;
-  final String? vehiclePlate;
-  final String? driverName;
-  final int passengerCount;
-
-  const _Trip({
-    required this.id,
-    required this.routeName,
-    required this.status,
-    this.departureAt,
-    this.vehiclePlate,
-    this.driverName,
-    this.passengerCount = 0,
-  });
-
-  factory _Trip.fromJson(Map<String, dynamic> j) {
-    DateTime? parseDt(dynamic v) {
-      if (v is String && v.isNotEmpty) return DateTime.tryParse(v);
-      return null;
-    }
-
-    final route = j['route'] as Map<String, dynamic>?;
-    final vehicle = j['vehicle'] as Map<String, dynamic>?;
-    final driver = j['driver'] as Map<String, dynamic>?;
-
-    return _Trip(
-      id: (j['_id'] ?? j['id'] ?? '').toString(),
-      routeName:
-          (route?['name'] ?? j['routeName'] ?? j['name'] ?? 'Ruta').toString(),
-      status: (j['status'] ?? 'programado').toString(),
-      departureAt:
-          parseDt(j['departureAt']) ?? parseDt(j['scheduledAt']),
-      vehiclePlate: (vehicle?['plate'] ?? j['vehiclePlate']) as String?,
-      driverName: (driver?['name'] ?? j['driverName']) as String?,
-      passengerCount: (j['passengerCount'] as num?)?.toInt() ??
-          (j['pasajeros'] is List ? (j['pasajeros'] as List).length : 0),
-    );
-  }
-}

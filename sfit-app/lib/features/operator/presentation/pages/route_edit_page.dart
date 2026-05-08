@@ -1,12 +1,13 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/datasources/operator_api_service.dart';
 
 /// Edición de ruta para el OPERADOR — RF-09 (mobile).
 /// Adapta la UI según `serviceScope`:
@@ -46,9 +47,7 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _load();
-    });
+    _load();
   }
 
   @override
@@ -69,42 +68,38 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
       _error = null;
     });
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get('/rutas/${widget.routeId}');
-      final body = resp.data as Map?;
-      final d = (body?['data'] as Map<String, dynamic>?) ??
-          (body as Map<String, dynamic>? ?? const {});
-      _nameCtl.text = (d['name'] as String?) ?? '';
-      _code = (d['code'] as String?) ?? '';
-      _scope = (d['serviceScope'] as String?) ?? 'urbano_distrital';
-      // Backend Track A: los interprovinciales usan UBIGEOs y horarios HH:mm.
-      _originCtl.text = (d['originDistrictCode'] as String?) ?? '';
-      _destinationCtl.text = (d['destinationDistrictCode'] as String?) ?? '';
-      _departureTimes = ((d['departureSchedules'] as List?) ?? const [])
-          .cast<dynamic>()
-          .map((e) => e.toString())
-          .toList();
-      _wps = ((d['waypoints'] as List?) ?? const [])
-          .map((w) {
-            final m = w as Map<String, dynamic>;
-            return _Wp(
-              order: (m['order'] as num?)?.toInt() ?? 0,
-              lat: (m['lat'] as num).toDouble(),
-              lng: (m['lng'] as num).toDouble(),
-              label: (m['label'] as String?) ?? '',
-            );
-          })
+      final service = ref.read(operatorApiServiceProvider);
+      final r = await service.getRouteDetail(widget.routeId);
+      _nameCtl.text = r.name ?? '';
+      _code = r.code ?? '';
+      _scope = r.type ?? 'urbano_distrital';
+      _wps = r.waypoints
+          .map((m) => _Wp(
+                order: (m['order'] as num?)?.toInt() ?? 0,
+                lat: (m['lat'] as num).toDouble(),
+                lng: (m['lng'] as num).toDouble(),
+                label: (m['label'] as String?) ?? '',
+              ))
           .toList()
         ..sort((a, b) => a.order.compareTo(b.order));
       if (mounted) setState(() => _loading = false);
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'No se pudo cargar la ruta.';
+          _error = _extractError(e);
           _loading = false;
         });
       }
     }
+  }
+
+  String _extractError(Object e) {
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map && data['error'] is String) return data['error'] as String;
+      if (data is Map && data['message'] is String) return data['message'] as String;
+    }
+    return 'No se pudo cargar la ruta.';
   }
 
   Future<void> _save() async {
@@ -114,7 +109,7 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
     }
     setState(() => _saving = true);
     try {
-      final dio = ref.read(dioClientProvider).dio;
+      final service = ref.read(operatorApiServiceProvider);
       final payload = <String, dynamic>{
         'name': _nameCtl.text.trim(),
       };
@@ -142,13 +137,14 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
         }
         payload['departureSchedules'] = _departureTimes;
       }
-      await dio.patch('/rutas/${widget.routeId}', data: payload);
+      await service.updateRoute(widget.routeId, payload);
       if (mounted) {
+        ref.invalidate(operadorRoutesProvider);
         _snack('Ruta actualizada.');
         context.pop(true);
       }
     } catch (e) {
-      if (mounted) _snack('Error al guardar: $e');
+      if (mounted) _snack('Error al guardar: ${_extractError(e)}');
     } finally {
       if (mounted) setState(() => _saving = false);
     }

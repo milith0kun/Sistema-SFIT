@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/api_constants.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/models/passenger_model.dart';
+import '../../data/datasources/operator_api_service.dart';
 
 /// CRUD de pasajeros del operador (mobile) — RF-09.
 class PassengerListPage extends ConsumerStatefulWidget {
@@ -21,29 +22,20 @@ class PassengerListPage extends ConsumerStatefulWidget {
 class _PassengerListPageState extends ConsumerState<PassengerListPage> {
   bool _loading = true;
   bool _busy = false;
-  List<_Passenger> _items = const [];
+  final Set<String> _deleting = {};
+  List<PassengerModel> _items = const [];
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _load();
-    });
+    _load();
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-    });
+    setState(() => _loading = true);
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp =
-          await dio.get('/viajes/${widget.tripId}/pasajeros');
-      final body = resp.data as Map?;
-      final data = (body?['data'] as Map?) ?? body ?? const {};
-      final list = (data['items'] as List? ?? data['pasajeros'] as List? ?? const [])
-          .map((e) => _Passenger.fromJson(e as Map<String, dynamic>))
-          .toList();
+      final api = ref.read(operatorApiServiceProvider);
+      final list = await api.getPassengers(widget.tripId);
       if (mounted) {
         setState(() {
           _items = list;
@@ -60,21 +52,29 @@ class _PassengerListPageState extends ConsumerState<PassengerListPage> {
     }
   }
 
-  Future<void> _delete(_Passenger p) async {
-    setState(() => _busy = true);
+  Future<void> _delete(PassengerModel p) async {
+    setState(() {
+      _busy = true;
+      _deleting.add(p.id);
+    });
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      await dio.delete('/viajes/${widget.tripId}/pasajeros/${p.id}');
+      final api = ref.read(operatorApiServiceProvider);
+      await api.deletePassenger(widget.tripId, p.id);
       _snack('Pasajero eliminado.');
       await _load();
     } catch (_) {
       _snack('No se pudo eliminar.');
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _deleting.remove(p.id);
+        });
+      }
     }
   }
 
-  Future<void> _openForm({_Passenger? edit}) async {
+  Future<void> _openForm({PassengerModel? edit}) async {
     final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
@@ -87,25 +87,25 @@ class _PassengerListPageState extends ConsumerState<PassengerListPage> {
     if (result == null || !mounted) return;
     setState(() => _busy = true);
     try {
-      final dio = ref.read(dioClientProvider).dio;
+      final api = ref.read(operatorApiServiceProvider);
       if (edit == null) {
-        // POST espera { passengers: [...] } con shape Passenger del backend.
-        await dio.post(
-          '/viajes/${widget.tripId}/pasajeros',
-          data: {
-            'passengers': [result],
-          },
+        await api.addPassenger(
+          widget.tripId,
+          name: result['name'] as String,
+          dni: result['dni'] as String?,
+          seat: result['seat'] as String?,
+          contact: result['contact'] as String?,
         );
         _snack('Pasajero agregado.');
       } else {
-        // PATCH acepta el partial directo del Passenger.
-        await dio.patch(
-          '/viajes/${widget.tripId}/pasajeros/${edit.id}',
-          data: result,
-        );
+        await api.updatePassenger(widget.tripId, edit.id, result);
         _snack('Pasajero actualizado.');
       }
       await _load();
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg = data is Map ? (data['error'] ?? data['message']) : null;
+      _snack('Error: ${msg ?? e.message ?? e}');
     } catch (e) {
       _snack('Error: $e');
     } finally {
@@ -140,16 +140,14 @@ class _PassengerListPageState extends ConsumerState<PassengerListPage> {
       }
 
       final form = FormData.fromMap({'file': mp});
-      final dio = ref.read(dioClientProvider).dio;
-      await dio.post(
-        '/viajes/${widget.tripId}/pasajeros/import',
-        data: form,
-        options: Options(
-          headers: {'Content-Type': 'multipart/form-data'},
-        ),
-      );
+      final api = ref.read(operatorApiServiceProvider);
+      await api.importPassengers(widget.tripId, form);
       _snack('Importación correcta.');
       await _load();
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg = data is Map ? (data['error'] ?? data['message']) : null;
+      _snack('No se pudo importar: ${msg ?? e.message ?? e}');
     } catch (e) {
       _snack('No se pudo importar: $e');
     } finally {
@@ -258,6 +256,7 @@ class _PassengerListPageState extends ConsumerState<PassengerListPage> {
                     separatorBuilder: (_, __) => const SizedBox(height: 6),
                     itemBuilder: (_, i) {
                       final p = _items[i];
+                      final isDeleting = _deleting.contains(p.id);
                       return Dismissible(
                         key: ValueKey('pax_${p.id}'),
                         direction: DismissDirection.endToStart,
@@ -276,6 +275,7 @@ class _PassengerListPageState extends ConsumerState<PassengerListPage> {
                           ),
                         ),
                         confirmDismiss: (_) async {
+                          if (isDeleting) return false;
                           return await showDialog<bool>(
                                 context: context,
                                 builder: (_) => AlertDialog(
@@ -326,7 +326,7 @@ class _PassengerListPageState extends ConsumerState<PassengerListPage> {
                                 ),
                                 alignment: Alignment.center,
                                 child: Text(
-                                  p.seat?.toString() ?? '—',
+                                  p.seat ?? '—',
                                   style: AppTheme.inter(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w800,
@@ -353,7 +353,7 @@ class _PassengerListPageState extends ConsumerState<PassengerListPage> {
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      'DNI ${p.dni}${p.phone != null ? '  ·  ${p.phone}' : ''}',
+                                      'DNI ${p.dni ?? '—'}${p.contact != null ? '  ·  ${p.contact}' : ''}',
                                       style: AppTheme.inter(
                                         fontSize: 11.5,
                                         color: AppColors.ink5,
@@ -392,7 +392,7 @@ class _PassengerListPageState extends ConsumerState<PassengerListPage> {
 }
 
 class _PassengerForm extends StatefulWidget {
-  final _Passenger? initial;
+  final PassengerModel? initial;
   const _PassengerForm({this.initial});
 
   @override
@@ -411,9 +411,8 @@ class _PassengerFormState extends State<_PassengerForm> {
     super.initState();
     _dniCtl = TextEditingController(text: widget.initial?.dni ?? '');
     _nameCtl = TextEditingController(text: widget.initial?.name ?? '');
-    _seatCtl =
-        TextEditingController(text: widget.initial?.seat?.toString() ?? '');
-    _phoneCtl = TextEditingController(text: widget.initial?.phone ?? '');
+    _seatCtl = TextEditingController(text: widget.initial?.seat ?? '');
+    _phoneCtl = TextEditingController(text: widget.initial?.contact ?? '');
   }
 
   @override
@@ -498,16 +497,12 @@ class _PassengerFormState extends State<_PassengerForm> {
                   onPressed: () {
                     if (!_formKey.currentState!.validate()) return;
                     final seatStr = _seatCtl.text.trim();
-                    // Shape conforme al backend Track A (Passenger model):
-                    // documentNumber / fullName / seatNumber (string) /
-                    // phone / documentType (default DNI).
+                    final phoneStr = _phoneCtl.text.trim();
                     Navigator.pop(context, {
-                      'documentNumber': _dniCtl.text.trim(),
-                      'fullName': _nameCtl.text.trim(),
-                      'documentType': 'DNI',
-                      if (seatStr.isNotEmpty) 'seatNumber': seatStr,
-                      if (_phoneCtl.text.trim().isNotEmpty)
-                        'phone': _phoneCtl.text.trim(),
+                      'name': _nameCtl.text.trim(),
+                      'dni': _dniCtl.text.trim(),
+                      if (seatStr.isNotEmpty) 'seat': seatStr,
+                      if (phoneStr.isNotEmpty) 'contact': phoneStr,
                     });
                   },
                   style: FilledButton.styleFrom(
@@ -553,38 +548,4 @@ class _PassengerFormState extends State<_PassengerForm> {
           borderSide: const BorderSide(color: AppColors.primary, width: 1.6),
         ),
       );
-}
-
-class _Passenger {
-  final String id;
-  final String dni;
-  final String name;
-  final int? seat;
-  final String? phone;
-  const _Passenger({
-    required this.id,
-    required this.dni,
-    required this.name,
-    this.seat,
-    this.phone,
-  });
-
-  factory _Passenger.fromJson(Map<String, dynamic> j) {
-    // El backend Track A devuelve documentNumber / fullName / seatNumber.
-    // Mantenemos compat con shapes antiguos (dni / name / seat) por si quedan
-    // mocks o respuestas legacy.
-    final docNumber = (j['documentNumber'] ?? j['dni'] ?? '').toString();
-    final name = (j['fullName'] ?? j['name'] ?? j['nombre'] ?? '').toString();
-    final rawSeat = j['seatNumber'] ?? j['seat'];
-    final seat = rawSeat is num
-        ? rawSeat.toInt()
-        : int.tryParse((rawSeat ?? '').toString());
-    return _Passenger(
-      id: (j['id'] ?? j['_id'] ?? '').toString(),
-      dni: docNumber,
-      name: name,
-      seat: seat,
-      phone: j['phone'] as String?,
-    );
-  }
 }

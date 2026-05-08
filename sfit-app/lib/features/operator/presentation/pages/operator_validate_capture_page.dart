@@ -1,10 +1,12 @@
 import 'dart:math' as math;
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/models/company_brief_model.dart';
+import '../../data/datasources/operator_api_service.dart';
 import 'operator_routes_page.dart' show Candidate;
 
 /// Form: **"Crear como ruta nueva"** desde una captura GPS.
@@ -38,7 +40,7 @@ class _OperatorValidateCapturePageState
 
   // Empresa: lista cargada del backend; pre-selecciona la primera disponible.
   bool _loadingCompanies = true;
-  List<_CompanyOption> _companies = const [];
+  List<CompanyBriefModel> _companies = const [];
   String? _companyId;
 
   // Tipo de vehículo
@@ -68,9 +70,7 @@ class _OperatorValidateCapturePageState
   void initState() {
     super.initState();
     _codeCtl.text = _generateCode();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _loadCompanies();
-    });
+    _loadCompanies();
   }
 
   @override
@@ -91,20 +91,8 @@ class _OperatorValidateCapturePageState
   Future<void> _loadCompanies() async {
     setState(() => _loadingCompanies = true);
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get(
-        '/empresas',
-        queryParameters: {'limit': 100},
-      );
-      final body = resp.data as Map?;
-      final data = (body?['data'] as Map?) ?? body ?? const {};
-      final raw = (data['items'] as List? ??
-              data['empresas'] as List? ??
-              const []);
-      final list = raw
-          .map((e) => _CompanyOption.fromJson(e as Map<String, dynamic>))
-          .where((c) => c.id.isNotEmpty)
-          .toList();
+      final service = ref.read(operatorApiServiceProvider);
+      final list = await service.searchEmpresas(limit: 100);
       if (mounted) {
         setState(() {
           _companies = list;
@@ -129,38 +117,36 @@ class _OperatorValidateCapturePageState
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.post(
-        '/rutas/candidatas/${widget.candidateId}/validar',
-        data: {
-          'code': _codeCtl.text.trim(),
-          'name': _nameCtl.text.trim(),
-          if (_companyId != null && _companyId!.isNotEmpty)
-            'companyId': _companyId,
-          if (_originCtl.text.trim().isNotEmpty)
-            'originLabel': _originCtl.text.trim(),
-          if (_destCtl.text.trim().isNotEmpty)
-            'destinationLabel': _destCtl.text.trim(),
-          if (_vehicleTypeKey != null) 'vehicleTypeKey': _vehicleTypeKey,
-          'serviceScope': _serviceScope,
-          'autoDetectStops': _autoDetectStops,
-        },
+      final service = ref.read(operatorApiServiceProvider);
+      final code = _codeCtl.text.trim();
+      final name = _nameCtl.text.trim();
+      final extra = <String, dynamic>{
+        'code': code,
+        if (_companyId != null && _companyId!.isNotEmpty)
+          'companyId': _companyId,
+        if (_originCtl.text.trim().isNotEmpty)
+          'originLabel': _originCtl.text.trim(),
+        if (_destCtl.text.trim().isNotEmpty)
+          'destinationLabel': _destCtl.text.trim(),
+        if (_vehicleTypeKey != null) 'vehicleTypeKey': _vehicleTypeKey,
+        'serviceScope': _serviceScope,
+        'autoDetectStops': _autoDetectStops,
+      };
+      final route = await service.validateRouteCandidate(
+        widget.candidateId,
+        name: name,
+        extra: extra,
       );
 
-      final body = resp.data as Map?;
-      final ok = body?['success'] == true;
-      final data = (body?['data'] as Map?) ?? const {};
-      final code = (data['code'] ?? _codeCtl.text.trim()).toString();
-      final name = (data['name'] ?? _nameCtl.text.trim()).toString();
-
       if (!mounted) return;
-      if (!ok) {
-        throw _msgFromBody(body) ?? 'No se pudo crear la ruta';
-      }
+      ref.invalidate(routeCandidatesProvider);
+      ref.invalidate(operadorRoutesProvider);
 
+      final shownCode = (route.code?.isNotEmpty == true) ? route.code! : code;
+      final shownName = (route.name?.isNotEmpty == true) ? route.name! : name;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Ruta creada: $code · $name'),
+          content: Text('Ruta creada: $shownCode · $shownName'),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.apto,
         ),
@@ -173,7 +159,7 @@ class _OperatorValidateCapturePageState
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString()),
+          content: Text(_extractError(e)),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.noApto,
         ),
@@ -183,15 +169,13 @@ class _OperatorValidateCapturePageState
     }
   }
 
-  String? _msgFromBody(Map? body) {
-    if (body == null) return null;
-    final err = body['error'];
-    if (err is String) return err;
-    if (err is Map && err['message'] is String) {
-      return err['message'] as String;
+  String _extractError(Object e) {
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map && data['error'] is String) return data['error'] as String;
+      if (data is Map && data['message'] is String) return data['message'] as String;
     }
-    if (body['message'] is String) return body['message'] as String;
-    return null;
+    return 'No se pudo completar la operación';
   }
 
   @override
@@ -360,7 +344,7 @@ class _OperatorValidateCapturePageState
                                   Text(
                                     _companies.isEmpty
                                         ? 'Sin empresa asignada'
-                                        : _companies.first.name,
+                                        : _companies.first.razonSocial,
                                     style: AppTheme.inter(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w700,
@@ -379,7 +363,7 @@ class _OperatorValidateCapturePageState
                               .map((c) => DropdownMenuItem(
                                     value: c.id,
                                     child: Text(
-                                      c.name,
+                                      c.razonSocial,
                                       style: AppTheme.inter(
                                         fontSize: 14,
                                         color: AppColors.ink9,
@@ -605,17 +589,6 @@ class _OperatorValidateCapturePageState
       ),
     );
   }
-}
-
-class _CompanyOption {
-  final String id;
-  final String name;
-  const _CompanyOption({required this.id, required this.name});
-
-  factory _CompanyOption.fromJson(Map<String, dynamic> j) => _CompanyOption(
-        id: (j['_id'] ?? j['id'] ?? '').toString(),
-        name: (j['name'] ?? j['razonSocial'] ?? '—').toString(),
-      );
 }
 
 class _KV {

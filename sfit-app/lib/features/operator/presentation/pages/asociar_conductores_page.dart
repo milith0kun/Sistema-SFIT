@@ -2,9 +2,10 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/models/conductor_model.dart';
+import '../../data/datasources/operator_api_service.dart';
 
 /// Pantalla del operador "Asociar conductores".
 ///
@@ -25,7 +26,7 @@ class _AsociarConductoresPageState extends ConsumerState<AsociarConductoresPage>
   Timer? _debounce;
   bool _loading = false;
   bool _onlyUnassigned = true;
-  List<Map<String, dynamic>> _items = [];
+  List<ConductorModel> _items = [];
   // Si el operador no tiene empresa asignada (400/422 desde el backend),
   // mostramos un empty state explicativo en lugar del listado vacío.
   bool _noCompany = false;
@@ -58,18 +59,8 @@ class _AsociarConductoresPageState extends ConsumerState<AsociarConductoresPage>
       _noCompanyMessage = null;
     });
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get(
-        '/operador/conductores',
-        queryParameters: {
-          if (q.trim().isNotEmpty) 'q': q.trim(),
-          'onlyUnassigned': _onlyUnassigned.toString(),
-          'limit': 30,
-        },
-      );
-      final body = resp.data as Map<String, dynamic>;
-      final data = body['data'] as Map<String, dynamic>? ?? body;
-      final items = (data['items'] as List? ?? const []).cast<Map<String, dynamic>>();
+      final svc = ref.read(operatorApiServiceProvider);
+      final items = await svc.getOperadorConductores(q: q, limit: 30);
       if (!mounted) return;
       setState(() {
         _items = items;
@@ -78,9 +69,6 @@ class _AsociarConductoresPageState extends ConsumerState<AsociarConductoresPage>
     } on DioException catch (e) {
       if (!mounted) return;
       final code = e.response?.statusCode ?? 0;
-      // 400/422 → el operador no tiene empresa/municipio asignado. El backend
-      // devuelve el mensaje en `error`. Pintamos un empty state explicativo
-      // en lugar de un listado vacío silencioso.
       if (code == 400 || code == 422) {
         final data = e.response?.data;
         final apiMsg = (data is Map && data['error'] is String)
@@ -103,23 +91,22 @@ class _AsociarConductoresPageState extends ConsumerState<AsociarConductoresPage>
     }
   }
 
-  Future<void> _associate(Map<String, dynamic> driver) async {
-    final id = driver['id'] as String;
+  Future<void> _associate(ConductorModel driver) async {
+    final id = driver.id;
     if (_associating.contains(id)) return;
     setState(() => _associating.add(id));
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.post('/operador/conductores/$id/asociar');
-      final data = (resp.data as Map)['data'] as Map<String, dynamic>;
+      final svc = ref.read(operatorApiServiceProvider);
+      await svc.asociarConductor(id);
+      ref.invalidate(operadorConductoresProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${data['name']} asociado a ${data['companyName']}'),
+          content: Text('${driver.name} asociado'),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.apto,
         ),
       );
-      // Refrescamos la lista.
       await _search(_searchCtrl.text);
     } catch (e) {
       if (mounted) {
@@ -137,12 +124,21 @@ class _AsociarConductoresPageState extends ConsumerState<AsociarConductoresPage>
   }
 
   String _extractError(Object e) {
-    final m = RegExp(r'"error"\s*:\s*"([^"]+)"').firstMatch(e.toString());
-    return m?.group(1) ?? 'No se pudo asociar';
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map && data['error'] is String) return data['error'] as String;
+      if (data is Map && data['message'] is String) return data['message'] as String;
+    }
+    return 'No se pudo completar la operación';
   }
 
   @override
   Widget build(BuildContext context) {
+    final myCompanyId = ref.watch(miEmpresaProvider).asData?.value['_id'] as String?
+        ?? ref.watch(miEmpresaProvider).asData?.value['id'] as String?;
+    final visibleItems = _onlyUnassigned
+        ? _items.where((c) => c.companyId != myCompanyId).toList()
+        : _items;
     return Scaffold(
       backgroundColor: AppColors.paper,
       appBar: AppBar(
@@ -209,7 +205,6 @@ class _AsociarConductoresPageState extends ConsumerState<AsociarConductoresPage>
               activeThumbColor: AppColors.gold,
               onChanged: (v) {
                 setState(() => _onlyUnassigned = v);
-                _search(_searchCtrl.text);
               },
             ),
             const SizedBox(width: 8),
@@ -226,21 +221,21 @@ class _AsociarConductoresPageState extends ConsumerState<AsociarConductoresPage>
         ),
         // ── Lista ────────────────────────────────────────────────
         Expanded(
-          child: _items.isEmpty && !_loading
+          child: visibleItems.isEmpty && !_loading
               ? (_noCompany
                   ? _NoCompanyState(message: _noCompanyMessage)
                   : const _EmptyState())
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                  itemCount: _items.length,
+                  itemCount: visibleItems.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (_, i) {
-                    final d = _items[i];
-                    final id = d['id'] as String;
+                    final d = visibleItems[i];
+                    final isMine = myCompanyId != null && d.companyId == myCompanyId;
                     return _DriverTile(
                       driver: d,
-                      isMine: d['isMine'] as bool? ?? false,
-                      busy: _associating.contains(id),
+                      isMine: isMine,
+                      busy: _associating.contains(d.id),
                       onAssociate: () => _associate(d),
                     );
                   },
@@ -252,7 +247,7 @@ class _AsociarConductoresPageState extends ConsumerState<AsociarConductoresPage>
 }
 
 class _DriverTile extends StatelessWidget {
-  final Map<String, dynamic> driver;
+  final ConductorModel driver;
   final bool isMine;
   final bool busy;
   final VoidCallback onAssociate;
@@ -272,8 +267,8 @@ class _DriverTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final company = driver['companyName'] as String?;
-    final status = driver['status'] as String?;
+    final company = driver.companyName;
+    final status = driver.status;
     final color = _statusColor(status);
     return Container(
       padding: const EdgeInsets.all(14),
@@ -298,7 +293,7 @@ class _DriverTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                (driver['name'] ?? '—').toString(),
+                driver.name.isEmpty ? '—' : driver.name,
                 style: AppTheme.inter(
                     fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.ink9),
                 maxLines: 1, overflow: TextOverflow.ellipsis,
@@ -308,7 +303,7 @@ class _DriverTile extends StatelessWidget {
                 const Icon(Icons.badge_outlined, size: 11, color: AppColors.ink5),
                 const SizedBox(width: 3),
                 Text(
-                  'DNI ${driver['dni'] ?? "—"}',
+                  'DNI ${driver.dni ?? "—"}',
                   style: AppTheme.inter(fontSize: 11, color: AppColors.ink6, tabular: true),
                 ),
                 const SizedBox(width: 8),
@@ -316,7 +311,7 @@ class _DriverTile extends StatelessWidget {
                 const SizedBox(width: 3),
                 Flexible(
                   child: Text(
-                    (driver['licenseNumber'] ?? '—').toString(),
+                    driver.licenseNumber ?? '—',
                     style: AppTheme.inter(fontSize: 11, color: AppColors.ink6, tabular: true),
                     maxLines: 1, overflow: TextOverflow.ellipsis,
                   ),

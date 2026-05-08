@@ -29,7 +29,19 @@ class TrackingState {
   final String? entryId;
   final String? routeId;
   final bool isTracking;
+
+  /// Trazo histórico COMPLETO del turno (no se trunca). Es la fuente de verdad
+  /// para dibujar la línea oro de "por dónde he pasado" desde el inicio del
+  /// turno hasta el último ping. Nunca se descartan puntos antiguos: aunque
+  /// la lista crezca a miles de puntos, el render de la polyline en
+  /// flutter_map es eficiente (línea simple sin markers por punto).
   final List<LatLng> localTrack;
+
+  /// Últimos N puntos del trazo, usados para resaltar el "tramo reciente"
+  /// con un color/grosor distinto sobre el histórico. Sirve para que el
+  /// conductor vea con claridad dónde está el progreso vivo sin perder
+  /// la referencia de inicio→fin.
+  final List<LatLng> recentTrack;
   final List<RouteWaypoint> routeWaypoints;
   final LatLng? currentPosition;
   final double? currentAccuracy;
@@ -61,6 +73,7 @@ class TrackingState {
     this.routeId,
     this.isTracking = false,
     this.localTrack = const [],
+    this.recentTrack = const [],
     this.routeWaypoints = const [],
     this.currentPosition,
     this.currentAccuracy,
@@ -77,6 +90,7 @@ class TrackingState {
     String? routeId,
     bool? isTracking,
     List<LatLng>? localTrack,
+    List<LatLng>? recentTrack,
     List<RouteWaypoint>? routeWaypoints,
     LatLng? currentPosition,
     double? currentAccuracy,
@@ -91,6 +105,7 @@ class TrackingState {
     routeId: routeId ?? this.routeId,
     isTracking: isTracking ?? this.isTracking,
     localTrack: localTrack ?? this.localTrack,
+    recentTrack: recentTrack ?? this.recentTrack,
     routeWaypoints: routeWaypoints ?? this.routeWaypoints,
     currentPosition: currentPosition ?? this.currentPosition,
     currentAccuracy: currentAccuracy ?? this.currentAccuracy,

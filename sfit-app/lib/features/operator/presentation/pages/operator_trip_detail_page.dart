@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../trips/data/models/trip_model.dart';
+import '../../data/datasources/operator_api_service.dart';
 
 /// Detalle de un viaje del operador (RF-09 mobile).
 class OperatorTripDetailPage extends ConsumerStatefulWidget {
@@ -20,17 +21,13 @@ class _OperatorTripDetailPageState
     extends ConsumerState<OperatorTripDetailPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
-  bool _loading = true;
-  String? _error;
-  Map<String, dynamic>? _trip;
+  AsyncValue<TripModel> _tripAsync = const AsyncValue.loading();
 
   @override
   void initState() {
     super.initState();
     _tabs = TabController(length: 3, vsync: this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _load();
-    });
+    _load();
   }
 
   @override
@@ -40,37 +37,20 @@ class _OperatorTripDetailPageState
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() => _tripAsync = const AsyncValue.loading());
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get('/viajes/${widget.tripId}');
-      final body = resp.data as Map?;
-      final data = (body?['data'] as Map<String, dynamic>?) ??
-          (body as Map<String, dynamic>?);
-      if (mounted) {
-        setState(() {
-          _trip = data;
-          _loading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _error = 'No se pudo cargar el viaje.';
-          _loading = false;
-        });
-      }
+      final api = ref.read(operatorApiServiceProvider);
+      final trip = await api.getTripDetail(widget.tripId);
+      if (mounted) setState(() => _tripAsync = AsyncValue.data(trip));
+    } catch (e, st) {
+      if (mounted) setState(() => _tripAsync = AsyncValue.error(e, st));
     }
   }
 
   String _routeName() {
-    final t = _trip;
+    final t = _tripAsync.valueOrNull;
     if (t == null) return 'Viaje';
-    final route = t['route'] as Map<String, dynamic>?;
-    return (route?['name'] ?? t['routeName'] ?? 'Ruta').toString();
+    return t.route?.name ?? 'Ruta';
   }
 
   @override
@@ -107,50 +87,45 @@ class _OperatorTripDetailPageState
           ],
         ),
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
-          : _error != null
-              ? Center(
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Text(
-                      _error!,
-                      style: AppTheme.inter(fontSize: 13, color: AppColors.ink5),
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton(
-                      onPressed: _load,
-                      child: const Text('Reintentar'),
-                    ),
-                  ]),
-                )
-              : TabBarView(
-                  controller: _tabs,
-                  children: [
-                    _InfoTab(trip: _trip ?? const {}),
-                    _PassengersTabBridge(tripId: widget.tripId),
-                    _ManifestTabBridge(tripId: widget.tripId),
-                  ],
-                ),
+      body: _tripAsync.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+        error: (_, __) => Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(
+              'No se pudo cargar el viaje.',
+              style: AppTheme.inter(fontSize: 13, color: AppColors.ink5),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: _load,
+              child: const Text('Reintentar'),
+            ),
+          ]),
+        ),
+        data: (trip) => TabBarView(
+          controller: _tabs,
+          children: [
+            _InfoTab(trip: trip),
+            _PassengersTabBridge(tripId: widget.tripId),
+            _ManifestTabBridge(tripId: widget.tripId),
+          ],
+        ),
+      ),
     );
   }
 }
 
 class _InfoTab extends StatelessWidget {
-  final Map<String, dynamic> trip;
+  final TripModel trip;
   const _InfoTab({required this.trip});
 
   @override
   Widget build(BuildContext context) {
-    final route = trip['route'] as Map<String, dynamic>?;
-    final vehicle = trip['vehicle'] as Map<String, dynamic>?;
-    final driver = trip['driver'] as Map<String, dynamic>?;
     final fmt = DateFormat('dd MMM yyyy · HH:mm', 'es');
-    DateTime? parseDt(dynamic v) =>
-        v is String ? DateTime.tryParse(v) : null;
-    final dep = parseDt(trip['departureAt']) ?? parseDt(trip['scheduledAt']);
-    final status = (trip['status'] ?? 'programado').toString();
+    final dep = trip.startedAt;
+    final status = trip.status;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -158,17 +133,12 @@ class _InfoTab extends StatelessWidget {
         _InfoRow(
           icon: Icons.route_outlined,
           label: 'Ruta',
-          value: (route?['name'] ?? trip['routeName'] ?? '—').toString(),
+          value: trip.route?.name ?? '—',
         ),
         _InfoRow(
           icon: Icons.directions_car_outlined,
           label: 'Vehículo',
-          value: (vehicle?['plate'] ?? trip['vehiclePlate'] ?? '—').toString(),
-        ),
-        _InfoRow(
-          icon: Icons.person_outline,
-          label: 'Conductor',
-          value: (driver?['name'] ?? trip['driverName'] ?? '—').toString(),
+          value: trip.vehicle?.plate ?? '—',
         ),
         _InfoRow(
           icon: Icons.schedule,
@@ -180,11 +150,11 @@ class _InfoTab extends StatelessWidget {
           label: 'Estado',
           value: status.toUpperCase(),
         ),
-        if ((trip['observations'] ?? trip['notes']) != null)
+        if (trip.observations != null && trip.observations!.isNotEmpty)
           _InfoRow(
             icon: Icons.note_outlined,
             label: 'Observaciones',
-            value: (trip['observations'] ?? trip['notes']).toString(),
+            value: trip.observations!,
           ),
       ],
     );

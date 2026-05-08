@@ -1,12 +1,16 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
-import 'operator_routes_page.dart' show Candidate;
+import '../../../../shared/models/route_candidate_model.dart';
+import '../../../../shared/models/route_model.dart';
+import '../../data/datasources/operator_api_service.dart';
+import 'operator_routes_page.dart'
+    show Candidate, pointsToLatLng, formatDistance, ago;
 
 /// Detalle de una **captura GPS candidata** — RF-09 mobile.
 ///
@@ -39,17 +43,15 @@ class _OperatorCandidateDetailPageState
   String? _error;
 
   // Datos de la captura
-  Candidate? _meta;
+  RouteCandidateModel? _meta;
   List<LatLng> _points = const [];
 
   @override
   void initState() {
     super.initState();
     _meta = widget.seed;
-    _points = widget.seed?.samplePolyline ?? const [];
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _load();
-    });
+    _points = widget.seed != null ? pointsToLatLng(widget.seed!.points) : const [];
+    _load();
   }
 
   @override
@@ -64,32 +66,14 @@ class _OperatorCandidateDetailPageState
       _error = null;
     });
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get('/rutas/candidatas/${widget.candidateId}');
-      final body = resp.data as Map?;
-      final d = (body?['data'] as Map<String, dynamic>?) ??
-          (body as Map<String, dynamic>? ?? const {});
-
-      // Reusamos el factory de la lista para los metadatos comunes.
-      final meta = Candidate.fromJson(d);
-      final points = (d['points'] as List? ?? const [])
-          .map<LatLng?>((e) {
-            if (e is! Map) return null;
-            final lat = (e['lat'] as num?)?.toDouble();
-            final lng = (e['lng'] as num?)?.toDouble();
-            if (lat == null || lng == null) return null;
-            if (lat.isNaN || lng.isNaN || lat.isInfinite || lng.isInfinite) {
-              return null;
-            }
-            return LatLng(lat, lng);
-          })
-          .whereType<LatLng>()
-          .toList();
+      final service = ref.read(operatorApiServiceProvider);
+      final meta = await service.getRouteCandidateDetail(widget.candidateId);
+      final points = pointsToLatLng(meta.points);
 
       if (mounted) {
         setState(() {
           _meta = meta;
-          _points = points.isNotEmpty ? points : meta.samplePolyline;
+          _points = points;
           _loading = false;
         });
       }
@@ -99,11 +83,20 @@ class _OperatorCandidateDetailPageState
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'No se pudo cargar la captura';
+          _error = _extractError(e);
           _loading = false;
         });
       }
     }
+  }
+
+  String _extractError(Object e) {
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map && data['error'] is String) return data['error'] as String;
+      if (data is Map && data['message'] is String) return data['message'] as String;
+    }
+    return 'No se pudo cargar la captura';
   }
 
   // ── Centrar trazo (replicamos el patrón de bus_detail con padding asim.) ──
@@ -133,7 +126,7 @@ class _OperatorCandidateDetailPageState
     );
     if (!mounted) return;
     if (ok == true) {
-      // Volver al listado: la captura ya no debería estar en estado candidate.
+      ref.invalidate(routeCandidatesProvider);
       Navigator.of(context).maybePop();
     }
   }
@@ -150,12 +143,10 @@ class _OperatorCandidateDetailPageState
     if (routeId == null || !mounted) return;
 
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      await dio.post(
-        '/rutas/candidatas/${widget.candidateId}/asignar',
-        data: {'routeId': routeId},
-      );
+      final service = ref.read(operatorApiServiceProvider);
+      await service.assignRouteCandidate(widget.candidateId, routeId: routeId);
       if (!mounted) return;
+      ref.invalidate(routeCandidatesProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Captura asignada a la ruta seleccionada.'),
@@ -168,7 +159,7 @@ class _OperatorCandidateDetailPageState
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('No se pudo asignar: $e'),
+          content: Text('No se pudo asignar: ${_extractError(e)}'),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.noApto,
         ),
@@ -266,10 +257,10 @@ class _OperatorCandidateDetailPageState
     if (confirmed != true || !mounted) return;
 
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      await dio.post('/rutas/candidatas/${widget.candidateId}/descartar',
-          data: {});
+      final service = ref.read(operatorApiServiceProvider);
+      await service.dismissRouteCandidate(widget.candidateId, reason: '');
       if (!mounted) return;
+      ref.invalidate(routeCandidatesProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Captura descartada.'),
@@ -282,7 +273,7 @@ class _OperatorCandidateDetailPageState
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('No se pudo descartar: $e'),
+          content: Text('No se pudo descartar: ${_extractError(e)}'),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.noApto,
         ),
@@ -298,6 +289,9 @@ class _OperatorCandidateDetailPageState
     final hasTrack = _points.length >= 2;
     // Centro inicial: primer punto, o Plaza de Armas Cusco como fallback.
     final initialCenter = hasTrack ? _points.first : const LatLng(-13.5163, -71.9785);
+    final title = meta?.suggestedName?.trim().isNotEmpty == true
+        ? meta!.suggestedName!
+        : 'Captura';
 
     return Scaffold(
       backgroundColor: AppColors.paper,
@@ -415,9 +409,7 @@ class _OperatorCandidateDetailPageState
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      meta == null
-                          ? 'Captura'
-                          : 'Captura · ${meta.driverName.isNotEmpty ? meta.driverName : meta.vehiclePlate}',
+                      'Captura · $title',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppTheme.inter(
@@ -590,7 +582,10 @@ class _OperatorCandidateDetailPageState
 
   // ── Sub-widgets del sheet ─────────────────────────────────────────────
 
-  Widget _summaryHeader(Candidate meta) {
+  Widget _summaryHeader(RouteCandidateModel meta) {
+    final title = meta.suggestedName?.trim().isNotEmpty == true
+        ? meta.suggestedName!
+        : 'Captura GPS';
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -613,7 +608,7 @@ class _OperatorCandidateDetailPageState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                meta.driverName.isEmpty ? 'Conductor —' : meta.driverName,
+                title,
                 style: AppTheme.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
@@ -621,38 +616,13 @@ class _OperatorCandidateDetailPageState
                 ),
               ),
               const SizedBox(height: 2),
-              Row(children: [
-                if (meta.vehiclePlate.isNotEmpty) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.ink9,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      meta.vehiclePlate,
-                      style: AppTheme.inter(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        tabular: true,
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                ],
-                Text(
-                  _ago(meta.createdAt),
-                  style: AppTheme.inter(
-                    fontSize: 11.5,
-                    color: AppColors.ink5,
-                  ),
+              Text(
+                ago(meta.createdAt),
+                style: AppTheme.inter(
+                  fontSize: 11.5,
+                  color: AppColors.ink5,
                 ),
-              ]),
+              ),
             ],
           ),
         ),
@@ -660,8 +630,8 @@ class _OperatorCandidateDetailPageState
     );
   }
 
-  Widget _kpiRow(Candidate meta) {
-    final score = meta.qualityScore;
+  Widget _kpiRow(RouteCandidateModel meta) {
+    final score = ((meta.avgConfidence ?? 0) * 100).round();
     final scoreColor = score >= 80
         ? AppColors.apto
         : score >= 60
@@ -671,19 +641,19 @@ class _OperatorCandidateDetailPageState
       Expanded(
         child: _kpi(
           label: 'Distancia',
-          value: _formatDistance(meta.distanceMeters),
-        ),
-      ),
-      Expanded(
-        child: _kpi(
-          label: 'Duración',
-          value: _formatDuration(meta.durationSeconds),
+          value: formatDistance((meta.distanceMeters ?? 0).round()),
         ),
       ),
       Expanded(
         child: _kpi(
           label: 'Puntos',
-          value: '${meta.pointCount}',
+          value: '${meta.sampleCount ?? 0}',
+        ),
+      ),
+      Expanded(
+        child: _kpi(
+          label: 'Paradas',
+          value: '${meta.detectedStops.length}',
         ),
       ),
       Expanded(
@@ -829,30 +799,20 @@ class _AssignRouteSheet extends ConsumerStatefulWidget {
 
 class _AssignRouteSheetState extends ConsumerState<_AssignRouteSheet> {
   bool _loading = true;
-  List<_RouteOption> _routes = const [];
+  List<RouteModel> _routes = const [];
   String? _selected;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _load();
-    });
+    _load();
   }
 
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get(
-        '/rutas',
-        queryParameters: {'companyId': 'mine', 'limit': 200},
-      );
-      final body = resp.data as Map?;
-      final data = (body?['data'] as Map?) ?? body ?? const {};
-      final list = (data['items'] as List? ?? const [])
-          .map((e) => _RouteOption.fromJson(e as Map<String, dynamic>))
-          .toList();
+      final service = ref.read(operatorApiServiceProvider);
+      final list = await service.getRoutes(limit: 200);
       if (mounted) {
         setState(() {
           _routes = list;
@@ -957,6 +917,8 @@ class _AssignRouteSheetState extends ConsumerState<_AssignRouteSheet> {
                             const SizedBox(height: 6),
                         itemBuilder: (_, i) {
                           final r = _routes[i];
+                          final code = r.code ?? '';
+                          final name = r.name ?? '';
                           final selected = _selected == r.id;
                           return Material(
                             color: selected
@@ -987,7 +949,7 @@ class _AssignRouteSheetState extends ConsumerState<_AssignRouteSheet> {
                                         : AppColors.ink4,
                                   ),
                                   const SizedBox(width: 10),
-                                  if (r.code.isNotEmpty) ...[
+                                  if (code.isNotEmpty) ...[
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 6,
@@ -999,7 +961,7 @@ class _AssignRouteSheetState extends ConsumerState<_AssignRouteSheet> {
                                             BorderRadius.circular(4),
                                       ),
                                       child: Text(
-                                        r.code,
+                                        code,
                                         style: AppTheme.inter(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w700,
@@ -1011,7 +973,7 @@ class _AssignRouteSheetState extends ConsumerState<_AssignRouteSheet> {
                                   ],
                                   Expanded(
                                     child: Text(
-                                      r.name,
+                                      name,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: AppTheme.inter(
@@ -1065,46 +1027,3 @@ class _AssignRouteSheetState extends ConsumerState<_AssignRouteSheet> {
     );
   }
 }
-
-class _RouteOption {
-  final String id;
-  final String code;
-  final String name;
-  const _RouteOption({required this.id, required this.code, required this.name});
-
-  factory _RouteOption.fromJson(Map<String, dynamic> j) => _RouteOption(
-        id: (j['_id'] ?? j['id'] ?? '').toString(),
-        code: (j['code'] ?? '').toString(),
-        name: (j['name'] ?? '').toString(),
-      );
-}
-
-// Re-export helpers de formato (privados a este file).
-
-String _formatDistance(int meters) {
-  if (meters >= 1000) {
-    final km = meters / 1000.0;
-    return '${km.toStringAsFixed(km >= 10 ? 0 : 1)} km';
-  }
-  return '$meters m';
-}
-
-String _formatDuration(int seconds) {
-  if (seconds < 60) return '${seconds}s';
-  final m = seconds ~/ 60;
-  if (m < 60) return '$m min';
-  final h = m ~/ 60;
-  final rem = m % 60;
-  return rem == 0 ? '${h}h' : '${h}h ${rem}m';
-}
-
-String _ago(DateTime? dt) {
-  if (dt == null) return '';
-  final diff = DateTime.now().difference(dt);
-  if (diff.inSeconds < 60) return 'hace un momento';
-  if (diff.inMinutes < 60) return 'hace ${diff.inMinutes} min';
-  if (diff.inHours < 24) return 'hace ${diff.inHours} h';
-  if (diff.inDays < 7) return 'hace ${diff.inDays} d';
-  return '${dt.day}/${dt.month}/${dt.year}';
-}
-

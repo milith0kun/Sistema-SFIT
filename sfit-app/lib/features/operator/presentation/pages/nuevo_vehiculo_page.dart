@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../ai_ocr/presentation/pages/document_ocr_page.dart';
@@ -62,10 +61,7 @@ class _NuevoVehiculoPageState extends ConsumerState<NuevoVehiculoPage> {
 
   Future<void> _loadMiEmpresa() async {
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get('/operador/mi-empresa');
-      final body = resp.data as Map<String, dynamic>;
-      final data = (body['data'] as Map<String, dynamic>?) ?? body;
+      final data = await ref.read(operatorApiServiceProvider).getMiEmpresa();
       if (!mounted) return;
       setState(() {
         _companyName = data['razonSocial'] as String?;

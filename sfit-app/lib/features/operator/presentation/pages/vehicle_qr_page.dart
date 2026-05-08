@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/sfit_loading.dart';
+import '../../data/datasources/operator_api_service.dart';
 
 /// Pantalla de QR firmado HMAC-SHA256 para un vehículo — rol OPERADOR.
 /// Llama a GET /api/vehiculos/:id/qr y muestra el código QR generado.
@@ -27,9 +26,7 @@ class VehicleQrPage extends ConsumerStatefulWidget {
 class _VehicleQrPageState extends ConsumerState<VehicleQrPage> {
   bool _loading = true;
   String? _error;
-  String? _qrJson;
-  String? _pngDataUrl; // base64 PNG devuelto por la API
-  Map<String, dynamic>? _payload;
+  String? _token;
 
   @override
   void initState() {
@@ -40,18 +37,16 @@ class _VehicleQrPageState extends ConsumerState<VehicleQrPage> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get('/vehiculos/${widget.vehicleId}/qr');
-      final data = (resp.data as Map)['data'] as Map<String, dynamic>;
+      final token = await ref
+          .read(operatorApiServiceProvider)
+          .getVehicleQrToken(widget.vehicleId);
       if (mounted) {
         setState(() {
-          _qrJson    = data['qrJson'] as String?;
-          _pngDataUrl = data['pngDataUrl'] as String?;
-          _payload   = data['payload'] as Map<String, dynamic>?;
-          _loading   = false;
+          _token = token;
+          _loading = false;
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         setState(() {
           _error   = 'No se pudo generar el QR. Verifica tu conexión.';
@@ -62,10 +57,8 @@ class _VehicleQrPageState extends ConsumerState<VehicleQrPage> {
   }
 
   Future<void> _share() async {
-    if (_qrJson == null) return;
-    // share_plus no está en pubspec — usamos Clipboard + snackbar informativo
-    // como fallback robusto sin nueva dependencia.
-    await Clipboard.setData(ClipboardData(text: _qrJson!));
+    if (_token == null) return;
+    await Clipboard.setData(ClipboardData(text: _token!));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -78,27 +71,6 @@ class _VehicleQrPageState extends ConsumerState<VehicleQrPage> {
         duration: const Duration(seconds: 3),
       ),
     );
-  }
-
-  Future<void> _openDataUrl() async {
-    if (_pngDataUrl == null) return;
-    // Abre el data URL en el browser para que el usuario pueda guardar la imagen.
-    final uri = Uri.parse(_pngDataUrl!);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'No se pudo abrir el navegador para descargar el QR.',
-            style: AppTheme.inter(fontSize: 13, color: Colors.white),
-          ),
-          backgroundColor: AppColors.noApto,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
   }
 
   @override
@@ -129,10 +101,8 @@ class _VehicleQrPageState extends ConsumerState<VehicleQrPage> {
               ? _ErrorView(message: _error!, onRetry: _load)
               : _QrView(
                   plate: widget.plate,
-                  qrJson: _qrJson!,
-                  payload: _payload,
+                  qrJson: _token!,
                   onShare: _share,
-                  onDownload: _pngDataUrl != null ? _openDataUrl : null,
                 ),
     );
   }
@@ -143,25 +113,16 @@ class _VehicleQrPageState extends ConsumerState<VehicleQrPage> {
 class _QrView extends StatelessWidget {
   final String plate;
   final String qrJson;
-  final Map<String, dynamic>? payload;
   final VoidCallback onShare;
-  final VoidCallback? onDownload;
 
   const _QrView({
     required this.plate,
     required this.qrJson,
     required this.onShare,
-    this.payload,
-    this.onDownload,
   });
 
   @override
   Widget build(BuildContext context) {
-    final expiry = payload?['exp'] as int?;
-    final expDate = expiry != null
-        ? DateTime.fromMillisecondsSinceEpoch(expiry * 1000)
-        : null;
-
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
@@ -225,21 +186,6 @@ class _QrView extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-
-            // ── Info de expiración ───────────────────────────────────
-            if (expDate != null)
-              _InfoRow(
-                icon: Icons.schedule_outlined,
-                label: 'Válido hasta',
-                value: _formatDate(expDate),
-              ),
-            if (payload?['vehicleTypeKey'] != null)
-              _InfoRow(
-                icon: Icons.directions_car_outlined,
-                label: 'Tipo',
-                value: _vehicleTypeLabel(payload!['vehicleTypeKey'] as String),
-              ),
             const SizedBox(height: 24),
 
             // ── Botones ─────────────────────────────────────────────
@@ -255,21 +201,6 @@ class _QrView extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10)),
               ),
             ),
-            if (onDownload != null) ...[
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: onDownload,
-                icon: const Icon(Icons.download_outlined, size: 18),
-                label: const Text('Abrir imagen PNG'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.ink7,
-                  side: const BorderSide(color: AppColors.ink3),
-                  minimumSize: const Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-            ],
             const SizedBox(height: 16),
 
             // ── Nota informativa ─────────────────────────────────────
@@ -299,53 +230,6 @@ class _QrView extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  String _formatDate(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}/'
-      '${d.month.toString().padLeft(2, '0')}/'
-      '${d.year}  ${d.hour.toString().padLeft(2, '0')}:'
-      '${d.minute.toString().padLeft(2, '0')}';
-
-  String _vehicleTypeLabel(String k) => switch (k) {
-        'transporte_publico' => 'Transporte público',
-        'limpieza_residuos'  => 'Limpieza',
-        'emergencia'         => 'Emergencia',
-        'maquinaria'         => 'Maquinaria',
-        _                    => 'Municipal',
-      };
-}
-
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _InfoRow({required this.icon, required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Icon(icon, size: 15, color: AppColors.ink4),
-          const SizedBox(width: 6),
-          Text(
-            '$label: ',
-            style: AppTheme.inter(fontSize: 12.5, color: AppColors.ink5),
-          ),
-          Text(
-            value,
-            style: AppTheme.inter(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-              color: AppColors.ink7,
-            ),
-          ),
-        ],
       ),
     );
   }

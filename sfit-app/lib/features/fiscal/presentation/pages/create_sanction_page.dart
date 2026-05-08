@@ -1,11 +1,13 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../vehicles/data/datasources/vehicle_api_service.dart';
+import '../../data/datasources/fiscal_api_service.dart';
 
 /// Formulario para emitir una sancion manual (rol fiscal).
 ///
@@ -100,18 +102,9 @@ class _CreateSanctionPageState extends ConsumerState<CreateSanctionPage> {
   Future<void> _doSearch(String term) async {
     setState(() => _searching = true);
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get(
-        '/vehiculos',
-        queryParameters: {'q': term, 'limit': 10},
-      );
-      final body = resp.data as Map?;
-      if (body == null || body['success'] != true) {
-        throw Exception('Respuesta invalida');
-      }
-      final data = body['data'] as Map<String, dynamic>;
-      final items = (data['items'] as List? ?? const [])
-          .cast<Map<String, dynamic>>();
+      final items = await ref
+          .read(vehicleApiServiceProvider)
+          .searchVehicles(q: term, limit: 10);
       if (mounted) {
         setState(() {
           _searchResults = items;

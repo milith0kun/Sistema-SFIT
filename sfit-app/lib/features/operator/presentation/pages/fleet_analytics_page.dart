@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/sfit_loading.dart';
-import '../../../fleet/data/models/fleet_entry_model.dart';
+import '../../../../shared/models/fleet_entry_model.dart';
+import '../../data/datasources/operator_api_service.dart';
 
 // ── Modelos locales ───────────────────────────────────────────────────────────
 
@@ -43,87 +43,35 @@ class _MonthSummary {
   });
 }
 
-// ── Página principal ──────────────────────────────────────────────────────────
-
-/// Análisis de flota del mes — rol OPERADOR.
-/// Carga hasta 200 entradas de flota de los últimos 30 días y calcula
-/// métricas localmente: km totales, promedio por vehículo, vehículo más activo
-/// y tabla de conductores.
-class FleetAnalyticsPage extends ConsumerStatefulWidget {
-  const FleetAnalyticsPage({super.key});
-
-  @override
-  ConsumerState<FleetAnalyticsPage> createState() => _FleetAnalyticsPageState();
+class _Analytics {
+  final _MonthSummary summary;
+  final List<_DriverStats> drivers;
+  const _Analytics({required this.summary, required this.drivers});
 }
 
-class _FleetAnalyticsPageState extends ConsumerState<FleetAnalyticsPage> {
-  bool _loading = true;
-  String? _error;
-  _MonthSummary? _summary;
-  List<_DriverStats> _drivers = [];
+_Analytics _compute(List<FleetEntryModel> entries) {
+  final Map<String, double>  kmByVehicle    = {};
+  final Map<String, String>  plateByVehicle = {};
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _load(); });
-  }
+  final Map<String, double>  kmByDriver     = {};
+  final Map<String, double>  hoursByDriver  = {};
+  final Map<String, String>  nameByDriver   = {};
+  final Map<String, int>     tripsByDriver  = {};
 
-  Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
-    try {
-      final dio = ref.read(dioClientProvider).dio;
-      final now   = DateTime.now();
-      final desde = now.subtract(const Duration(days: 30));
-      final fmt   = DateFormat('yyyy-MM-dd');
-
-      final resp = await dio.get('/flota', queryParameters: {
-        'limit': 200,
-        'desde': fmt.format(desde),
-        'hasta': fmt.format(now),
-      });
-
-      final raw  = (resp.data as Map)['data'] as Map;
-      final list = (raw['items'] as List? ?? [])
-          .map((e) => FleetEntryModel.fromJson(e as Map<String, dynamic>))
-          .toList();
-
-      _compute(list);
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = 'No se pudieron cargar los datos de flota.';
-          _loading = false;
-        });
-      }
+  for (final e in entries) {
+    final km = (e.distanceMeters ?? 0) / 1000.0;
+    final vid = e.vehicleId ?? '';
+    if (vid.isNotEmpty) {
+      kmByVehicle[vid]    = (kmByVehicle[vid] ?? 0) + km;
+      plateByVehicle[vid] = e.vehiclePlate ?? vid;
     }
-  }
 
-  void _compute(List<FleetEntryModel> entries) {
-    if (!mounted) return;
-
-    // ── Por vehículo ──────────────────────────────────────────────
-    final Map<String, double>  kmByVehicle    = {};
-    final Map<String, String>  plateByVehicle = {};
-
-    // ── Por conductor ─────────────────────────────────────────────
-    final Map<String, double>  kmByDriver     = {};
-    final Map<String, double>  hoursByDriver  = {};
-    final Map<String, String>  nameByDriver   = {};
-    final Map<String, String>  statusByDriver = {};
-    final Map<String, int>     tripsByDriver  = {};
-
-    for (final e in entries) {
-      final vid = e.vehicle.id;
-      kmByVehicle[vid]    = (kmByVehicle[vid] ?? 0) + e.km;
-      plateByVehicle[vid] = e.vehicle.plate;
-
-      final did = e.driver.id;
-      kmByDriver[did]    = (kmByDriver[did] ?? 0) + e.km;
-      nameByDriver[did]  = e.driver.name;
-      statusByDriver[did] = e.driver.status;
+    final did = e.driverId ?? '';
+    if (did.isNotEmpty) {
+      kmByDriver[did]    = (kmByDriver[did] ?? 0) + km;
+      nameByDriver[did]  = e.driverName ?? did;
       tripsByDriver[did]  = (tripsByDriver[did] ?? 0) + 1;
 
-      // Horas: si hay departure + return time, calcula duración
       if (e.departureTime != null && e.returnTime != null) {
         try {
           final dep = DateTime.parse(e.departureTime!);
@@ -133,46 +81,53 @@ class _FleetAnalyticsPageState extends ConsumerState<FleetAnalyticsPage> {
         } catch (_) {}
       }
     }
-
-    // Vehículo más activo
-    String mostActive = '—';
-    if (kmByVehicle.isNotEmpty) {
-      final topId = kmByVehicle.entries
-          .reduce((a, b) => a.value > b.value ? a : b)
-          .key;
-      mostActive = plateByVehicle[topId] ?? topId;
-    }
-
-    final totalKm   = kmByVehicle.values.fold(0.0, (a, b) => a + b);
-    final avgKm     = kmByVehicle.isEmpty
-        ? 0.0
-        : totalKm / kmByVehicle.length;
-
-    final drivers = kmByDriver.entries.map((e) => _DriverStats(
-      driverId:      e.key,
-      driverName:    nameByDriver[e.key] ?? e.key,
-      currentStatus: statusByDriver[e.key] ?? 'apto',
-      totalKm:       e.value,
-      totalHours:    hoursByDriver[e.key] ?? 0,
-      trips:         tripsByDriver[e.key] ?? 0,
-    )).toList()
-      ..sort((a, b) => b.totalKm.compareTo(a.totalKm));
-
-    setState(() {
-      _summary = _MonthSummary(
-        totalKm: totalKm,
-        avgKmPerVehicle: avgKm,
-        mostActiveVehicle: mostActive,
-        totalTrips: entries.length,
-        activeVehicles: kmByVehicle.length,
-      );
-      _drivers = drivers;
-      _loading = false;
-    });
   }
 
+  String mostActive = '—';
+  if (kmByVehicle.isNotEmpty) {
+    final topId = kmByVehicle.entries
+        .reduce((a, b) => a.value > b.value ? a : b)
+        .key;
+    mostActive = plateByVehicle[topId] ?? topId;
+  }
+
+  final totalKm = kmByVehicle.values.fold(0.0, (a, b) => a + b);
+  final avgKm   = kmByVehicle.isEmpty ? 0.0 : totalKm / kmByVehicle.length;
+
+  final drivers = kmByDriver.entries.map((e) => _DriverStats(
+    driverId:      e.key,
+    driverName:    nameByDriver[e.key] ?? e.key,
+    currentStatus: 'apto',
+    totalKm:       e.value,
+    totalHours:    hoursByDriver[e.key] ?? 0,
+    trips:         tripsByDriver[e.key] ?? 0,
+  )).toList()
+    ..sort((a, b) => b.totalKm.compareTo(a.totalKm));
+
+  return _Analytics(
+    summary: _MonthSummary(
+      totalKm: totalKm,
+      avgKmPerVehicle: avgKm,
+      mostActiveVehicle: mostActive,
+      totalTrips: entries.length,
+      activeVehicles: kmByVehicle.length,
+    ),
+    drivers: drivers,
+  );
+}
+
+// ── Página principal ──────────────────────────────────────────────────────────
+
+/// Análisis de flota del mes — rol OPERADOR.
+/// Carga hasta 200 entradas de flota de los últimos 30 días y calcula
+/// métricas localmente: km totales, promedio por vehículo, vehículo más activo
+/// y tabla de conductores.
+class FleetAnalyticsPage extends ConsumerWidget {
+  const FleetAnalyticsPage({super.key});
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final fleetAsync = ref.watch(myFleetProvider);
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,31 +155,37 @@ class _FleetAnalyticsPageState extends ConsumerState<FleetAnalyticsPage> {
                   icon: const Icon(Icons.refresh_outlined,
                       color: AppColors.ink5, size: 20),
                   tooltip: 'Actualizar',
-                  onPressed: _loading ? null : _load,
+                  onPressed: fleetAsync.isLoading
+                      ? null
+                      : () => ref.invalidate(myFleetProvider),
                 ),
               ],
             ),
           ),
 
           Expanded(
-            child: _loading
-                ? const SfitLoading(message: 'Calculando métricas…')
-                : _error != null
-                    ? _ErrorView(message: _error!, onRetry: _load)
-                    : RefreshIndicator(
-                        onRefresh: _load,
-                        color: AppColors.gold,
-                        child: ListView(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                          children: [
-                            if (_summary != null)
-                              _SummarySection(summary: _summary!),
-                            const SizedBox(height: 20),
-                            _DriversTable(drivers: _drivers),
-                          ],
-                        ),
-                      ),
+            child: fleetAsync.when(
+              loading: () => const SfitLoading(message: 'Calculando métricas…'),
+              error: (_, __) => _ErrorView(
+                message: 'No se pudieron cargar los datos de flota.',
+                onRetry: () => ref.invalidate(myFleetProvider),
+              ),
+              data: (entries) {
+                final analytics = _compute(entries);
+                return RefreshIndicator(
+                  onRefresh: () async => ref.invalidate(myFleetProvider),
+                  color: AppColors.gold,
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                    children: [
+                      _SummarySection(summary: analytics.summary),
+                      const SizedBox(height: 20),
+                      _DriversTable(drivers: analytics.drivers),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),

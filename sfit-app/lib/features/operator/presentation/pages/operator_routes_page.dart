@@ -3,9 +3,15 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/models/route_candidate_model.dart';
+import '../../../../shared/models/route_model.dart';
+import '../../data/datasources/operator_api_service.dart';
+
+/// Tipo público usado por GoRouter como `extra` para navegar al detalle y
+/// formulario de validación de una captura GPS candidata.
+typedef Candidate = RouteCandidateModel;
 
 /// Listado de rutas asociadas a la empresa del operador — RF-09 mobile.
 ///
@@ -25,24 +31,10 @@ class _OperatorRoutesPageState extends ConsumerState<OperatorRoutesPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
 
-  // Oficiales
-  bool _loadingOfficial = true;
-  List<_Route> _all = const [];
-
-  // Candidatas
-  bool _loadingCandidates = true;
-  List<_Candidate> _candidates = const [];
-
   @override
   void initState() {
     super.initState();
     _tabs = TabController(length: 2, vsync: this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _load();
-        _loadCandidates();
-      }
-    });
   }
 
   @override
@@ -51,69 +43,13 @@ class _OperatorRoutesPageState extends ConsumerState<OperatorRoutesPage>
     super.dispose();
   }
 
-  Future<void> _load() async {
-    setState(() => _loadingOfficial = true);
-    try {
-      final dio = ref.read(dioClientProvider).dio;
-      // Backend filtra por la empresa del operador a partir del JWT.
-      // Si no soporta el query, igual debería retornar las rutas
-      // accesibles para el rol — el manejo es defensivo.
-      final resp = await dio.get(
-        '/rutas',
-        queryParameters: {'companyId': 'mine', 'limit': 100},
-      );
-      final body = resp.data as Map?;
-      final data = (body?['data'] as Map?) ?? body ?? const {};
-      final list = (data['items'] as List? ?? const [])
-          .map((e) => _Route.fromJson(e as Map<String, dynamic>))
-          .toList();
-      if (mounted) {
-        setState(() {
-          _all = list;
-          _loadingOfficial = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _all = const [];
-          _loadingOfficial = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _loadCandidates() async {
-    setState(() => _loadingCandidates = true);
-    try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get(
-        '/rutas/candidatas',
-        queryParameters: {'status': 'candidate'},
-      );
-      final body = resp.data as Map?;
-      final data = (body?['data'] as Map?) ?? body ?? const {};
-      final list = (data['items'] as List? ?? const [])
-          .map((e) => _Candidate.fromJson(e as Map<String, dynamic>))
-          .toList();
-      if (mounted) {
-        setState(() {
-          _candidates = list;
-          _loadingCandidates = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _candidates = const [];
-          _loadingCandidates = false;
-        });
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final routesAsync = ref.watch(operadorRoutesProvider);
+    final candidatesAsync = ref.watch(routeCandidatesProvider);
+    final candidatesCount =
+        candidatesAsync.maybeWhen(data: (it) => it.length, orElse: () => 0);
+
     return Scaffold(
       backgroundColor: AppColors.paper,
       appBar: AppBar(
@@ -144,7 +80,7 @@ class _OperatorRoutesPageState extends ConsumerState<OperatorRoutesPage>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text('Candidatas'),
-                  if (_candidates.isNotEmpty) ...[
+                  if (candidatesCount > 0) ...[
                     const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -156,7 +92,7 @@ class _OperatorRoutesPageState extends ConsumerState<OperatorRoutesPage>
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
-                        '${_candidates.length}',
+                        '$candidatesCount',
                         style: AppTheme.inter(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
@@ -176,14 +112,12 @@ class _OperatorRoutesPageState extends ConsumerState<OperatorRoutesPage>
         controller: _tabs,
         children: [
           _OfficialTab(
-            loading: _loadingOfficial,
-            routes: _all,
-            onRefresh: _load,
+            routesAsync: routesAsync,
+            onRefresh: () => ref.refresh(operadorRoutesProvider.future),
           ),
           _CandidatesTab(
-            loading: _loadingCandidates,
-            items: _candidates,
-            onRefresh: _loadCandidates,
+            candidatesAsync: candidatesAsync,
+            onRefresh: () => ref.refresh(routeCandidatesProvider.future),
           ),
         ],
       ),
@@ -226,162 +160,199 @@ class _OperatorRoutesPageState extends ConsumerState<OperatorRoutesPage>
 
 // ── Tab: Oficiales ────────────────────────────────────────────────────────
 
-class _OfficialTab extends StatelessWidget {
-  final bool loading;
-  final List<_Route> routes;
+class _OfficialTab extends ConsumerWidget {
+  final AsyncValue<List<RouteModel>> routesAsync;
   final Future<void> Function() onRefresh;
 
   const _OfficialTab({
-    required this.loading,
-    required this.routes,
+    required this.routesAsync,
     required this.onRefresh,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return RefreshIndicator(
       color: AppColors.primary,
       onRefresh: onRefresh,
-      child: loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
-          : routes.isEmpty
-              ? ListView(children: [
-                  const SizedBox(height: 80),
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(children: [
-                        const Icon(
-                          Icons.route_outlined,
-                          size: 36,
-                          color: AppColors.ink4,
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Sin rutas',
-                          style: AppTheme.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.ink8,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Crea una ruta desde el panel web.',
-                          textAlign: TextAlign.center,
-                          style: AppTheme.inter(
-                            fontSize: 12,
-                            color: AppColors.ink5,
-                          ),
-                        ),
-                      ]),
-                    ),
-                  ),
-                ])
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 96),
-                  itemCount: routes.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) {
-                    final r = routes[i];
-                    return _RouteCard(
-                      route: r,
-                      onTap: () => context
-                          .push('/operador/rutas/${r.id}/editar')
-                          .then((_) => onRefresh()),
-                    );
-                  },
+      child: routesAsync.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+        error: (_, __) => ListView(children: [
+          const SizedBox(height: 80),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(children: [
+                const Icon(
+                  Icons.route_outlined,
+                  size: 36,
+                  color: AppColors.ink4,
                 ),
+                const SizedBox(height: 10),
+                Text(
+                  'Sin rutas',
+                  style: AppTheme.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink8,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Crea una ruta desde el panel web.',
+                  textAlign: TextAlign.center,
+                  style: AppTheme.inter(
+                    fontSize: 12,
+                    color: AppColors.ink5,
+                  ),
+                ),
+              ]),
+            ),
+          ),
+        ]),
+        data: (routes) {
+          if (routes.isEmpty) {
+            return ListView(children: [
+              const SizedBox(height: 80),
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(children: [
+                    const Icon(
+                      Icons.route_outlined,
+                      size: 36,
+                      color: AppColors.ink4,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Sin rutas',
+                      style: AppTheme.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink8,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Crea una ruta desde el panel web.',
+                      textAlign: TextAlign.center,
+                      style: AppTheme.inter(
+                        fontSize: 12,
+                        color: AppColors.ink5,
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
+            ]);
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 96),
+            itemCount: routes.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (_, i) {
+              final r = routes[i];
+              return _RouteCard(
+                route: r,
+                onTap: () => context
+                    .push('/operador/rutas/${r.id}/editar')
+                    .then((_) => onRefresh()),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
 
 // ── Tab: Candidatas ───────────────────────────────────────────────────────
 
-class _CandidatesTab extends StatelessWidget {
-  final bool loading;
-  final List<_Candidate> items;
+class _CandidatesTab extends ConsumerWidget {
+  final AsyncValue<List<RouteCandidateModel>> candidatesAsync;
   final Future<void> Function() onRefresh;
 
   const _CandidatesTab({
-    required this.loading,
-    required this.items,
+    required this.candidatesAsync,
     required this.onRefresh,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return RefreshIndicator(
       color: AppColors.primary,
       onRefresh: onRefresh,
-      child: loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
-          : items.isEmpty
-              ? ListView(children: [
-                  const SizedBox(height: 80),
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(28),
-                      child: Column(children: [
-                        const Icon(
-                          Icons.timeline_outlined,
-                          size: 40,
-                          color: AppColors.ink4,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Aún no hay rutas candidatas',
-                          style: AppTheme.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.ink8,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Cuando un conductor cierre turno sin asociar ruta, la captura aparecerá acá para que la valides.',
-                          textAlign: TextAlign.center,
-                          style: AppTheme.inter(
-                            fontSize: 12,
-                            color: AppColors.ink5,
-                            height: 1.4,
-                          ),
-                        ),
-                      ]),
-                    ),
-                  ),
-                ])
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 96),
-                  itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (_, i) {
-                    final c = items[i];
-                    return _CandidateCard(
-                      candidate: c,
-                      onTap: () => context
-                          .push('/operador/rutas/candidatas/${c.id}',
-                              extra: c)
-                          .then((_) => onRefresh()),
-                    );
-                  },
-                ),
+      child: candidatesAsync.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+        error: (_, __) => _emptyCandidates(),
+        data: (items) {
+          if (items.isEmpty) return _emptyCandidates();
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 96),
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (_, i) {
+              final c = items[i];
+              return _CandidateCard(
+                candidate: c,
+                onTap: () => context
+                    .push('/operador/rutas/candidatas/${c.id}', extra: c)
+                    .then((_) => onRefresh()),
+              );
+            },
+          );
+        },
+      ),
     );
   }
+
+  Widget _emptyCandidates() => ListView(children: [
+        const SizedBox(height: 80),
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(children: [
+              const Icon(
+                Icons.timeline_outlined,
+                size: 40,
+                color: AppColors.ink4,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Aún no hay rutas candidatas',
+                style: AppTheme.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink8,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Cuando un conductor cierre turno sin asociar ruta, la captura aparecerá acá para que la valides.',
+                textAlign: TextAlign.center,
+                style: AppTheme.inter(
+                  fontSize: 12,
+                  color: AppColors.ink5,
+                  height: 1.4,
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ]);
 }
 
 class _CandidateCard extends StatelessWidget {
-  final _Candidate candidate;
+  final RouteCandidateModel candidate;
   final VoidCallback onTap;
   const _CandidateCard({required this.candidate, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final score = candidate.qualityScore;
+    final score = ((candidate.avgConfidence ?? 0) * 100).round();
     final scoreColor = score >= 80
         ? AppColors.apto
         : score >= 60
@@ -397,6 +368,11 @@ class _CandidateCard extends StatelessWidget {
         : score >= 60
             ? AppColors.riesgoBorder
             : AppColors.noAptoBorder;
+    final poly = pointsToLatLng(candidate.points);
+    final title = candidate.suggestedName?.trim().isNotEmpty == true
+        ? candidate.suggestedName!
+        : 'Captura GPS';
+    final distance = (candidate.distanceMeters ?? 0).round();
 
     return Material(
       color: Colors.white,
@@ -419,7 +395,7 @@ class _CandidateCard extends StatelessWidget {
                 ),
                 child: SizedBox(
                   height: 130,
-                  child: _MiniMap(samplePolyline: candidate.samplePolyline),
+                  child: _MiniMap(samplePolyline: poly),
                 ),
               ),
               // ── Datos ────────────────────────────────────────────
@@ -430,16 +406,14 @@ class _CandidateCard extends StatelessWidget {
                   children: [
                     Row(children: [
                       const Icon(
-                        Icons.person_outline,
+                        Icons.timeline_outlined,
                         size: 15,
                         color: AppColors.ink6,
                       ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          candidate.driverName.isEmpty
-                              ? 'Conductor —'
-                              : candidate.driverName,
+                          title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: AppTheme.inter(
@@ -449,40 +423,17 @@ class _CandidateCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (candidate.vehiclePlate.isNotEmpty) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.ink9,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            candidate.vehiclePlate,
-                            style: AppTheme.inter(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              tabular: true,
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                        ),
-                      ],
                     ]),
                     const SizedBox(height: 10),
                     Row(children: [
                       _Pill(
                         icon: Icons.straighten_outlined,
-                        label: _formatDistance(candidate.distanceMeters),
+                        label: formatDistance(distance),
                       ),
                       const SizedBox(width: 6),
                       _Pill(
-                        icon: Icons.schedule_outlined,
-                        label: _formatDuration(candidate.durationSeconds),
+                        icon: Icons.timeline_outlined,
+                        label: '${candidate.sampleCount ?? 0} pts',
                       ),
                       const SizedBox(width: 6),
                       Container(
@@ -507,7 +458,7 @@ class _CandidateCard extends StatelessWidget {
                       ),
                       const Spacer(),
                       Text(
-                        _ago(candidate.createdAt),
+                        ago(candidate.createdAt),
                         style: AppTheme.inter(
                           fontSize: 11,
                           color: AppColors.ink5,
@@ -634,13 +585,16 @@ class _Pill extends StatelessWidget {
 // ── Tarjeta de ruta oficial (igual al diseño previo) ─────────────────────
 
 class _RouteCard extends StatelessWidget {
-  final _Route route;
+  final RouteModel route;
   final VoidCallback onTap;
   const _RouteCard({required this.route, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final scopeInfo = _scopeInfo(route.serviceScope);
+    final scope = route.type ?? 'urbano_distrital';
+    final scopeInfo = _scopeInfo(scope);
+    final code = route.code ?? '';
+    final name = route.name ?? '';
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -669,7 +623,7 @@ class _RouteCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  if (route.code.isNotEmpty) ...[
+                  if (code.isNotEmpty) ...[
                     Container(
                       padding:
                           const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -678,7 +632,7 @@ class _RouteCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        route.code,
+                        code,
                         style: AppTheme.inter(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
@@ -690,7 +644,7 @@ class _RouteCard extends StatelessWidget {
                   ],
                   Expanded(
                     child: Text(
-                      route.name,
+                      name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppTheme.inter(
@@ -724,9 +678,9 @@ class _RouteCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    _isUrbano(route.serviceScope)
-                        ? '${route.waypointsCount} paraderos'
-                        : '${route.frequenciesCount} horarios',
+                    _isUrbano(scope)
+                        ? '${route.waypoints.length} paraderos'
+                        : '${route.stops ?? 0} paradas',
                     style: AppTheme.inter(
                       fontSize: 11.5,
                       color: AppColors.ink5,
@@ -803,111 +757,25 @@ _ScopeInfo _scopeInfo(String s) => switch (s) {
         ),
     };
 
-class _Route {
-  final String id;
-  final String code;
-  final String name;
-  final String serviceScope;
-  final int waypointsCount;
-  final int frequenciesCount;
+// ── Helpers compartidos con detail/validate ──────────────────────────────
 
-  const _Route({
-    required this.id,
-    required this.code,
-    required this.name,
-    required this.serviceScope,
-    this.waypointsCount = 0,
-    this.frequenciesCount = 0,
-  });
-
-  factory _Route.fromJson(Map<String, dynamic> j) {
-    final waypoints = j['waypoints'] as List? ?? const [];
-    final freq = (j['departureTimes'] as List? ??
-        j['frequencies'] as List? ??
-        j['horariosSalida'] as List? ??
-        const []);
-    return _Route(
-      id: (j['_id'] ?? j['id'] ?? '').toString(),
-      code: (j['code'] ?? '').toString(),
-      name: (j['name'] ?? '').toString(),
-      serviceScope:
-          (j['serviceScope'] ?? 'urbano_distrital').toString(),
-      waypointsCount: waypoints.length,
-      frequenciesCount: freq.length,
-    );
-  }
+/// Convierte la lista de puntos `[{lat, lng}, ...]` del backend a `LatLng`.
+List<LatLng> pointsToLatLng(List<Map<String, dynamic>> points) {
+  return points
+      .map<LatLng?>((m) {
+        final lat = (m['lat'] as num?)?.toDouble();
+        final lng = (m['lng'] as num?)?.toDouble();
+        if (lat == null || lng == null) return null;
+        if (lat.isNaN || lng.isNaN || lat.isInfinite || lng.isInfinite) {
+          return null;
+        }
+        return LatLng(lat, lng);
+      })
+      .whereType<LatLng>()
+      .toList();
 }
 
-// ── Modelo: Candidata ─────────────────────────────────────────────────────
-
-class Candidate {
-  final String id;
-  final String fleetEntryId;
-  final String driverId;
-  final String driverName;
-  final String vehiclePlate;
-  final int distanceMeters;
-  final int durationSeconds;
-  final int pointCount;
-  final int qualityScore;
-  final List<LatLng> samplePolyline;
-  final DateTime? createdAt;
-  final String status;
-
-  const Candidate({
-    required this.id,
-    required this.fleetEntryId,
-    required this.driverId,
-    required this.driverName,
-    required this.vehiclePlate,
-    required this.distanceMeters,
-    required this.durationSeconds,
-    required this.pointCount,
-    required this.qualityScore,
-    required this.samplePolyline,
-    required this.createdAt,
-    required this.status,
-  });
-
-  factory Candidate.fromJson(Map<String, dynamic> j) {
-    final poly = (j['samplePolyline'] as List? ?? const [])
-        .where((e) => e is List && e.length >= 2)
-        .map<LatLng?>((e) {
-          final lat = (e[0] as num?)?.toDouble();
-          final lng = (e[1] as num?)?.toDouble();
-          if (lat == null || lng == null) return null;
-          if (lat.isNaN || lng.isNaN || lat.isInfinite || lng.isInfinite) {
-            return null;
-          }
-          return LatLng(lat, lng);
-        })
-        .whereType<LatLng>()
-        .toList();
-    return Candidate(
-      id: (j['id'] ?? j['_id'] ?? '').toString(),
-      fleetEntryId: (j['fleetEntryId'] ?? '').toString(),
-      driverId: (j['driverId'] ?? '').toString(),
-      driverName: (j['driverName'] ?? '').toString(),
-      vehiclePlate: (j['vehiclePlate'] ?? '').toString(),
-      distanceMeters: (j['distanceMeters'] as num?)?.toInt() ?? 0,
-      durationSeconds: (j['durationSeconds'] as num?)?.toInt() ?? 0,
-      pointCount: (j['pointCount'] as num?)?.toInt() ?? 0,
-      qualityScore: (j['qualityScore'] as num?)?.toInt() ?? 0,
-      samplePolyline: poly,
-      createdAt: j['createdAt'] is String
-          ? DateTime.tryParse(j['createdAt'] as String)
-          : null,
-      status: (j['status'] ?? 'candidate').toString(),
-    );
-  }
-}
-
-// Alias privado para uso interno (sin romper la API pública).
-typedef _Candidate = Candidate;
-
-// ── Helpers de formato ────────────────────────────────────────────────────
-
-String _formatDistance(int meters) {
+String formatDistance(int meters) {
   if (meters >= 1000) {
     final km = meters / 1000.0;
     return '${km.toStringAsFixed(km >= 10 ? 0 : 1)} km';
@@ -915,7 +783,7 @@ String _formatDistance(int meters) {
   return '$meters m';
 }
 
-String _formatDuration(int seconds) {
+String formatDuration(int seconds) {
   if (seconds < 60) return '${seconds}s';
   final m = seconds ~/ 60;
   if (m < 60) return '$m min';
@@ -924,7 +792,7 @@ String _formatDuration(int seconds) {
   return rem == 0 ? '${h}h' : '${h}h ${rem}m';
 }
 
-String _ago(DateTime? dt) {
+String ago(DateTime? dt) {
   if (dt == null) return '';
   final diff = DateTime.now().difference(dt);
   if (diff.inSeconds < 60) return 'hace un momento';

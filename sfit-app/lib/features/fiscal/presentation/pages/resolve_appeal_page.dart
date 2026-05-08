@@ -1,68 +1,31 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/datasources/fiscal_api_service.dart';
 
 /// Lista y resolucion de apelaciones pendientes — RF-15 (rol fiscal).
 ///
 /// El backend filtra automaticamente por la municipalidad del fiscal
 /// autenticado, por lo que no es necesario pasar municipalityId.
-class ResolveAppealPage extends ConsumerStatefulWidget {
+class ResolveAppealPage extends ConsumerWidget {
   const ResolveAppealPage({super.key});
 
-  @override
-  ConsumerState<ResolveAppealPage> createState() =>
-      _ResolveAppealPageState();
-}
-
-class _ResolveAppealPageState extends ConsumerState<ResolveAppealPage> {
-  List<Map<String, dynamic>> _items = [];
-  bool _loading = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get(
-        '/apelaciones',
-        queryParameters: {'status': 'pendiente', 'limit': 50},
-      );
-      final body = resp.data as Map?;
-      if (body == null || body['success'] != true) {
-        throw Exception(body?['error'] ?? 'Respuesta invalida del servidor');
-      }
-      final data = body['data'] as Map<String, dynamic>;
-      final items = (data['items'] as List? ?? const [])
-          .cast<Map<String, dynamic>>();
-      if (mounted) {
-        setState(() {
-          _items = items;
-          _loading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _error = 'No se pudieron cargar las apelaciones.';
-          _loading = false;
-        });
-      }
+  String _extractError(Object e) {
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map && data['error'] is String) return data['error'] as String;
+      if (data is Map && data['message'] is String) return data['message'] as String;
     }
+    return 'No se pudo completar la operación';
   }
 
-  // ── Accion: abrir ficha de detalle con motivo completo ──────────
-  Future<void> _openAppealSheet(Map<String, dynamic> appeal) async {
+  Future<void> _openAppealSheet(
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, dynamic> appeal,
+  ) async {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -74,31 +37,31 @@ class _ResolveAppealPageState extends ConsumerState<ResolveAppealPage> {
         appeal: appeal,
         onResolve: (status) async {
           Navigator.of(context).pop();
-          await _resolve(appeal, status);
+          await _resolve(context, ref, appeal, status);
         },
       ),
     );
   }
 
-  // ── Accion: PATCH /api/apelaciones/:id/resolver ─────────────────
-  Future<void> _resolve(Map<String, dynamic> appeal, String status) async {
-    final resolution = await _askResolution(status);
+  Future<void> _resolve(
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, dynamic> appeal,
+    String status,
+  ) async {
+    final resolution = await _askResolution(context, status);
     if (resolution == null || resolution.trim().length < 5) return;
 
     final id = appeal['id'] as String?;
     if (id == null) return;
 
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.patch(
-        '/apelaciones/$id/resolver',
-        data: {'status': status, 'resolution': resolution.trim()},
-      );
-      final body = resp.data as Map?;
-      if (body == null || body['success'] != true) {
-        throw Exception(body?['error'] ?? 'Error al resolver');
-      }
-      if (mounted) {
+      await ref.read(fiscalApiServiceProvider).resolveAppeal(
+            id,
+            status: status,
+            resolution: resolution.trim(),
+          );
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -112,12 +75,12 @@ class _ResolveAppealPageState extends ConsumerState<ResolveAppealPage> {
           ),
         );
       }
-      await _load();
+      ref.invalidate(appealsToResolveProvider);
     } catch (e) {
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('No se pudo resolver: $e'),
+            content: Text('No se pudo resolver: ${_extractError(e)}'),
             backgroundColor: AppColors.noApto,
           ),
         );
@@ -125,7 +88,7 @@ class _ResolveAppealPageState extends ConsumerState<ResolveAppealPage> {
     }
   }
 
-  Future<String?> _askResolution(String status) async {
+  Future<String?> _askResolution(BuildContext context, String status) async {
     final ctrl = TextEditingController();
     final isApprove = status == 'aprobada';
     return showDialog<String>(
@@ -165,7 +128,9 @@ class _ResolveAppealPageState extends ConsumerState<ResolveAppealPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appealsAsync = ref.watch(appealsToResolveProvider);
+
     return Scaffold(
       backgroundColor: AppColors.paper,
       appBar: AppBar(
@@ -182,28 +147,43 @@ class _ResolveAppealPageState extends ConsumerState<ResolveAppealPage> {
           ),
         ),
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.gold),
-            )
-          : _error != null
-              ? _ErrorState(message: _error!, onRetry: _load)
-              : _items.isEmpty
-                  ? const _EmptyAppealsState()
-                  : RefreshIndicator(
-                      color: AppColors.gold,
-                      onRefresh: _load,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _items.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 10),
-                        itemBuilder: (_, i) => _AppealCard(
-                          appeal: _items[i],
-                          onTap: () => _openAppealSheet(_items[i]),
-                        ),
-                      ),
-                    ),
+      body: appealsAsync.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.gold),
+        ),
+        error: (_, __) => _ErrorState(
+          message: 'No se pudieron cargar las apelaciones.',
+          onRetry: () => ref.invalidate(appealsToResolveProvider),
+        ),
+        data: (appeals) {
+          if (appeals.isEmpty) {
+            return const _EmptyAppealsState();
+          }
+          return RefreshIndicator(
+            color: AppColors.gold,
+            onRefresh: () => ref.refresh(appealsToResolveProvider.future),
+            child: ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: appeals.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (_, i) {
+                final raw = <String, dynamic>{
+                  'id': appeals[i].id,
+                  'reason': appeals[i].reason,
+                  'createdAt': appeals[i].createdAt?.toIso8601String(),
+                  'submittedBy': appeals[i].submitterName != null
+                      ? {'name': appeals[i].submitterName}
+                      : null,
+                };
+                return _AppealCard(
+                  appeal: raw,
+                  onTap: () => _openAppealSheet(context, ref, raw),
+                );
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 }

@@ -3,9 +3,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/datasources/operator_api_service.dart';
 
 /// Subir foto del manifiesto firmado por los pasajeros — RF-09 (mobile).
 class UploadManifestPhotoPage extends ConsumerStatefulWidget {
@@ -27,28 +27,16 @@ class _UploadManifestPhotoPageState
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _load();
-    });
+    _load();
   }
 
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      // El backend no expone un GET dedicado de fotos del manifiesto: el
-      // listado vive en Trip.manifestPhotoUrls (Track A). Lo hidratamos desde
-      // el detalle del viaje.
-      final resp = await dio.get('/viajes/${widget.tripId}');
-      final body = resp.data as Map?;
-      final data = (body?['data'] as Map?) ?? body ?? const {};
-      final list = (data['manifestPhotoUrls'] as List? ?? const [])
-          .map((e) => e?.toString() ?? '')
-          .where((s) => s.isNotEmpty)
-          .toList();
+      final api = ref.read(operatorApiServiceProvider);
+      await api.getTripDetail(widget.tripId);
       if (mounted) {
         setState(() {
-          _photos = List<String>.from(list);
           _loading = false;
         });
       }
@@ -65,8 +53,6 @@ class _UploadManifestPhotoPageState
   Future<void> _pick(ImageSource src) async {
     if (_uploading) return;
     try {
-      // image_picker comprime targetando ~maxWidth/Height; con jpegQuality 75
-      // los manifiestos quedan en general < 1.5MB. Suficiente para legibilidad.
       final XFile? file = await _picker.pickImage(
         source: src,
         imageQuality: 75,
@@ -83,21 +69,17 @@ class _UploadManifestPhotoPageState
   Future<void> _upload(XFile file) async {
     setState(() => _uploading = true);
     try {
-      final dio = ref.read(dioClientProvider).dio;
       final bytes = await file.readAsBytes();
       final mp = MultipartFile.fromBytes(bytes, filename: file.name);
-      // Backend Track A espera la key "file" (no "photo"); reescribe a webp
-      // server-side y devuelve { url, id, manifestPhotoUrls }.
       final form = FormData.fromMap({'file': mp});
-      await dio.post(
-        '/viajes/${widget.tripId}/manifest-photo',
-        data: form,
-        options: Options(
-          headers: {'Content-Type': 'multipart/form-data'},
-        ),
-      );
+      final api = ref.read(operatorApiServiceProvider);
+      await api.uploadManifestPhoto(widget.tripId, form);
       _snack('Foto subida.');
       await _load();
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg = data is Map ? (data['error'] ?? data['message']) : null;
+      _snack('No se pudo subir la foto: ${msg ?? e.message ?? e}');
     } catch (e) {
       _snack('No se pudo subir la foto: $e');
     } finally {
@@ -168,7 +150,6 @@ class _UploadManifestPhotoPageState
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
           children: [
-            // Botones de acción
             Row(children: [
               Expanded(
                 child: SizedBox(

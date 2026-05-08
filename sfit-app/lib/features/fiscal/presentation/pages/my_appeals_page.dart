@@ -1,99 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../shared/models/appeal_model.dart';
+import '../../data/datasources/fiscal_api_service.dart';
 
 /// Lista de apelaciones resueltas por el fiscal autenticado.
-///
-/// Hace dos fetches en paralelo (status=aprobada y status=rechazada),
-/// filtra cliente-side por `resolvedBy.id == currentUser.id` y mergea
-/// por `createdAt` desc.
-class MyAppealsPage extends ConsumerStatefulWidget {
+class MyAppealsPage extends ConsumerWidget {
   const MyAppealsPage({super.key});
 
-  @override
-  ConsumerState<MyAppealsPage> createState() => _MyAppealsPageState();
-}
-
-class _MyAppealsPageState extends ConsumerState<MyAppealsPage> {
-  List<Map<String, dynamic>> _items = [];
-  bool _loading = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<List<Map<String, dynamic>>> _fetchByStatus(String status) async {
-    final dio = ref.read(dioClientProvider).dio;
-    final resp = await dio.get(
-      '/apelaciones',
-      queryParameters: {'status': status, 'limit': 100},
-    );
-    final body = resp.data as Map?;
-    if (body == null || body['success'] != true) {
-      throw Exception(body?['error'] ?? 'Respuesta invalida');
-    }
-    final data = body['data'] as Map<String, dynamic>;
-    return (data['items'] as List? ?? const [])
-        .cast<Map<String, dynamic>>();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final user = ref.read(authProvider).user;
-      if (user == null) {
-        throw Exception('Sin sesion activa');
-      }
-
-      final results = await Future.wait([
-        _fetchByStatus('aprobada'),
-        _fetchByStatus('rechazada'),
-      ]);
-      final approved = results[0];
-      final rejected = results[1];
-
-      // Filtrar por resolvedBy.id == currentUser.id
-      final mine = [...approved, ...rejected].where((a) {
-        final resolver = a['resolvedBy'] as Map?;
-        final resolverId = resolver?['id'] as String?;
-        return resolverId == user.id;
-      }).toList();
-
-      // Ordenar por resolvedAt o createdAt desc
-      mine.sort((a, b) {
-        final aDate = (a['resolvedAt'] ?? a['createdAt']) as String?;
-        final bDate = (b['resolvedAt'] ?? b['createdAt']) as String?;
-        if (aDate == null) return 1;
-        if (bDate == null) return -1;
-        return bDate.compareTo(aDate);
-      });
-
-      if (mounted) {
-        setState(() {
-          _items = mine;
-          _loading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _error = 'No se pudieron cargar tus apelaciones resueltas.';
-          _loading = false;
-        });
-      }
-    }
-  }
-
-  void _openDetail(Map<String, dynamic> appeal) {
+  void _openDetail(BuildContext context, Map<String, dynamic> appeal) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -105,8 +21,23 @@ class _MyAppealsPageState extends ConsumerState<MyAppealsPage> {
     );
   }
 
+  Map<String, dynamic> _toRaw(AppealModel a) {
+    return <String, dynamic>{
+      'id': a.id,
+      'reason': a.reason,
+      'resolution': a.resolution,
+      'status': a.status,
+      'createdAt': a.createdAt?.toIso8601String(),
+      'resolvedAt': a.resolvedAt?.toIso8601String(),
+      'submittedBy':
+          a.submitterName != null ? {'name': a.submitterName} : null,
+    };
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appealsAsync = ref.watch(myResolvedAppealsProvider);
+
     return Scaffold(
       backgroundColor: AppColors.paper,
       appBar: AppBar(
@@ -123,28 +54,34 @@ class _MyAppealsPageState extends ConsumerState<MyAppealsPage> {
           ),
         ),
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.gold),
-            )
-          : _error != null
-              ? _ErrorState(message: _error!, onRetry: _load)
-              : _items.isEmpty
-                  ? const _EmptyState()
-                  : RefreshIndicator(
-                      color: AppColors.gold,
-                      onRefresh: _load,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _items.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 10),
-                        itemBuilder: (_, i) => _ResolvedAppealCard(
-                          appeal: _items[i],
-                          onTap: () => _openDetail(_items[i]),
-                        ),
-                      ),
-                    ),
+      body: appealsAsync.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.gold),
+        ),
+        error: (_, __) => _ErrorState(
+          message: 'No se pudieron cargar tus apelaciones resueltas.',
+          onRetry: () => ref.invalidate(myResolvedAppealsProvider),
+        ),
+        data: (appeals) {
+          if (appeals.isEmpty) {
+            return const _EmptyState();
+          }
+          final items = appeals.map(_toRaw).toList();
+          return RefreshIndicator(
+            color: AppColors.gold,
+            onRefresh: () => ref.refresh(myResolvedAppealsProvider.future),
+            child: ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (_, i) => _ResolvedAppealCard(
+                appeal: items[i],
+                onTap: () => _openDetail(context, items[i]),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -159,7 +96,7 @@ class _ResolvedAppealCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = appeal['status'] as String? ?? '';
-    final isApproved = status == 'aprobada';
+    final isApproved = status == 'aprobada' || status == 'resuelta';
     final color = isApproved ? AppColors.apto : AppColors.noApto;
     final bg = isApproved ? AppColors.aptoBg : AppColors.noAptoBg;
     final border = isApproved ? AppColors.aptoBorder : AppColors.noAptoBorder;
@@ -291,7 +228,7 @@ class _ResolvedAppealSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = appeal['status'] as String? ?? '';
-    final isApproved = status == 'aprobada';
+    final isApproved = status == 'aprobada' || status == 'resuelta';
     final color = isApproved ? AppColors.apto : AppColors.noApto;
     final bg = isApproved ? AppColors.aptoBg : AppColors.noAptoBg;
     final border = isApproved ? AppColors.aptoBorder : AppColors.noAptoBorder;
