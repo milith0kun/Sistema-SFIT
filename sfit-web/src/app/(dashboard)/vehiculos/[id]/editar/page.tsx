@@ -8,6 +8,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 // ─── paleta del proyecto ──────────────────────────────────────────────────────
 const G = "#6C0606"; const GBG = "#FBEAEA"; const GBR = "#D9B0B0";
 const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
@@ -45,9 +47,6 @@ const VEHICLE_STATUSES: { value: VehicleStatus; label: string }[] = [
   { value: "en_mantenimiento",  label: "En mantenimiento" },
   { value: "fuera_de_servicio", label: "Fuera de servicio" },
 ];
-
-const ALLOWED = ["admin_municipal", "super_admin", "operador"];
-
 const fieldStyle: React.CSSProperties = {
   width: "100%",
   height: 42,
@@ -84,7 +83,7 @@ export default function VehiculoEditarPage({ params }: Props) {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
     const u = JSON.parse(raw) as { role: string };
-    if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
+    if (!hasWebPermission(u.role as Role, "vehiculos", "view")) { router.replace("/dashboard"); return; }
     void loadVehicle();
     void loadEmpresas();
     // eslint-disable-next-line react-hooks/exhaustive-deps

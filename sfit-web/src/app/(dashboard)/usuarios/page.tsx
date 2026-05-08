@@ -8,6 +8,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable } from "@/components/ui/DataTable";
 import { KPIStrip, type KPIItem } from "@/components/dashboard/KPIStrip";
 
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 type UserRole =
   | "super_admin" | "admin_provincial" | "admin_municipal"
   | "fiscal" | "operador" | "conductor" | "ciudadano";
@@ -26,8 +28,6 @@ type UsuarioRow = {
 };
 
 type StoredUser = { id: string; role: string };
-
-const ALLOWED = ["admin_municipal", "admin_provincial", "super_admin"];
 const LIMIT   = 200;
 
 const ROLE_LABELS: Record<string, string> = {
@@ -101,7 +101,7 @@ export default function UsuariosAdminPage() {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
     const u = JSON.parse(raw) as StoredUser;
-    if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
+    if (!hasWebPermission(u.role as Role, "usuarios", "view")) { router.replace("/dashboard"); return; }
     setUser(u);
   }, [router]);
 

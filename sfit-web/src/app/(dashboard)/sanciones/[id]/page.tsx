@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 /* ── Tipos ── */
 type SanctionStatus = "emitida" | "notificada" | "apelada" | "confirmada" | "anulada";
 type Notification = { channel: string; target: string; status: string; sentAt?: string };
@@ -59,9 +61,6 @@ const FAULT_LABELS: Record<string, string> = {
   conduccion_bajo_influencia: "Conducción bajo influencia",
   otro: "Otro",
 };
-
-const ALLOWED = ["fiscal", "admin_municipal", "admin_provincial", "super_admin"];
-
 const LABEL_S: React.CSSProperties = {
   display: "block", fontSize: "0.6875rem", fontWeight: 700,
   letterSpacing: "0.06em", textTransform: "uppercase", color: INK5, marginBottom: 6,
@@ -168,7 +167,7 @@ export default function SancionDetallePage({ params }: Props) {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
     const u = JSON.parse(raw) as { role: string };
-    if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
+    if (!hasWebPermission(u.role as Role, "sanciones", "view")) { router.replace("/dashboard"); return; }
     setUserRole(u.role);
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps

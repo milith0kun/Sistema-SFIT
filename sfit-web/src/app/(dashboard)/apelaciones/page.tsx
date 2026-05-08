@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
 
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 // Tokens consistentes con el resto del dashboard
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a";
 const INK6 = "#52525b"; const INK9 = "#18181b";
@@ -29,9 +31,6 @@ type Apelacion = {
   resolution?: string;
   createdAt: string;
 };
-
-const ALLOWED = ["fiscal", "admin_municipal", "admin_provincial", "super_admin"];
-
 const STATUS_LABEL: Record<ApelacionStatus, string> = {
   pendiente: "Pendiente",
   aprobada: "Aprobada",
@@ -222,7 +221,7 @@ export default function ApelacionesPage() {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
     const u = JSON.parse(raw) as { role: string };
-    if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
+    if (!hasWebPermission(u.role as Role, "apelaciones", "view")) { router.replace("/dashboard"); return; }
     setUser(u);
   }, [router]);
 

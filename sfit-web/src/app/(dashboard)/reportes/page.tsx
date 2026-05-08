@@ -8,6 +8,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
 
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 type ReportStatus = "pendiente" | "revision" | "validado" | "rechazado";
 type FraudLayer = { layer: string; passed: boolean; detail: string };
 type Report = {
@@ -42,8 +44,6 @@ function fmtAgo(d: string) {
   if (hrs < 24) return `Hace ${hrs} h`;
   return `Hace ${Math.floor(hrs / 24)} días`;
 }
-
-const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin"];
 const btnInk: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: "none", background: INK9, color: "#fff", fontFamily: "inherit" };
 const btnOut: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontFamily: "inherit" };
 const btnSm: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px", borderRadius: 7, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: `1.5px solid ${INK2}`, background: "#fff", color: INK6 };
@@ -62,7 +62,7 @@ export default function ReportesPage() {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
     const u = JSON.parse(raw) as { role: string };
-    if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
+    if (!hasWebPermission(u.role as Role, "reportes", "view")) { router.replace("/dashboard"); return; }
     setUser(u);
   }, [router]);
 

@@ -13,6 +13,8 @@ import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useMobileOverlayBack } from "@/hooks/useMobileOverlayBack";
 
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 type DriverStatus = "apto" | "riesgo" | "no_apto";
 type Driver = {
   id: string; name: string; dni: string; licenseNumber: string; licenseCategory: string;
@@ -61,8 +63,6 @@ function Avatar({ name, size = 34 }: { name: string; size?: number }) {
     }}>{ini || "?"}</div>
   );
 }
-
-const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
 const CAN_EDIT = ["admin_municipal", "super_admin"];
 const CAN_CREATE = ["super_admin", "admin_municipal", "operador"];
 
@@ -94,7 +94,7 @@ export default function ConductoresPage() {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
     const u = JSON.parse(raw) as { role: string };
-    if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
+    if (!hasWebPermission(u.role as Role, "conductores", "view")) { router.replace("/dashboard"); return; }
     setUser(u);
   }, [router]);
 

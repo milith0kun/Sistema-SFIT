@@ -24,6 +24,8 @@ import { GoogleMapView } from "@/components/ui/GoogleMapView";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/hooks/useToast";
 
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 type CandidateStatus = "candidate" | "validated" | "rejected" | "all";
 
 type Candidate = {
@@ -42,9 +44,6 @@ type Candidate = {
 };
 
 type StoredUser = { role: string; municipalityId?: string };
-
-const ALLOWED = ["super_admin", "admin_provincial", "admin_municipal", "operador"];
-
 /* Tokens — coherentes con el resto del dashboard */
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
 const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
@@ -128,7 +127,7 @@ export default function RutasCandidatasPage() {
     if (!raw) { router.replace("/login"); return; }
     try {
       const u = JSON.parse(raw) as StoredUser;
-      if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
+      if (!hasWebPermission(u.role as Role, "rutas", "view")) { router.replace("/dashboard"); return; }
       setUser(u);
     } catch { router.replace("/login"); }
   }, [router]);

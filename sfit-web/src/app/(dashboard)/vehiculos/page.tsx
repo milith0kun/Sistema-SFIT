@@ -10,6 +10,8 @@ import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 type VehicleStatus = "disponible" | "en_ruta" | "en_mantenimiento" | "fuera_de_servicio";
 type Vehicle = {
   id: string; plate: string; vehicleTypeKey: string;
@@ -68,7 +70,6 @@ const TYPE_LABELS: Record<string, string> = {
   limpieza_residuos: "Limpieza", emergencia: "Emergencia",
   maquinaria: "Maquinaria", municipal_general: "Municipal",
 };
-const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
 const CAN_EDIT = ["admin_municipal", "super_admin", "operador"];
 const CAN_CREATE = ["super_admin", "admin_municipal", "operador"];
 
@@ -101,7 +102,7 @@ export default function VehiculosPage() {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
     const u = JSON.parse(raw) as { role: string };
-    if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
+    if (!hasWebPermission(u.role as Role, "vehiculos", "view")) { router.replace("/dashboard"); return; }
     setUser(u);
   }, [router]);
 

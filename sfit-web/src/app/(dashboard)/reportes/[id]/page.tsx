@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 /* ── Tipos ── */
 type ReportStatus = "pendiente" | "revision" | "validado" | "rechazado";
 type FraudLayer = { layer: string; passed: boolean; detail: string };
@@ -49,8 +51,6 @@ const STATUS_META: Record<ReportStatus, { label: string; color: string; bg: stri
   validado:  { label: "Validado",    color: GRN,  bg: GRNBG, bd: GRNBD },
   rechazado: { label: "Rechazado",   color: RED,  bg: REDBG, bd: REDBD },
 };
-
-const ALLOWED = ["fiscal", "admin_municipal", "admin_provincial", "super_admin"];
 const CAN_ACT = ["fiscal", "admin_municipal", "super_admin"];
 
 const LABEL_S: React.CSSProperties = {
@@ -171,7 +171,7 @@ export default function ReporteDetallePage({ params }: Props) {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
     const u = JSON.parse(raw) as { role: string };
-    if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
+    if (!hasWebPermission(u.role as Role, "reportes", "view")) { router.replace("/dashboard"); return; }
     setUserRole(u.role);
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps

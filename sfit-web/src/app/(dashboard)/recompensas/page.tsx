@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
 
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 // ── Tipos ────────────────────────────────────────────────────────────────────
 type RecompensaCategory = "descuento" | "beneficio" | "certificado" | "otro";
 
@@ -29,9 +31,6 @@ type KpiStats = {
   usuariosConCoins: number;
   recompensasActivas: number;
 };
-
-const ALLOWED = ["admin_municipal"];
-
 const CATEGORY_LABELS: Record<RecompensaCategory, string> = {
   descuento: "Descuento",
   beneficio: "Beneficio",
@@ -214,7 +213,7 @@ export default function RecompensasPage() {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
     const u = JSON.parse(raw) as { role: string };
-    if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
+    if (!hasWebPermission(u.role as Role, "recompensas", "view")) { router.replace("/dashboard"); return; }
     setUser(u);
   }, [router]);
 

@@ -10,6 +10,8 @@ import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 type TripStatus = "en_curso" | "completado" | "auto_cierre" | "cerrado_automatico";
 type Trip = {
   id: string;
@@ -59,8 +61,6 @@ const PERIODS: { key: string; label: string }[] = [
   { key: "mes", label: "Este mes" },
   { key: "todos", label: "Histórico" },
 ];
-
-const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
 const CAN_CREATE = ["operador", "admin_municipal", "super_admin"];
 
 export default function ViajesPage() {
@@ -75,7 +75,7 @@ export default function ViajesPage() {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
     const u = JSON.parse(raw) as { role: string };
-    if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
+    if (!hasWebPermission(u.role as Role, "viajes", "view")) { router.replace("/dashboard"); return; }
     setUser(u);
   }, [router]);
 

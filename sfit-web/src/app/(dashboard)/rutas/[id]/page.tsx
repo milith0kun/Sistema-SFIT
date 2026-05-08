@@ -11,6 +11,8 @@ import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { WaypointsEditor, type Waypoint } from "@/components/ui/WaypointsEditor";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 type RouteType = "ruta" | "zona";
 type RouteStatus = "activa" | "suspendida";
 type ServiceScope =
@@ -63,8 +65,6 @@ type VehicleType = { id: string; key: string; name: string; active: boolean };
 type StoredUser = { role: string };
 
 interface Props { params: Promise<{ id: string }> }
-
-const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
 // Operador (gestor de flota de empresa) también edita las rutas asignadas a su empresa.
 const CAN_EDIT = ["admin_municipal", "super_admin", "operador"];
 
@@ -115,7 +115,7 @@ export default function RutaDetallePage({ params }: Props) {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
     const u = JSON.parse(raw) as StoredUser;
-    if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
+    if (!hasWebPermission(u.role as Role, "rutas", "view")) { router.replace("/dashboard"); return; }
     setUser(u);
     void loadRoute();
     void loadCompanies();

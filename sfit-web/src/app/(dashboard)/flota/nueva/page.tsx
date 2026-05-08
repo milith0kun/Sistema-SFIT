@@ -6,9 +6,8 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
-
-const CREATE_ROLES = ["admin_municipal", "operador", "super_admin"];
-
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 interface Vehiculo {
   id: string;
   plate: string;
@@ -98,7 +97,7 @@ export default function NuevaFlotaPage() {
       return;
     }
 
-    if (!user.role || !CREATE_ROLES.includes(user.role)) {
+    if (!user.role || !hasWebPermission(user.role as Role, "flota", "create")) {
       router.replace("/flota");
       return;
     }

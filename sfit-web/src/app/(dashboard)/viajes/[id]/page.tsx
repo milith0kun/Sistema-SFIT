@@ -16,6 +16,8 @@ import { ManifestUploader } from "@/components/ui/ManifestUploader";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 import { useToast } from "@/hooks/useToast";
 
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 type TripStatus = "en_curso" | "completado" | "auto_cierre" | "cerrado_automatico";
 
 type Trip = {
@@ -61,8 +63,6 @@ const LABEL: React.CSSProperties = {
   display: "block", fontSize: "0.6875rem", fontWeight: 700,
   letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, marginBottom: 6,
 };
-
-const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
 const CAN_EDIT = ["operador", "admin_municipal", "super_admin"];
 
 interface Props { params: Promise<{ id: string }> }
@@ -130,7 +130,7 @@ export default function ViajeDetallePage({ params }: Props) {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
     const u = JSON.parse(raw) as { role: string };
-    if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
+    if (!hasWebPermission(u.role as Role, "viajes", "view")) { router.replace("/dashboard"); return; }
     setUserRole(u.role);
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps

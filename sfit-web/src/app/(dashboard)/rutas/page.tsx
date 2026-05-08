@@ -8,6 +8,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { GoogleMapView } from "@/components/ui/GoogleMapView";
 
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 type RouteType = "ruta" | "zona";
 type Waypoint = { order: number; lat: number; lng: number; label?: string };
 type RouteItem = {
@@ -23,8 +25,6 @@ const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
 const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 const APTO = "#15803d"; const APTO_BD = "#86EFAC";
 const NO = "#DC2626"; const NO_BG = "#FFF5F5"; const NO_BD = "#FCA5A5";
-
-const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
 // Operador edita y crea rutas de su empresa además de los admins.
 const CAN_CREATE = ["admin_municipal", "super_admin", "operador"];
 const CAN_EDIT = ["admin_municipal", "super_admin", "operador"];
@@ -57,7 +57,7 @@ export default function RutasPage() {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
     const u = JSON.parse(raw) as { role: string };
-    if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
+    if (!hasWebPermission(u.role as Role, "rutas", "view")) { router.replace("/dashboard"); return; }
     setUser(u);
   }, [router]);
 

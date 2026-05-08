@@ -10,6 +10,8 @@ import {
 import { PageHeader } from "@/components/ui/PageHeader";
 import { WaypointsEditor, type Waypoint } from "@/components/ui/WaypointsEditor";
 
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 type CaptureStatus = "raw" | "validated" | "rejected" | "merged";
 
 type Capture = {
@@ -34,8 +36,6 @@ type RouteSummary = {
 };
 
 type StoredUser = { role: string };
-
-const ALLOWED = ["admin_municipal", "super_admin", "admin_provincial", "operador", "fiscal"];
 const CAN_RECALC = ["admin_municipal", "super_admin", "operador"];
 
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
@@ -112,7 +112,7 @@ export default function RutaCapturesPage({ params }: Props) {
     const raw = typeof window !== "undefined" ? localStorage.getItem("sfit_user") : null;
     if (!raw) { router.replace("/login"); return; }
     const u = JSON.parse(raw) as StoredUser;
-    if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
+    if (!hasWebPermission(u.role as Role, "rutas", "view")) { router.replace("/dashboard"); return; }
     setUser(u);
   }, [router]);
 

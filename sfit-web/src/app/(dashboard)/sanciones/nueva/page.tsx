@@ -8,13 +8,13 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
 
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 type VehicleItem = { id: string; plate: string; brand: string; model: string; companyId?: string; companyName?: string };
 type DriverItem  = { id: string; name: string; licenseNumber: string };
 type CompanyItem = { id: string; razonSocial: string };
 
 const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const ALLOWED = ["fiscal", "admin_municipal", "super_admin"];
-
 function NuevaSancionForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -40,7 +40,7 @@ function NuevaSancionForm() {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
     const u = JSON.parse(raw) as { role: string };
-    if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
+    if (!hasWebPermission(u.role as Role, "sanciones", "view")) { router.replace("/dashboard"); return; }
     void loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
