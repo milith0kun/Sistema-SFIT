@@ -66,7 +66,22 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       }
     : null;
 
-  return apiResponse({ id: String(entry._id), ...entry, capture });
+  // Track GPS desde LocationPing — necesario para que el conductor vea el
+  // trazado del recorrido en la pantalla de resumen del viaje. Antes este
+  // GET solo devolvía la FleetEntry sin coords; el cliente recibía
+  // `trackPoints: []` y caía a la vista clásica "sin trazo GPS suficiente".
+  // Limitamos a 5000 puntos (turnos largos pueden tener muchos más) para
+  // respuesta razonable; el orden temporal lo da `ts` ascendente.
+  const trackPings = await LocationPing.find({ entryId: entry._id })
+    .sort({ ts: 1 })
+    .select("lat lng ts")
+    .limit(5000)
+    .lean<Array<{ lat: number; lng: number; ts: Date }>>();
+  const trackPoints = trackPings
+    .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
+    .map((p) => ({ lat: p.lat, lng: p.lng, ts: p.ts.toISOString() }));
+
+  return apiResponse({ id: String(entry._id), ...entry, capture, trackPoints });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
