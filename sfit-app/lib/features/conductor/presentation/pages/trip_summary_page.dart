@@ -156,41 +156,33 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
 
     return Scaffold(
       backgroundColor: AppColors.paper,
-      // Map-first: el mapa ocupa toda la pantalla, los datos flotan encima
-      // como bottom-sheet draggable. El conductor puede pan/zoom libremente
-      // para ver todo el recorrido y los paraderos. Si no hay track válido,
-      // fallback a la vista clásica con hero + métricas listadas.
-      body: hasValidTrack
-          ? _buildMapFirstView(
-              tpLatLng: tpLatLng,
-              visitedStops: visitedStops,
-              waypoints: waypoints,
-              plate: plate,
-              routeName: route?['name'] as String?,
-              captureStatus: captureStatus,
-              distanceMeters: distanceMeters,
-              durationSeconds: durationSeconds,
-              compliance: compliance,
-              visitedCount: visitedCount,
-              totalStops: totalStops,
-            )
-          : _buildClassicView(
-              plate: plate,
-              routeName: route?['name'] as String?,
-              captureStatus: captureStatus,
-              distanceMeters: distanceMeters,
-              durationSeconds: durationSeconds,
-              compliance: compliance,
-              visitedStops: visitedStops,
-              visitedCount: visitedCount,
-              totalStops: totalStops,
-            ),
+      // SIEMPRE usamos la vista map-first para que el flujo se sienta
+      // consistente entre todas las pasadas. Cuando no hay track válido,
+      // _buildMapFirstView muestra un placeholder en el mapa con el mensaje
+      // "GPS no registrado para este viaje" y mantiene el bottom sheet con
+      // métricas + paraderos. La vista clásica se reserva como fallback
+      // duro por si el track es inválido (NaN/Infinity, etc.).
+      body: _buildMapFirstView(
+        tpLatLng: tpLatLng,
+        hasValidTrack: hasValidTrack,
+        visitedStops: visitedStops,
+        waypoints: waypoints,
+        plate: plate,
+        routeName: route?['name'] as String?,
+        captureStatus: captureStatus,
+        distanceMeters: distanceMeters,
+        durationSeconds: durationSeconds,
+        compliance: compliance,
+        visitedCount: visitedCount,
+        totalStops: totalStops,
+      ),
     );
   }
 
   // ── Vista map-first: FlutterMap fullscreen + bottom sheet con métricas
   Widget _buildMapFirstView({
     required List<LatLng> tpLatLng,
+    bool hasValidTrack = true,
     required List<Map<String, dynamic>> visitedStops,
     required List<Map<String, dynamic>> waypoints,
     required String plate,
@@ -202,22 +194,36 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
     required int visitedCount,
     required int totalStops,
   }) {
+    // Cuando no hay track válido, centramos en Cusco como referencia
+    // visual (la mayoría de viajes son ahí). El conductor puede pan/zoom
+    // para encontrar su zona, y el banner explica el motivo.
+    const fallbackCenter = LatLng(-13.5320, -71.9675);
+    final mapOptions = hasValidTrack
+        ? MapOptions(
+            initialCameraFit: CameraFit.bounds(
+              bounds: LatLngBounds.fromPoints(tpLatLng),
+              padding: const EdgeInsets.fromLTRB(40, 100, 40, 280),
+            ),
+            minZoom: 4,
+            maxZoom: 18,
+            interactionOptions: const InteractionOptions(
+              flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+            ),
+          )
+        : const MapOptions(
+            initialCenter: fallbackCenter,
+            initialZoom: 13,
+            interactionOptions: InteractionOptions(
+              flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+            ),
+          );
+
     return Stack(
       children: [
         // ── Mapa fullscreen interactivo ──────────────────────────
         Positioned.fill(
           child: FlutterMap(
-            options: MapOptions(
-              initialCameraFit: CameraFit.bounds(
-                bounds: LatLngBounds.fromPoints(tpLatLng),
-                padding: const EdgeInsets.fromLTRB(40, 100, 40, 280),
-              ),
-              minZoom: 4,
-              maxZoom: 18,
-              interactionOptions: const InteractionOptions(
-                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-              ),
-            ),
+            options: mapOptions,
             children: [
               TileLayer(
                 urlTemplate:
@@ -225,16 +231,19 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
                 subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'com.sfit.sfit_app',
               ),
-              // Trazado real del conductor en dorado grueso
-              PolylineLayer(polylines: [
-                Polyline(
-                  points: tpLatLng,
-                  color: AppColors.gold,
-                  strokeWidth: 5,
-                ),
-              ]),
-              // Markers: paraderos visitados verdes + inicio/fin destacados
-              MarkerLayer(markers: [
+              // Trazado real del conductor en dorado grueso (solo si hay)
+              if (hasValidTrack)
+                PolylineLayer(polylines: [
+                  Polyline(
+                    points: tpLatLng,
+                    color: AppColors.gold,
+                    strokeWidth: 5,
+                  ),
+                ]),
+              // Markers: paraderos visitados verdes + inicio/fin destacados.
+              // Solo si hay track — sin track no tiene sentido pintar inicio/fin.
+              if (hasValidTrack)
+                MarkerLayer(markers: [
                 ...visitedStops.where((s) {
                   final lat = (s['lat'] as num?)?.toDouble();
                   final lng = (s['lng'] as num?)?.toDouble();
