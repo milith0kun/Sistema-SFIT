@@ -33,7 +33,7 @@ import '../../features/conductor/presentation/pages/mi_empresa_page.dart';
 import '../../features/conductor/presentation/pages/editar_perfil_conductor_page.dart';
 import '../../features/operator/presentation/pages/asociar_conductores_page.dart';
 import '../../features/sanctions/presentation/pages/mis_sanciones_page.dart';
-import '../../features/inspections/presentation/pages/mis_inspecciones_page.dart';
+import '../../features/inspection/presentation/pages/mis_inspecciones_page.dart';
 import '../../features/public/presentation/pages/buscar_vehiculo_page.dart';
 import '../../features/public/presentation/pages/empresa_detalle_page.dart';
 import '../../features/operator/presentation/pages/vehicle_qr_page.dart';
@@ -47,7 +47,7 @@ import '../../features/operator/presentation/pages/operator_trip_detail_page.dar
 import '../../features/operator/presentation/pages/passenger_list_page.dart';
 import '../../features/operator/presentation/pages/upload_manifest_photo_page.dart';
 import '../../features/operator/presentation/pages/route_edit_page.dart' as op_route_edit;
-import '../../features/vista_publica/presentation/pages/vehicle_public_page.dart';
+import '../../features/public/presentation/pages/vehicle_public_page.dart';
 import '../../features/trips/presentation/pages/route_detail_page.dart';
 import '../../features/trips/presentation/pages/route_edit_page.dart';
 import '../../features/rewards/presentation/pages/ranking_page.dart';
