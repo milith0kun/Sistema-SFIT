@@ -28,6 +28,12 @@ export interface ICitizenReport extends Document {
   longitude?: number;
   /** Motivo escrito por el fiscal cuando rechaza el reporte (RF-12). Visible al ciudadano. */
   rejectionReason?: string;
+  /** Motivo escrito por el ciudadano al apelar un rechazo. Visible al fiscal. */
+  appealReason?: string;
+  /** URLs de evidencia adicional adjunta a la apelación (máx 3). */
+  appealEvidence?: string[];
+  /** Timestamp de apelación. Sólo se puede apelar una vez por reporte. */
+  appealedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -65,6 +71,9 @@ const CitizenReportSchema = new Schema<ICitizenReport>(
     latitude: { type: Number },
     longitude: { type: Number },
     rejectionReason: { type: String, trim: true, maxlength: 1000 },
+    appealReason: { type: String, trim: true, maxlength: 2000 },
+    appealEvidence: { type: [String], default: undefined },
+    appealedAt: { type: Date },
   },
   { timestamps: true },
 );

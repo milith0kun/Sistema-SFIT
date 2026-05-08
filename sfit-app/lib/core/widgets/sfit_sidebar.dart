@@ -116,6 +116,7 @@ class SfitSidebar extends ConsumerWidget {
               _NavItem(icon: Icons.campaign_outlined, label: 'Reportar', slug: 'reportar'),
               _NavItem(icon: Icons.directions_bus_outlined, label: 'Buses en vivo', route: '/buses-en-vivo'),
               _NavItem(icon: Icons.qr_code_scanner_outlined, label: 'Escanear QR', route: '/qr'),
+              _NavItem(icon: Icons.search_rounded, label: 'Buscar vehículo', route: '/buscar-vehiculo'),
             ]),
             _NavSection(label: 'Mi actividad', items: [
               _NavItem(icon: Icons.list_alt_outlined, label: 'Mis reportes', slug: 'mis-reportes'),
@@ -167,6 +168,10 @@ class SfitSidebar extends ConsumerWidget {
               _NavItem(icon: Icons.map_outlined, label: 'Mapa', slug: 'mapa'),
               _NavItem(icon: Icons.monitor_heart_outlined, label: 'Fatiga', slug: 'fatiga'),
               _NavItem(icon: Icons.timeline_outlined, label: 'Viajes', slug: 'viajes'),
+            ]),
+            _NavSection(label: 'Cumplimiento', items: [
+              _NavItem(icon: Icons.gavel_outlined, label: 'Mis sanciones', route: '/conductor/sanciones'),
+              _NavItem(icon: Icons.fact_check_outlined, label: 'Mis inspecciones', route: '/conductor/inspecciones'),
             ]),
             _NavSection(label: 'Mi cuenta', items: [
               _NavItem(icon: Icons.apartment_outlined, label: 'Mi empresa', route: '/conductor/empresa'),

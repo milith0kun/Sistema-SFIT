@@ -149,6 +149,20 @@ class ReportsApiService {
     };
   }
 
+  /// POST /reportes/:id/apelar — el ciudadano autor apela un reporte
+  /// rechazado. Cambia el status del reporte a "revision" en backend y
+  /// guarda el motivo. Sólo se permite una apelación por reporte.
+  Future<void> appealReport(
+    String reportId, {
+    required String reason,
+    List<String>? evidence,
+  }) async {
+    await _dio.post('/reportes/$reportId/apelar', data: {
+      'reason': reason,
+      if (evidence != null && evidence.isNotEmpty) 'evidence': evidence,
+    });
+  }
+
   /// POST /reportes/:id/apoyar — alterna apoyo del ciudadano a un reporte.
   /// Retorna el nuevo conteo y si el usuario apoya o no.
   Future<Map<String, dynamic>> toggleApoyo(String reportId) async {

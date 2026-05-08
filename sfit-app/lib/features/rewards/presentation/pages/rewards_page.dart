@@ -157,28 +157,8 @@ class _RewardsPageState extends ConsumerState<RewardsPage> {
 
               const SizedBox(height: 20),
 
-              // ── Historial de transacciones ─────────────────────
-              const _SectionHeader(label: 'Mis transacciones'),
-              const SizedBox(height: 8),
-              if (status.transactions.isEmpty)
-                const _EmptyTransactionsCard()
-              else
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: AppColors.ink2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      for (int i = 0; i < status.transactions.length; i++) ...[
-                        if (i > 0)
-                          const Divider(height: 1, color: AppColors.ink1),
-                        _TransactionTile(tx: status.transactions[i]),
-                      ],
-                    ],
-                  ),
-                ),
+              // ── Historial: Todas las transacciones / Sólo canjes ─
+              _HistorySection(transactions: status.transactions),
             ],
           ),
         ),
@@ -752,4 +732,333 @@ class _ErrorState extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Sección de historial con dos tabs: "Todas las transacciones" (fuente:
+/// CoinsStatus.transactions ya cargado) y "Mis canjes" (fuente: nuevo
+/// endpoint `/ciudadano/recompensas/historial` con detalle de recompensa).
+class _HistorySection extends ConsumerStatefulWidget {
+  final List<CoinTransaction> transactions;
+  const _HistorySection({required this.transactions});
+
+  @override
+  ConsumerState<_HistorySection> createState() => _HistorySectionState();
+}
+
+class _HistorySectionState extends ConsumerState<_HistorySection> {
+  /// 0 = todas, 1 = canjes
+  int _tab = 0;
+  bool _loadedRedemptions = false;
+  bool _loadingRedemptions = false;
+  List<RedemptionHistoryItem> _redemptions = const [];
+  String? _redemptionsError;
+
+  Future<void> _loadRedemptions() async {
+    setState(() {
+      _loadingRedemptions = true;
+      _redemptionsError = null;
+    });
+    try {
+      final svc = ref.read(rewardsApiServiceProvider);
+      final items = await svc.getRedemptionHistory();
+      if (!mounted) return;
+      setState(() {
+        _redemptions = items;
+        _loadedRedemptions = true;
+        _loadingRedemptions = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _redemptionsError = 'No se pudo cargar el historial de canjes.';
+          _loadingRedemptions = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _SectionHeader(label: 'Mis transacciones'),
+        const SizedBox(height: 8),
+        // Tabs
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: AppColors.ink1,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.ink2),
+          ),
+          child: Row(children: [
+            _HistoryTab(
+              label: 'Todas',
+              selected: _tab == 0,
+              onTap: () => setState(() => _tab = 0),
+            ),
+            _HistoryTab(
+              label: 'Mis canjes',
+              selected: _tab == 1,
+              onTap: () {
+                setState(() => _tab = 1);
+                if (!_loadedRedemptions && !_loadingRedemptions) {
+                  _loadRedemptions();
+                }
+              },
+            ),
+          ]),
+        ),
+        const SizedBox(height: 10),
+        if (_tab == 0)
+          _AllTransactionsList(transactions: widget.transactions)
+        else
+          _RedemptionsList(
+            loading: _loadingRedemptions,
+            error: _redemptionsError,
+            items: _redemptions,
+            onRetry: _loadRedemptions,
+          ),
+      ],
+    );
+  }
+}
+
+class _HistoryTab extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _HistoryTab({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          height: 36,
+          decoration: BoxDecoration(
+            color: selected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: selected ? Border.all(color: AppColors.ink2) : null,
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                : null,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: AppTheme.inter(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: selected ? AppColors.ink9 : AppColors.ink6,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AllTransactionsList extends StatelessWidget {
+  final List<CoinTransaction> transactions;
+  const _AllTransactionsList({required this.transactions});
+
+  @override
+  Widget build(BuildContext context) {
+    if (transactions.isEmpty) return const _EmptyTransactionsCard();
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.ink2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          for (int i = 0; i < transactions.length; i++) ...[
+            if (i > 0) const Divider(height: 1, color: AppColors.ink1),
+            _TransactionTile(tx: transactions[i]),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RedemptionsList extends StatelessWidget {
+  final bool loading;
+  final String? error;
+  final List<RedemptionHistoryItem> items;
+  final VoidCallback onRetry;
+
+  const _RedemptionsList({
+    required this.loading,
+    required this.error,
+    required this.items,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return Container(
+        height: 90,
+        alignment: Alignment.center,
+        child: const CircularProgressIndicator(color: AppColors.gold),
+      );
+    }
+    if (error != null) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: AppColors.ink2),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.error_outline, size: 28, color: AppColors.noApto),
+            const SizedBox(height: 6),
+            Text(
+              error!,
+              style: AppTheme.inter(fontSize: 12.5, color: AppColors.ink6),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            TextButton(onPressed: onRetry, child: const Text('Reintentar')),
+          ],
+        ),
+      );
+    }
+    if (items.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.fromLTRB(16, 22, 16, 22),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: AppColors.ink2),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.redeem_outlined, size: 32, color: AppColors.ink4),
+            const SizedBox(height: 8),
+            Text(
+              'Aún no has canjeado premios',
+              style: AppTheme.inter(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink8,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Cuando canjees un premio aparecerá aquí.',
+              style: AppTheme.inter(fontSize: 12, color: AppColors.ink5),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.ink2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          for (int i = 0; i < items.length; i++) ...[
+            if (i > 0) const Divider(height: 1, color: AppColors.ink1),
+            _RedemptionTile(item: items[i]),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RedemptionTile extends StatelessWidget {
+  final RedemptionHistoryItem item;
+  const _RedemptionTile({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: AppColors.goldBg,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.goldBorder),
+          ),
+          alignment: Alignment.center,
+          child: const Icon(Icons.redeem_rounded, size: 20, color: AppColors.goldDark),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item.name,
+                style: AppTheme.inter(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink9,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                _formatDate(item.createdAt),
+                style: AppTheme.inter(
+                  fontSize: 11,
+                  color: AppColors.ink5,
+                  tabular: true,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              '-${item.amount}',
+              style: AppTheme.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: AppColors.noApto,
+                tabular: true,
+              ),
+            ),
+            Text(
+              'Saldo: ${item.balanceAfter}',
+              style: AppTheme.inter(
+                fontSize: 10.5,
+                color: AppColors.ink5,
+                tabular: true,
+              ),
+            ),
+          ],
+        ),
+      ]),
+    );
+  }
+
+  String _formatDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year} · ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 }

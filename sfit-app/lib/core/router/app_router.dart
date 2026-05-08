@@ -32,6 +32,10 @@ import '../../features/conductor/presentation/pages/available_trips_page.dart';
 import '../../features/conductor/presentation/pages/mi_empresa_page.dart';
 import '../../features/conductor/presentation/pages/editar_perfil_conductor_page.dart';
 import '../../features/operator/presentation/pages/asociar_conductores_page.dart';
+import '../../features/sanctions/presentation/pages/mis_sanciones_page.dart';
+import '../../features/inspections/presentation/pages/mis_inspecciones_page.dart';
+import '../../features/public/presentation/pages/buscar_vehiculo_page.dart';
+import '../../features/public/presentation/pages/empresa_detalle_page.dart';
 import '../../features/operator/presentation/pages/vehicle_qr_page.dart';
 import '../../features/operator/presentation/pages/nuevo_conductor_page.dart';
 import '../../features/operator/presentation/pages/nuevo_vehiculo_page.dart';
@@ -235,6 +239,22 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: '/conductor/perfil',
         builder: (_, __) => const EditarPerfilConductorPage(),
+      ),
+      GoRoute(
+        path: '/conductor/sanciones',
+        builder: (_, __) => const MisSancionesPage(),
+      ),
+      GoRoute(
+        path: '/conductor/inspecciones',
+        builder: (_, __) => const MisInspeccionesPage(),
+      ),
+      GoRoute(
+        path: '/buscar-vehiculo',
+        builder: (_, __) => const BuscarVehiculoPage(),
+      ),
+      GoRoute(
+        path: '/empresa/:id',
+        builder: (_, st) => EmpresaDetallePage(companyId: st.pathParameters['id']!),
       ),
       GoRoute(
         path: '/operador/asociar-conductores',

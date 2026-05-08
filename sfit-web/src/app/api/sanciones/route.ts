@@ -3,6 +3,8 @@ import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { Sanction } from "@/models/Sanction";
+import { Driver } from "@/models/Driver";
+import { User } from "@/models/User";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
@@ -12,8 +14,6 @@ import { sendEmail } from "@/lib/email/email_service";
 import { sanctionEmailHtml } from "@/lib/email/templates";
 import { Company } from "@/models/Company";
 import { Vehicle } from "@/models/Vehicle";
-import { Driver } from "@/models/Driver";
-import { User } from "@/models/User";
 
 const SANCTION_STATUS_VALUES = ["emitida", "notificada", "apelada", "confirmada", "anulada"] as const;
 
@@ -35,6 +35,7 @@ const CreateSchema = z.object({
 export async function GET(request: NextRequest) {
   const auth = requireRole(request, [
     ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL,
+    ROLES.CONDUCTOR,
   ]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
@@ -48,7 +49,30 @@ export async function GET(request: NextRequest) {
 
     const filter: Record<string, unknown> = {};
 
-    if (auth.session.role === ROLES.SUPER_ADMIN) {
+    if (auth.session.role === ROLES.CONDUCTOR) {
+      // El conductor sólo ve sus propias sanciones — resolvemos su Driver
+      // por userId con fallback a dni+municipalityId, igual que en /viajes.
+      let driver = await Driver.findOne({ userId: auth.session.userId })
+        .select("_id municipalityId")
+        .lean();
+      if (!driver && auth.session.municipalityId) {
+        const user = await User.findById(auth.session.userId).select("dni").lean();
+        if (user?.dni) {
+          driver = await Driver.findOne({
+            dni: user.dni,
+            municipalityId: auth.session.municipalityId,
+          }).select("_id municipalityId").lean();
+        }
+      }
+      if (!driver) {
+        return apiResponse({
+          items: [], total: 0, page, limit,
+          stats: { emitida: 0, notificada: 0, apelada: 0, confirmada: 0, anulada: 0, montoConfirmado: 0 },
+        });
+      }
+      filter.driverId = driver._id;
+      filter.municipalityId = driver.municipalityId;
+    } else if (auth.session.role === ROLES.SUPER_ADMIN) {
       if (municipalityIdParam) {
         if (!isValidObjectId(municipalityIdParam)) return apiError("municipalityId inválido", 400);
         filter.municipalityId = municipalityIdParam;

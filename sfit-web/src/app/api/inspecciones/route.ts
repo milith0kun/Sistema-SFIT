@@ -37,6 +37,7 @@ const CreateSchema = z.object({
 export async function GET(request: NextRequest) {
   const auth = requireRole(request, [
     ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL, ROLES.OPERADOR,
+    ROLES.CONDUCTOR,
   ]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
@@ -51,7 +52,32 @@ export async function GET(request: NextRequest) {
 
     const filter: Record<string, unknown> = {};
 
-    if (auth.session.role === ROLES.SUPER_ADMIN) {
+    if (auth.session.role === ROLES.CONDUCTOR) {
+      // El conductor sólo ve inspecciones donde figura como driverId.
+      // Resolvemos su Driver por userId con fallback a DNI+municipio.
+      const { Driver } = await import("@/models/Driver");
+      const { User } = await import("@/models/User");
+      let driver = await Driver.findOne({ userId: auth.session.userId })
+        .select("_id municipalityId")
+        .lean();
+      if (!driver && auth.session.municipalityId) {
+        const user = await User.findById(auth.session.userId).select("dni").lean();
+        if (user?.dni) {
+          driver = await Driver.findOne({
+            dni: user.dni,
+            municipalityId: auth.session.municipalityId,
+          }).select("_id municipalityId").lean();
+        }
+      }
+      if (!driver) {
+        return apiResponse({
+          items: [], total: 0, page, limit,
+          stats: { aprobada: 0, observada: 0, rechazada: 0, avgScore: 0, mes: 0 },
+        });
+      }
+      filter.driverId = driver._id;
+      filter.municipalityId = driver.municipalityId;
+    } else if (auth.session.role === ROLES.SUPER_ADMIN) {
       if (municipalityIdParam) {
         if (!isValidObjectId(municipalityIdParam)) return apiError("municipalityId inválido", 400);
         filter.municipalityId = municipalityIdParam;

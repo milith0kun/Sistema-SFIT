@@ -19,6 +19,13 @@ class _MisReportesPageState extends ConsumerState<MisReportesPage> {
   bool _loading = true;
   String? _error;
 
+  /// Helper para que las cards puedan disparar un refresh sin tener que
+  /// pasar el controlador hacia abajo en el árbol.
+  static void _refreshOf(BuildContext context) {
+    final state = context.findAncestorStateOfType<_MisReportesPageState>();
+    state?._load();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -501,7 +508,7 @@ class _ReportCardState extends State<_ReportCard> {
   }
 
   void _openDetailSheet(BuildContext context, Map<String, dynamic> item) {
-    showModalBottomSheet<void>(
+    showModalBottomSheet<bool>(
       context: context,
       backgroundColor: Colors.white,
       isScrollControlled: true,
@@ -509,7 +516,12 @@ class _ReportCardState extends State<_ReportCard> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
       builder: (_) => _ReportDetailSheet(item: item),
-    );
+    ).then((didAppeal) {
+      if (didAppeal == true && context.mounted) {
+        // Pedir al estado padre que recargue. Usamos el helper estático.
+        _MisReportesPageState._refreshOf(context);
+      }
+    });
   }
 
   IconData _categoryIcon(String category) {
@@ -665,24 +677,29 @@ class _StatusBadge extends StatelessWidget {
 ///
 /// El sheet usa DraggableScrollableSheet (initial 0.65 → expand a 0.95) para
 /// que el usuario pueda arrastrar arriba si quiere ver más contenido.
-class _ReportDetailSheet extends StatelessWidget {
+class _ReportDetailSheet extends ConsumerWidget {
   final Map<String, dynamic> item;
   const _ReportDetailSheet({required this.item});
 
   static final _dateFormat = DateFormat("d 'de' MMMM 'de' yyyy, HH:mm", 'es');
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reportId = item['id'] as String?;
     final category = item['category'] as String? ?? 'Sin categoría';
     final status = item['status'] as String? ?? 'pendiente';
     final vehiclePlate = item['vehiclePlate'] as String?;
     final description = item['description'] as String? ?? '';
+    final rejectionReason = item['rejectionReason'] as String?;
+    final appealReason = item['appealReason'] as String?;
+    final appealedAt = item['appealedAt'] as String?;
     final imageUrls = (item['imageUrls'] as List?)?.cast<String>() ?? const [];
     final createdAtRaw = item['createdAt'];
     DateTime? createdAt;
     if (createdAtRaw is String) createdAt = DateTime.tryParse(createdAtRaw);
     final lat = (item['latitude'] as num?)?.toDouble();
     final lng = (item['longitude'] as num?)?.toDouble();
+    final canAppeal = status == 'rechazado' && appealedAt == null && reportId != null;
 
     return DraggableScrollableSheet(
       expand: false,
@@ -811,6 +828,59 @@ class _ReportDetailSheet extends StatelessWidget {
                         fontSize: 13.5,
                         color: AppColors.ink8,
                         height: 1.55,
+                      ),
+                    ),
+                  ),
+                ],
+                // Motivo de rechazo (visible cuando un fiscal rechazó)
+                if (rejectionReason != null && rejectionReason.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _ReasonBlock(
+                    label: 'MOTIVO DE RECHAZO',
+                    value: rejectionReason,
+                    accent: AppColors.noApto,
+                    bg: AppColors.noAptoBg,
+                    border: AppColors.noAptoBorder,
+                  ),
+                ],
+                // Si el ciudadano ya apeló, mostramos su motivo y badge.
+                if (appealReason != null && appealReason.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _ReasonBlock(
+                    label: 'TU APELACIÓN',
+                    value: appealReason,
+                    accent: AppColors.gold,
+                    bg: AppColors.goldBg,
+                    border: AppColors.goldBorder,
+                  ),
+                ],
+                // Acción: apelar (sólo cuando rechazado y no apelado todavía).
+                if (canAppeal) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: FilledButton.icon(
+                      onPressed: () async {
+                        final result = await showModalBottomSheet<bool>(
+                          context: context,
+                          backgroundColor: Colors.white,
+                          isScrollControlled: true,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+                          ),
+                          builder: (_) => _ApelarReporteSheet(reportId: reportId),
+                        );
+                        if (result == true && context.mounted) {
+                          Navigator.of(context).pop(true);
+                        }
+                      },
+                      icon: const Icon(Icons.gavel_rounded, size: 18),
+                      label: const Text('Apelar este reporte'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.gold,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
                   ),
@@ -1020,6 +1090,207 @@ class _StatusTimeline extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// Bloque de motivo (rechazo del fiscal o apelación del ciudadano).
+class _ReasonBlock extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color accent;
+  final Color bg;
+  final Color border;
+
+  const _ReasonBlock({
+    required this.label,
+    required this.value,
+    required this.accent,
+    required this.bg,
+    required this.border,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bg,
+        border: Border.all(color: border),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTheme.inter(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: accent,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: AppTheme.inter(
+              fontSize: 13,
+              color: AppColors.ink8,
+              height: 1.45,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bottom sheet con form para apelar un reporte rechazado.
+class _ApelarReporteSheet extends ConsumerStatefulWidget {
+  final String reportId;
+  const _ApelarReporteSheet({required this.reportId});
+
+  @override
+  ConsumerState<_ApelarReporteSheet> createState() => _ApelarReporteSheetState();
+}
+
+class _ApelarReporteSheetState extends ConsumerState<_ApelarReporteSheet> {
+  final _reasonCtrl = TextEditingController();
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _reasonCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final reason = _reasonCtrl.text.trim();
+    if (reason.length < 20) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('El motivo debe tener al menos 20 caracteres.'),
+          backgroundColor: AppColors.noApto,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      await ref.read(reportsApiServiceProvider).appealReport(
+            widget.reportId,
+            reason: reason,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Apelación enviada. Un fiscal la revisará pronto.'),
+          backgroundColor: AppColors.apto,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _submitting = false);
+        final msg = RegExp(r'"error"\s*:\s*"([^"]+)"').firstMatch(e.toString())?.group(1)
+            ?? 'No se pudo enviar la apelación';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: AppColors.noApto,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: viewInsets),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  margin: const EdgeInsets.only(bottom: 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.ink2,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text(
+                'Apelar reporte',
+                style: AppTheme.inter(
+                  fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.ink9),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Explica con claridad por qué consideras que tu reporte sí debería validarse.',
+                style: AppTheme.inter(fontSize: 12.5, color: AppColors.ink6, height: 1.4),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _reasonCtrl,
+                maxLines: 6,
+                maxLength: 2000,
+                enabled: !_submitting,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  hintText: 'Mínimo 20 caracteres. Ej: "El conductor sí cobró tarifa adicional, hay testigos..."',
+                  hintStyle: AppTheme.inter(fontSize: 12.5, color: AppColors.ink4),
+                  filled: true,
+                  fillColor: AppColors.ink1,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppColors.ink2),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppColors.ink2),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppColors.gold, width: 2),
+                  ),
+                ),
+                style: AppTheme.inter(fontSize: 13.5, color: AppColors.ink9, height: 1.4),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: FilledButton.icon(
+                  onPressed: _submitting ? null : _submit,
+                  icon: _submitting
+                      ? const SizedBox(
+                          width: 16, height: 16,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.4),
+                        )
+                      : const Icon(Icons.send_rounded, size: 18),
+                  label: Text(_submitting ? 'Enviando...' : 'Enviar apelación'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.gold,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
