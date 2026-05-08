@@ -277,21 +277,19 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
   Future<_UploadResult> _uploadImages(List<XFile> images) async {
     final urls = <String>[];
     final failed = <_UploadFailure>[];
-    final dio = ref.read(dioClientProvider).dio;
+    final svc = ref.read(reportsApiServiceProvider);
     for (final img in images) {
       try {
         final bytes = await img.readAsBytes();
         final formData = FormData.fromMap({
           'file': MultipartFile.fromBytes(bytes, filename: img.name),
         });
-        final resp = await dio.post('/uploads/reports', data: formData);
-        final data = (resp.data as Map)['data'];
-        final url = data is Map ? data['url'] as String? : null;
-        if (url != null) {
-          urls.add(url);
+        final uploaded = await svc.uploadReportFiles(formData);
+        if (uploaded.isNotEmpty) {
+          urls.add(uploaded.first);
         } else {
           debugPrint(
-            'upload error: respuesta sin url para ${img.name}: ${resp.data}',
+            'upload error: respuesta sin url para ${img.name}',
           );
           failed.add(
             _UploadFailure(
