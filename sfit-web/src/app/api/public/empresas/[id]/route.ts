@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { isValidObjectId } from "mongoose";
+import { isValidObjectId, Types } from "mongoose";
 import { connectDB } from "@/lib/db/mongoose";
 import { Company } from "@/models/Company";
 import { Vehicle } from "@/models/Vehicle";
@@ -29,10 +29,10 @@ export async function GET(
       .populate("municipalityId", "name ubigeoCode")
       .select("ruc razonSocial municipalityId serviceScope vehicleTypeKeys reputationScore active createdAt")
       .lean<{
-        _id: unknown;
+        _id: Types.ObjectId;
         ruc: string;
         razonSocial: string;
-        municipalityId: { _id: unknown; name?: string; ubigeoCode?: string } | null;
+        municipalityId: { _id: Types.ObjectId; name?: string; ubigeoCode?: string } | null;
         serviceScope?: string;
         vehicleTypeKeys?: string[];
         reputationScore?: number;
