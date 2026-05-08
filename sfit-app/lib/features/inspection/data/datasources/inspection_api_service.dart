@@ -70,4 +70,21 @@ class InspectionApiService {
       'reason': reason,
     });
   }
+
+  /// GET /inspecciones/sugerencias — items recomendados para el checklist
+  /// de un tipo de vehículo (criterios IA + histórico). Lo usa
+  /// `new_inspection_page` al elegir el vehículo.
+  Future<List<Map<String, dynamic>>> getInspectionSuggestions({
+    required String vehicleTypeKey,
+  }) async {
+    final resp = await _dio.get('/inspecciones/sugerencias', queryParameters: {
+      'vehicleTypeKey': vehicleTypeKey,
+    });
+    final data = (resp.data as Map)['data'];
+    if (data is List) return data.cast<Map<String, dynamic>>();
+    if (data is Map && data['items'] is List) {
+      return (data['items'] as List).cast<Map<String, dynamic>>();
+    }
+    return const [];
+  }
 }

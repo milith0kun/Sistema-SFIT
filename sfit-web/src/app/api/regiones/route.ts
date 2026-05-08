@@ -20,6 +20,11 @@ const CreateSchema = z.object({
  * GET /api/regiones — listar regiones (todos los roles autenticados pueden
  * leer; útil para selectores). El detalle/CRUD se restringe a super_admin.
  *
+ * Fuente: catálogo UBIGEO denormalizado en Province.departmentCode/Name
+ * (mismo origen que /api/admin/red-nacional y /api/admin/departamentos).
+ * El `id` que devolvemos es el departmentCode (2 dígitos), no un ObjectId,
+ * porque la colección Region quedó como modelo legado vacío.
+ *
  * POST /api/regiones — crear región (super_admin only).
  */
 export async function GET(request: NextRequest) {
@@ -31,25 +36,31 @@ export async function GET(request: NextRequest) {
 
   try {
     await connectDB();
-    const items = await Region.find({}).sort({ name: 1 }).lean();
-    // Conteo de provincias por región para mostrar en el listado.
-    const counts = await Province.aggregate([
-      { $match: { regionId: { $exists: true, $ne: null } } },
-      { $group: { _id: "$regionId", count: { $sum: 1 } } },
-    ]).catch(() => [] as Array<{ _id: unknown; count: number }>);
-    const countByRegion = new Map(counts.map((c) => [String(c._id), c.count]));
-    return apiResponse({
-      items: items.map((r) => ({
-        id: String(r._id),
-        name: r.name,
-        code: r.code,
-        active: r.active,
-        provinceCount: countByRegion.get(String(r._id)) ?? 0,
-        createdAt: r.createdAt,
-        updatedAt: r.updatedAt,
-      })),
-      total: items.length,
-    });
+    const agg = await Province.aggregate<{
+      _id: string;
+      departmentName: string;
+      provinceCount: number;
+    }>([
+      { $match: { departmentCode: { $exists: true, $ne: null } } },
+      {
+        $group: {
+          _id: "$departmentCode",
+          departmentName: { $first: "$departmentName" },
+          provinceCount: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const items = agg.map((r) => ({
+      id: r._id,
+      name: r.departmentName ?? "(sin nombre)",
+      code: r._id,
+      active: true,
+      provinceCount: r.provinceCount,
+    }));
+
+    return apiResponse({ items, total: items.length });
   } catch (error) {
     console.error("[regiones GET]", error);
     return apiError("Error al listar regiones", 500);

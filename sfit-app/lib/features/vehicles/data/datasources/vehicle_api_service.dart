@@ -33,4 +33,19 @@ class VehicleApiService {
       'total': data['total'] ?? 0,
     };
   }
+
+  /// Búsqueda libre por placa o marca/modelo. Devuelve la lista cruda
+  /// (los call-sites como `create_sanction_page` consumen los campos
+  /// directos sin DTO).
+  Future<List<Map<String, dynamic>>> searchVehicles({
+    String? q,
+    int limit = 30,
+  }) async {
+    final resp = await _dio.get('/vehiculos', queryParameters: {
+      if (q != null && q.trim().isNotEmpty) 'q': q.trim(),
+      'limit': limit,
+    });
+    final data = (resp.data as Map)['data'] as Map;
+    return (data['items'] as List).cast<Map<String, dynamic>>();
+  }
 }

@@ -179,11 +179,11 @@ export function LocationPicker({
     <div className="grid gap-3 sm:grid-cols-3">
       {showRegion && (
         <ComboField
-          label="Departamento"
+          label="Región"
           placeholder={
-            loadingRegions ? "Cargando…" : "— Sin departamento —"
+            loadingRegions ? "Cargando…" : "— Sin región —"
           }
-          searchPlaceholder="Buscar departamento…"
+          searchPlaceholder="Buscar región…"
           value={region}
           fallbackLabel={regionLabel}
           options={regions.map((r) => ({
@@ -206,7 +206,7 @@ export function LocationPicker({
           label="Provincia"
           placeholder={
             !region
-              ? "Elige un departamento"
+              ? "Elige una región"
               : loadingProvinces
                 ? "Cargando…"
                 : "— Sin provincia —"

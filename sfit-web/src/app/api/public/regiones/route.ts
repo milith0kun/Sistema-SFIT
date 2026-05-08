@@ -1,28 +1,38 @@
 import { connectDB } from "@/lib/db/mongoose";
-import { Region } from "@/models/Region";
+import { Province } from "@/models/Province";
 import { apiResponse, apiError } from "@/lib/api/response";
 
 /**
- * Endpoint público — lista regiones (departamentos) activas para selectores
- * en flujos sin auth (registro). Devuelve los 24 departamentos del Perú
- * según el catálogo INEI seedeado.
+ * Endpoint público — lista las 25 regiones (departamentos) del Perú para
+ * selectores en flujos sin auth (registro). Lee del catálogo UBIGEO
+ * denormalizado en Province.departmentCode/Name (mismo origen que
+ * /api/admin/red-nacional). El `id` es el departmentCode UBIGEO (2 dígitos).
  */
 export async function GET() {
   try {
     await connectDB();
-    const items = await Region.find({ active: true })
-      .sort({ name: 1 })
-      .select("_id name code")
-      .lean();
-    return apiResponse({
-      items: items.map((r) => ({
-        id:     String(r._id),
-        name:   r.name,
-        code:   r.code,
-        active: true,
-      })),
-      total: items.length,
-    });
+    const agg = await Province.aggregate<{
+      _id: string;
+      departmentName: string;
+    }>([
+      { $match: { departmentCode: { $exists: true, $ne: null } } },
+      {
+        $group: {
+          _id: "$departmentCode",
+          departmentName: { $first: "$departmentName" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const items = agg.map((r) => ({
+      id: r._id,
+      name: r.departmentName ?? "(sin nombre)",
+      code: r._id,
+      active: true,
+    }));
+
+    return apiResponse({ items, total: items.length });
   } catch {
     return apiError("Error al obtener regiones", 500);
   }

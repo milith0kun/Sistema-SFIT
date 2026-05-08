@@ -173,6 +173,19 @@ class ReportsApiService {
       'totalApoyos': data['totalApoyos'] as int,
     };
   }
+
+  /// POST /uploads/reports — sube imágenes (multipart) y devuelve URLs.
+  /// El page `submit_report_page` arma el `FormData` con los archivos
+  /// (`files[]`) y las metadata (vehicle, category, etc.).
+  Future<List<String>> uploadReportFiles(FormData files) async {
+    final resp = await _dio.post('/uploads/reports', data: files);
+    final data = (resp.data as Map)['data'];
+    if (data is List) return data.cast<String>();
+    if (data is Map && data['urls'] is List) {
+      return (data['urls'] as List).cast<String>();
+    }
+    return const [];
+  }
 }
 
 /// Error con mensaje legible para el usuario lanzado cuando el backend
