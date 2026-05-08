@@ -144,6 +144,9 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
                               // un conductor que aún no tiene ruta asignada y
                               // todas sus pasadas viven bajo "Sin ruta".
                               initiallyExpanded: data.routes.length == 1,
+                              // Excluir la pasada destacada del listado para
+                              // no duplicarla — ya se ve prominente arriba.
+                              excludePassId: featured?.id,
                             ),
                           ),
                       ],
@@ -651,7 +654,15 @@ class _RouteGroupTile extends StatefulWidget {
   /// Si true, arranca expandido. El padre lo usa cuando solo hay un grupo
   /// para que las pasadas se vean sin que el conductor tenga que tocar.
   final bool initiallyExpanded;
-  const _RouteGroupTile({required this.group, this.initiallyExpanded = false});
+  /// ID de la pasada destacada que ya se muestra arriba en "PASADA DESTACADA".
+  /// Si está presente, esa pasada se excluye del listado para evitar
+  /// duplicación visual.
+  final String? excludePassId;
+  const _RouteGroupTile({
+    required this.group,
+    this.initiallyExpanded = false,
+    this.excludePassId,
+  });
 
   @override
   State<_RouteGroupTile> createState() => _RouteGroupTileState();
@@ -767,28 +778,57 @@ class _RouteGroupTileState extends State<_RouteGroupTile> {
             ),
           ),
 
-          // ── Lista de pasadas ────────────────────────────────
+          // ── Lista de pasadas (excluyendo la destacada que ya
+          // aparece en la sección PASADA DESTACADA arriba) ────
           AnimatedCrossFade(
             firstChild: const SizedBox.shrink(),
-            secondChild: Column(
-              children: [
-                Container(height: 1, color: AppColors.ink1),
-                for (int i = 0; i < g.passes.length; i++) ...[
-                  _PassRow(
-                    pass: g.passes[i],
-                    onTap: () {
-                      context.push(
-                          '/conductor/trip-summary/${g.passes[i].id}');
-                    },
-                  ),
-                  if (i < g.passes.length - 1)
-                    Container(
-                      height: 1,
-                      color: AppColors.ink1,
-                      margin: const EdgeInsets.symmetric(horizontal: 12),
+            secondChild: Builder(builder: (_) {
+              final visiblePasses = widget.excludePassId == null
+                  ? g.passes
+                  : g.passes
+                      .where((p) => p.id != widget.excludePassId)
+                      .toList();
+              return Column(
+                children: [
+                  Container(height: 1, color: AppColors.ink1),
+                  for (int i = 0; i < visiblePasses.length; i++) ...[
+                    _PassRow(
+                      pass: visiblePasses[i],
+                      onTap: () {
+                        context.push(
+                            '/conductor/trip-summary/${visiblePasses[i].id}');
+                      },
                     ),
-                ],
-                if (g.totalPasses > g.passes.length)
+                    if (i < visiblePasses.length - 1)
+                      Container(
+                        height: 1,
+                        color: AppColors.ink1,
+                        margin: const EdgeInsets.symmetric(horizontal: 12),
+                      ),
+                  ],
+                  // Si toda la lista quedó vacía (solo había 1 pasada y
+                  // era la destacada) mostramos un hint de que está arriba.
+                  if (visiblePasses.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 14),
+                      child: Row(children: [
+                        const Icon(Icons.workspace_premium_rounded,
+                            size: 14, color: AppColors.gold),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Esta pasada está destacada arriba',
+                            style: AppTheme.inter(
+                              fontSize: 11.5,
+                              color: AppColors.ink5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ]),
+                    ),
+                  if (g.totalPasses > g.passes.length)
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 10),
@@ -810,8 +850,9 @@ class _RouteGroupTileState extends State<_RouteGroupTile> {
                       ],
                     ),
                   ),
-              ],
-            ),
+                ],
+              );
+            }),
             crossFadeState: _expanded
                 ? CrossFadeState.showSecond
                 : CrossFadeState.showFirst,
