@@ -30,4 +30,10 @@ class AppConstants {
   static const String usuarioActivo = 'ACTIVO';
   static const String usuarioRechazado = 'RECHAZADO';
   static const String usuarioSuspendido = 'SUSPENDIDO';
+
+  // Mapa: centro de fallback cuando no hay GPS válido para encuadrar.
+  // Cusco — la mayoría de operación inicial es ahí. Construir LatLng en
+  // el call-site para no acoplar este archivo a latlong2.
+  static const double fallbackMapLat = -13.5320;
+  static const double fallbackMapLng = -71.9675;
 }

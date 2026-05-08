@@ -184,6 +184,16 @@ class TripsApiService {
     return items.cast<Map<String, dynamic>>();
   }
 
+  /// GET /flota/:id — detalle del FleetEntry incluyendo `trackPoints`,
+  /// `visitedStops`, métricas (`distanceMeters`, `durationSeconds`,
+  /// `routeCompliancePercentage`) y `capture.status`. Usado por
+  /// TripSummaryPage.
+  Future<Map<String, dynamic>> getFleetEntryDetail(String entryId) async {
+    final resp = await _dio.get('/flota/$entryId');
+    final body = resp.data as Map<String, dynamic>;
+    return body['data'] as Map<String, dynamic>;
+  }
+
   /// PATCH /flota/:id — cierra el turno del conductor.
   ///
   /// El kilometraje real lo calcula el backend desde los `LocationPing`

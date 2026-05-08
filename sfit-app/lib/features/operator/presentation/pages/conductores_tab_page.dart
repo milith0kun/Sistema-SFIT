@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/datasources/operator_api_service.dart';
-import '../../data/models/conductor_model.dart';
+import '../../../../shared/models/conductor_model.dart';
 
 /// Lista de conductores del operador — rol OPERADOR.
 class ConductoresTabPage extends ConsumerStatefulWidget {

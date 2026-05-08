@@ -19,7 +19,7 @@ class _AvailableTripsPageState extends ConsumerState<AvailableTripsPage> {
   List<Map<String, dynamic>> _items = [];
   bool _loading = true;
   String? _error;
-  String? _busyId;
+  final Set<String> _busy = <String>{};
 
   @override
   void initState() {
@@ -39,7 +39,7 @@ class _AvailableTripsPageState extends ConsumerState<AvailableTripsPage> {
   }
 
   Future<void> _claim(String tripId, {String? direction}) async {
-    setState(() => _busyId = tripId);
+    setState(() => _busy.add(tripId));
     try {
       final svc = ref.read(tripsApiServiceProvider);
       await svc.claimTrip(tripId, direction: direction);
@@ -58,7 +58,7 @@ class _AvailableTripsPageState extends ConsumerState<AvailableTripsPage> {
         await _load();
       }
     } finally {
-      if (mounted) setState(() => _busyId = null);
+      if (mounted) setState(() => _busy.remove(tripId));
     }
   }
 
@@ -119,7 +119,7 @@ class _AvailableTripsPageState extends ConsumerState<AvailableTripsPage> {
                           final t = _items[i];
                           return _AvailableCard(
                             trip: t,
-                            isBusy: _busyId == (t['id'] as String?),
+                            isBusy: _busy.contains(t['id'] as String?),
                             onTake: () async {
                               final dir = await _askDirection(t['route'] as Map<String, dynamic>?);
                               if (!mounted) return;

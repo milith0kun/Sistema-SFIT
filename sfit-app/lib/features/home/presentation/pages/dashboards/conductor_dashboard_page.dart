@@ -17,25 +17,6 @@ class ConductorDashboardPage extends ConsumerStatefulWidget {
 }
 
 class _ConductorDashboardPageState extends ConsumerState<ConductorDashboardPage> {
-  Map<String, dynamic>? _driverData;
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
-  }
-
-  Future<void> _load() async {
-    try {
-      final data = await ref.read(driverApiServiceProvider).getMyDriverProfile();
-      if (!mounted) return;
-      setState(() { _driverData = data; _loading = false; });
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
   String _fatigaLabel(String? status) => switch (status) {
     'apto'    => 'Apto',
     'riesgo'  => 'Riesgo',
@@ -55,14 +36,18 @@ class _ConductorDashboardPageState extends ConsumerState<ConductorDashboardPage>
     final user = ref.watch(authProvider).user;
     final name = user?.name.split(' ').first ?? 'Conductor';
 
-    final fatigaStatus = _driverData?['status'] as String? ?? 'apto';
-    final continuousHours = (_driverData?['continuousHours'] as num?)?.toDouble() ?? 0;
-    final reputation = (_driverData?['reputationScore'] as num?)?.toInt() ?? 0;
-    final company = _driverData?['companyName'] as String?;
+    final asyncProfile = ref.watch(myDriverProfileProvider);
+    final loading = asyncProfile.isLoading;
+    final driverData = asyncProfile.value;
+
+    final fatigaStatus = driverData?['status'] as String? ?? 'apto';
+    final continuousHours = (driverData?['continuousHours'] as num?)?.toDouble() ?? 0;
+    final reputation = (driverData?['reputationScore'] as num?)?.toInt() ?? 0;
+    final company = driverData?['companyName'] as String?;
 
     return SafeArea(
       child: RefreshIndicator(
-        onRefresh: _load,
+        onRefresh: () => ref.refresh(myDriverProfileProvider.future),
         color: AppColors.gold,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -75,32 +60,34 @@ class _ConductorDashboardPageState extends ConsumerState<ConductorDashboardPage>
                 title: '¡Hola, $name!',
                 subtitle: company != null ? 'Empresa: $company' : 'Revisa tu turno y estado de fatiga.',
                 pills: [
-                  SfitHeroPill(label: 'Estado', value: _loading ? '...' : _fatigaLabel(fatigaStatus).toUpperCase()),
-                  SfitHeroPill(label: 'Reputación', value: _loading ? '...' : '$reputation'),
+                  SfitHeroPill(label: 'Estado', value: loading ? '...' : _fatigaLabel(fatigaStatus).toUpperCase()),
+                  SfitHeroPill(label: 'Reputación', value: loading ? '...' : '$reputation'),
                 ],
               ),
               const SizedBox(height: 14),
 
               // ── Banner: completar perfil si falta empresa ──────────
-              if (!_loading && company == null)
+              if (!loading && company == null)
                 _MissingCompanyBanner(
-                  onTap: () => context.push('/conductor/empresa'),
+                  onTap: () => context
+                      .push('/conductor/empresa')
+                      .then((_) => ref.invalidate(myDriverProfileProvider)),
                 ),
-              if (!_loading && company == null) const SizedBox(height: 14),
+              if (!loading && company == null) const SizedBox(height: 14),
 
               SfitKpiStrip(
                 items: [
                   SfitKpiCardData(
                     icon: Icons.monitor_heart_outlined,
                     label: 'Fatiga',
-                    value: _loading ? '—' : _fatigaLabel(fatigaStatus),
+                    value: loading ? '—' : _fatigaLabel(fatigaStatus),
                     subtitle: '${continuousHours.toStringAsFixed(0)}h continuas',
                     accent: _fatigaColor(fatigaStatus),
                   ),
                   SfitKpiCardData(
                     icon: Icons.star_outline,
                     label: 'Reputación',
-                    value: _loading ? '—' : '$reputation',
+                    value: loading ? '—' : '$reputation',
                     subtitle: 'de 100 pts',
                     accent: reputation >= 80 ? AppColors.apto : reputation >= 50 ? AppColors.riesgo : AppColors.noApto,
                   ),
@@ -114,13 +101,6 @@ class _ConductorDashboardPageState extends ConsumerState<ConductorDashboardPage>
                 ],
               ),
               const SizedBox(height: 16),
-
-              SfitQuickActionCard(
-                icon: Icons.route_outlined,
-                title: 'Mis Rutas',
-                subtitle: 'Ver recorridos asignados y turno activo.',
-                onTap: () => widget.onSelectTab('rutas'),
-              ),
 
               // ── Módulos por categoría — pills + grid ──────────────
               SfitCategorizedFeatures(
@@ -169,13 +149,17 @@ class _ConductorDashboardPageState extends ConsumerState<ConductorDashboardPage>
                         icon: Icons.apartment_outlined,
                         title: 'Mi empresa',
                         subtitle: company ?? 'Sin asociar',
-                        onTap: () => context.push('/conductor/empresa'),
+                        onTap: () => context
+                            .push('/conductor/empresa')
+                            .then((_) => ref.invalidate(myDriverProfileProvider)),
                       ),
                       SfitFeatureCard(
                         icon: Icons.person_outline,
                         title: 'Mi perfil',
                         subtitle: 'Datos y licencia',
-                        onTap: () => context.push('/conductor/perfil'),
+                        onTap: () => context
+                            .push('/conductor/perfil')
+                            .then((_) => ref.invalidate(myDriverProfileProvider)),
                       ),
                     ],
                   ),

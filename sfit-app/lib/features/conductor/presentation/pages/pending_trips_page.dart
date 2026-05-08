@@ -21,7 +21,7 @@ class _PendingTripsPageState extends ConsumerState<PendingTripsPage> {
   List<Map<String, dynamic>> _items = [];
   bool _loading = true;
   String? _error;
-  String? _busyId; // id del viaje en proceso (accept/reject)
+  final Set<String> _busy = <String>{};
 
   @override
   void initState() {
@@ -41,7 +41,7 @@ class _PendingTripsPageState extends ConsumerState<PendingTripsPage> {
   }
 
   Future<void> _accept(String tripId) async {
-    setState(() => _busyId = tripId);
+    setState(() => _busy.add(tripId));
     try {
       final svc = ref.read(tripsApiServiceProvider);
       await svc.acceptTrip(tripId);
@@ -58,14 +58,14 @@ class _PendingTripsPageState extends ConsumerState<PendingTripsPage> {
         );
       }
     } finally {
-      if (mounted) setState(() => _busyId = null);
+      if (mounted) setState(() => _busy.remove(tripId));
     }
   }
 
   Future<void> _reject(String tripId) async {
     final reason = await _askReason();
     if (reason == null || reason.trim().length < 5) return;
-    setState(() => _busyId = tripId);
+    setState(() => _busy.add(tripId));
     try {
       final svc = ref.read(tripsApiServiceProvider);
       await svc.rejectTrip(tripId, reason: reason.trim());
@@ -82,7 +82,7 @@ class _PendingTripsPageState extends ConsumerState<PendingTripsPage> {
         );
       }
     } finally {
-      if (mounted) setState(() => _busyId = null);
+      if (mounted) setState(() => _busy.remove(tripId));
     }
   }
 
@@ -141,7 +141,7 @@ class _PendingTripsPageState extends ConsumerState<PendingTripsPage> {
                         separatorBuilder: (_, __) => const SizedBox(height: 10),
                         itemBuilder: (_, i) => _PendingCard(
                           trip: _items[i],
-                          isBusy: _busyId == (_items[i]['id'] as String?),
+                          isBusy: _busy.contains(_items[i]['id'] as String?),
                           onAccept: _accept,
                           onReject: _reject,
                         ),
@@ -222,8 +222,11 @@ class _PendingCard extends StatelessWidget {
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                     if (assignedAt != null) ...[
                       const SizedBox(height: 4),
-                      Text('Asignado: ${_timeAgo(assignedAt)}',
-                        style: AppTheme.inter(fontSize: 11, color: AppColors.ink5)),
+                      StreamBuilder<int>(
+                        stream: Stream<int>.periodic(const Duration(seconds: 60), (i) => i),
+                        builder: (_, __) => Text('Asignado: ${_timeAgo(assignedAt)}',
+                          style: AppTheme.inter(fontSize: 11, color: AppColors.ink5)),
+                      ),
                     ],
                   ],
                 ),

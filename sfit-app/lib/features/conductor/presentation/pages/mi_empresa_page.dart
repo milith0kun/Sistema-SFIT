@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/network/dio_client.dart';
+import '../../../companies/data/datasources/companies_api_service.dart';
+import '../../../drivers/data/datasources/driver_api_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 
@@ -50,12 +52,10 @@ class _MiEmpresaPageState extends ConsumerState<MiEmpresaPage> {
 
   Future<void> _loadProfile() async {
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get('/conductores/me');
-      final data = (resp.data as Map)['data'] as Map<String, dynamic>;
+      final data = await ref.read(driverApiServiceProvider).getMyDriverProfile();
       if (!mounted) return;
       setState(() {
-        if (data['companyId'] != null) {
+        if (data != null && data['companyId'] != null) {
           _currentCompany = {
             'id': data['companyId'],
             'razonSocial': data['companyName'],
@@ -76,14 +76,9 @@ class _MiEmpresaPageState extends ConsumerState<MiEmpresaPage> {
   Future<void> _search(String q) async {
     setState(() => _searching = true);
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get(
-        '/public/empresas',
-        queryParameters: {if (q.trim().isNotEmpty) 'q': q.trim(), 'limit': 30},
-      );
-      final body = resp.data as Map<String, dynamic>;
-      final data = body['data'] as Map<String, dynamic>? ?? body;
-      final items = (data['items'] as List? ?? const []).cast<Map<String, dynamic>>();
+      final items = await ref
+          .read(companiesApiServiceProvider)
+          .searchPublic(q: q, limit: 30);
       if (!mounted) return;
       setState(() { _results = items; _searching = false; });
     } catch (_) {
@@ -95,12 +90,9 @@ class _MiEmpresaPageState extends ConsumerState<MiEmpresaPage> {
     if (_saving) return;
     setState(() => _saving = true);
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.patch(
-        '/conductores/me',
-        data: {'companyId': company['id']},
-      );
-      final data = (resp.data as Map)['data'] as Map<String, dynamic>;
+      final data = await ref
+          .read(driverApiServiceProvider)
+          .setMyCompany(company['id'] as String);
       if (!mounted) return;
       setState(() {
         _currentCompany = {
@@ -110,6 +102,7 @@ class _MiEmpresaPageState extends ConsumerState<MiEmpresaPage> {
         };
         _saving = false;
       });
+      ref.invalidate(myDriverProfileProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Te asociaste a ${data['companyName']}'),
@@ -139,8 +132,12 @@ class _MiEmpresaPageState extends ConsumerState<MiEmpresaPage> {
   }
 
   String _extractError(Object e) {
-    final m = RegExp(r'"error"\s*:\s*"([^"]+)"').firstMatch(e.toString());
-    return m?.group(1) ?? 'No se pudo guardar';
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map && data['error'] is String) return data['error'] as String;
+      if (data is Map && data['message'] is String) return data['message'] as String;
+    }
+    return 'No se pudo guardar';
   }
 
   @override

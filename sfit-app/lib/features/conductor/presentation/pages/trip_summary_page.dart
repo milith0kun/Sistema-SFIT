@@ -3,9 +3,10 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
-import '../../../../core/network/dio_client.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../trips/data/datasources/trips_api_service.dart';
 
 /// Pantalla de resumen al cerrar un FleetEntry. Llamada con
 /// `context.push('/conductor/trip-summary/<entryId>')` desde `TripCheckoutPage`.
@@ -45,10 +46,7 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get('/flota/${widget.entryId}');
-      final body = resp.data as Map<String, dynamic>;
-      final data = body['data'] as Map<String, dynamic>;
+      final data = await ref.read(tripsApiServiceProvider).getFleetEntryDetail(widget.entryId);
       if (mounted) setState(() { _entry = data; _loading = false; });
     } catch (e) {
       if (mounted) setState(() { _error = 'No se pudo cargar el resumen: $e'; _loading = false; });
@@ -197,7 +195,7 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
     // Cuando no hay track válido, centramos en Cusco como referencia
     // visual (la mayoría de viajes son ahí). El conductor puede pan/zoom
     // para encontrar su zona, y el banner explica el motivo.
-    const fallbackCenter = LatLng(-13.5320, -71.9675);
+    const fallbackCenter = LatLng(AppConstants.fallbackMapLat, AppConstants.fallbackMapLng);
     final mapOptions = hasValidTrack
         ? MapOptions(
             initialCameraFit: CameraFit.bounds(

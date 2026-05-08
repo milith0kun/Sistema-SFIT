@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../core/network/dio_client.dart';
-import '../models/conductor_model.dart';
+import '../../../../shared/models/conductor_model.dart';
 import '../models/vehicle_model.dart';
 
 part 'operator_api_service.g.dart';

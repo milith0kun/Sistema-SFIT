@@ -1,8 +1,9 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/network/dio_client.dart';
+import '../../../drivers/data/datasources/driver_api_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 
@@ -49,16 +50,14 @@ class _EditarPerfilConductorPageState
 
   Future<void> _load() async {
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get('/conductores/me');
-      final data = (resp.data as Map)['data'] as Map<String, dynamic>;
+      final data = await ref.read(driverApiServiceProvider).getMyDriverProfile();
       if (!mounted) return;
       setState(() {
-        _nameCtrl.text = (data['name'] as String?) ?? '';
-        _dniCtrl.text = (data['dni'] as String?) ?? '';
-        _licenseCtrl.text = (data['licenseNumber'] as String?) ?? '';
-        _categoryCtrl.text = (data['licenseCategory'] as String?) ?? 'A-IIB';
-        _phoneCtrl.text = (data['phone'] as String?) ?? '';
+        _nameCtrl.text = (data?['name'] as String?) ?? '';
+        _dniCtrl.text = (data?['dni'] as String?) ?? '';
+        _licenseCtrl.text = (data?['licenseNumber'] as String?) ?? '';
+        _categoryCtrl.text = (data?['licenseCategory'] as String?) ?? 'A-IIB';
+        _phoneCtrl.text = (data?['phone'] as String?) ?? '';
         _loading = false;
       });
     } catch (_) {
@@ -70,15 +69,15 @@ class _EditarPerfilConductorPageState
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     try {
-      final dio = ref.read(dioClientProvider).dio;
-      await dio.patch('/conductores/me', data: {
-        'name': _nameCtrl.text.trim(),
-        'dni': _dniCtrl.text.trim(),
-        'licenseNumber': _licenseCtrl.text.trim(),
-        'licenseCategory': _categoryCtrl.text.trim(),
-        if (_phoneCtrl.text.trim().isNotEmpty) 'phone': _phoneCtrl.text.trim(),
-      });
+      await ref.read(driverApiServiceProvider).updateMyProfile(
+            name: _nameCtrl.text.trim(),
+            dni: _dniCtrl.text.trim(),
+            licenseNumber: _licenseCtrl.text.trim(),
+            licenseCategory: _categoryCtrl.text.trim(),
+            phone: _phoneCtrl.text.trim(),
+          );
       if (!mounted) return;
+      ref.invalidate(myDriverProfileProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Datos actualizados'),
@@ -102,9 +101,12 @@ class _EditarPerfilConductorPageState
   }
 
   String _extractError(Object e) {
-    final s = e.toString();
-    final m = RegExp(r'"error"\s*:\s*"([^"]+)"').firstMatch(s);
-    return m?.group(1) ?? 'No se pudo guardar el perfil';
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map && data['error'] is String) return data['error'] as String;
+      if (data is Map && data['message'] is String) return data['message'] as String;
+    }
+    return 'No se pudo guardar el perfil';
   }
 
   @override
