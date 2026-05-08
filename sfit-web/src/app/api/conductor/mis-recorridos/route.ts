@@ -54,7 +54,7 @@ function calcPassScore(p: {
   maxGapSeconds: number;
 }): number | null {
   if (p.status !== "cerrado" && p.status !== "auto_cierre") return null;
-  if (p.numPings < 10) return null;
+  if (p.numPings < 3) return null;
 
   // 50% — cumplimiento de paraderos (0-1).
   const compliance = Math.max(0, Math.min(1, (p.routeCompliancePercentage ?? 0) / 100));
@@ -249,6 +249,21 @@ export async function GET(request: NextRequest) {
     });
 
     const cap = captureByEntryId.get(String(e._id));
+    // Sample chico (max 30 pts) para mostrar mini-mapa en cada fila sin
+    // inflar el payload. Si la pasada no tiene pings (turno fantasma),
+    // intentamos al menos start+end para que el mapa no quede vacío.
+    let trackSample: Array<{ lat: number; lng: number }> | undefined;
+    if (points.length > 0) {
+      trackSample = samplePings(points);
+    } else {
+      const sl = e.startLocation as { lat?: number; lng?: number } | null;
+      const el = e.endLocation as { lat?: number; lng?: number } | null;
+      const fallback: Array<{ lat: number; lng: number }> = [];
+      if (sl?.lat != null && sl?.lng != null) fallback.push({ lat: sl.lat, lng: sl.lng });
+      if (el?.lat != null && el?.lng != null) fallback.push({ lat: el.lat, lng: el.lng });
+      if (fallback.length > 0) trackSample = fallback;
+    }
+
     const pass: Pass = {
       id: String(e._id),
       date: e.date ?? null,
@@ -272,12 +287,12 @@ export async function GET(request: NextRequest) {
       captureId: cap?.id ?? null,
       captureStatus: cap?.status ?? null,
       captureQualityScore: cap?.qualityScore ?? null,
+      track: trackSample,
     };
 
-    // Detectar el turno activo (en_ruta). Con el track completo para mostrar
-    // en vivo. El score no aplica.
+    // Detectar el turno activo (en_ruta). El track ya viene poblado arriba.
     if (e.status === "en_ruta") {
-      activeEntry = { ...pass, track: samplePings(points) };
+      activeEntry = pass;
     }
 
     const routeKey = route?._id ? String(route._id) : "__no_route__";
@@ -319,11 +334,7 @@ export async function GET(request: NextRequest) {
     group.bestPassId = bestId;
     if (bestId) {
       const best = group.passes.find((p) => p.id === bestId);
-      if (best) {
-        best.isBest = true;
-        const g = groupedById.get(bestId);
-        if (g) best.track = samplePings(g.points);
-      }
+      if (best) best.isBest = true;
     }
 
     // Las pasadas ya vienen ordenadas desc por fecha (entries lo está).

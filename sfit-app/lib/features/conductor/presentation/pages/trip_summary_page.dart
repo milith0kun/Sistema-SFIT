@@ -120,6 +120,8 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
     final visitedStops = (e['visitedStops'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     final trackPoints = (e['trackPoints'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     final waypoints = (route?['waypoints'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    final capture = e['capture'] as Map<String, dynamic>?;
+    final captureStatus = capture?['status'] as String?;
     final totalStops = waypoints.length;
     final visitedCount = visitedStops.length;
 
@@ -163,6 +165,10 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
                   style: AppTheme.inter(fontSize: 13, color: AppColors.ink6),
                 ),
               ),
+              if (captureStatus != null) ...[
+                const SizedBox(height: 10),
+                Center(child: _CaptureStatusBadge(status: captureStatus)),
+              ],
               const SizedBox(height: 24),
 
               // ── Grid de métricas ──────────────────────────────
@@ -326,6 +332,90 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
     if (c >= 50) return AppColors.riesgo;
     return AppColors.noApto;
   }
+}
+
+class _CaptureStatusBadge extends StatelessWidget {
+  final String status;
+  const _CaptureStatusBadge({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final cfg = _styleFor(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: cfg.bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: cfg.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(cfg.icon, size: 12, color: cfg.fg),
+          const SizedBox(width: 6),
+          Text(
+            cfg.label,
+            style: AppTheme.inter(fontSize: 10.5, fontWeight: FontWeight.w700, color: cfg.fg, letterSpacing: 0.6),
+          ),
+        ],
+      ),
+    );
+  }
+
+  _BadgeStyle _styleFor(String s) {
+    switch (s) {
+      case 'validated':
+        return _BadgeStyle(
+          label: 'RUTA VALIDADA',
+          icon: Icons.verified_rounded,
+          fg: AppColors.apto,
+          bg: AppColors.aptoBg,
+          border: AppColors.aptoBorder,
+        );
+      case 'raw':
+        return _BadgeStyle(
+          label: 'PASADA REGISTRADA',
+          icon: Icons.timeline_rounded,
+          fg: AppColors.ink7,
+          bg: AppColors.ink1,
+          border: AppColors.ink2,
+        );
+      case 'merged':
+        return _BadgeStyle(
+          label: 'CANDIDATA ACUMULADA',
+          icon: Icons.layers_rounded,
+          fg: AppColors.ink7,
+          bg: AppColors.ink1,
+          border: AppColors.ink2,
+        );
+      case 'rejected':
+        return _BadgeStyle(
+          label: 'CANDIDATA RECHAZADA',
+          icon: Icons.block_rounded,
+          fg: AppColors.noApto,
+          bg: AppColors.ink1,
+          border: AppColors.ink2,
+        );
+      case 'candidate':
+      default:
+        return _BadgeStyle(
+          label: 'SIN VALIDAR',
+          icon: Icons.hourglass_top_rounded,
+          fg: AppColors.riesgo,
+          bg: AppColors.ink1,
+          border: AppColors.ink2,
+        );
+    }
+  }
+}
+
+class _BadgeStyle {
+  final String label;
+  final IconData icon;
+  final Color fg;
+  final Color bg;
+  final Color border;
+  _BadgeStyle({required this.label, required this.icon, required this.fg, required this.bg, required this.border});
 }
 
 class _MetricCard extends StatelessWidget {

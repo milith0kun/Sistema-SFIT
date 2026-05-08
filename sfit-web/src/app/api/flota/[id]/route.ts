@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { isValidObjectId, Types } from "mongoose";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
-import { FleetEntry } from "@/models/FleetEntry";
+import { FleetEntry, type IFleetEntry } from "@/models/FleetEntry";
 import { Driver } from "@/models/Driver";
 import { LocationPing } from "@/models/LocationPing";
 import { Route as RouteModel } from "@/models/Route";
@@ -52,7 +52,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!(await canAccessMunicipality(auth.session, String(entry.municipalityId)))) return apiForbidden();
   }
 
-  return apiResponse({ id: String(entry._id), ...entry });
+  // Lookup de la RouteCapture asociada para que la app pueda mostrar el
+  // estado del recorrido (candidata / raw / validada) en la pantalla resumen.
+  const captureDoc = await RouteCapture.findOne({ fleetEntryId: entry._id })
+    .select("_id status qualityScore promotedToRouteId")
+    .lean();
+  const capture = captureDoc
+    ? {
+        id: String(captureDoc._id),
+        status: String(captureDoc.status),
+        qualityScore: Number(captureDoc.qualityScore ?? 0),
+        promotedToRouteId: captureDoc.promotedToRouteId ? String(captureDoc.promotedToRouteId) : null,
+      }
+    : null;
+
+  return apiResponse({ id: String(entry._id), ...entry, capture });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -151,90 +165,32 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   await entry.save();
 
-  // 4. Hook auto-captura RouteCapture: best-effort, no bloquea la respuesta.
-  //    Si el turno se cerró ahora y hay >=20 LocationPings, registramos los
-  //    puntos en RouteCapture.
+  // 4. Hook auto-captura RouteCapture: BLOQUEANTE — la captura debe persistir
+  //    antes de responder al cliente para que la app y los paneles que leen
+  //    candidatas/raw vean el estado real al refrescar.
   //    - Con routeId    → crea captura `status:"raw"` (alimenta convergencia)
   //    - Sin routeId    → "ruta orgánica":
   //        a) Si existe una candidata reciente del MISMO conductor cuyo bbox
   //           solapa con el trazo nuevo, mergeamos los pings al RouteCapture
   //           existente (acumulación: cada turno mejora la candidata).
   //        b) Si no, creamos una nueva con `status:"candidate"`.
+  let capture: { id: string; status: string; qualityScore: number } | null = null;
   if (closingNow) {
-    void (async () => {
-      try {
-        // Idempotencia: no duplicar captura para este mismo turno.
-        const existingForEntry = await RouteCapture.findOne({ fleetEntryId: entry._id }).select("_id").lean();
-        if (existingForEntry) return;
-
-        const tp = await LocationPing.find({ entryId: entry._id })
-          .sort({ ts: 1 })
-          .select("lat lng ts accuracy speed")
-          .lean<Array<{ lat: number; lng: number; ts: Date; accuracy?: number; speed?: number }>>();
-        if (tp.length < 20) return;
-
-        const points = tp.map((p) => ({
-          lat: p.lat,
-          lng: p.lng,
-          ts: p.ts,
-          accuracy: p.accuracy,
-          speed: p.speed,
-        }));
-
-        const accuracies = points.map((p) => p.accuracy).filter((x): x is number => typeof x === "number");
-        const avgAccuracy = accuracies.length > 0
-          ? accuracies.reduce((s, a) => s + a, 0) / accuracies.length
-          : undefined;
-
-        const distanceMeters = polylineLengthMeters(points as GpsPoint[]);
-        const durationSeconds = points.length >= 2
-          ? Math.round((points[points.length - 1].ts.getTime() - points[0].ts.getTime()) / 1000)
-          : undefined;
-
-        const qualityScore = computeQualityScore({
-          avgAccuracy,
-          pointCount: points.length,
-          durationSeconds,
-          distanceMeters,
-        });
-
-        // ── Acumulación de candidatas del mismo conductor ────────────────
-        // Si el turno NO tiene routeId y el conductor ya tiene una candidata
-        // reciente cuyo trazo solapa con el nuevo (>=50% bbox overlap),
-        // mergeamos los pings al existing en lugar de crear otra candidata
-        // separada. Esto evita que un conductor que repite la misma ruta
-        // orgánica genere N candidatas idénticas en el panel del operador.
-        if (!entry.routeId && entry.driverId) {
-          const merged = await tryMergeIntoExistingCandidate(
-            String(entry.driverId),
-            String(entry._id),
-            points,
-            { distanceMeters, durationSeconds, avgAccuracy, qualityScore },
-          );
-          if (merged) return;
-        }
-
-        await RouteCapture.create({
-          routeId: entry.routeId ?? null,
-          fleetEntryId: entry._id,
-          driverId: entry.driverId,
-          vehicleId: entry.vehicleId,
-          municipalityId: entry.municipalityId,
-          points,
-          pointCount: points.length,
-          avgAccuracy,
-          distanceMeters,
-          durationSeconds,
-          qualityScore,
-          status: entry.routeId ? "raw" : "candidate",
-        });
-      } catch (e) {
-        console.error("[flota PATCH] auto-captura RouteCapture", e);
-      }
-    })();
+    try {
+      capture = await createOrMergeCapture(entry);
+    } catch (e) {
+      // El FleetEntry ya está guardado: no romper el cierre por un fallo de
+      // captura. Lo registramos para que sea observable.
+      console.error("[flota PATCH] auto-captura RouteCapture", {
+        entryId: String(entry._id),
+        driverId: String(entry.driverId),
+        routeId: entry.routeId ? String(entry.routeId) : null,
+        error: e,
+      });
+    }
   }
 
-  return apiResponse({ id: String(entry._id), ...entry.toObject() });
+  return apiResponse({ id: String(entry._id), ...entry.toObject(), capture });
 }
 
 /** Convierte "HH:mm" o ISO a Date sobre `baseDate`. */
@@ -266,9 +222,106 @@ type CapturePoint = {
 
 type Bbox = { minLat: number; maxLat: number; minLng: number; maxLng: number };
 
+// Umbral mínimo de pings para crear una RouteCapture. Bajado a 3 (start, mid,
+// end) para que pruebas cortas y emuladores también generen captura — el GPS
+// real puede emitir solo 2-3 puntos en 30 s sin movimiento, y el silencio
+// previo ocultaba el bug en pruebas.
+const MIN_PINGS_FOR_CAPTURE = 3;
 const MERGE_LOOKBACK_DAYS = 30;
 const MERGE_BBOX_OVERLAP_RATIO = 0.5;
 const MERGE_MAX_POINTS = 5_000;
+
+/**
+ * Crea (o acumula vía merge) la RouteCapture asociada al cierre del turno.
+ * Devuelve un resumen `{ id, status, qualityScore }` o `null` si no se generó
+ * (turno sin pings suficientes, o ya existe captura para ese fleetEntry).
+ */
+async function createOrMergeCapture(
+  entry: IFleetEntry,
+): Promise<{ id: string; status: string; qualityScore: number } | null> {
+  // Idempotencia: no duplicar captura para este mismo turno.
+  const existingForEntry = await RouteCapture.findOne({ fleetEntryId: entry._id })
+    .select("_id status qualityScore")
+    .lean();
+  if (existingForEntry) {
+    return {
+      id: String(existingForEntry._id),
+      status: String(existingForEntry.status),
+      qualityScore: Number(existingForEntry.qualityScore ?? 0),
+    };
+  }
+
+  const tp = await LocationPing.find({ entryId: entry._id })
+    .sort({ ts: 1 })
+    .select("lat lng ts accuracy speed")
+    .lean<Array<{ lat: number; lng: number; ts: Date; accuracy?: number; speed?: number }>>();
+
+  if (tp.length < MIN_PINGS_FOR_CAPTURE) {
+    console.warn("[flota PATCH] auto-captura saltada por pings insuficientes", {
+      entryId: String(entry._id),
+      driverId: String(entry.driverId),
+      pointCount: tp.length,
+      minRequired: MIN_PINGS_FOR_CAPTURE,
+    });
+    return null;
+  }
+
+  const points = tp.map((p) => ({
+    lat: p.lat,
+    lng: p.lng,
+    ts: p.ts,
+    accuracy: p.accuracy,
+    speed: p.speed,
+  }));
+
+  const accuracies = points.map((p) => p.accuracy).filter((x): x is number => typeof x === "number");
+  const avgAccuracy = accuracies.length > 0
+    ? accuracies.reduce((s, a) => s + a, 0) / accuracies.length
+    : undefined;
+
+  const distanceMeters = polylineLengthMeters(points as GpsPoint[]);
+  const durationSeconds = points.length >= 2
+    ? Math.round((points[points.length - 1].ts.getTime() - points[0].ts.getTime()) / 1000)
+    : undefined;
+
+  const qualityScore = computeQualityScore({
+    avgAccuracy,
+    pointCount: points.length,
+    durationSeconds,
+    distanceMeters,
+  });
+
+  // Acumulación de candidatas del mismo conductor con bbox solapado (>=50%).
+  if (!entry.routeId && entry.driverId) {
+    const merged = await tryMergeIntoExistingCandidate(
+      String(entry.driverId),
+      String(entry._id),
+      points,
+    );
+    if (merged) return merged;
+  }
+
+  const created = await RouteCapture.create({
+    routeId: entry.routeId ?? null,
+    fleetEntryId: entry._id,
+    driverId: entry.driverId,
+    vehicleId: entry.vehicleId,
+    municipalityId: entry.municipalityId,
+    points,
+    pointCount: points.length,
+    avgAccuracy,
+    distanceMeters,
+    durationSeconds,
+    qualityScore,
+    status: entry.routeId ? "raw" : "candidate",
+  });
+
+  return {
+    id: String(created._id),
+    status: String(created.status),
+    qualityScore: Number(created.qualityScore ?? qualityScore),
+  };
+}
 
 function bboxOf(points: Array<{ lat: number; lng: number }>): Bbox | null {
   if (points.length === 0) return null;
@@ -317,15 +370,9 @@ async function tryMergeIntoExistingCandidate(
   driverId: string,
   fleetEntryId: string,
   newPoints: CapturePoint[],
-  newStats: {
-    distanceMeters: number;
-    durationSeconds: number | undefined;
-    avgAccuracy: number | undefined;
-    qualityScore: number;
-  },
-): Promise<boolean> {
+): Promise<{ id: string; status: string; qualityScore: number } | null> {
   const newBbox = bboxOf(newPoints);
-  if (!newBbox) return false;
+  if (!newBbox) return null;
 
   const since = new Date(Date.now() - MERGE_LOOKBACK_DAYS * 24 * 3600 * 1000);
   const candidates = await RouteCapture.find({
@@ -336,7 +383,7 @@ async function tryMergeIntoExistingCandidate(
     .select("_id points pointCount distanceMeters qualityScore avgAccuracy fleetEntryId")
     .lean();
 
-  if (candidates.length === 0) return false;
+  if (candidates.length === 0) return null;
 
   let best: { id: Types.ObjectId; ratio: number } | null = null;
   for (const c of candidates) {
@@ -349,13 +396,12 @@ async function tryMergeIntoExistingCandidate(
       best = { id: c._id as Types.ObjectId, ratio };
     }
   }
-  if (!best) return false;
+  if (!best) return null;
 
-  // Recargamos los puntos del candidato ganador y mergeamos cronológicamente.
-  // No usamos $push masivo para mantener el array ordenado por ts y poder
-  // recortar a MERGE_MAX_POINTS si crece demasiado.
-  const winner = await RouteCapture.findById(best.id).select("points qualityScore avgAccuracy distanceMeters").lean();
-  if (!winner) return false;
+  const winner = await RouteCapture.findById(best.id)
+    .select("points status qualityScore avgAccuracy distanceMeters")
+    .lean();
+  if (!winner) return null;
 
   const merged: CapturePoint[] = [
     ...((winner.points ?? []) as CapturePoint[]),
@@ -366,7 +412,6 @@ async function tryMergeIntoExistingCandidate(
     ? merged.slice(merged.length - MERGE_MAX_POINTS)
     : merged;
 
-  // Recalcular métricas con el set completo.
   const totalDistance = polylineLengthMeters(trimmed as GpsPoint[]);
   const totalDuration = trimmed.length >= 2
     ? Math.round((trimmed[trimmed.length - 1].ts.getTime() - trimmed[0].ts.getTime()) / 1000)
@@ -390,16 +435,15 @@ async function tryMergeIntoExistingCandidate(
         durationSeconds: totalDuration,
         avgAccuracy: newAvgAccuracy,
         qualityScore: newQuality,
-        // Mantenemos `fleetEntryId` original (la candidata se asocia al primer
-        // turno que la creó) y guardamos el último para auditoría.
         updatedAt: new Date(),
       },
     },
   );
 
-  // Suprimimos los warnings de stats no usadas — los ya calculamos en el
-  // bloque principal pero el merge los recompone con los puntos completos.
-  void newStats;
   void fleetEntryId;
-  return true;
+  return {
+    id: String(best.id),
+    status: String(winner.status ?? "candidate"),
+    qualityScore: Number(newQuality),
+  };
 }

@@ -123,7 +123,13 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
                         for (final route in data.routes)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 10),
-                            child: _RouteGroupTile(group: route),
+                            child: _RouteGroupTile(
+                              group: route,
+                              // Auto-expandir si solo hay un grupo: típicamente
+                              // un conductor que aún no tiene ruta asignada y
+                              // todas sus pasadas viven bajo "Sin ruta".
+                              initiallyExpanded: data.routes.length == 1,
+                            ),
                           ),
                       ],
                     ],
@@ -627,21 +633,24 @@ class _ActiveEntryCard extends StatelessWidget {
 
 class _RouteGroupTile extends StatefulWidget {
   final RouteGroup group;
-  const _RouteGroupTile({required this.group});
+  /// Si true, arranca expandido. El padre lo usa cuando solo hay un grupo
+  /// para que las pasadas se vean sin que el conductor tenga que tocar.
+  final bool initiallyExpanded;
+  const _RouteGroupTile({required this.group, this.initiallyExpanded = false});
 
   @override
   State<_RouteGroupTile> createState() => _RouteGroupTileState();
 }
 
 class _RouteGroupTileState extends State<_RouteGroupTile> {
-  bool _expanded = false;
+  late bool _expanded = widget.initiallyExpanded;
 
   @override
   Widget build(BuildContext context) {
     final g = widget.group;
     final code = g.code ?? '—';
-    final name = g.name ?? 'Sin ruta asignada';
     final hasNoRoute = g.routeId == null;
+    final name = g.name ?? (hasNoRoute ? 'Recorridos sin ruta asignada' : 'Sin nombre');
 
     return Container(
       decoration: BoxDecoration(
@@ -754,7 +763,7 @@ class _RouteGroupTileState extends State<_RouteGroupTile> {
                     pass: g.passes[i],
                     onTap: () {
                       context.push(
-                          '/conductor/recorrido-detalle/${g.passes[i].id}');
+                          '/conductor/trip-summary/${g.passes[i].id}');
                     },
                   ),
                   if (i < g.passes.length - 1)
@@ -842,6 +851,9 @@ class _PassRow extends StatelessWidget {
     final dur = _fmtDuration(pass.durationSeconds);
     final isLive = pass.status == 'en_ruta';
 
+    final track = pass.track;
+    final hasMiniMap = track != null && track.length >= 2;
+
     return Material(
       color: pass.isBest
           ? AppColors.goldBg.withValues(alpha: 0.35)
@@ -852,6 +864,40 @@ class _PassRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           child: Row(
             children: [
+              // Mini-mapa con el trazo (si hay puntos suficientes).
+              if (hasMiniMap) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: IgnorePointer(
+                      child: FlutterMap(
+                        options: MapOptions(
+                          initialCenter: track[track.length ~/ 2],
+                          initialZoom: 12.5,
+                          interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
+                        ),
+                        children: [
+                          TileLayer(
+                            urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+                            subdomains: const ['a', 'b', 'c', 'd'],
+                            userAgentPackageName: 'com.sfit.sfit_app',
+                          ),
+                          PolylineLayer(polylines: [
+                            Polyline(
+                              points: track,
+                              color: pass.isBest ? AppColors.gold : AppColors.ink7,
+                              strokeWidth: 2.5,
+                            ),
+                          ]),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+              ],
               // Columna izquierda: fecha + horario
               Expanded(
                 flex: 5,

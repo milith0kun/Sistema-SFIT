@@ -149,20 +149,33 @@ export default function LoginPage() {
   async function handleGoogleCredential(response: { credential: string }) {
     setGoogleLoading(true);
     setError(null);
+    // Logs explícitos para debug — el callback de GIS a veces no dispara
+    // o la respuesta del backend trae shape distinto al esperado.
+    console.log("[google-login] credential received, length:", response.credential?.length);
     try {
       const res = await fetch("/api/auth/google", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken: response.credential }),
       });
+      console.log("[google-login] response status:", res.status);
       const data = await res.json();
+      console.log("[google-login] response body:", data);
       if (!res.ok) {
-        setError(data.error ?? "Error al iniciar sesión con Google");
+        setError(data.error ?? `Error al iniciar sesión con Google (HTTP ${res.status})`);
         return;
       }
+      if (!data?.data?.accessToken || !data?.data?.user) {
+        console.error("[google-login] response shape inválida:", data);
+        setError("Respuesta inesperada del servidor. Revisa la consola.");
+        return;
+      }
+      console.log("[google-login] redirecting to:", destForStatus(data.data.user.status));
       persistSessionAndRedirect(data.data);
-    } catch {
-      setError("Error de conexión con Google. Intente nuevamente.");
+    } catch (err) {
+      console.error("[google-login] fetch threw:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(`Error de conexión con Google: ${msg}`);
     } finally {
       setGoogleLoading(false);
     }

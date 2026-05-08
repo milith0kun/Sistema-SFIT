@@ -169,14 +169,10 @@ export async function GET(request: NextRequest) {
       const pts = (c.points ?? []) as Array<{ lat: number; lng: number }>;
       if (pts.length < 2) continue;
 
-      // BBox check post-fetch (más eficiente que $elemMatch sobre array grande).
-      if (hasUserCoords) {
-        const inBbox = pts.some((p) =>
-          p.lat >= userLat - BBOX_DELTA_DEG && p.lat <= userLat + BBOX_DELTA_DEG &&
-          p.lng >= userLng - BBOX_DELTA_DEG && p.lng <= userLng + BBOX_DELTA_DEG,
-        );
-        if (!inBbox) continue;
-      }
+      // No aplicamos bbox filter a candidatas: el operador necesita verlas
+      // todas para validarlas, y un ciudadano de zona vecina debe poder ver
+      // las rutas no oficiales que circulan cerca aunque su GPS apunte a
+      // otro distrito. El `limit(50)` + orden por createdAt ya acota.
 
       let nearestStop: typeof items[number]["nearestStop"] = null;
       if (hasUserCoords) {
