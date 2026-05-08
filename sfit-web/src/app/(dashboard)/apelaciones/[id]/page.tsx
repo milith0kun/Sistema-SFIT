@@ -8,6 +8,11 @@ import {
   Car, Shield, Calendar, User as UserIcon, Hash,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import {
+  INK1, INK2, INK5, INK6, INK9,
+  RED, REDBG, REDBD,
+  GRN, GRNBG, GRNBD,
+} from "@/lib/design-tokens";
 
 /* ── Tipos ── */
 type ApelacionStatus = "pendiente" | "aprobada" | "rechazada";
@@ -31,11 +36,8 @@ type Apelacion = {
   createdAt: string;
 };
 
-/* ── Design tokens (alineados con usuarios/[id]) ── */
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
-const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const RED  = "#DC2626"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
-const GRN  = "#15803d"; const GRNBG = "#F0FDF4"; const GRNBD = "#86EFAC";
+/* Tokens locales únicos a esta pantalla — los grises y rojos/verdes vienen
+   del módulo central design-tokens; el ámbar AMB está sólo aquí. */
 const AMB  = "#b45309"; const AMBBG = "#FFFBEB"; const AMBBD = "#FCD34D";
 
 const ALLOWED_VIEW = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];

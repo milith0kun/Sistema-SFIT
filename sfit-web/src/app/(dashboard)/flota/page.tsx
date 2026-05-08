@@ -11,6 +11,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 type FleetStatus =
   | "disponible" | "en_ruta" | "cerrado"
   | "auto_cierre" | "mantenimiento" | "fuera_de_servicio";
@@ -81,9 +83,6 @@ const ALL_FLEET_STATUSES: { key: FleetStatus; label: string }[] = [
   { key: "cerrado", label: "Cerrado" },
   { key: "auto_cierre", label: "Auto-cierre" },
 ];
-
-const ALLOWED = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
-
 function todayISO(): string {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -120,7 +119,7 @@ export default function FlotaPage() {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
     const u = JSON.parse(raw) as { role: string };
-    if (!ALLOWED.includes(u.role)) { router.replace("/dashboard"); return; }
+    if (!hasWebPermission(u.role as Role, "flota", "view")) { router.replace("/dashboard"); return; }
     setUser(u);
   }, [router]);
 
@@ -136,8 +135,18 @@ export default function FlotaPage() {
       const [vData, dData] = await Promise.all([vRes.json(), dRes.json()]);
       if (vRes.ok && vData.success) setModalVehicles(vData.data.items ?? []);
       if (dRes.ok && dData.success) setModalDrivers(dData.data.items ?? []);
-    } catch { /* silencioso */ }
-    finally { setModalDataLoading(false); }
+      if (!vRes.ok || !dRes.ok) {
+        // Si alguno falla, dejamos los selects vacíos pero al menos avisamos
+        // — antes esto era completamente silencioso y el operador veía
+        // "no hay vehículos disponibles" sin saber que en realidad falló la red.
+        setSubmitError("No se pudieron cargar vehículos o conductores. Reintenta abrir el modal.");
+      }
+    } catch (err) {
+      console.warn("[flota/loadModalData] failed:", err);
+      setSubmitError("Error de conexión al cargar datos del modal.");
+    } finally {
+      setModalDataLoading(false);
+    }
   }, []);
 
   const load = useCallback(async () => {

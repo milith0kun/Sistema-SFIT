@@ -9,6 +9,12 @@ import {
   IdCard, Loader2, Search, Phone as PhoneIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import {
+  INK1, INK2, INK5, INK6, INK9,
+  RED, REDBG, REDBD,
+  GRN, GRNBG, GRNBD,
+  GOLD_RED as GOLD, GOLD_RED_BG as GOLD_BG, GOLD_RED_BD as GOLD_BD,
+} from "@/lib/design-tokens";
 
 type Profile = {
   id: string;
@@ -36,12 +42,6 @@ const ROLE_LABELS: Record<string, string> = {
   conductor:        "Conductor",
   ciudadano:        "Ciudadano",
 };
-
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a";
-const INK6 = "#52525b"; const INK9 = "#18181b";
-const RED  = "#DC2626"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
-const GRN  = "#15803d"; const GRNBG = "#F0FDF4"; const GRNBD = "#86EFAC";
-const GOLD = "#4A0303"; const GOLD_BG = "#FBEAEA"; const GOLD_BD = "#D9B0B0";
 
 const FIELD: React.CSSProperties = {
   width: "100%", height: 44, padding: "0 14px",

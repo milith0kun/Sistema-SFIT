@@ -10,6 +10,11 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { useMobileOverlayBack } from "@/hooks/useMobileOverlayBack";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import {
+  INK1, INK2, INK5, INK6, INK9,
+  RED, REDBG, REDBD,
+  GRN, GRNBG, GRNBD,
+} from "@/lib/design-tokens";
 
 type PendingUser = {
   id: string;
@@ -36,11 +41,8 @@ const ROLE_OPTIONS = [
   { value: "fiscal",    label: "Fiscal / Inspector" },
 ];
 
-// Tokens — paleta sobria (gris + verde sólo para confirmación, rojo sólo para errores)
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK3 = "#d4d4d8";
-const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const RED = "#DC2626"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
-const GRN = "#15803d"; const GRNBG = "#F0FDF4"; const GRNBD = "#86EFAC";
+// Tokens — paleta sobria (gris + verde sólo para confirmación, rojo sólo para errores).
+// Importados desde @/lib/design-tokens; mismos hex.
 
 const MONTH_ABBR = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 function timeAgo(iso: string): string {
@@ -204,6 +206,9 @@ export default function AdminUsersPage() {
       setActionSuccess(action === "approve"
         ? `${removedName} fue aprobado con rol ${ROLE_LABELS[assignedRole] ?? assignedRole}.`
         : `Se rechazó la solicitud de ${removedName}.`);
+      // Auto-dismiss del banner de éxito tras 3.5s para que la pantalla
+      // no quede "ocupada" después de aprobar/rechazar.
+      setTimeout(() => setActionSuccess(null), 3500);
 
       // Quita el usuario procesado y selecciona el siguiente
       setUsers(prev => {

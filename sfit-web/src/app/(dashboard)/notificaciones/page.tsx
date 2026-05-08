@@ -13,11 +13,10 @@ import {
 import { useMobileOverlayBack } from "@/hooks/useMobileOverlayBack";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { PageHeader } from "@/components/ui/PageHeader";
-
-// ── Paleta sobria — gris uniforme, sólo rojo para errores ────────────────────
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK3 = "#d4d4d8";
-const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const ERR = "#DC2626"; const ERRBG = "#FFF5F5"; const ERRBD = "#FCA5A5";
+import {
+  INK1, INK2, INK3, INK5, INK6, INK9,
+  RED as ERR, REDBG as ERRBG, REDBD as ERRBD,
+} from "@/lib/design-tokens";
 
 type Notification = {
   id: string; type?: string; category?: string;

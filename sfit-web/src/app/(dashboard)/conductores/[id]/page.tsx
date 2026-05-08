@@ -12,13 +12,14 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 import { hasPermission, FATIGUE_ROLES } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
+import {
+  INK1, INK2, INK5, INK6, INK9,
+  GRN as APTO, GRNBG as APTO_BG, GRNBD as APTO_BD,
+  RED as NO, REDBG as NO_BG, REDBD as NO_BD,
+} from "@/lib/design-tokens";
 
-/* Paleta sobria */
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
-const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const APTO = "#15803d"; const APTO_BG = "#F0FDF4"; const APTO_BD = "#86EFAC";
+/* Tokens locales únicos a esta pantalla (riesgo no está en la paleta global) */
 const RIESGO = "#B45309"; const RIESGO_BG = "#FFFBEB"; const RIESGO_BD = "#FDE68A";
-const NO = "#DC2626"; const NO_BG = "#FFF5F5"; const NO_BD = "#FCA5A5";
 
 const LICENSE_CATEGORIES = ["A-I", "A-IIa", "A-IIb", "A-IIIa", "A-IIIb", "A-IIIc"];
 

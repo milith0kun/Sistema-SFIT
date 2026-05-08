@@ -204,8 +204,12 @@ export default function DashboardPage() {
       if (res.ok) {
         const data: ApiResponse<{ items: ActivityItem[] }> = await res.json();
         if (data.success && data.data) setActividad(data.data.items ?? []);
+      } else {
+        console.warn("[dashboard/loadActividad] HTTP", res.status);
       }
-    } catch { /* Silencioso */ }
+    } catch (err) {
+      console.warn("[dashboard/loadActividad] failed:", err);
+    }
   }, []);
 
   const loadFleetLocations = useCallback(async () => {
@@ -216,9 +220,14 @@ export default function DashboardPage() {
       if (res.ok) {
         const data = await res.json();
         setFleetLocations(data.data?.items ?? []);
+      } else {
+        console.warn("[dashboard/loadFleetLocations] HTTP", res.status);
       }
-    } catch { /* silent */ }
-    finally { setLocationsLoading(false); }
+    } catch (err) {
+      console.warn("[dashboard/loadFleetLocations] failed:", err);
+    } finally {
+      setLocationsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
