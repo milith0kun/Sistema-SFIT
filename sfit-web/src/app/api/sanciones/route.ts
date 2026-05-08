@@ -76,17 +76,10 @@ export async function GET(request: NextRequest) {
         if (!isValidObjectId(municipalityIdParam)) return apiError("municipalityId inválido", 400);
         filter.municipalityId = municipalityIdParam;
       }
-    } else {
-      const targetId = municipalityIdParam ?? auth.session.municipalityId;
-      if (!targetId || !isValidObjectId(targetId)) return apiForbidden();
-      if (!(await canAccessMunicipality(auth.session, targetId))) return apiForbidden();
-      filter.municipalityId = targetId;
-    }
-
-    // Operador: acotar a las sanciones cuya unidad pertenezca a su empresa.
-    // Sanction no guarda companyId obligatorio para filtrar — usamos vehicleId
-    // del set de vehicles de la empresa (defensa en profundidad).
-    if (auth.session.role === ROLES.OPERADOR) {
+    } else if (auth.session.role === ROLES.OPERADOR) {
+      // Operador: acotar a las sanciones cuya unidad pertenezca a su empresa.
+      // No usamos canAccessMunicipality (devuelve false para operador) —
+      // el scope viene del companyId resuelto desde User.
       const companyId = await getOperatorCompanyId(auth.session.userId);
       if (!companyId) {
         return apiResponse({
@@ -104,6 +97,11 @@ export async function GET(request: NextRequest) {
         });
       }
       filter.vehicleId = { $in: vehicleIds.map((v) => v._id) };
+    } else {
+      const targetId = municipalityIdParam ?? auth.session.municipalityId;
+      if (!targetId || !isValidObjectId(targetId)) return apiForbidden();
+      if (!(await canAccessMunicipality(auth.session, targetId))) return apiForbidden();
+      filter.municipalityId = targetId;
     }
 
     if (statusParam) filter.status = statusParam;

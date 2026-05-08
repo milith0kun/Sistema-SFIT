@@ -8,7 +8,7 @@ import {
 } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
-import { ROLES } from "@/lib/constants";
+import { SUSPEND_ROLES } from "@/lib/auth/roleMatrix";
 import { logAction } from "@/lib/audit/logAction";
 
 const Schema = z.object({
@@ -27,7 +27,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL]);
+  const auth = requireRole(request, [...SUSPEND_ROLES]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;

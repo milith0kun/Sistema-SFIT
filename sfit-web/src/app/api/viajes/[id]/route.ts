@@ -9,6 +9,7 @@ import { RouteCapture } from "@/models/RouteCapture";
 import { apiResponse, apiError, apiForbidden, apiNotFound, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { computeQualityScore, polylineLengthMeters, type GpsPoint } from "@/lib/routes/converge";
 
@@ -25,9 +26,7 @@ const UpdateSchema = z.object({
 });
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_REGIONAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL, ROLES.OPERADOR,
-  ]);
+  const auth = requireRole(request, [...rolesFor("viajes", "view")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;
@@ -40,13 +39,28 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     .populate("routeId", "code name")
     .lean();
   if (!trip) return apiNotFound("Viaje no encontrado");
-  if (!(await canAccessMunicipality(auth.session, String(trip.municipalityId)))) return apiForbidden();
+
+  // Scope: admins/fiscal/operador → filtro por municipalidad. Conductor →
+  // sólo viajes donde figure como driverId. La matriz le permite VER
+  // (apelar después si quiere) pero nunca viajes ajenos.
+  if (auth.session.role === ROLES.CONDUCTOR) {
+    const { Driver } = await import("@/models/Driver");
+    const driver = await Driver.findOne({ userId: auth.session.userId })
+      .select("_id")
+      .lean<{ _id: unknown } | null>();
+    if (!driver) return apiForbidden();
+    if (!trip.driverId || String((trip.driverId as { _id?: unknown })._id ?? trip.driverId) !== String(driver._id)) {
+      return apiForbidden();
+    }
+  } else {
+    if (!(await canAccessMunicipality(auth.session, String(trip.municipalityId)))) return apiForbidden();
+  }
 
   return apiResponse({ id: String(trip._id), ...trip });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.OPERADOR]);
+  const auth = requireRole(request, [...rolesFor("viajes", "edit")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;
@@ -66,7 +80,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   await connectDB();
   const trip = await Trip.findById(id);
   if (!trip) return apiNotFound("Viaje no encontrado");
-  if (!(await canAccessMunicipality(auth.session, String(trip.municipalityId)))) return apiForbidden();
+
+  // Scope para PATCH: mismo principio que en GET — admins/operador filtran
+  // por municipalidad; conductor sólo edita su propio viaje (mismo driverId).
+  if (auth.session.role === ROLES.CONDUCTOR) {
+    const { Driver } = await import("@/models/Driver");
+    const driver = await Driver.findOne({ userId: auth.session.userId })
+      .select("_id")
+      .lean<{ _id: unknown } | null>();
+    if (!driver) return apiForbidden();
+    if (!trip.driverId || String(trip.driverId) !== String(driver._id)) {
+      return apiForbidden();
+    }
+  } else {
+    if (!(await canAccessMunicipality(auth.session, String(trip.municipalityId)))) return apiForbidden();
+  }
 
   const previousStatus = trip.status;
   if (parsed.data.endTime) (parsed.data as Record<string, unknown>).endTime = new Date(parsed.data.endTime);

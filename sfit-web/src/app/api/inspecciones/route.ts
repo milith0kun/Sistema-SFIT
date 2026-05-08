@@ -83,6 +83,27 @@ export async function GET(request: NextRequest) {
         if (!isValidObjectId(municipalityIdParam)) return apiError("municipalityId inválido", 400);
         filter.municipalityId = municipalityIdParam;
       }
+    } else if (auth.session.role === ROLES.OPERADOR) {
+      // Operador: ve sólo inspecciones de los vehículos de su empresa.
+      const me = await User.findById(auth.session.userId)
+        .select("companyId")
+        .lean<{ companyId?: unknown } | null>();
+      if (!me?.companyId) {
+        return apiResponse({
+          items: [], total: 0, page, limit,
+          stats: { aprobada: 0, observada: 0, rechazada: 0, avgScore: 0, mes: 0 },
+        });
+      }
+      const vehicleIds = await Vehicle.find({ companyId: me.companyId })
+        .select("_id")
+        .lean<Array<{ _id: unknown }>>();
+      if (vehicleIds.length === 0) {
+        return apiResponse({
+          items: [], total: 0, page, limit,
+          stats: { aprobada: 0, observada: 0, rechazada: 0, avgScore: 0, mes: 0 },
+        });
+      }
+      filter.vehicleId = { $in: vehicleIds.map((v) => v._id) };
     } else {
       const targetId = municipalityIdParam ?? auth.session.municipalityId;
       if (!targetId || !isValidObjectId(targetId)) return apiForbidden();

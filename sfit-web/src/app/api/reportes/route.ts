@@ -10,6 +10,7 @@ import { Vehicle } from "@/models/Vehicle";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { awardCoins, getNivel } from "@/lib/coins/awardCoins";
 import { verifyQrPayload, type QrPayload } from "@/lib/qr/hmac";
@@ -59,9 +60,7 @@ const CreateSchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_REGIONAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL,
-  ]);
+  const auth = requireRole(request, [...rolesFor("reportes", "view")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   try {
@@ -79,6 +78,27 @@ export async function GET(request: NextRequest) {
         if (!isValidObjectId(municipalityIdParam)) return apiError("municipalityId inválido", 400);
         filter.municipalityId = municipalityIdParam;
       }
+    } else if (auth.session.role === ROLES.OPERADOR) {
+      // El operador ve sólo reportes que mencionan vehículos de su empresa.
+      // Resolvemos su companyId desde User y traemos sus vehicleIds.
+      const me = await User.findById(auth.session.userId)
+        .select("companyId")
+        .lean<{ companyId?: unknown } | null>();
+      if (!me?.companyId) {
+        // Operador sin empresa asignada — feed vacío.
+        return apiResponse({ items: [], total: 0, page, limit, statusCounts: {} });
+      }
+      const vehicles = await Vehicle.find({ companyId: me.companyId })
+        .select("_id")
+        .lean<Array<{ _id: unknown }>>();
+      if (vehicles.length === 0) {
+        return apiResponse({ items: [], total: 0, page, limit, statusCounts: {} });
+      }
+      filter.vehicleId = { $in: vehicles.map((v) => v._id) };
+    } else if (auth.session.role === ROLES.CIUDADANO) {
+      // El feed para ciudadano vive en /api/reportes/feed; este endpoint
+      // (admin) no es para ellos. Devolvemos vacío sin error para no romper UI.
+      return apiResponse({ items: [], total: 0, page, limit, statusCounts: {} });
     } else {
       const targetId = municipalityIdParam ?? auth.session.municipalityId;
       if (!targetId || !isValidObjectId(targetId)) return apiForbidden();

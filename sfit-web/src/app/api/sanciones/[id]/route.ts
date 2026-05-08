@@ -17,9 +17,7 @@ const UpdateSchema = z.object({
 });
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_REGIONAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL,
-  ]);
+  const auth = requireRole(request, [...rolesFor("sanciones", "view")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;
@@ -32,7 +30,38 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     .populate("companyId", "razonSocial")
     .lean();
   if (!s) return apiNotFound("Sanción no encontrada");
-  if (!(await canAccessMunicipality(auth.session, String(s.municipalityId)))) return apiForbidden();
+
+  // Scope por rol:
+  //   - admins / fiscal: filtro por municipalidad accesible.
+  //   - OPERADOR: la sanción debe ser de su empresa (companyId match).
+  //   - CONDUCTOR: la sanción debe ser sobre él (driverId match).
+  if (
+    auth.session.role === ROLES.SUPER_ADMIN ||
+    auth.session.role === ROLES.ADMIN_REGIONAL ||
+    auth.session.role === ROLES.ADMIN_PROVINCIAL ||
+    auth.session.role === ROLES.ADMIN_MUNICIPAL ||
+    auth.session.role === ROLES.FISCAL
+  ) {
+    if (!(await canAccessMunicipality(auth.session, String(s.municipalityId)))) {
+      return apiForbidden();
+    }
+  } else if (auth.session.role === ROLES.OPERADOR) {
+    const { User } = await import("@/models/User");
+    const me = await User.findById(auth.session.userId)
+      .select("companyId")
+      .lean<{ companyId?: unknown } | null>();
+    if (!me?.companyId || !s.companyId || String(me.companyId) !== String((s.companyId as { _id?: unknown })._id ?? s.companyId)) {
+      return apiForbidden();
+    }
+  } else if (auth.session.role === ROLES.CONDUCTOR) {
+    const { Driver } = await import("@/models/Driver");
+    const driver = await Driver.findOne({ userId: auth.session.userId })
+      .select("_id")
+      .lean<{ _id: unknown } | null>();
+    if (!driver || !s.driverId || String((s.driverId as { _id?: unknown })._id ?? s.driverId) !== String(driver._id)) {
+      return apiForbidden();
+    }
+  }
 
   return apiResponse({
     id: String(s._id),

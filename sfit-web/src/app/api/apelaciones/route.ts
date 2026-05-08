@@ -9,6 +9,7 @@ import "@/models/User";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
+import { rolesFor } from "@/lib/auth/roleMatrix";
 import { createNotificationForRoles } from "@/lib/notifications/create";
 
 const CreateSchema = z.object({
@@ -17,9 +18,11 @@ const CreateSchema = z.object({
   evidence: z.array(z.string().url("URL de evidencia inválida")).optional(),
 });
 
-// ── POST /api/apelaciones — crear apelación (rol: operador) ──────────────────
+// ── POST /api/apelaciones — crear apelación ─────────────────────────────────
+// Conductor apela su sanción desde la app; operador apela en nombre de su flota
+// desde la web. Roles consumidos desde la matriz central (apelaciones.create).
 export async function POST(request: NextRequest) {
-  const auth = requireRole(request, [ROLES.OPERADOR]);
+  const auth = requireRole(request, [...rolesFor("apelaciones", "create")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   let body: unknown;
@@ -47,12 +50,30 @@ export async function POST(request: NextRequest) {
       return apiError("Solo se pueden apelar inspecciones con resultado rechazada u observada", 422);
     }
 
-    // El vehículo de la inspección debe corresponder al municipio del operador
-    if (
-      auth.session.municipalityId &&
-      String(inspection.municipalityId) !== String(auth.session.municipalityId)
-    ) {
-      return apiForbidden();
+    // Scope por rol:
+    //   - OPERADOR: la inspección debe corresponder a su municipio (la flota
+    //     del operador se filtra por scopedCompanyFilter en otros endpoints).
+    //   - CONDUCTOR: la inspección debe estar asociada a un Driver cuyo
+    //     userId sea el del actor — i.e. apela la SUYA, no una ajena.
+    if (auth.session.role === ROLES.OPERADOR) {
+      if (
+        auth.session.municipalityId &&
+        String(inspection.municipalityId) !== String(auth.session.municipalityId)
+      ) {
+        return apiForbidden();
+      }
+    } else if (auth.session.role === ROLES.CONDUCTOR) {
+      const { Driver } = await import("@/models/Driver");
+      const driver = await Driver.findOne({ userId: auth.session.userId })
+        .select("_id")
+        .lean<{ _id: unknown } | null>();
+      if (!driver) return apiForbidden();
+      if (
+        !inspection.driverId ||
+        String(inspection.driverId) !== String(driver._id)
+      ) {
+        return apiForbidden();
+      }
     }
 
     // Verificar que no exista ya una apelación para esta inspección

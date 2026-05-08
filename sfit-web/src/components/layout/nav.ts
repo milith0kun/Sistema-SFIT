@@ -44,16 +44,18 @@ export const NAV: NavItem[] = [
   { href: "/flota",           label: "Flota del día",       icon: ClipboardList,         section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","operador","fiscal"] },
   { href: "/rutas",           label: "Rutas y zonas",       icon: Route,                 section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","operador","fiscal"] },
   { href: "/viajes",          label: "Viajes",              icon: CalendarDays,          section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","operador","fiscal"] },
-  { href: "/inspecciones",    label: "Inspecciones",        icon: Shield,                section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal"] },
-  { href: "/apelaciones",     label: "Apelaciones",         icon: MessageSquareWarning,  section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal"] },
+  { href: "/inspecciones",    label: "Inspecciones",        icon: Shield,                section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal","operador"] },
+  { href: "/apelaciones",     label: "Apelaciones",         icon: MessageSquareWarning,  section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal","operador"] },
 
   // CIUDADANÍA — reportes y recompensas
-  { href: "/reportes",        label: "Reportes ciudadanos", icon: Flag,                  section: "CIUDADANÍA",     roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal"] },
-  { href: "/sanciones",       label: "Sanciones",           icon: TriangleAlert,         section: "CIUDADANÍA",     roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal"] },
+  // Operador ve reportes/sanciones que afectan a su flota (filtrado por
+  // scopedCompanyFilter en el backend); recompensas siguen sin tocarlo.
+  { href: "/reportes",        label: "Reportes ciudadanos", icon: Flag,                  section: "CIUDADANÍA",     roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal","operador"] },
+  { href: "/sanciones",       label: "Sanciones",           icon: TriangleAlert,         section: "CIUDADANÍA",     roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal","operador"] },
   { href: "/recompensas",     label: "Recompensas",         icon: Gift,                  section: "CIUDADANÍA",     roles: ["admin_municipal"] },
 
-  // ANÁLISIS — estadísticas e inteligencia
-  { href: "/estadisticas",    label: "Estadísticas",        icon: ChartColumn,           section: "ANÁLISIS",       roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal"] },
+  // ANÁLISIS — estadísticas e inteligencia (operador ve KPIs de su empresa)
+  { href: "/estadisticas",    label: "Estadísticas",        icon: ChartColumn,           section: "ANÁLISIS",       roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal","operador"] },
 
   // MI CUENTA — datos personales del usuario autenticado
   { href: "/perfil",          label: "Mi perfil",           icon: CircleUserRound,       section: "MI CUENTA",      roles: ["super_admin","admin_provincial","admin_municipal","fiscal","operador","conductor","ciudadano"] },

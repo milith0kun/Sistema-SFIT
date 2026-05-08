@@ -88,12 +88,16 @@ export const ROLE_MATRIX: Record<Resource, Record<Action, Role[]>> = {
   },
   apelaciones: {
     view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.FISCAL, A.CONDUCTOR],
-    create: [A.CONDUCTOR],
+    // Conductor apela su propia sanción desde la app; operador apela en
+    // nombre de su flota desde la web. Ambos casos pasan por el mismo POST.
+    create: [A.CONDUCTOR, A.OPERADOR],
     edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL],
     delete: [A.SUPER_ADMIN],
   },
   reportes: {
-    view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.FISCAL, A.CIUDADANO],
+    // El operador ve los reportes que mencionan vehículos de su flota
+    // (filtrado por companyId en el handler GET).
+    view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR, A.CIUDADANO],
     create: [A.CIUDADANO],
     edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL],
     delete: [A.SUPER_ADMIN],
