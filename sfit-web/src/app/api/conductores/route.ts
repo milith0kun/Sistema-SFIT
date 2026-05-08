@@ -3,10 +3,12 @@ import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { Driver } from "@/models/Driver";
+import { Company } from "@/models/Company";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES, DRIVER_STATUS } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
+import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
 
 const CreateDriverSchema = z.object({
   municipalityId: z.string().refine(isValidObjectId, "municipalityId inválido").optional(),
@@ -49,6 +51,16 @@ export async function GET(request: NextRequest) {
       if (!targetId || !isValidObjectId(targetId)) return apiForbidden();
       if (!(await canAccessMunicipality(auth.session, targetId))) return apiForbidden();
       filter.municipalityId = targetId;
+    }
+
+    // Operador: acotar al companyId del operador (Driver.companyId directo).
+    // Sin empresa asignada → lista vacía (no es error de auth).
+    if (auth.session.role === ROLES.OPERADOR) {
+      const companyId = await getOperatorCompanyId(auth.session.userId);
+      if (!companyId) {
+        return apiResponse({ items: [], total: 0, page, limit, statusCounts: {} });
+      }
+      filter.companyId = companyId;
     }
 
     if (statusParam && Object.values(DRIVER_STATUS).includes(statusParam as never)) {
@@ -135,12 +147,25 @@ export async function POST(request: NextRequest) {
     await connectDB();
     if (!(await canAccessMunicipality(auth.session, municipalityId))) return apiForbidden();
 
+    // Operador: forzar companyId a la empresa propia (ignora lo que venga
+    // en el body) y validar que la empresa pertenezca a su misma muni.
+    let effectiveCompanyId = parsed.data.companyId;
+    if (auth.session.role === ROLES.OPERADOR) {
+      const myCompanyId = await getOperatorCompanyId(auth.session.userId);
+      if (!myCompanyId) return apiError("Sin empresa asignada", 400);
+      const company = await Company.findById(myCompanyId).select("municipalityId").lean<{ municipalityId?: unknown } | null>();
+      if (!company || String(company.municipalityId) !== String(auth.session.municipalityId)) {
+        return apiForbidden();
+      }
+      effectiveCompanyId = myCompanyId;
+    }
+
     const duplicate = await Driver.findOne({ municipalityId, dni: parsed.data.dni });
     if (duplicate) return apiError("Ya existe un conductor con ese DNI", 409);
 
     const created = await Driver.create({
       municipalityId,
-      companyId: parsed.data.companyId,
+      companyId: effectiveCompanyId,
       name: parsed.data.name,
       dni: parsed.data.dni,
       licenseNumber: parsed.data.licenseNumber,

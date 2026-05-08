@@ -14,6 +14,7 @@ import { sendEmail } from "@/lib/email/email_service";
 import { sanctionEmailHtml } from "@/lib/email/templates";
 import { Company } from "@/models/Company";
 import { Vehicle } from "@/models/Vehicle";
+import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
 
 const SANCTION_STATUS_VALUES = ["emitida", "notificada", "apelada", "confirmada", "anulada"] as const;
 
@@ -35,7 +36,7 @@ const CreateSchema = z.object({
 export async function GET(request: NextRequest) {
   const auth = requireRole(request, [
     ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL,
-    ROLES.CONDUCTOR,
+    ROLES.OPERADOR, ROLES.CONDUCTOR,
   ]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
@@ -82,6 +83,29 @@ export async function GET(request: NextRequest) {
       if (!targetId || !isValidObjectId(targetId)) return apiForbidden();
       if (!(await canAccessMunicipality(auth.session, targetId))) return apiForbidden();
       filter.municipalityId = targetId;
+    }
+
+    // Operador: acotar a las sanciones cuya unidad pertenezca a su empresa.
+    // Sanction no guarda companyId obligatorio para filtrar — usamos vehicleId
+    // del set de vehicles de la empresa (defensa en profundidad).
+    if (auth.session.role === ROLES.OPERADOR) {
+      const companyId = await getOperatorCompanyId(auth.session.userId);
+      if (!companyId) {
+        return apiResponse({
+          items: [], total: 0, page, limit,
+          stats: { emitida: 0, notificada: 0, apelada: 0, confirmada: 0, anulada: 0, montoConfirmado: 0 },
+        });
+      }
+      const vehicleIds = await Vehicle.find({ companyId })
+        .select("_id")
+        .lean<Array<{ _id: unknown }>>();
+      if (vehicleIds.length === 0) {
+        return apiResponse({
+          items: [], total: 0, page, limit,
+          stats: { emitida: 0, notificada: 0, apelada: 0, confirmada: 0, anulada: 0, montoConfirmado: 0 },
+        });
+      }
+      filter.vehicleId = { $in: vehicleIds.map((v) => v._id) };
     }
 
     if (statusParam) filter.status = statusParam;

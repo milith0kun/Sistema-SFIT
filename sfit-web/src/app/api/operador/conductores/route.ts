@@ -2,7 +2,6 @@ import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db/mongoose";
 import { Driver } from "@/models/Driver";
 import { User } from "@/models/User";
-import { Company } from "@/models/Company";
 import {
   apiResponse,
   apiError,
@@ -11,6 +10,7 @@ import {
 } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
+import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
 
 /**
  * GET /api/operador/conductores?q=<texto>&onlyUnassigned=<bool>&limit=<n>
@@ -46,29 +46,29 @@ export async function GET(request: NextRequest) {
     return apiError("El operador no tiene municipio asignado", 400);
   }
 
-  // Si el operador no tiene companyId en su user, lo intentamos vía Company.
-  let myCompanyId: unknown = operatorUser.companyId;
-  if (!myCompanyId) {
-    const myCompany = await Company.findOne({
-      municipalityId: operatorUser.municipalityId,
-      // Heurística: tomamos la primera empresa activa de su muni. En un
-      // modelo más estricto el operador debería tener companyId explícito.
-    }).select("_id").lean();
-    myCompanyId = myCompany?._id;
+  // Resolver companyId vía helper estándar (User.companyId con fallback a
+  // Driver.userId). Si no se encuentra → error claro: no usamos heurísticas
+  // de "primera empresa activa de la muni" que terminaban devolviendo
+  // recursos de la competencia.
+  const myCompanyIdStr = await getOperatorCompanyId(auth.session.userId);
+  if (!myCompanyIdStr) {
+    return apiError(
+      "El operador no tiene empresa asignada. Contacta al administrador.",
+      400,
+    );
   }
+  const myCompanyId: unknown = myCompanyIdStr;
 
   const filter: Record<string, unknown> = {
     municipalityId: operatorUser.municipalityId,
     active: true,
   };
-  if (onlyUnassigned && myCompanyId) {
+  if (onlyUnassigned) {
     filter.$or = [
       { companyId: { $exists: false } },
       { companyId: null },
       { companyId: { $ne: myCompanyId } },
     ];
-  } else if (onlyUnassigned) {
-    filter.$or = [{ companyId: { $exists: false } }, { companyId: null }];
   }
   if (q.length > 0) {
     const isAllDigits = /^\d+$/.test(q);

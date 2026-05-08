@@ -9,6 +9,9 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
 
 const CREATE_ROLES = ["admin_municipal", "operador", "super_admin"];
+// Solo el operador tiene su empresa fija; admin_municipal y super_admin
+// eligen libremente del dropdown.
+const FIXED_COMPANY_ROLES = ["operador"];
 
 const LICENSE_CATEGORIES = ["A-I", "A-IIa", "A-IIb", "A-IIIa", "A-IIIb", "A-IIIc"];
 
@@ -52,7 +55,10 @@ export default function NuevoconductorPage() {
 
   const [authorized, setAuthorized] = useState(false);
   const [token, setToken] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [miEmpresa, setMiEmpresa] = useState<Empresa | null>(null);
+  const [miEmpresaMissing, setMiEmpresaMissing] = useState(false);
   const [loadingEmpresas, setLoadingEmpresas] = useState(true);
 
   const [form, setForm] = useState<FormData>({
@@ -109,23 +115,48 @@ export default function NuevoconductorPage() {
 
     setAuthorized(true);
     setToken(tk);
+    setRole(user.role);
   }, [router]);
 
   useEffect(() => {
-    if (!authorized || !token) return;
+    if (!authorized || !token || !role) return;
 
     setLoadingEmpresas(true);
-    fetch("/api/empresas?limit=100", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((body) => {
-        const items: Empresa[] = body?.data?.items ?? [];
-        setEmpresas(items);
-      })
-      .catch(() => setEmpresas([]))
-      .finally(() => setLoadingEmpresas(false));
-  }, [authorized, token]);
+    const headers = { Authorization: `Bearer ${token}` };
+    const isOperador = FIXED_COMPANY_ROLES.includes(role);
+
+    if (isOperador) {
+      // Operador: empresa fija desde /api/operador/mi-empresa
+      fetch("/api/operador/mi-empresa", { headers })
+        .then(async (r) => {
+          if (r.status === 404) {
+            setMiEmpresaMissing(true);
+            return;
+          }
+          const body = await r.json().catch(() => null);
+          if (!r.ok || !body?.success) {
+            setMiEmpresaMissing(true);
+            return;
+          }
+          const c = body.data;
+          const e: Empresa = { id: c.id, razonSocial: c.razonSocial };
+          setMiEmpresa(e);
+          // Pre-cargamos companyId al estado del form para que el POST lo lleve
+          setForm((prev) => ({ ...prev, companyId: e.id }));
+        })
+        .catch(() => setMiEmpresaMissing(true))
+        .finally(() => setLoadingEmpresas(false));
+    } else {
+      fetch("/api/empresas?limit=100", { headers })
+        .then((r) => r.json())
+        .then((body) => {
+          const items: Empresa[] = body?.data?.items ?? [];
+          setEmpresas(items);
+        })
+        .catch(() => setEmpresas([]))
+        .finally(() => setLoadingEmpresas(false));
+    }
+  }, [authorized, token, role]);
 
   // Lookup encadenado al cambiar el DNI: RENIEC + Licencia MTC en paralelo.
   useEffect(() => {
@@ -229,7 +260,11 @@ export default function NuevoconductorPage() {
       licenseNumber: form.licenseNumber.trim(),
       licenseCategory: form.licenseCategory,
     };
-    if (form.companyId) payload.companyId = form.companyId;
+    // Defensa en profundidad: el operador siempre envía SU companyId, no
+    // dejamos elegir empresa ajena desde la UI.
+    const isOperador = role ? FIXED_COMPANY_ROLES.includes(role) : false;
+    const companyIdToSend = isOperador ? miEmpresa?.id : form.companyId;
+    if (companyIdToSend) payload.companyId = companyIdToSend;
     if (form.phone.trim()) payload.phone = form.phone.trim();
 
     try {
@@ -521,23 +556,65 @@ export default function NuevoconductorPage() {
             >
               Empresa de transporte
             </label>
-            <select
-              id="companyId"
-              className="field"
-              value={form.companyId}
-              onChange={(e) => handleChange("companyId", e.target.value)}
-              disabled={submitting || loadingEmpresas}
-              style={{ maxWidth: 360 }}
-            >
-              <option value="">
-                {loadingEmpresas ? "Cargando empresas…" : "Sin empresa asignada"}
-              </option>
-              {empresas.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.razonSocial}
+            {role && FIXED_COMPANY_ROLES.includes(role) ? (
+              miEmpresaMissing ? (
+                <div
+                  style={{
+                    maxWidth: 480,
+                    padding: "10px 14px",
+                    background: "#FFFBEB",
+                    border: "1.5px solid #FDE68A",
+                    borderRadius: 9,
+                    fontSize: "0.8125rem",
+                    color: "#92400E",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 8,
+                  }}
+                >
+                  <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <span>
+                    Aún no tienes una empresa asignada. Pídele al administrador
+                    municipal que te asigne una empresa antes de registrar
+                    conductores.
+                  </span>
+                </div>
+              ) : (
+                <input
+                  id="companyId"
+                  type="text"
+                  className="field"
+                  value={loadingEmpresas ? "Cargando…" : (miEmpresa?.razonSocial ?? "")}
+                  readOnly
+                  disabled
+                  title="Tu empresa asignada (no editable)"
+                  style={{
+                    maxWidth: 360,
+                    background: "#f4f4f5",
+                    color: "#52525b",
+                    cursor: "not-allowed",
+                  }}
+                />
+              )
+            ) : (
+              <select
+                id="companyId"
+                className="field"
+                value={form.companyId}
+                onChange={(e) => handleChange("companyId", e.target.value)}
+                disabled={submitting || loadingEmpresas}
+                style={{ maxWidth: 360 }}
+              >
+                <option value="">
+                  {loadingEmpresas ? "Cargando empresas…" : "Sin empresa asignada"}
                 </option>
-              ))}
-            </select>
+                {empresas.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.razonSocial}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </Card>
 

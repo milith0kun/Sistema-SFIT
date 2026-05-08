@@ -3,10 +3,12 @@ import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { Vehicle } from "@/models/Vehicle";
+import { Company } from "@/models/Company";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES, VEHICLE_STATUS } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
+import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
 
 const CreateVehicleSchema = z.object({
   municipalityId: z.string().refine(isValidObjectId).optional(),
@@ -49,6 +51,16 @@ export async function GET(request: NextRequest) {
       if (!targetId || !isValidObjectId(targetId)) return apiForbidden();
       if (!(await canAccessMunicipality(auth.session, targetId))) return apiForbidden();
       filter.municipalityId = targetId;
+    }
+
+    // Operador: acotar al companyId del operador (Vehicle.companyId directo).
+    // Sin empresa asignada → lista vacía (no es error de auth).
+    if (auth.session.role === ROLES.OPERADOR) {
+      const companyId = await getOperatorCompanyId(auth.session.userId);
+      if (!companyId) {
+        return apiResponse({ items: [], total: 0, page, limit });
+      }
+      filter.companyId = companyId;
     }
 
     if (statusParam && Object.values(VEHICLE_STATUS).includes(statusParam as never)) filter.status = statusParam;
@@ -129,12 +141,25 @@ export async function POST(request: NextRequest) {
     await connectDB();
     if (!(await canAccessMunicipality(auth.session, municipalityId))) return apiForbidden();
 
+    // Operador: forzar companyId a la empresa propia y validar que la
+    // empresa pertenezca a su misma muni (defensa multi-tenant).
+    let effectiveCompanyId = parsed.data.companyId;
+    if (auth.session.role === ROLES.OPERADOR) {
+      const myCompanyId = await getOperatorCompanyId(auth.session.userId);
+      if (!myCompanyId) return apiError("Sin empresa asignada", 400);
+      const company = await Company.findById(myCompanyId).select("municipalityId").lean<{ municipalityId?: unknown } | null>();
+      if (!company || String(company.municipalityId) !== String(auth.session.municipalityId)) {
+        return apiForbidden();
+      }
+      effectiveCompanyId = myCompanyId;
+    }
+
     const duplicate = await Vehicle.findOne({ municipalityId, plate: parsed.data.plate.toUpperCase() });
     if (duplicate) return apiError("Ya existe un vehículo con esa placa", 409);
 
     const created = await Vehicle.create({
       municipalityId,
-      companyId: parsed.data.companyId,
+      companyId: effectiveCompanyId,
       plate: parsed.data.plate.toUpperCase(),
       vehicleTypeKey: parsed.data.vehicleTypeKey,
       brand: parsed.data.brand,

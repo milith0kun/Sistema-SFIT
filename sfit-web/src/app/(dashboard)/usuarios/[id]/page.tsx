@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Save, UserCog, MapPin, Trash2,
-  CheckCircle2, Activity, KeyRound,
+  CheckCircle2, Activity, KeyRound, Building2,
   Loader2, CheckCircle, AlertTriangle, Copy, Check,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -25,8 +25,10 @@ type UserDetail = {
   regionId?: string | null; regionName?: string | null;
   provinceId?: string | null; provinceName?: string | null;
   municipalityId?: string | null; municipalityName?: string | null;
+  companyId?: string | null;
   createdAt: string;
 };
+type CompanyOption = { id: string; razonSocial: string };
 type StoredUser   = { id: string; role: string };
 type DniLookup =
   | { state: "idle" }
@@ -163,6 +165,11 @@ export default function UsuarioDetallePage() {
   const [dniHover, setDniHover] = useState(false);
   const lookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /* Empresa asignada (sólo cuando role === "operador") */
+  const [companyId, setCompanyId] = useState<string>("");
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
+
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
@@ -197,9 +204,31 @@ export default function UsuarioDetallePage() {
         municipalityId: u.municipalityId ?? null,
       });
       setSelStatus(u.status);
+      setCompanyId(u.companyId ?? "");
     } catch { setError("Error de conexión."); }
     finally { setLoading(false); }
   }, [id, router]);
+
+  // Carga las empresas del municipio del usuario cuando el rol seleccionado
+  // es operador (para que aparezca el dropdown de Empresa).
+  useEffect(() => {
+    if (selRole !== "operador" || !location.municipalityId) {
+      setCompanies([]);
+      return;
+    }
+    setLoadingCompanies(true);
+    fetch(
+      `/api/empresas?municipalityId=${encodeURIComponent(location.municipalityId)}&limit=100`,
+      { headers: { Authorization: `Bearer ${getToken()}` } },
+    )
+      .then((r) => r.json())
+      .then((body) => {
+        const items: CompanyOption[] = body?.data?.items ?? [];
+        setCompanies(items);
+      })
+      .catch(() => setCompanies([]))
+      .finally(() => setLoadingCompanies(false));
+  }, [selRole, location.municipalityId]);
 
   useEffect(() => { if (actor) { void fetchTarget(); } }, [actor, fetchTarget]);
 
@@ -267,7 +296,18 @@ export default function UsuarioDetallePage() {
   }
 
   async function saveProfile()  { await patch({ name: name.trim(), phone: phone.trim() || null, dni: dni.trim() || null }, "Datos personales actualizados."); }
-  async function saveRole()     { await patch({ role: selRole }, "Rol actualizado correctamente."); }
+  async function saveRole() {
+    // Cuando el rol se cambia a algo distinto de "operador", limpiamos
+    // companyId para que no quede colgado un vínculo con la empresa anterior.
+    const body: Record<string, unknown> = { role: selRole };
+    if (selRole !== "operador" && (target?.companyId ?? null)) {
+      body.companyId = null;
+    }
+    await patch(body, "Rol actualizado correctamente.");
+  }
+  async function saveCompany() {
+    await patch({ companyId: companyId || null }, "Empresa actualizada correctamente.");
+  }
   async function saveLocation() {
     await patch(
       {
@@ -581,7 +621,10 @@ export default function UsuarioDetallePage() {
               </div>
             </SectionCard>
 
-            {/* Rol — solo si el actor puede asignar roles a este usuario */}
+            {/* Rol — solo si el actor puede asignar roles a este usuario.
+                Cuando se selecciona "operador", debajo de la grid Estado/Rol
+                aparece el card "Empresa asignada" filtrado por el municipio
+                del usuario. */}
             {roles.length > 0 && (
               <SectionCard
                 icon={<UserCog size={14} color={INK6} />}
@@ -627,6 +670,65 @@ export default function UsuarioDetallePage() {
               </SectionCard>
             )}
           </div>
+
+          {/* Empresa asignada — solo cuando rol === "operador" */}
+          {selRole === "operador" && (
+            <SectionCard
+              icon={<Building2 size={14} color={INK6} />}
+              title="Empresa asignada"
+              subtitle="El operador podrá administrar solo esta empresa"
+              action={
+                <button
+                  onClick={() => { void saveCompany(); }}
+                  disabled={saving || (companyId || null) === (target.companyId ?? null)}
+                  style={{ ...BTN_PRIMARY, height: 28, padding: "0 10px", fontSize: "0.75rem",
+                    opacity: saving || (companyId || null) === (target.companyId ?? null) ? 0.4 : 1,
+                    cursor: saving || (companyId || null) === (target.companyId ?? null) ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {saving ? "…" : "Guardar"}
+                </button>
+              }
+            >
+              {!location.municipalityId ? (
+                <p style={{ fontSize: "0.8125rem", color: INK5, margin: 0 }}>
+                  Asigna primero un municipio al usuario para listar empresas disponibles.
+                </p>
+              ) : loadingCompanies ? (
+                <div style={{ ...FIELD, display: "flex", alignItems: "center", color: INK5 }}>
+                  <Loader2 size={14} style={{ animation: "spin 0.7s linear infinite", marginRight: 8 }} />
+                  Cargando empresas…
+                </div>
+              ) : companies.length === 0 ? (
+                <div style={{
+                  padding: "12px 14px", borderRadius: 8,
+                  background: "#FFFBEB", border: "1px solid #FDE68A",
+                  fontSize: "0.8125rem", color: "#92400E",
+                  display: "flex", flexDirection: "column", gap: 8,
+                }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                    <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 2 }} />
+                    <span>No hay empresas registradas en este municipio. Crea una empresa primero.</span>
+                  </div>
+                  <Link href="/admin/empresas/nueva"
+                    style={{ alignSelf: "flex-start", color: "#92400E", fontWeight: 700, textDecoration: "underline", fontSize: "0.75rem" }}>
+                    Ir a crear empresa →
+                  </Link>
+                </div>
+              ) : (
+                <select
+                  value={companyId}
+                  onChange={(e) => setCompanyId(e.target.value)}
+                  style={FIELD}
+                >
+                  <option value="">Sin asignar</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>{c.razonSocial}</option>
+                  ))}
+                </select>
+              )}
+            </SectionCard>
+          )}
 
           {/* Contraseña — solo super_admin */}
           {canPass && (

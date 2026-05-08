@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
@@ -25,6 +26,10 @@ class _AsociarConductoresPageState extends ConsumerState<AsociarConductoresPage>
   bool _loading = false;
   bool _onlyUnassigned = true;
   List<Map<String, dynamic>> _items = [];
+  // Si el operador no tiene empresa asignada (400/422 desde el backend),
+  // mostramos un empty state explicativo en lugar del listado vacío.
+  bool _noCompany = false;
+  String? _noCompanyMessage;
   // ID de los conductores que están siendo asociados ahora mismo (para el spinner).
   final Set<String> _associating = {};
 
@@ -47,7 +52,11 @@ class _AsociarConductoresPageState extends ConsumerState<AsociarConductoresPage>
   }
 
   Future<void> _search(String q) async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _noCompany = false;
+      _noCompanyMessage = null;
+    });
     try {
       final dio = ref.read(dioClientProvider).dio;
       final resp = await dio.get(
@@ -64,6 +73,29 @@ class _AsociarConductoresPageState extends ConsumerState<AsociarConductoresPage>
       if (!mounted) return;
       setState(() {
         _items = items;
+        _loading = false;
+      });
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final code = e.response?.statusCode ?? 0;
+      // 400/422 → el operador no tiene empresa/municipio asignado. El backend
+      // devuelve el mensaje en `error`. Pintamos un empty state explicativo
+      // en lugar de un listado vacío silencioso.
+      if (code == 400 || code == 422) {
+        final data = e.response?.data;
+        final apiMsg = (data is Map && data['error'] is String)
+            ? data['error'] as String
+            : null;
+        setState(() {
+          _items = const [];
+          _loading = false;
+          _noCompany = true;
+          _noCompanyMessage = apiMsg;
+        });
+        return;
+      }
+      setState(() {
+        _items = const [];
         _loading = false;
       });
     } catch (_) {
@@ -195,7 +227,9 @@ class _AsociarConductoresPageState extends ConsumerState<AsociarConductoresPage>
         // ── Lista ────────────────────────────────────────────────
         Expanded(
           child: _items.isEmpty && !_loading
-              ? const _EmptyState()
+              ? (_noCompany
+                  ? _NoCompanyState(message: _noCompanyMessage)
+                  : const _EmptyState())
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                   itemCount: _items.length,
@@ -370,6 +404,54 @@ class _EmptyState extends StatelessWidget {
               'No hay conductores que coincidan con tu búsqueda. Pide a los conductores que se registren en SFIT primero.',
               textAlign: TextAlign.center,
               style: AppTheme.inter(fontSize: 12, color: AppColors.ink6, height: 1.4),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Empty state cuando el backend devuelve 400/422 porque el operador no
+/// tiene empresa/municipio asignado. Mostramos el mensaje del backend si
+/// viene, o un fallback explicativo.
+class _NoCompanyState extends StatelessWidget {
+  final String? message;
+  const _NoCompanyState({this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64, height: 64,
+              decoration: BoxDecoration(
+                color: AppColors.noAptoBg,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.noAptoBorder),
+              ),
+              child: const Icon(Icons.business_outlined,
+                  size: 30, color: AppColors.noApto),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Sin empresa asignada',
+              style: AppTheme.inter(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.ink9),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              message ??
+                  'Tu cuenta no tiene una empresa asignada. Contacta al administrador municipal para que te vincule a una empresa antes de asociar conductores.',
+              textAlign: TextAlign.center,
+              style: AppTheme.inter(
+                  fontSize: 12, color: AppColors.ink6, height: 1.4),
             ),
           ],
         ),

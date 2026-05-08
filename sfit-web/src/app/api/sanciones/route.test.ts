@@ -6,6 +6,9 @@ import { ROLES, type Role } from "@/lib/constants";
 
 vi.mock("@/lib/db/mongoose", () => ({ connectDB: vi.fn() }));
 vi.mock("@/lib/auth/rbac", () => ({ canAccessMunicipality: vi.fn().mockResolvedValue(true) }));
+vi.mock("@/lib/auth/operatorCompany", () => ({
+  getOperatorCompanyId: vi.fn().mockResolvedValue(null),
+}));
 vi.mock("@/lib/reputation/updateReputation", () => ({
   adjustVehicleReputation: vi.fn(),
   adjustDriverReputation: vi.fn(),
@@ -98,9 +101,15 @@ describe("GET /api/sanciones", () => {
     expect(res.status).toBe(401);
   });
 
-  it("retorna 403 para operadores", async () => {
+  it("operador sin empresa asignada ve lista vacía (no 403)", async () => {
+    // Tras Fase 1 del scope operador-empresa, el operador SÍ tiene acceso
+    // pero filtrado por su companyId. Sin empresa asignada → items: [].
     const res = await GET(req("GET", token(ROLES.OPERADOR)));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.data.items).toEqual([]);
+    expect(body.data.total).toBe(0);
   });
 
   it("retorna 200 con lista de sanciones", async () => {

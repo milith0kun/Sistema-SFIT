@@ -18,6 +18,7 @@ import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
 import { Municipality } from "@/models/Municipality";
+import { Company } from "@/models/Company";
 import { signAccessToken, signRefreshToken } from "@/lib/auth/jwt";
 import { apiResponse, apiError, apiUnauthorized, apiForbidden, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
@@ -150,6 +151,7 @@ const CreateSchema = z.object({
   ]),
   provinceId:     z.string().refine(v => !v || isValidObjectId(v), "provinceId inválido").optional(),
   municipalityId: z.string().refine(v => !v || isValidObjectId(v), "municipalityId inválido").optional(),
+  companyId:      z.string().refine(v => !v || isValidObjectId(v), "companyId inválido").optional(),
   status:         z.enum(["activo", "pendiente"]).default("activo"),
 
   // Datos opcionales — si super_admin elige "completar perfil ahora"
@@ -179,12 +181,42 @@ export async function POST(request: NextRequest) {
   }
 
   const {
-    name, email, password, role, provinceId, municipalityId, status,
+    name, email, password, role, provinceId, municipalityId, companyId, status,
     dni, phone, completeProfileNow, passwordIsTemporary,
   } = parsed.data;
 
   try {
     await connectDB();
+
+    // Validación tenant para OPERADOR: exige companyId no nulo y que la
+    // empresa pertenezca al mismo muni que el operador. Sin esto, la cuenta
+    // queda huérfana y termina viendo datos de la competencia vía fallback.
+    if (role === "operador") {
+      if (!companyId) {
+        return apiError(
+          "El rol operador requiere asignar una empresa (companyId).",
+          422,
+        );
+      }
+      if (!municipalityId) {
+        return apiError(
+          "El rol operador requiere municipalidad asignada.",
+          422,
+        );
+      }
+      const company = await Company.findById(companyId)
+        .select("municipalityId")
+        .lean<{ municipalityId?: unknown } | null>();
+      if (!company) {
+        return apiError("La empresa asignada no existe.", 422);
+      }
+      if (String(company.municipalityId) !== String(municipalityId)) {
+        return apiError(
+          "La empresa asignada no pertenece a la misma municipalidad que el operador.",
+          422,
+        );
+      }
+    }
 
     const existing = await User.findOne({ email });
     if (existing) return apiError("El correo ya está registrado", 409);
@@ -210,6 +242,7 @@ export async function POST(request: NextRequest) {
       status,
       provinceId:     provinceId     || undefined,
       municipalityId: municipalityId || undefined,
+      companyId:      companyId      || undefined,
       dni:            dni            || undefined,
       phone:          phone          || undefined,
       profileCompleted,

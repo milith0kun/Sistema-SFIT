@@ -14,6 +14,7 @@ import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
+import { Company } from "@/models/Company";
 import "@/models/Municipality";
 import "@/models/Province";
 import "@/models/Region";
@@ -51,6 +52,7 @@ const PatchSchema = z.object({
   municipalityId: z.string().nullable().optional(),
   provinceId: z.string().nullable().optional(),
   regionId: z.string().nullable().optional(),
+  companyId: z.string().nullable().optional(),
   password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres").max(128).optional(),
   rejectionReason: z.string().trim().min(5, "El motivo debe tener al menos 5 caracteres").max(500).optional(),
 }).refine(
@@ -59,6 +61,7 @@ const PatchSchema = z.object({
     d.name !== undefined || d.phone !== undefined ||
     d.dni !== undefined || d.municipalityId !== undefined ||
     d.provinceId !== undefined || d.regionId !== undefined ||
+    d.companyId !== undefined ||
     d.password !== undefined ||
     d.rejectionReason !== undefined,
   { message: "Se debe especificar al menos un campo a actualizar" },
@@ -163,7 +166,7 @@ export async function PATCH(
     return apiError(first, 422);
   }
 
-  const { status, role, name, phone, dni, municipalityId, provinceId, regionId, password, rejectionReason } = parsed.data;
+  const { status, role, name, phone, dni, municipalityId, provinceId, regionId, companyId, password, rejectionReason } = parsed.data;
 
   // ── Protecciones de escalada de privilegios ───────────────────────────────
   if (password !== undefined && session.role !== ROLES.SUPER_ADMIN) {
@@ -193,6 +196,9 @@ export async function PATCH(
   }
   if (regionId && regionId !== "" && !isValidObjectId(regionId)) {
     return apiError("regionId inválido", 400);
+  }
+  if (companyId && companyId !== "" && !isValidObjectId(companyId)) {
+    return apiError("companyId inválido", 400);
   }
 
   try {
@@ -252,6 +258,9 @@ export async function PATCH(
     if (regionId !== undefined) {
       update.regionId = regionId && regionId !== "" ? regionId : null;
     }
+    if (companyId !== undefined) {
+      update.companyId = companyId && companyId !== "" ? companyId : null;
+    }
     if (password) {
       update.password = await bcrypt.hash(password, 12);
     }
@@ -261,6 +270,48 @@ export async function PATCH(
     // Al aprobar limpiamos el flag de "requestedRole" porque ya tomó decisión.
     if (status === "activo" && previousStatus === "pendiente") {
       update.requestedRole = undefined;
+    }
+
+    // ── Validación tenant para OPERADOR ─────────────────────────────────────
+    // Si el resultado final del usuario va a ser rol=operador, exigir que
+    // tenga companyId asignado y que la empresa pertenezca al mismo muni
+    // que tendrá el operador. Esto evita operadores huérfanos viendo data
+    // de otras empresas a través de heurísticas de fallback.
+    const finalRole = (update.role ?? target.role) as Role;
+    if (finalRole === ROLES.OPERADOR) {
+      const finalCompanyId =
+        update.companyId !== undefined
+          ? (update.companyId as string | null)
+          : (target.companyId ? String(target.companyId) : null);
+      const finalMunicipalityId =
+        update.municipalityId !== undefined
+          ? (update.municipalityId as string | null)
+          : (target.municipalityId ? String(target.municipalityId) : null);
+
+      if (!finalCompanyId) {
+        return apiError(
+          "El rol operador requiere asignar una empresa (companyId).",
+          422,
+        );
+      }
+      if (!finalMunicipalityId) {
+        return apiError(
+          "El rol operador requiere municipalidad asignada.",
+          422,
+        );
+      }
+      const company = await Company.findById(finalCompanyId)
+        .select("municipalityId")
+        .lean<{ municipalityId?: unknown } | null>();
+      if (!company) {
+        return apiError("La empresa asignada no existe.", 422);
+      }
+      if (String(company.municipalityId) !== String(finalMunicipalityId)) {
+        return apiError(
+          "La empresa asignada no pertenece a la misma municipalidad que el operador.",
+          422,
+        );
+      }
     }
 
     const updated = await User.findByIdAndUpdate(

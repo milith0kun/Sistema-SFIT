@@ -15,6 +15,7 @@ import {
 } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
+import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
 
 const BodySchema = z.object({
   /** ID de la empresa a la que asociar al conductor. Si no se pasa,
@@ -68,19 +69,16 @@ export async function POST(
 
   let targetCompanyId = parsed.data.companyId;
   if (!targetCompanyId) {
-    if (!operatorUser.companyId) {
-      // Fallback: tomar la primera empresa activa de la muni del operador.
-      const myCompany = await Company.findOne({
-        municipalityId: operatorUser.municipalityId,
-        status: "activo",
-      }).select("_id").lean();
-      if (!myCompany) {
-        return apiError("No se encontró una empresa asociada al operador", 400);
-      }
-      targetCompanyId = String(myCompany._id);
-    } else {
-      targetCompanyId = String(operatorUser.companyId);
+    // Resolver companyId vía helper estándar (sin heurísticas de "primera
+    // empresa de la muni" que devolvían empresas de la competencia).
+    const myCompanyIdStr = await getOperatorCompanyId(auth.session.userId);
+    if (!myCompanyIdStr) {
+      return apiError(
+        "El operador no tiene empresa asignada. Contacta al administrador.",
+        400,
+      );
     }
+    targetCompanyId = myCompanyIdStr;
   }
 
   // Validar empresa.

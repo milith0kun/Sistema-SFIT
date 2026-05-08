@@ -9,6 +9,9 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
 
 const CREATE_ROLES = ["admin_municipal", "operador", "super_admin"];
+// Solo el operador tiene su empresa fija; admin_municipal y super_admin
+// eligen libremente del dropdown.
+const FIXED_COMPANY_ROLES = ["operador"];
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -55,7 +58,10 @@ export default function NuevoVehiculoPage() {
 
   const [authorized, setAuthorized] = useState(false);
   const [token, setToken] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [miEmpresa, setMiEmpresa] = useState<Empresa | null>(null);
+  const [miEmpresaMissing, setMiEmpresaMissing] = useState(false);
   const [tipos, setTipos] = useState<TipoVehiculo[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
@@ -102,19 +108,52 @@ export default function NuevoVehiculoPage() {
 
     setAuthorized(true);
     setToken(tk);
+    setRole(user.role);
   }, [router]);
 
   useEffect(() => {
-    if (!authorized || !token) return;
+    if (!authorized || !token || !role) return;
 
     const headers = { Authorization: `Bearer ${token}` };
+    const isOperador = FIXED_COMPANY_ROLES.includes(role);
+
+    // Operador: empresa fija desde /api/operador/mi-empresa (defensa en
+    // profundidad contra IDOR — el backend también valida pero no exponemos
+    // el dropdown de empresas ajenas en UI).
+    const empresaPromise = isOperador
+      ? fetch("/api/operador/mi-empresa", { headers }).then(async (r) => {
+          if (r.status === 404) {
+            return { __miEmpresaMissing: true } as const;
+          }
+          const body = await r.json().catch(() => null);
+          if (!r.ok || !body?.success) {
+            return { __miEmpresaMissing: true } as const;
+          }
+          const c = body.data;
+          return { __miEmpresa: { id: c.id, razonSocial: c.razonSocial } as Empresa } as const;
+        })
+      : fetch("/api/empresas?limit=100", { headers }).then((r) => r.json());
 
     Promise.all([
-      fetch("/api/empresas?limit=100", { headers }).then((r) => r.json()),
+      empresaPromise,
       fetch("/api/tipos-vehiculo?limit=100", { headers }).then((r) => r.json()),
     ])
-      .then(([empBody, tiposBody]) => {
-        setEmpresas(empBody?.data?.items ?? []);
+      .then(([empResult, tiposBody]) => {
+        if (isOperador) {
+          const r = empResult as
+            | { __miEmpresa: Empresa }
+            | { __miEmpresaMissing: true };
+          if ("__miEmpresaMissing" in r) {
+            setMiEmpresaMissing(true);
+          } else {
+            setMiEmpresa(r.__miEmpresa);
+            // Pre-cargamos companyId al estado del form para que el POST lo lleve
+            setForm((prev) => ({ ...prev, companyId: r.__miEmpresa.id }));
+          }
+        } else {
+          const empBody = empResult as { data?: { items?: Empresa[] } };
+          setEmpresas(empBody?.data?.items ?? []);
+        }
         const allTipos: TipoVehiculo[] = tiposBody?.data?.items ?? [];
         setTipos(allTipos.filter((t) => t.active));
       })
@@ -123,7 +162,7 @@ export default function NuevoVehiculoPage() {
         setTipos([]);
       })
       .finally(() => setLoadingData(false));
-  }, [authorized, token]);
+  }, [authorized, token, role]);
 
   // Debounced lookup de la placa: primero catálogo MTC interno (gratis e
   // instantáneo), si no la encuentra cae a Factiliza/SUNARP (cuesta cupo).
@@ -254,7 +293,11 @@ export default function NuevoVehiculoPage() {
       model: form.model.trim(),
       year: parseInt(form.year, 10),
     };
-    if (form.companyId) payload.companyId = form.companyId;
+    // Defensa en profundidad: el operador siempre envía SU companyId,
+    // ignorando lo que pueda haber en form (no exponemos selector).
+    const isOperador = role ? FIXED_COMPANY_ROLES.includes(role) : false;
+    const companyIdToSend = isOperador ? miEmpresa?.id : form.companyId;
+    if (companyIdToSend) payload.companyId = companyIdToSend;
     if (form.status) payload.status = form.status;
     if (form.soatExpiry) payload.soatExpiry = form.soatExpiry;
 
@@ -566,27 +609,63 @@ export default function NuevoVehiculoPage() {
               maxWidth: 720,
             }}
           >
-            {/* Empresa */}
+            {/* Empresa: para operador es FIJA (su empresa); para admin/super es dropdown libre */}
             <div>
               <label htmlFor="companyId" style={{ display: "block", marginBottom: 8 }}>
                 Empresa de transporte
               </label>
-              <select
-                id="companyId"
-                className="field"
-                value={form.companyId}
-                onChange={(e) => handleChange("companyId", e.target.value)}
-                disabled={submitting || loadingData}
-              >
-                <option value="">
-                  {loadingData ? "Cargando empresas…" : "Sin empresa asignada"}
-                </option>
-                {empresas.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.razonSocial}
+              {role && FIXED_COMPANY_ROLES.includes(role) ? (
+                miEmpresaMissing ? (
+                  <div
+                    style={{
+                      padding: "10px 14px",
+                      background: "#FFFBEB",
+                      border: "1.5px solid #FDE68A",
+                      borderRadius: 9,
+                      fontSize: "0.8125rem",
+                      color: "#92400E",
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 8,
+                    }}
+                  >
+                    <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 2 }} />
+                    <span>
+                      Aún no tienes una empresa asignada. Pídele al administrador
+                      municipal que te asigne una empresa antes de registrar
+                      vehículos.
+                    </span>
+                  </div>
+                ) : (
+                  <input
+                    id="companyId"
+                    type="text"
+                    className="field"
+                    value={loadingData ? "Cargando…" : (miEmpresa?.razonSocial ?? "")}
+                    readOnly
+                    disabled
+                    title="Tu empresa asignada (no editable)"
+                    style={{ background: "#f4f4f5", color: "#52525b", cursor: "not-allowed" }}
+                  />
+                )
+              ) : (
+                <select
+                  id="companyId"
+                  className="field"
+                  value={form.companyId}
+                  onChange={(e) => handleChange("companyId", e.target.value)}
+                  disabled={submitting || loadingData}
+                >
+                  <option value="">
+                    {loadingData ? "Cargando empresas…" : "Sin empresa asignada"}
                   </option>
-                ))}
-              </select>
+                  {empresas.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.razonSocial}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* SOAT */}

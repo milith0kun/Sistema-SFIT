@@ -67,24 +67,19 @@ export async function GET(request: NextRequest) {
       filter.municipalityId = targetId;
     }
 
-    // Operador: si pasa role=operador o companyId=mine acota a los viajes
-    // cuya unidad pertenezca a su empresa. Sin estos params devolvemos los
-    // viajes del municipio (compat backwards). Para super_admin lo ignoramos.
+    // Operador: SIEMPRE acota a los viajes cuya unidad pertenezca a su
+    // empresa. Trip no guarda companyId, así que se infiere a través del
+    // vehicleId. Sin empresa asignada → lista vacía (no es error de auth).
     if (auth.session.role === ROLES.OPERADOR) {
-      const wantsCompanyScope =
-        url.searchParams.get("role") === "operador" ||
-        url.searchParams.get("companyId") === "mine";
-      if (wantsCompanyScope) {
-        const companyId = await getOperatorCompanyId(auth.session.userId);
-        if (!companyId) return apiResponse({ items: [], total: 0, page, limit });
-        const vehicleIds = await Vehicle.find({ companyId })
-          .select("_id")
-          .lean<Array<{ _id: unknown }>>();
-        if (vehicleIds.length === 0) {
-          return apiResponse({ items: [], total: 0, page, limit });
-        }
-        filter.vehicleId = { $in: vehicleIds.map((v) => v._id) };
+      const companyId = await getOperatorCompanyId(auth.session.userId);
+      if (!companyId) return apiResponse({ items: [], total: 0, page, limit });
+      const vehicleIds = await Vehicle.find({ companyId })
+        .select("_id")
+        .lean<Array<{ _id: unknown }>>();
+      if (vehicleIds.length === 0) {
+        return apiResponse({ items: [], total: 0, page, limit });
       }
+      filter.vehicleId = { $in: vehicleIds.map((v) => v._id) };
     }
 
     if (statusParam) filter.status = statusParam;

@@ -1,7 +1,9 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../ai_ocr/presentation/pages/document_ocr_page.dart';
@@ -27,6 +29,13 @@ class _NuevoVehiculoPageState extends ConsumerState<NuevoVehiculoPage> {
   String? _vehicleTypeKey;
   bool _saving = false;
 
+  // Empresa del operador (cargada desde /api/operador/mi-empresa).
+  // El backend deriva companyId del rol del operador, por eso este form
+  // NO envía companyId — el banner es solo informativo / read-only.
+  String? _companyName;
+  bool _loadingCompany = true;
+  String? _companyError;
+
   static const _vehicleTypes = [
     ('transporte_publico', 'Transporte público'),
     ('limpieza_residuos',  'Limpieza'),
@@ -36,6 +45,12 @@ class _NuevoVehiculoPageState extends ConsumerState<NuevoVehiculoPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadMiEmpresa();
+  }
+
+  @override
   void dispose() {
     _plateCtrl.dispose();
     _brandCtrl.dispose();
@@ -43,6 +58,44 @@ class _NuevoVehiculoPageState extends ConsumerState<NuevoVehiculoPage> {
     _yearCtrl.dispose();
     _soatExpiryCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadMiEmpresa() async {
+    try {
+      final dio = ref.read(dioClientProvider).dio;
+      final resp = await dio.get('/operador/mi-empresa');
+      final body = resp.data as Map<String, dynamic>;
+      final data = (body['data'] as Map<String, dynamic>?) ?? body;
+      if (!mounted) return;
+      setState(() {
+        _companyName = data['razonSocial'] as String?;
+        _loadingCompany = false;
+      });
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final code = e.response?.statusCode;
+      String msg;
+      if (code == 404) {
+        msg = 'Tu cuenta no tiene una empresa asignada.';
+      } else {
+        final data = e.response?.data;
+        if (data is Map && data['error'] is String) {
+          msg = data['error'] as String;
+        } else {
+          msg = 'No se pudo cargar tu empresa.';
+        }
+      }
+      setState(() {
+        _companyError = msg;
+        _loadingCompany = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _companyError = 'No se pudo cargar tu empresa.';
+        _loadingCompany = false;
+      });
+    }
   }
 
   // ── OCR helpers ────────────────────────────────────────────────
@@ -196,7 +249,15 @@ class _NuevoVehiculoPageState extends ConsumerState<NuevoVehiculoPage> {
                   letterSpacing: -0.015,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+
+              // ── Banner empresa del operador (read-only) ───────
+              _CompanyBanner(
+                loading: _loadingCompany,
+                companyName: _companyName,
+                error: _companyError,
+              ),
+              const SizedBox(height: 20),
 
               // ── Bloque OCR ─────────────────────────────────────
               _SectionLabel(label: 'Escanear documentos'),
@@ -349,7 +410,7 @@ class _NuevoVehiculoPageState extends ConsumerState<NuevoVehiculoPage> {
                 width: double.infinity,
                 height: 52,
                 child: FilledButton(
-                  onPressed: _saving ? null : _submit,
+                  onPressed: (_saving || _companyName == null) ? null : _submit,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.ink9,
                     foregroundColor: Colors.white,
@@ -480,6 +541,130 @@ class _SectionLabel extends StatelessWidget {
         fontWeight: FontWeight.w700,
         color: AppColors.ink5,
         letterSpacing: 1.2,
+      ),
+    );
+  }
+}
+
+// ── Company banner (read-only) ────────────────────────────────────────────────
+//
+// Muestra la razón social de la empresa del operador autenticado. El operador
+// NO puede elegir empresa: el backend deriva companyId de su sesión. Este
+// banner es informativo para que sepa a qué empresa quedará vinculado el
+// recurso.
+
+class _CompanyBanner extends StatelessWidget {
+  final bool loading;
+  final String? companyName;
+  final String? error;
+
+  const _CompanyBanner({
+    required this.loading,
+    required this.companyName,
+    required this.error,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.ink1,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.ink2),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.ink5,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Cargando empresa…',
+              style: AppTheme.inter(fontSize: 13, color: AppColors.ink6),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final hasError = error != null || companyName == null;
+    if (hasError) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.noAptoBg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.noAptoBorder),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.error_outline,
+                size: 18, color: AppColors.noApto),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                error ??
+                    'Tu cuenta no tiene una empresa asignada. Contacta al administrador.',
+                style: AppTheme.inter(
+                  fontSize: 12.5,
+                  color: AppColors.noApto,
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.aptoBg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.aptoBorder),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.business, size: 18, color: AppColors.apto),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Se registrará en tu empresa',
+                  style: AppTheme.inter(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.apto,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  companyName!,
+                  style: AppTheme.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.ink9,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -7,7 +7,7 @@ import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationErro
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
-import { SERVICE_SCOPES } from "@/models/Company";
+import { Company, SERVICE_SCOPES } from "@/models/Company";
 import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
 
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -119,10 +119,11 @@ export async function GET(request: NextRequest) {
     if (typeParam === "ruta" || typeParam === "zona") filter.type = typeParam;
     if (statusParam === "activa" || statusParam === "suspendida") filter.status = statusParam;
 
-    // Operador con companyId=mine: acota a las rutas asignadas a su empresa.
+    // Operador: SIEMPRE acota a las rutas de su empresa (multi-tenant).
     // Si no tiene empresa todavía devolvemos lista vacía (no es error de auth).
+    // El alias `?companyId=mine` se mantiene como compat hacia adelante.
     const companyIdParam = url.searchParams.get("companyId");
-    if (companyIdParam === "mine" && auth.session.role === ROLES.OPERADOR) {
+    if (auth.session.role === ROLES.OPERADOR) {
       const companyId = await getOperatorCompanyId(auth.session.userId);
       if (!companyId) return apiResponse({ items: [], total: 0 });
       filter.companyId = companyId;
@@ -202,10 +203,23 @@ export async function POST(request: NextRequest) {
 
     await connectDB();
 
+    // Operador: forzar companyId a la empresa propia (ignora lo que venga
+    // en el body) y validar que la empresa pertenezca a su misma muni.
+    const dataForCreate: Record<string, unknown> = { ...parsed.data };
+    if (auth.session.role === ROLES.OPERADOR) {
+      const myCompanyId = await getOperatorCompanyId(auth.session.userId);
+      if (!myCompanyId) return apiError("Sin empresa asignada", 400);
+      const company = await Company.findById(myCompanyId).select("municipalityId").lean<{ municipalityId?: unknown } | null>();
+      if (!company || String(company.municipalityId) !== String(auth.session.municipalityId)) {
+        return apiForbidden();
+      }
+      dataForCreate.companyId = myCompanyId;
+    }
+
     const duplicate = await Route.findOne({ municipalityId, code: parsed.data.code });
     if (duplicate) return apiError("Ya existe una ruta con ese código", 409);
 
-    const created = await Route.create({ municipalityId, ...parsed.data });
+    const created = await Route.create({ municipalityId, ...dataForCreate });
 
     // Recompute geometry siguiendo calles reales en background si hay
     // suficientes waypoints. No bloquea la respuesta de creación.

@@ -92,6 +92,10 @@ export default function NuevoUsuarioPage() {
   const [selRole,  setSelRole]  = useState<string>("conductor");
   const [location, setLocation] = useState<LocationValue>({});
   const [selStatus, setSelStatus] = useState<"activo" | "pendiente">("activo");
+  // Asignación de empresa — sólo visible cuando role === "operador"
+  const [companyId, setCompanyId] = useState<string>("");
+  const [companies, setCompanies] = useState<{ id: string; razonSocial: string }[]>([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
   // Flujo híbrido: por default el super_admin solo carga lo institucional;
   // el usuario completa DNI/teléfono y cambia password al primer login.
   // Si el admin ya tiene los datos a mano, puede marcar "Completar perfil ahora".
@@ -146,6 +150,31 @@ export default function NuevoUsuarioPage() {
 
   const meta = ROLE_META[selRole] ?? ROLE_META.admin_municipal;
 
+  // Carga las empresas del municipio elegido cuando se está creando un
+  // operador. Si no hay muni o el rol no es operador, limpiamos.
+  useEffect(() => {
+    if (selRole !== "operador" || !location.municipalityId) {
+      setCompanies([]);
+      setCompanyId("");
+      return;
+    }
+    setLoadingCompanies(true);
+    fetch(
+      `/api/empresas?municipalityId=${encodeURIComponent(location.municipalityId)}&limit=100`,
+      { headers: { Authorization: `Bearer ${getToken()}` } },
+    )
+      .then((r) => r.json())
+      .then((body) => {
+        const items: { id: string; razonSocial: string }[] = body?.data?.items ?? [];
+        setCompanies(items);
+        // Si la empresa seleccionada ya no está en la nueva lista, la limpiamos.
+        if (companyId && !items.some((c) => c.id === companyId)) setCompanyId("");
+      })
+      .catch(() => setCompanies([]))
+      .finally(() => setLoadingCompanies(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selRole, location.municipalityId]);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null); setSuccess(null); setFieldErrors({});
@@ -177,6 +206,8 @@ export default function NuevoUsuarioPage() {
           regionId:       meta.showProv && location.regionId       ? location.regionId       : undefined,
           provinceId:     meta.showProv && location.provinceId     ? location.provinceId     : undefined,
           municipalityId: meta.showMuni && location.municipalityId ? location.municipalityId : undefined,
+          // companyId solo se envía si el rol es operador y se eligió una empresa.
+          ...(selRole === "operador" && companyId ? { companyId } : {}),
           // Flujo híbrido: password siempre temporal (el usuario la cambia al primer login).
           passwordIsTemporary: true,
           completeProfileNow:  completeNow,
@@ -315,6 +346,55 @@ export default function NuevoUsuarioPage() {
                     <FieldErr k="provinceId" />
                     <FieldErr k="municipalityId" />
                   </div>
+
+                  {/* Empresa — sólo cuando el rol es operador y hay municipio elegido */}
+                  {selRole === "operador" && (
+                    <div style={{ marginTop: 18, paddingTop: 16, borderTop: `1px solid ${INK1}` }}>
+                      <label style={LABEL}>
+                        Empresa asignada
+                        <span style={{ color: INK5, fontWeight: 500, textTransform: "none", letterSpacing: 0, marginLeft: 6 }}>
+                          (el operador podrá administrar solo esta empresa)
+                        </span>
+                      </label>
+                      {!location.municipalityId ? (
+                        <p style={{ fontSize: "0.8125rem", color: INK5, marginTop: 4 }}>
+                          Elegí primero la municipalidad para listar empresas.
+                        </p>
+                      ) : loadingCompanies ? (
+                        <div style={{ ...FIELD, display: "flex", alignItems: "center", color: INK5 }}>
+                          <Loader2 size={14} style={{ animation: "spin 0.7s linear infinite", marginRight: 8 }} />
+                          Cargando empresas…
+                        </div>
+                      ) : companies.length === 0 ? (
+                        <div style={{
+                          padding: "12px 14px", borderRadius: 9,
+                          background: "#FFFBEB", border: "1.5px solid #FDE68A",
+                          fontSize: "0.8125rem", color: "#92400E",
+                          display: "flex", flexDirection: "column", gap: 8,
+                        }}>
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                            <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 2 }} />
+                            <span>No hay empresas registradas en este municipio. Crea una empresa primero.</span>
+                          </div>
+                          <Link href="/admin/empresas/nueva"
+                            style={{ alignSelf: "flex-start", color: "#92400E", fontWeight: 700, textDecoration: "underline", fontSize: "0.75rem" }}>
+                            Ir a crear empresa →
+                          </Link>
+                        </div>
+                      ) : (
+                        <select
+                          value={companyId}
+                          onChange={(e) => setCompanyId(e.target.value)}
+                          style={{ ...FIELD, height: 42 }}
+                        >
+                          <option value="">Sin asignar</option>
+                          {companies.map((c) => (
+                            <option key={c.id} value={c.id}>{c.razonSocial}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
