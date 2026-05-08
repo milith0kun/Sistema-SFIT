@@ -130,138 +130,546 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
         .map((p) => LatLng((p['lat'] as num).toDouble(), (p['lng'] as num).toDouble()))
         .toList();
 
+    // Validación de varianza espacial — sin esto el mapa explotaría con
+    // "Infinity or NaN toInt" cuando todos los GPS están colapsados en
+    // una sola coord (driver que no se movió).
+    final hasValidTrack = tpLatLng.length >= 2 &&
+        _hasVariance(tpLatLng);
+
     return Scaffold(
       backgroundColor: AppColors.paper,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      // Map-first: el mapa ocupa toda la pantalla, los datos flotan encima
+      // como bottom-sheet draggable. El conductor puede pan/zoom libremente
+      // para ver todo el recorrido y los paraderos. Si no hay track válido,
+      // fallback a la vista clásica con hero + métricas listadas.
+      body: hasValidTrack
+          ? _buildMapFirstView(
+              tpLatLng: tpLatLng,
+              visitedStops: visitedStops,
+              waypoints: waypoints,
+              plate: plate,
+              routeName: route?['name'] as String?,
+              captureStatus: captureStatus,
+              distanceMeters: distanceMeters,
+              durationSeconds: durationSeconds,
+              compliance: compliance,
+              visitedCount: visitedCount,
+              totalStops: totalStops,
+            )
+          : _buildClassicView(
+              plate: plate,
+              routeName: route?['name'] as String?,
+              captureStatus: captureStatus,
+              distanceMeters: distanceMeters,
+              durationSeconds: durationSeconds,
+              compliance: compliance,
+              visitedStops: visitedStops,
+              visitedCount: visitedCount,
+              totalStops: totalStops,
+            ),
+    );
+  }
+
+  // ── Vista map-first: FlutterMap fullscreen + bottom sheet con métricas
+  Widget _buildMapFirstView({
+    required List<LatLng> tpLatLng,
+    required List<Map<String, dynamic>> visitedStops,
+    required List<Map<String, dynamic>> waypoints,
+    required String plate,
+    required String? routeName,
+    required String? captureStatus,
+    required num? distanceMeters,
+    required num? durationSeconds,
+    required num? compliance,
+    required int visitedCount,
+    required int totalStops,
+  }) {
+    return Stack(
+      children: [
+        // ── Mapa fullscreen interactivo ──────────────────────────
+        Positioned.fill(
+          child: FlutterMap(
+            options: MapOptions(
+              initialCameraFit: CameraFit.bounds(
+                bounds: LatLngBounds.fromPoints(tpLatLng),
+                padding: const EdgeInsets.fromLTRB(40, 100, 40, 280),
+              ),
+              minZoom: 4,
+              maxZoom: 18,
+              interactionOptions: const InteractionOptions(
+                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+              ),
+            ),
             children: [
-              // ── Hero celebrante ──────────────────────────────
-              Center(
-                child: Container(
-                  width: 84, height: 84,
-                  decoration: BoxDecoration(
-                    color: AppColors.aptoBg,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.aptoBorder, width: 2),
-                  ),
-                  child: const Icon(Icons.check_rounded, size: 48, color: AppColors.apto),
-                ),
+              TileLayer(
+                urlTemplate:
+                    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+                subdomains: const ['a', 'b', 'c', 'd'],
+                userAgentPackageName: 'com.sfit.sfit_app',
               ),
-              const SizedBox(height: 16),
-              Center(
-                child: Text(
-                  '¡Viaje completado!',
-                  style: AppTheme.inter(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.ink9),
+              // Trazado real del conductor en dorado grueso
+              PolylineLayer(polylines: [
+                Polyline(
+                  points: tpLatLng,
+                  color: AppColors.gold,
+                  strokeWidth: 5,
                 ),
-              ),
-              const SizedBox(height: 4),
-              Center(
-                child: Text(
-                  plate + (route?['name'] != null ? ' · ${route!['name']}' : ''),
-                  textAlign: TextAlign.center,
-                  style: AppTheme.inter(fontSize: 13, color: AppColors.ink6),
-                ),
-              ),
-              if (captureStatus != null) ...[
-                const SizedBox(height: 10),
-                Center(child: _CaptureStatusBadge(status: captureStatus)),
-              ],
-              const SizedBox(height: 24),
-
-              // ── Grid de métricas ──────────────────────────────
-              Row(children: [
-                Expanded(child: _MetricCard(
-                  icon: Icons.straighten_rounded,
-                  label: 'Distancia',
-                  value: _formatDistance(distanceMeters),
-                )),
-                const SizedBox(width: 10),
-                Expanded(child: _MetricCard(
-                  icon: Icons.schedule_rounded,
-                  label: 'Duración',
-                  value: _formatDuration(durationSeconds),
-                )),
               ]),
-              const SizedBox(height: 10),
-              Row(children: [
-                Expanded(child: _MetricCard(
-                  icon: Icons.place_outlined,
-                  label: 'Paraderos',
-                  value: totalStops > 0 ? '$visitedCount / $totalStops' : '$visitedCount',
-                )),
-                const SizedBox(width: 10),
-                Expanded(child: _MetricCard(
-                  icon: Icons.verified_outlined,
-                  label: 'Cumplimiento',
-                  value: compliance != null ? '${compliance.round()}%' : '—',
-                  accent: _complianceColor(compliance),
-                )),
-              ]),
-              const SizedBox(height: 20),
-
-              // ── Mapa con trazado real ─────────────────────────
-              if (tpLatLng.length >= 2) ...[
-                Text('TRAZADO RECORRIDO',
-                  style: AppTheme.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.ink5, letterSpacing: 1.2)),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: SizedBox(
-                    height: 220,
-                    child: FlutterMap(
-                      options: MapOptions(
-                        initialCenter: tpLatLng[tpLatLng.length ~/ 2],
-                        initialZoom: 13,
-                        interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
+              // Markers: paraderos visitados verdes + inicio/fin destacados
+              MarkerLayer(markers: [
+                ...visitedStops.where((s) {
+                  final lat = (s['lat'] as num?)?.toDouble();
+                  final lng = (s['lng'] as num?)?.toDouble();
+                  return lat != null &&
+                      lng != null &&
+                      lat.isFinite &&
+                      lng.isFinite;
+                }).map((s) => Marker(
+                      point: LatLng(
+                        (s['lat'] as num).toDouble(),
+                        (s['lng'] as num).toDouble(),
                       ),
-                      children: [
-                        TileLayer(
-                          urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-                          subdomains: const ['a', 'b', 'c', 'd'],
-                          userAgentPackageName: 'com.sfit.sfit_app',
+                      width: 26,
+                      height: 26,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.apto,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 4,
+                            ),
+                          ],
                         ),
-                        PolylineLayer(polylines: [
-                          Polyline(points: tpLatLng, color: AppColors.gold, strokeWidth: 4),
-                        ]),
-                        // Inicio + fin
-                        MarkerLayer(markers: [
-                          Marker(
-                            point: tpLatLng.first, width: 22, height: 22,
-                            child: Container(
-                              decoration: BoxDecoration(color: AppColors.apto, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
-                              alignment: Alignment.center,
-                              child: const Icon(Icons.play_arrow_rounded, size: 12, color: Colors.white),
+                        alignment: Alignment.center,
+                        child: const Icon(Icons.check_rounded,
+                            size: 14, color: Colors.white),
+                      ),
+                    )),
+                Marker(
+                  point: tpLatLng.first,
+                  width: 32,
+                  height: 32,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.apto,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.apto.withValues(alpha: 0.4),
+                          blurRadius: 10,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.play_arrow_rounded,
+                        size: 18, color: Colors.white),
+                  ),
+                ),
+                Marker(
+                  point: tpLatLng.last,
+                  width: 32,
+                  height: 32,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.noApto,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.noApto.withValues(alpha: 0.4),
+                          blurRadius: 10,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.stop_rounded,
+                        size: 16, color: Colors.white),
+                  ),
+                ),
+              ]),
+            ],
+          ),
+        ),
+        // ── Header flotante con back + título ────────────────────
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+            child: Row(
+              children: [
+                _MapTopButton(
+                  icon: Icons.arrow_back_rounded,
+                  onTap: () => context.canPop() ? context.pop() : context.go('/home'),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          const Icon(Icons.directions_bus_rounded,
+                              size: 14, color: AppColors.gold),
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: Text(
+                              plate +
+                                  (routeName != null ? ' · $routeName' : ''),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTheme.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.ink9,
+                              ),
                             ),
                           ),
-                          Marker(
-                            point: tpLatLng.last, width: 22, height: 22,
-                            child: Container(
-                              decoration: BoxDecoration(color: AppColors.noApto, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
-                              alignment: Alignment.center,
-                              child: const Icon(Icons.stop_rounded, size: 12, color: Colors.white),
-                            ),
-                          ),
-                          // Paraderos visitados (verdes)
-                          ...visitedStops.map((s) => Marker(
-                                point: LatLng((s['lat'] as num).toDouble(), (s['lng'] as num).toDouble()),
-                                width: 18, height: 18,
-                                child: Container(
-                                  decoration: BoxDecoration(color: AppColors.apto, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
-                                ),
-                              )),
                         ]),
+                        if (captureStatus != null) ...[
+                          const SizedBox(height: 4),
+                          _CaptureStatusBadge(status: captureStatus),
+                        ],
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
               ],
+            ),
+          ),
+        ),
+        // ── Bottom sheet draggable con métricas + paraderos ──────
+        DraggableScrollableSheet(
+          initialChildSize: 0.32,
+          minChildSize: 0.12,
+          maxChildSize: 0.85,
+          builder: (ctx, scrollCtl) => Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0x1A000000),
+                  blurRadius: 16,
+                  offset: Offset(0, -4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // Handle
+                Container(
+                  margin: const EdgeInsets.only(top: 10, bottom: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.ink2,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    controller: scrollCtl,
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                    children: [
+                      // Hero compacto
+                      Row(children: [
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: AppColors.aptoBg,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: AppColors.aptoBorder, width: 1.5),
+                          ),
+                          child: const Icon(Icons.check_rounded,
+                              size: 22, color: AppColors.apto),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('¡Viaje completado!',
+                                  style: AppTheme.inter(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.ink9)),
+                              const SizedBox(height: 2),
+                              Text(
+                                  'Desliza para ver detalles',
+                                  style: AppTheme.inter(
+                                      fontSize: 11.5,
+                                      color: AppColors.ink5,
+                                      fontWeight: FontWeight.w500)),
+                            ],
+                          ),
+                        ),
+                      ]),
+                      const SizedBox(height: 18),
+                      // Métricas
+                      Row(children: [
+                        Expanded(
+                          child: _MetricCard(
+                            icon: Icons.straighten_rounded,
+                            label: 'Distancia',
+                            value: _formatDistance(distanceMeters),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _MetricCard(
+                            icon: Icons.schedule_rounded,
+                            label: 'Duración',
+                            value: _formatDuration(durationSeconds),
+                          ),
+                        ),
+                      ]),
+                      const SizedBox(height: 10),
+                      Row(children: [
+                        Expanded(
+                          child: _MetricCard(
+                            icon: Icons.place_outlined,
+                            label: 'Paraderos',
+                            value: totalStops > 0
+                                ? '$visitedCount / $totalStops'
+                                : '$visitedCount',
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _MetricCard(
+                            icon: Icons.verified_outlined,
+                            label: 'Cumplimiento',
+                            value: compliance != null
+                                ? '${compliance.round()}%'
+                                : '—',
+                            accent: _complianceColor(compliance),
+                          ),
+                        ),
+                      ]),
+                      if (visitedStops.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        Text('PARADEROS VISITADOS',
+                            style: AppTheme.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.ink5,
+                                letterSpacing: 1.2)),
+                        const SizedBox(height: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.ink2),
+                          ),
+                          child: Column(
+                            children: visitedStops.asMap().entries.map((entry) {
+                              final i = entry.key;
+                              final s = entry.value;
+                              final isLast = i == visitedStops.length - 1;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 12),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                      bottom: isLast
+                                          ? BorderSide.none
+                                          : const BorderSide(
+                                              color: AppColors.ink1)),
+                                ),
+                                child: Row(children: [
+                                  Container(
+                                    width: 24,
+                                    height: 24,
+                                    decoration: const BoxDecoration(
+                                        color: AppColors.aptoBg,
+                                        shape: BoxShape.circle),
+                                    child: const Icon(Icons.check_rounded,
+                                        size: 14, color: AppColors.apto),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      s['label'] as String? ??
+                                          'Paradero ${(s['stopIndex'] as num? ?? 0).toInt() + 1}',
+                                      style: AppTheme.inter(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.ink9),
+                                    ),
+                                  ),
+                                  Text(
+                                    _formatTime(s['visitedAt'] as String?),
+                                    style: AppTheme.inter(
+                                        fontSize: 12,
+                                        color: AppColors.ink5,
+                                        tabular: true),
+                                  ),
+                                ]),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+                      // Botón Listo
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: FilledButton(
+                          onPressed: () => context.go('/home'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.ink9,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: Text('Listo',
+                              style: AppTheme.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-              // ── Lista de paraderos visitados ──────────────────
-              if (visitedStops.isNotEmpty) ...[
+  // ── Vista clásica (fallback cuando no hay track válido) ──────────
+  Widget _buildClassicView({
+    required String plate,
+    required String? routeName,
+    required String? captureStatus,
+    required num? distanceMeters,
+    required num? durationSeconds,
+    required num? compliance,
+    required List<Map<String, dynamic>> visitedStops,
+    required int visitedCount,
+    required int totalStops,
+  }) {
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 84,
+                height: 84,
+                decoration: BoxDecoration(
+                  color: AppColors.aptoBg,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.aptoBorder, width: 2),
+                ),
+                child: const Icon(Icons.check_rounded,
+                    size: 48, color: AppColors.apto),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: Text(
+                '¡Viaje completado!',
+                style: AppTheme.inter(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.ink9),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Center(
+              child: Text(
+                plate + (routeName != null ? ' · $routeName' : ''),
+                textAlign: TextAlign.center,
+                style: AppTheme.inter(fontSize: 13, color: AppColors.ink6),
+              ),
+            ),
+            if (captureStatus != null) ...[
+              const SizedBox(height: 10),
+              Center(child: _CaptureStatusBadge(status: captureStatus)),
+            ],
+            const SizedBox(height: 24),
+            Row(children: [
+              Expanded(
+                  child: _MetricCard(
+                      icon: Icons.straighten_rounded,
+                      label: 'Distancia',
+                      value: _formatDistance(distanceMeters))),
+              const SizedBox(width: 10),
+              Expanded(
+                  child: _MetricCard(
+                      icon: Icons.schedule_rounded,
+                      label: 'Duración',
+                      value: _formatDuration(durationSeconds))),
+            ]),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(
+                  child: _MetricCard(
+                      icon: Icons.place_outlined,
+                      label: 'Paraderos',
+                      value: totalStops > 0
+                          ? '$visitedCount / $totalStops'
+                          : '$visitedCount')),
+              const SizedBox(width: 10),
+              Expanded(
+                  child: _MetricCard(
+                      icon: Icons.verified_outlined,
+                      label: 'Cumplimiento',
+                      value: compliance != null
+                          ? '${compliance.round()}%'
+                          : '—',
+                      accent: _complianceColor(compliance))),
+            ]),
+            const SizedBox(height: 20),
+            // Aviso de track no disponible
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.ink1,
+                border: Border.all(color: AppColors.ink2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(children: [
+                const Icon(Icons.info_outline,
+                    size: 18, color: AppColors.ink5),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'No hay trazo GPS suficiente para mostrar el mapa de este viaje.',
+                    style: AppTheme.inter(
+                        fontSize: 12, color: AppColors.ink6, height: 1.4),
+                  ),
+                ),
+              ]),
+            ),
+            if (visitedStops.isNotEmpty) ...[
                 Text('PARADEROS VISITADOS',
                   style: AppTheme.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.ink5, letterSpacing: 1.2)),
                 const SizedBox(height: 8),
@@ -322,8 +730,23 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
             ],
           ),
         ),
-      ),
     );
+  }
+
+  // Verifica que un track GPS tenga al menos 2 puntos con varianza espacial
+  // real. Sin esta validación, FlutterMap explota con "Infinity or NaN
+  // toInt" cuando todos los puntos están colapsados en una coord (driver
+  // que cerró turno sin moverse).
+  bool _hasVariance(List<LatLng> pts) {
+    if (pts.length < 2) return false;
+    final first = pts.first;
+    for (final p in pts) {
+      if ((p.latitude - first.latitude).abs() > 1e-7 ||
+          (p.longitude - first.longitude).abs() > 1e-7) {
+        return true;
+      }
+    }
+    return false;
   }
 
   Color _complianceColor(num? c) {
@@ -449,6 +872,33 @@ class _MetricCard extends StatelessWidget {
             style: AppTheme.inter(fontSize: 22, fontWeight: FontWeight.w800, color: color, tabular: true),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Botón circular flotante para superponer sobre el mapa (back, etc).
+/// Sombra suave + fondo blanco para asegurar contraste sobre cualquier
+/// zona del mapa.
+class _MapTopButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _MapTopButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      elevation: 4,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: Icon(icon, size: 20, color: AppColors.ink9),
+        ),
       ),
     );
   }
