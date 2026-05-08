@@ -71,12 +71,16 @@ export async function GET(request: NextRequest) {
     .select("name code waypoints polylineGeometry direction vehicleTypeKey serviceScope municipalityId")
     .lean();
 
-  if (routes.length === 0) {
-    return apiResponse({ items: [], total: 0 });
-  }
+  // NOTA: ya NO retornamos temprano si routes.length === 0. Antes había un
+  // bug donde el early return cortaba ANTES del bloque `if (includeCandidates)`,
+  // así que el ciudadano nunca veía las RouteCapture candidatas en zonas
+  // donde no hay Route oficial todavía (caso típico al lanzar el servicio
+  // en un municipio nuevo). Ahora seguimos para evaluar candidatas.
 
   // Buses transmitiendo agrupados por ruta — solo del subset que devolvemos.
-  const activeEntries = await FleetEntry.find({
+  // Si no hay rutas oficiales, este lookup no encuentra nada y el `Map` queda
+  // vacío; el resto del flujo lo maneja sin problema.
+  const activeEntries = routes.length === 0 ? [] : await FleetEntry.find({
     status: "en_ruta",
     routeId: { $in: routes.map((r) => r._id) },
     "currentLocation.updatedAt": { $gte: new Date(Date.now() - STALE_LOCATION_THRESHOLD_MS) },
