@@ -1294,6 +1294,23 @@ class _ValidatedRouteCard extends StatelessWidget {
 /// sobrio que `_ValidatedRouteCard`: borde gris, badge "SIN VALIDAR",
 /// mini-mapa con la `samplePolyline` en gris y SIN contador de buses
 /// (siempre 0 para candidatas).
+
+/// Verifica que una lista de puntos tenga al menos 2 puntos con varianza
+/// espacial mínima (tolerancia ~1cm). Usado antes de `LatLngBounds.fromPoints`
+/// para evitar bounds degenerados que harían que `CameraFit.bounds` calcule
+/// zoom infinito y cause "Unsupported operation: Infinity or NaN toInt".
+bool _ptsHaveVariance(List<LatLng> pts) {
+  if (pts.length < 2) return false;
+  final first = pts.first;
+  for (final p in pts) {
+    if ((p.latitude - first.latitude).abs() > 1e-7 ||
+        (p.longitude - first.longitude).abs() > 1e-7) {
+      return true;
+    }
+  }
+  return false;
+}
+
 class _CandidateRouteCard extends StatelessWidget {
   final ActiveRouteData route;
   final VoidCallback onTap;
@@ -1312,6 +1329,12 @@ class _CandidateRouteCard extends StatelessWidget {
       else
         ...r.waypoints.map((w) => LatLng(w.lat, w.lng)),
     ];
+    // Bounds válidos solo si hay >=2 puntos Y los puntos tienen varianza
+    // espacial real (no colapsan en uno solo). Sin esto, captures donde
+    // el conductor no se movió o solo registró 1 GPS válido producen
+    // bounds degenerados → CameraFit.bounds calcula zoom Infinity → crash
+    // "Unsupported operation: Infinity or NaN toInt".
+    final hasMapBounds = _ptsHaveVariance(pts);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -1324,8 +1347,10 @@ class _CandidateRouteCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Mini-mapa con el sample en gris (sólo si hay >=2 puntos).
-            if (pts.length >= 2)
+            // Mini-mapa con el sample en gris (sólo si hay >=2 puntos
+            // distintos — captures con todos los puntos en la misma
+            // coordenada se renderizan sin mapa).
+            if (hasMapBounds)
               ClipRRect(
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(11)),
