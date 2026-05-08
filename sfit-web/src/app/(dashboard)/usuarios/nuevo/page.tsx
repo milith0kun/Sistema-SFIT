@@ -5,6 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, UserPlus, Eye, EyeOff, RefreshCw, Loader2, CheckCircle, AlertTriangle, Search } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import {
+  LocationPicker,
+  type LocationValue,
+} from "@/components/location-picker";
 
 type DniLookup =
   | { state: "idle" }
@@ -13,9 +17,7 @@ type DniLookup =
   | { state: "not_found" }
   | { state: "error"; message: string };
 
-type Province     = { id: string; name: string };
-type Municipality = { id: string; name: string; provinceId: string };
-type StoredUser   = { role: string };
+type StoredUser = { role: string };
 
 /* ── Tokens ── */
 const INK9 = "#18181b"; const INK6 = "#52525b"; const INK5 = "#71717a";
@@ -81,17 +83,14 @@ function getToken() {
 export default function NuevoUsuarioPage() {
   const router = useRouter();
 
-  const [user,           setUser]           = useState<StoredUser | null>(null);
-  const [provinces,      setProvinces]      = useState<Province[]>([]);
-  const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
+  const [user, setUser] = useState<StoredUser | null>(null);
 
   const [name,     setName]     = useState("");
   const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState(() => generatePassword());
   const [showPass, setShowPass] = useState(false);
   const [selRole,  setSelRole]  = useState<string>("conductor");
-  const [selProv,  setSelProv]  = useState("");
-  const [selMuni,  setSelMuni]  = useState("");
+  const [location, setLocation] = useState<LocationValue>({});
   const [selStatus, setSelStatus] = useState<"activo" | "pendiente">("activo");
   // Flujo híbrido: por default el super_admin solo carga lo institucional;
   // el usuario completa DNI/teléfono y cambia password al primer login.
@@ -113,7 +112,6 @@ export default function NuevoUsuarioPage() {
     const u = JSON.parse(raw) as StoredUser;
     if (u.role !== "super_admin") { router.replace("/usuarios"); return; }
     setUser(u);
-    void loadRefs();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -146,27 +144,7 @@ export default function NuevoUsuarioPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dni, completeNow]);
 
-  async function loadRefs() {
-    try {
-      const [pr, mr] = await Promise.all([
-        fetch("/api/provincias",      { headers: { Authorization: `Bearer ${getToken()}` } }),
-        fetch("/api/municipalidades", { headers: { Authorization: `Bearer ${getToken()}` } }),
-      ]);
-      if (pr.ok) {
-        const d = await pr.json() as { success: boolean; data?: { items: Province[] } };
-        if (d.success) setProvinces(d.data?.items ?? []);
-      }
-      if (mr.ok) {
-        const d = await mr.json() as { success: boolean; data?: { items: Municipality[] } };
-        if (d.success) setMunicipalities(d.data?.items ?? []);
-      }
-    } catch { /* silent */ }
-  }
-
   const meta = ROLE_META[selRole] ?? ROLE_META.admin_municipal;
-  const filteredMunis = selProv
-    ? municipalities.filter(m => m.provinceId === selProv)
-    : municipalities;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -176,8 +154,8 @@ export default function NuevoUsuarioPage() {
     if (!name.trim())    errs.name     = "El nombre es requerido";
     if (!email.trim())   errs.email    = "El correo es requerido";
     if (password.length < 8) errs.password = "Mínimo 8 caracteres";
-    if (meta.requireProv && !selProv)  errs.provinceId     = "Seleccione la provincia";
-    if (meta.requireMuni && !selMuni)  errs.municipalityId = "Seleccione la municipalidad";
+    if (meta.requireProv && !location.provinceId)     errs.provinceId     = "Seleccione la provincia";
+    if (meta.requireMuni && !location.municipalityId) errs.municipalityId = "Seleccione la municipalidad";
     if (completeNow) {
       if (!/^\d{6,12}$/.test(dni.trim()))   errs.dni   = "DNI debe tener entre 6 y 12 dígitos";
       if (phone.trim().length < 7)          errs.phone = "Teléfono requerido";
@@ -196,8 +174,9 @@ export default function NuevoUsuarioPage() {
           password,
           role:           selRole,
           status:         selStatus,
-          provinceId:     meta.showProv && selProv ? selProv : undefined,
-          municipalityId: meta.showMuni && selMuni ? selMuni : undefined,
+          regionId:       meta.showProv && location.regionId       ? location.regionId       : undefined,
+          provinceId:     meta.showProv && location.provinceId     ? location.provinceId     : undefined,
+          municipalityId: meta.showMuni && location.municipalityId ? location.municipalityId : undefined,
           // Flujo híbrido: password siempre temporal (el usuario la cambia al primer login).
           passwordIsTemporary: true,
           completeProfileNow:  completeNow,
@@ -297,7 +276,7 @@ export default function NuevoUsuarioPage() {
                     const selected = selRole === role;
                     return (
                       <button key={role} type="button"
-                        onClick={() => { setSelRole(role); setSelProv(""); setSelMuni(""); }}
+                        onClick={() => { setSelRole(role); setLocation({}); }}
                         style={{
                           padding: "12px 16px", borderRadius: 10, cursor: "pointer",
                           textAlign: "left", fontFamily: "inherit",
@@ -327,43 +306,14 @@ export default function NuevoUsuarioPage() {
                       Podés dejar esto en blanco y asignarlo más tarde desde la ficha del usuario.
                     </p>
                   )}
-                  <div className={meta.showMuni ? "cols-2-responsive" : ""} style={meta.showMuni ? undefined : { display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
-                    <div>
-                      <label style={LABEL}>
-                        Provincia {meta.requireProv && <span style={{ color: RED }}>*</span>}
-                      </label>
-                      <div style={{ position: "relative" }}>
-                        <select value={selProv} onChange={e => { setSelProv(e.target.value); setSelMuni(""); }}
-                          style={{ ...FIELD, appearance: "none", paddingRight: 36, cursor: "pointer", borderColor: fieldErrors.provinceId ? RED : INK2 }}>
-                          <option value="">— {meta.requireProv ? "Seleccione provincia" : "Sin asignar"} —</option>
-                          {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
-                        <svg viewBox="0 0 10 6" width="10" height="10" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} fill="none">
-                          <path d="M1 1l4 4 4-4" stroke={INK5} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </div>
-                      <FieldErr k="provinceId" />
-                    </div>
-
-                    {meta.showMuni && (
-                      <div>
-                        <label style={LABEL}>
-                          Municipalidad {meta.requireMuni && <span style={{ color: RED }}>*</span>}
-                        </label>
-                        <div style={{ position: "relative" }}>
-                          <select value={selMuni} onChange={e => setSelMuni(e.target.value)}
-                            disabled={!selProv}
-                            style={{ ...FIELD, appearance: "none", paddingRight: 36, cursor: selProv ? "pointer" : "default", opacity: selProv ? 1 : 0.5, borderColor: fieldErrors.municipalityId ? RED : INK2 }}>
-                            <option value="">— {meta.requireMuni ? "Seleccione municipalidad" : "Sin asignar"} —</option>
-                            {filteredMunis.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                          </select>
-                          <svg viewBox="0 0 10 6" width="10" height="10" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} fill="none">
-                            <path d="M1 1l4 4 4-4" stroke={INK5} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </div>
-                        <FieldErr k="municipalityId" />
-                      </div>
-                    )}
+                  <LocationPicker
+                    value={location}
+                    onChange={setLocation}
+                    levels={meta.showMuni ? ["region", "province", "municipality"] : ["region", "province"]}
+                  />
+                  <div style={{ marginTop: 8 }}>
+                    <FieldErr k="provinceId" />
+                    <FieldErr k="municipalityId" />
                   </div>
                 </div>
               </div>

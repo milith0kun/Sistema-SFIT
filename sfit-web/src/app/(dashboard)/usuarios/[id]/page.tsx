@@ -1,16 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Save, UserCog, MapPin, Trash2,
   CheckCircle2, Activity, KeyRound,
-  Loader2, CheckCircle, AlertTriangle, Search, Copy, Check,
+  Loader2, CheckCircle, AlertTriangle, Copy, Check,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
+import {
+  LocationPicker,
+  type LocationValue,
+} from "@/components/location-picker";
 
 /* ── Types ── */
 type UserDetail = {
@@ -18,12 +22,11 @@ type UserDetail = {
   role: string; status: string;
   phone?: string | null; dni?: string | null;
   image?: string | null; provider?: string;
+  regionId?: string | null; regionName?: string | null;
   provinceId?: string | null; provinceName?: string | null;
   municipalityId?: string | null; municipalityName?: string | null;
   createdAt: string;
 };
-type Province     = { id: string; name: string };
-type Municipality = { id: string; name: string; provinceId: string };
 type StoredUser   = { id: string; role: string };
 type DniLookup =
   | { state: "idle" }
@@ -81,14 +84,6 @@ const PILL_BTN_BASE: React.CSSProperties = {
   whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
   display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
 };
-const SELECT_ARROW = (
-  <svg viewBox="0 0 10 6" width="10" height="10"
-    style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
-    fill="none">
-    <path d="M1 1l4 4 4-4" stroke={INK5} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
 function getToken() {
   return typeof window === "undefined" ? "" : (localStorage.getItem("sfit_access_token") ?? "");
 }
@@ -144,8 +139,6 @@ export default function UsuarioDetallePage() {
 
   const [actor,          setActor]          = useState<StoredUser | null>(null);
   const [target,         setTarget]         = useState<UserDetail | null>(null);
-  const [provinces,      setProvinces]      = useState<Province[]>([]);
-  const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
 
   const [loading,    setLoading]    = useState(true);
   const [saving,     setSaving]     = useState(false);
@@ -159,8 +152,7 @@ export default function UsuarioDetallePage() {
   const [phone,       setPhone]       = useState("");
   const [dni,         setDni]         = useState("");
   const [selRole,     setSelRole]     = useState("");
-  const [selProv,     setSelProv]     = useState("");
-  const [selMuni,     setSelMuni]     = useState("");
+  const [location,    setLocation]    = useState<LocationValue>({});
   const [selStatus,   setSelStatus]   = useState("");
   const [newPass,     setNewPass]     = useState("");
   const [confirmPass, setConfirmPass] = useState("");
@@ -199,31 +191,17 @@ export default function UsuarioDetallePage() {
       setPhone(u.phone ?? "");
       setDni(u.dni ?? "");
       setSelRole(u.role);
-      setSelProv(u.provinceId ?? "");
-      setSelMuni(u.municipalityId ?? "");
+      setLocation({
+        regionId:       u.regionId       ?? null,
+        provinceId:     u.provinceId     ?? null,
+        municipalityId: u.municipalityId ?? null,
+      });
       setSelStatus(u.status);
     } catch { setError("Error de conexión."); }
     finally { setLoading(false); }
   }, [id, router]);
 
-  const fetchRefs = useCallback(async () => {
-    try {
-      const [pr, mr] = await Promise.all([
-        fetch("/api/provincias",      { headers: { Authorization: `Bearer ${getToken()}` } }),
-        fetch("/api/municipalidades", { headers: { Authorization: `Bearer ${getToken()}` } }),
-      ]);
-      if (pr.ok) {
-        const d = await pr.json() as { success: boolean; data?: { items: Province[] } };
-        if (d.success) setProvinces(d.data?.items ?? []);
-      }
-      if (mr.ok) {
-        const d = await mr.json() as { success: boolean; data?: { items: Municipality[] } };
-        if (d.success) setMunicipalities(d.data?.items ?? []);
-      }
-    } catch { /* silent */ }
-  }, []);
-
-  useEffect(() => { if (actor) { void fetchTarget(); void fetchRefs(); } }, [actor, fetchTarget, fetchRefs]);
+  useEffect(() => { if (actor) { void fetchTarget(); } }, [actor, fetchTarget]);
 
   // Reemplaza el ID crudo del breadcrumb por el nombre real del usuario.
   // Mientras carga, el Topbar muestra el fallback estático "Detalle de usuario".
@@ -266,10 +244,6 @@ export default function UsuarioDetallePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dni]);
 
-  const filteredMunis = useMemo(() =>
-    selProv ? municipalities.filter(m => m.provinceId === selProv) : municipalities,
-  [municipalities, selProv]);
-
   function showSuccess(msg: string) {
     setSuccess(msg);
     setTimeout(() => setSuccess(null), 3500);
@@ -294,7 +268,16 @@ export default function UsuarioDetallePage() {
 
   async function saveProfile()  { await patch({ name: name.trim(), phone: phone.trim() || null, dni: dni.trim() || null }, "Datos personales actualizados."); }
   async function saveRole()     { await patch({ role: selRole }, "Rol actualizado correctamente."); }
-  async function saveLocation() { await patch({ provinceId: selProv || null, municipalityId: selMuni || null }, "Ubicación actualizada correctamente."); }
+  async function saveLocation() {
+    await patch(
+      {
+        regionId:       location.regionId       || null,
+        provinceId:     location.provinceId     || null,
+        municipalityId: location.municipalityId || null,
+      },
+      "Ubicación actualizada correctamente.",
+    );
+  }
   async function saveStatus()   { await patch({ status: selStatus }, "Estado actualizado correctamente."); }
 
   async function savePassword() {
@@ -696,34 +679,20 @@ export default function UsuarioDetallePage() {
           {/* Ubicación */}
           <SectionCard
             icon={<MapPin size={16} color={INK6} />}
-            title="Provincia y municipalidad"
+            title="Departamento, provincia y municipalidad"
             subtitle={isSA ? "Reasigna el ámbito de trabajo del usuario" : "Scope asignado al usuario"}
           >
-            <div className="cols-2-responsive" style={{ marginBottom: isSA ? 18 : 0 }}>
-              <div>
-                <label style={LABEL_S}>Provincia</label>
-                <div style={{ position: "relative" }}>
-                  <select value={selProv} onChange={e => { setSelProv(e.target.value); setSelMuni(""); }}
-                    disabled={!isSA}
-                    style={{ ...FIELD, appearance: "none", paddingRight: 36, cursor: isSA ? "pointer" : "default", opacity: isSA ? 1 : 0.5 }}>
-                    <option value="">— Sin provincia —</option>
-                    {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                  {SELECT_ARROW}
-                </div>
-              </div>
-              <div>
-                <label style={LABEL_S}>Municipalidad</label>
-                <div style={{ position: "relative" }}>
-                  <select value={selMuni} onChange={e => setSelMuni(e.target.value)}
-                    disabled={!isSA || !selProv}
-                    style={{ ...FIELD, appearance: "none", paddingRight: 36, cursor: isSA && selProv ? "pointer" : "default", opacity: isSA && selProv ? 1 : 0.5 }}>
-                    <option value="">— Sin municipalidad —</option>
-                    {filteredMunis.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                  </select>
-                  {SELECT_ARROW}
-                </div>
-              </div>
+            <div style={{ marginBottom: isSA ? 18 : 0 }}>
+              <LocationPicker
+                value={location}
+                onChange={setLocation}
+                disabled={!isSA}
+                initialNames={{
+                  regionName:       target.regionName       ?? null,
+                  provinceName:     target.provinceName     ?? null,
+                  municipalityName: target.municipalityName ?? null,
+                }}
+              />
             </div>
             {isSA && (
               <div style={{ display: "flex", justifyContent: "flex-end" }}>

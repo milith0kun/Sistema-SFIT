@@ -4,7 +4,10 @@ import { connectDB } from "@/lib/db/mongoose";
 import { Municipality } from "@/models/Municipality";
 import { apiResponse, apiError } from "@/lib/api/response";
 
-/** Endpoint público — lista municipalidades de una provincia para el formulario de registro */
+/**
+ * Endpoint público — lista municipalidades activas de una provincia.
+ * Usado por el formulario de registro y por LocationPicker en flujo público.
+ */
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const provinceId = url.searchParams.get("provinceId");
@@ -17,9 +20,19 @@ export async function GET(request: NextRequest) {
     await connectDB();
     const items = await Municipality.find({ provinceId, active: true })
       .sort({ name: 1 })
-      .select("_id name")
+      .select("_id name provinceId ubigeoCode")
       .lean();
-    return apiResponse(items.map((m) => ({ id: String(m._id), name: m.name })));
+
+    return apiResponse({
+      items: items.map((m) => ({
+        id:         String(m._id),
+        name:       m.name,
+        provinceId: String(m.provinceId),
+        ubigeoCode: m.ubigeoCode,
+        active:     true,
+      })),
+      total: items.length,
+    });
   } catch {
     return apiError("Error al obtener municipalidades", 500);
   }

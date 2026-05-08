@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Script from "next/script";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { LocationPicker } from "@/components/location-picker";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
@@ -15,9 +16,6 @@ const ROLES_OPERATIVO = [
 
 type Step     = "tipo" | "datos" | "ubicacion" | "exito";
 type PathType = "ciudadano" | "operativo";
-
-interface Provincia     { id: string; name: string; }
-interface Municipalidad { id: string; name: string; }
 
 function destForStatus(status: string): string {
   if (status === "pendiente") return "/pending";
@@ -38,14 +36,9 @@ export default function RegisterPage() {
 
   const [form, setForm] = useState({
     name: "", email: "", password: "",
-    provinceId: "", municipalityId: "", requestedRole: "",
+    regionId: "", provinceId: "", municipalityId: "", requestedRole: "",
     requestMessage: "",
   });
-
-  const [provincias,      setProvincias]      = useState<Provincia[]>([]);
-  const [municipalidades, setMunicipalidades] = useState<Municipalidad[]>([]);
-  const [loadingProv,     setLoadingProv]     = useState(false);
-  const [loadingMunis,    setLoadingMunis]    = useState(false);
 
   const googleBtnRef   = useRef<HTMLDivElement>(null);
   const gisInitialized = useRef(false);
@@ -76,29 +69,6 @@ export default function RegisterPage() {
       logo_alignment: "left", width: 376,
     });
   }, [gisReady, step, path]);
-
-  /* ── Cargar provincias al entrar a ubicacion ── */
-  useEffect(() => {
-    if (step !== "ubicacion") return;
-    setLoadingProv(true);
-    fetch("/api/public/provincias")
-      .then((r) => r.json())
-      .then((d) => setProvincias(d.data ?? []))
-      .catch(() => {})
-      .finally(() => setLoadingProv(false));
-  }, [step]);
-
-  /* ── Cargar municipalidades al cambiar provincia ── */
-  useEffect(() => {
-    if (!form.provinceId) { setMunicipalidades([]); return; }
-    setLoadingMunis(true);
-    setForm((p) => ({ ...p, municipalityId: "" }));
-    fetch(`/api/public/municipalidades?provinceId=${form.provinceId}`)
-      .then((r) => r.json())
-      .then((d) => setMunicipalidades(d.data ?? []))
-      .catch(() => {})
-      .finally(() => setLoadingMunis(false));
-  }, [form.provinceId]);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     const { name, value } = e.target;
@@ -537,52 +507,27 @@ export default function RegisterPage() {
         {error && <ErrorBanner message={error} />}
 
         <div className="space-y-4">
-          {/* Provincia */}
+          {/* Departamento → Provincia → Municipalidad */}
           <div className="animate-fade-up delay-100">
             <label className="block mb-2.5" style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#09090b" }}>
-              Provincia
+              Ubicación institucional
             </label>
-            <select
-              name="provinceId"
-              value={form.provinceId}
-              onChange={handleChange}
-              className="field"
-              disabled={loadingProv}
-            >
-              <option value="">
-                {loadingProv ? "Cargando provincias…" : "Seleccione una provincia"}
-              </option>
-              {provincias.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Municipalidad */}
-          <div className="animate-fade-up delay-150">
-            <label className="block mb-2.5" style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#09090b" }}>
-              Municipalidad
-            </label>
-            <select
-              name="municipalityId"
-              value={form.municipalityId}
-              onChange={handleChange}
-              className="field"
-              disabled={!form.provinceId || loadingMunis}
-            >
-              <option value="">
-                {!form.provinceId
-                  ? "Seleccione primero una provincia"
-                  : loadingMunis
-                  ? "Cargando municipalidades…"
-                  : municipalidades.length === 0
-                  ? "Sin municipalidades disponibles"
-                  : "Seleccione una municipalidad"}
-              </option>
-              {municipalidades.map((m) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
+            <LocationPicker
+              scope="public"
+              value={{
+                regionId:       form.regionId       || null,
+                provinceId:     form.provinceId     || null,
+                municipalityId: form.municipalityId || null,
+              }}
+              onChange={(v) =>
+                setForm((p) => ({
+                  ...p,
+                  regionId:       v.regionId       ?? "",
+                  provinceId:     v.provinceId     ?? "",
+                  municipalityId: v.municipalityId ?? "",
+                }))
+              }
+            />
           </div>
 
           {/* Rol */}

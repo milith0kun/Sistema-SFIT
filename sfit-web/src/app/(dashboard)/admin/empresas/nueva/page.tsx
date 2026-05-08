@@ -5,15 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Building2, Globe2, AlertTriangle, CheckCircle, Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import {
+  LocationPicker,
+  type LocationValue,
+} from "@/components/location-picker";
 
 type Department = { code: string; name: string };
-type Municipality = {
-  id: string;
-  name: string;
-  ubigeoCode?: string;
-  departmentName?: string;
-  active: boolean;
-};
 type StoredUser = { role: string };
 
 type ServiceScope = "interprovincial_regional" | "interregional_nacional";
@@ -47,7 +44,7 @@ export default function NuevaEmpresaNacionalPage() {
   const router = useRouter();
   const [user,         setUser]         = useState<StoredUser | null>(null);
   const [departments,  setDepartments]  = useState<Department[]>([]);
-  const [activeMunis,  setActiveMunis]  = useState<Municipality[]>([]);
+  const [location,     setLocation]     = useState<LocationValue>({});
   const [error,        setError]        = useState<string | null>(null);
   const [fieldErrors,  setFieldErrors]  = useState<Record<string, string>>({});
   const [loading,      setLoading]      = useState(false);
@@ -57,7 +54,7 @@ export default function NuevaEmpresaNacionalPage() {
   const [ruc,          setRuc]          = useState("");
   const [serviceScope, setServiceScope] = useState<ServiceScope>("interprovincial_regional");
   const [selectedDeptos, setSelectedDeptos] = useState<string[]>([]);
-  const [municipalityId, setMunicipalityId] = useState("");
+  const municipalityId = location.municipalityId ?? "";
   const [repName,      setRepName]      = useState("");
   const [repDni,       setRepDni]       = useState("");
   const [repPhone,     setRepPhone]     = useState("");
@@ -74,19 +71,16 @@ export default function NuevaEmpresaNacionalPage() {
     setUser(u);
   }, [router]);
 
-  // ── Cargar departamentos y muni's activas (para sede) ──
+  // ── Cargar departamentos (para selección de cobertura) ──
   const loadCatalogs = useCallback(async () => {
     if (!user) return;
     const token = localStorage.getItem("sfit_access_token");
     try {
-      const [deptRes, muniRes] = await Promise.all([
-        fetch("/api/admin/departamentos", { headers: { Authorization: `Bearer ${token ?? ""}` } }),
-        fetch("/api/municipalidades?active=true&limit=200", { headers: { Authorization: `Bearer ${token ?? ""}` } }),
-      ]);
+      const deptRes = await fetch("/api/admin/departamentos", {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
       const deptData = await deptRes.json();
-      const muniData = await muniRes.json();
       if (deptData?.success) setDepartments(deptData.data.items ?? []);
-      if (muniData?.success) setActiveMunis(muniData.data.items ?? []);
     } catch { /* silent */ }
   }, [user]);
 
@@ -251,21 +245,13 @@ export default function NuevaEmpresaNacionalPage() {
             </FieldBlock>
           </Row>
 
-          <FieldBlock label="Sede (municipalidad activa)" error={fieldErrors.municipalityId}>
-            <select
-              value={municipalityId}
-              onChange={(e) => setMunicipalityId(e.target.value)}
-              style={{ ...FIELD, cursor: "pointer", borderColor: fieldErrors.municipalityId ? RED : INK2 }}
-            >
-              <option value="">Selecciona la municipalidad sede…</option>
-              {activeMunis.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.ubigeoCode ?? "—"} — {m.name} ({m.departmentName ?? "—"})
-                </option>
-              ))}
-            </select>
+          <FieldBlock label="Sede — departamento, provincia, municipalidad" error={fieldErrors.municipalityId}>
+            <LocationPicker
+              value={location}
+              onChange={setLocation}
+            />
             <p style={{ marginTop: 6, fontSize: "0.75rem", color: INK5 }}>
-              Domicilio fiscal de la empresa. Solo aparecen muni&apos;s incorporadas al sistema.
+              Domicilio fiscal de la empresa. La validación de muni activa se hace al guardar.
             </p>
           </FieldBlock>
         </Section>
