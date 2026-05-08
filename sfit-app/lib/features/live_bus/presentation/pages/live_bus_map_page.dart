@@ -201,7 +201,11 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
           ...r.buses.map((b) => LatLng(b.lat, b.lng)),
           if (_userPos != null) LatLng(_userPos!.latitude, _userPos!.longitude),
         ];
-        if (pts.length >= 2) {
+        // Solo fitear si los puntos tienen varianza espacial real. Sin esta
+        // guarda, capturas con todos los GPS colapsados en una coordenada
+        // (driver que cerró turno sin moverse) producen bounds degenerados
+        // → CameraFit calcula zoom Infinity → flutter_map .toInt() crashea.
+        if (pts.length >= 2 && _ptsHaveVariance(pts)) {
           _mapCtl.fitCamera(CameraFit.bounds(
             bounds: LatLngBounds.fromPoints(pts),
             padding: const EdgeInsets.all(48),
@@ -594,59 +598,13 @@ class _MapView extends StatelessWidget {
         // - Validadas se pintan con dorado al estar filtradas.
         // - Candidatas (validated == false) se mantienen en gris siempre,
         //   incluso filtradas, para que el ciudadano las distinga.
+        //
+        // Filtramos rutas con puntos degenerados (todos en la misma coordenada)
+        // ANTES de construir las polylines: flutter_map crashea con 'Infinity
+        // or NaN toInt' cuando una polyline tiene zero spread espacial al
+        // calcular sus bounds internas para tile rendering.
         PolylineLayer(
-          polylines: [
-            for (final r in allRoutes)
-              if (filterRouteIds.isEmpty || filterRouteIds.contains(r.routeId))
-                if (!r.validated)
-                  // ── Candidata sin validar: trazo gris (sample u otros) ──
-                  if (r.samplePolyline.length >= 2)
-                    Polyline(
-                      points: r.samplePolyline
-                          .map((c) => LatLng(c[0], c[1]))
-                          .toList(),
-                      strokeWidth: filterRouteIds.contains(r.routeId) ? 3.5 : 2.5,
-                      color: AppColors.ink5.withValues(
-                        alpha: filterRouteIds.contains(r.routeId) ? 0.7 : 0.4,
-                      ),
-                      pattern: StrokePattern.dashed(segments: const [6.0, 4.0]),
-                    )
-                  else if (r.polylineCoords.length >= 2)
-                    Polyline(
-                      points: r.polylineCoords
-                          .map((c) => LatLng(c[0], c[1]))
-                          .toList(),
-                      strokeWidth: filterRouteIds.contains(r.routeId) ? 3.5 : 2.5,
-                      color: AppColors.ink5.withValues(
-                        alpha: filterRouteIds.contains(r.routeId) ? 0.7 : 0.4,
-                      ),
-                      pattern: StrokePattern.dashed(segments: const [6.0, 4.0]),
-                    )
-                  else if (r.waypoints.length >= 2)
-                    Polyline(
-                      points: r.waypoints.map((w) => LatLng(w.lat, w.lng)).toList(),
-                      strokeWidth: 2,
-                      color: AppColors.ink5.withValues(alpha: 0.35),
-                      pattern: const StrokePattern.dotted(),
-                    )
-                  else
-                    Polyline(points: const [], color: Colors.transparent)
-                else if (r.polylineCoords.isNotEmpty)
-                  Polyline(
-                    points: r.polylineCoords.map((c) => LatLng(c[0], c[1])).toList(),
-                    strokeWidth: filterRouteIds.contains(r.routeId) ? 4 : 2.5,
-                    color: filterRouteIds.contains(r.routeId)
-                        ? AppColors.gold.withValues(alpha: 0.7)
-                        : AppColors.ink4.withValues(alpha: 0.35),
-                  )
-                else if (r.waypoints.length >= 2)
-                  Polyline(
-                    points: r.waypoints.map((w) => LatLng(w.lat, w.lng)).toList(),
-                    strokeWidth: 2,
-                    color: AppColors.ink3.withValues(alpha: 0.4),
-                    pattern: const StrokePattern.dotted(),
-                  ),
-          ],
+          polylines: _buildPolylinesSafe(allRoutes, filterRouteIds),
         ),
         // ── Paraderos numerados (solo si hay UNA ruta validada filtrada) ──
         // Las candidatas no tienen waypoints oficiales; no las numeramos.
@@ -1309,6 +1267,122 @@ bool _ptsHaveVariance(List<LatLng> pts) {
     }
   }
   return false;
+}
+
+/// Misma validación pero para listas de pares [lat, lng].
+bool _coordsHaveVariance(List<List<double>> coords) {
+  if (coords.length < 2) return false;
+  final first = coords.first;
+  if (first.length < 2) return false;
+  for (final c in coords) {
+    if (c.length < 2) continue;
+    if ((c[0] - first[0]).abs() > 1e-7 || (c[1] - first[1]).abs() > 1e-7) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// Convierte una `List<List<double>>` a `List<LatLng>` saltando entries
+/// con menos de 2 elementos o coords no finitas (NaN/Infinity).
+List<LatLng> _coordsToLatLngs(List<List<double>> coords) {
+  final out = <LatLng>[];
+  for (final c in coords) {
+    if (c.length < 2) continue;
+    final lat = c[0];
+    final lng = c[1];
+    if (!lat.isFinite || !lng.isFinite) continue;
+    out.add(LatLng(lat, lng));
+  }
+  return out;
+}
+
+/// Construye la lista de Polylines del map view filtrando rutas degeneradas
+/// (sin varianza espacial) que harían crashear flutter_map al calcular
+/// bounds internas durante el tile rendering. Si una ruta tiene polyline
+/// pero sus puntos colapsan, la saltamos completa para esa ruta.
+List<Polyline> _buildPolylinesSafe(
+  List<ActiveRouteData> allRoutes,
+  Set<String> filterRouteIds,
+) {
+  final out = <Polyline>[];
+  for (final r in allRoutes) {
+    if (!(filterRouteIds.isEmpty || filterRouteIds.contains(r.routeId))) {
+      continue;
+    }
+    final isFocused = filterRouteIds.contains(r.routeId);
+
+    if (!r.validated) {
+      // Candidata: probar samplePolyline → polylineCoords → waypoints,
+      // tomando el primero que tenga varianza real.
+      if (r.samplePolyline.length >= 2 &&
+          _coordsHaveVariance(r.samplePolyline)) {
+        final pts = _coordsToLatLngs(r.samplePolyline);
+        if (pts.length >= 2) {
+          out.add(Polyline(
+            points: pts,
+            strokeWidth: isFocused ? 3.5 : 2.5,
+            color: AppColors.ink5.withValues(alpha: isFocused ? 0.7 : 0.4),
+            pattern: StrokePattern.dashed(segments: const [6.0, 4.0]),
+          ));
+        }
+      } else if (r.polylineCoords.length >= 2 &&
+          _coordsHaveVariance(r.polylineCoords)) {
+        final pts = _coordsToLatLngs(r.polylineCoords);
+        if (pts.length >= 2) {
+          out.add(Polyline(
+            points: pts,
+            strokeWidth: isFocused ? 3.5 : 2.5,
+            color: AppColors.ink5.withValues(alpha: isFocused ? 0.7 : 0.4),
+            pattern: StrokePattern.dashed(segments: const [6.0, 4.0]),
+          ));
+        }
+      } else if (r.waypoints.length >= 2) {
+        final pts = r.waypoints
+            .where((w) => w.lat.isFinite && w.lng.isFinite)
+            .map((w) => LatLng(w.lat, w.lng))
+            .toList();
+        if (pts.length >= 2 && _ptsHaveVariance(pts)) {
+          out.add(Polyline(
+            points: pts,
+            strokeWidth: 2,
+            color: AppColors.ink5.withValues(alpha: 0.35),
+            pattern: const StrokePattern.dotted(),
+          ));
+        }
+      }
+      // Si nada tiene varianza, simplemente no dibujamos esa candidata.
+    } else {
+      // Validada (oficial)
+      if (r.polylineCoords.length >= 2 &&
+          _coordsHaveVariance(r.polylineCoords)) {
+        final pts = _coordsToLatLngs(r.polylineCoords);
+        if (pts.length >= 2) {
+          out.add(Polyline(
+            points: pts,
+            strokeWidth: isFocused ? 4 : 2.5,
+            color: isFocused
+                ? AppColors.gold.withValues(alpha: 0.7)
+                : AppColors.ink4.withValues(alpha: 0.35),
+          ));
+        }
+      } else if (r.waypoints.length >= 2) {
+        final pts = r.waypoints
+            .where((w) => w.lat.isFinite && w.lng.isFinite)
+            .map((w) => LatLng(w.lat, w.lng))
+            .toList();
+        if (pts.length >= 2 && _ptsHaveVariance(pts)) {
+          out.add(Polyline(
+            points: pts,
+            strokeWidth: 2,
+            color: AppColors.ink3.withValues(alpha: 0.4),
+            pattern: const StrokePattern.dotted(),
+          ));
+        }
+      }
+    }
+  }
+  return out;
 }
 
 class _CandidateRouteCard extends StatelessWidget {
