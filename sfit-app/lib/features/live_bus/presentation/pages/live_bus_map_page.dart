@@ -51,12 +51,28 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
   }
 
   Future<void> _bootstrap() async {
-    // 1) Pedir GPS (no bloquea: si falla, igual carga los buses sin sort).
-    await _requestGps();
-    // 2) Primer fetch + iniciar polling cada 4s. Combinado con el envío del
-    // conductor cada ~5s, da una latencia bus→pantalla de 5-9s (antes 5-13s).
-    await _fetch();
+    // Bootstrap optimizado para minimizar tiempo de carga percibido:
+    //   1. Disparar fetch INMEDIATAMENTE (sin esperar GPS) — el ciudadano
+    //      ve la lista de rutas/buses en cuanto el backend responde, ~200ms.
+    //   2. En paralelo, intentar GPS rápido (lastKnown 0ms → current 4s timeout).
+    //   3. Cuando llegue el GPS, refetch para activar el orden por proximidad.
+    //   4. Iniciar polling cada 4s para mantener live.
+    //
+    // Antes: GPS → fetch (8s peor caso bloqueante). Ahora: fetch ~200ms,
+    // GPS ~0-4s en paralelo, refetch automático cuando GPS llega.
+    unawaited(_fetch());
+    unawaited(_requestGpsAndRefetch());
     _timer = Timer.periodic(const Duration(seconds: 4), (_) => _fetch());
+  }
+
+  Future<void> _requestGpsAndRefetch() async {
+    final hadPos = _userPos != null;
+    await _requestGps();
+    // Solo refetch si recién obtuvimos GPS (antes no teníamos) — evita un
+    // fetch redundante al inicializar.
+    if (!hadPos && _userPos != null && mounted) {
+      _fetch();
+    }
   }
 
   @override
@@ -78,15 +94,24 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
       if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
         return;
       }
-      final pos = await Geolocator.getCurrentPosition(
+
+      // Estrategia 2-tiempos: primero `getLastKnownPosition` (instantáneo,
+      // viene del caché del SO) para tener una posición aproximada YA. Luego
+      // refinar con `getCurrentPosition` (timeout 4s, antes 8s — más agresivo).
+      final cached = await Geolocator.getLastKnownPosition();
+      if (cached != null && mounted) {
+        setState(() => _userPos = cached);
+      }
+
+      final fresh = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 8),
+          timeLimit: Duration(seconds: 4),
         ),
       );
-      if (mounted) setState(() => _userPos = pos);
+      if (mounted) setState(() => _userPos = fresh);
     } catch (_) {
-      // Sin GPS: continúa, el sort por proximidad se desactiva.
+      // Sin GPS preciso: si tenemos cached, lo conservamos; si no, sin sort.
     }
   }
 
@@ -342,7 +367,7 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
           ),
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
+              ? _LoadingSkeleton(view: _view)
               : _view == _ViewMode.routes
                   ? (_routes.isEmpty
                       ? _EmptyState(
@@ -1622,6 +1647,189 @@ class _MapOverlayBanner extends StatelessWidget {
           ),
         ],
       ]),
+    );
+  }
+}
+
+/// Skeleton de carga adaptado al tab activo.
+///
+/// - **routes**: 3 cards verticales con shimmer en bloques (badge + título +
+///   subtítulo + chip + paradero placeholder).
+/// - **list**: 4 filas horizontales con avatar circular + 2 líneas de texto.
+/// - **map**: subtle hint con ícono y "Cargando mapa…" (el mapa real
+///   aparecerá enseguida; sin skeleton visual completo para no engañar).
+///
+/// Comparte un único `AnimationController` entre los shimmer boxes para
+/// no gastar GPU/memoria con N controllers simultáneos.
+class _LoadingSkeleton extends StatefulWidget {
+  final _ViewMode view;
+  const _LoadingSkeleton({required this.view});
+
+  @override
+  State<_LoadingSkeleton> createState() => _LoadingSkeletonState();
+}
+
+class _LoadingSkeletonState extends State<_LoadingSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      duration: const Duration(milliseconds: 1100),
+      vsync: this,
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    switch (widget.view) {
+      case _ViewMode.routes:
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
+          children: [
+            _RouteSkeletonCard(controller: _ctrl),
+            const SizedBox(height: 8),
+            _RouteSkeletonCard(controller: _ctrl),
+            const SizedBox(height: 8),
+            _RouteSkeletonCard(controller: _ctrl),
+          ],
+        );
+      case _ViewMode.list:
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
+          itemCount: 4,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (_, __) => _BusSkeletonRow(controller: _ctrl),
+        );
+      case _ViewMode.map:
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.gold)),
+              const SizedBox(height: 12),
+              Text(
+                'Cargando mapa…',
+                style: AppTheme.inter(fontSize: 12, color: AppColors.ink5, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        );
+    }
+  }
+}
+
+class _RouteSkeletonCard extends StatelessWidget {
+  final AnimationController controller;
+  const _RouteSkeletonCard({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.ink2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            _Shimmer(controller: controller, w: 36, h: 22, r: 5),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _Shimmer(controller: controller, w: 160, h: 13, r: 4),
+                  const SizedBox(height: 6),
+                  _Shimmer(controller: controller, w: 90, h: 10, r: 3),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            _Shimmer(controller: controller, w: 76, h: 22, r: 999),
+          ]),
+          const SizedBox(height: 12),
+          _Shimmer(controller: controller, w: double.infinity, h: 56, r: 8),
+          const SizedBox(height: 12),
+          Container(height: 1, color: AppColors.ink1),
+          const SizedBox(height: 8),
+          _Shimmer(controller: controller, w: 220, h: 11, r: 3),
+        ],
+      ),
+    );
+  }
+}
+
+class _BusSkeletonRow extends StatelessWidget {
+  final AnimationController controller;
+  const _BusSkeletonRow({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.ink2),
+      ),
+      child: Row(children: [
+        _Shimmer(controller: controller, w: 44, h: 44, r: 22),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Shimmer(controller: controller, w: 110, h: 13, r: 4),
+              const SizedBox(height: 6),
+              _Shimmer(controller: controller, w: 180, h: 10, r: 3),
+              const SizedBox(height: 6),
+              _Shimmer(controller: controller, w: 140, h: 10, r: 3),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        _Shimmer(controller: controller, w: 60, h: 20, r: 999),
+      ]),
+    );
+  }
+}
+
+class _Shimmer extends StatelessWidget {
+  final AnimationController controller;
+  final double w;
+  final double h;
+  final double r;
+  const _Shimmer({required this.controller, required this.w, required this.h, required this.r});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (_, __) => Container(
+        width: w,
+        height: h,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(r),
+          gradient: LinearGradient(
+            begin: Alignment(-1 + controller.value * 2, -0.3),
+            end: Alignment(1 + controller.value * 2, 0.3),
+            colors: const [AppColors.ink1, AppColors.ink2, AppColors.ink1],
+            stops: const [0.0, 0.5, 1.0],
+          ),
+        ),
+      ),
     );
   }
 }

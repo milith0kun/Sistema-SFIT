@@ -135,7 +135,7 @@ class _TripMapPageState extends ConsumerState<TripMapPage>
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
               userAgentPackageName: 'com.sfit.sfit_app',
             ),
-            // Ruta planeada (lÃ­nea azul punteada que une los paraderos)
+            // Ruta planeada (línea azul punteada que une los paraderos)
             if (waypoints.length >= 2)
               PolylineLayer(
                 polylines: [
@@ -158,7 +158,7 @@ class _TripMapPageState extends ConsumerState<TripMapPage>
                   ),
                 ],
               ),
-            // Paraderos numerados (visited = verde, prÃ³ximo = oro, resto = gris)
+            // Paraderos numerados (visited = verde, próximo = oro, resto = gris)
             if (waypoints.isNotEmpty)
               MarkerLayer(markers: _buildStopMarkers(waypoints, visited)),
             if (currentPos != null)
@@ -246,7 +246,7 @@ class _TripMapPageState extends ConsumerState<TripMapPage>
             ),
           ),
 
-        // Indicador de baja precisiÃ³n (si descartÃ³ muchos puntos)
+        // Indicador de baja precisión (si descartó muchos puntos)
         if (tracking.discardedLowAccuracy > 0 &&
             tracking.currentAccuracy != null)
           Positioned(
@@ -269,7 +269,7 @@ class _TripMapPageState extends ConsumerState<TripMapPage>
               context.push(
                 '/viaje-checkout/$entryId',
                 extra: {
-                  'vehiclePlate': 'â',
+                  'vehiclePlate': '—',
                   'departureTime': '',
                   'estimatedKm': null,
                 },
@@ -301,7 +301,7 @@ class _TripMapPageState extends ConsumerState<TripMapPage>
     List<RouteWaypoint> waypoints,
     Set<int> visitedIndices,
   ) {
-    // Determinar el "prÃ³ximo paradero" como el primero pendiente en orden.
+    // Determinar el "próximo paradero" como el primero pendiente en orden.
     final ordered = [...waypoints]..sort((a, b) => a.order.compareTo(b.order));
     int? nextIdx;
     for (final wp in ordered) {
@@ -720,7 +720,7 @@ class _AccuracyBadge extends StatelessWidget {
           const SizedBox(width: 6),
           Flexible(
             child: Text(
-              'SeÃ±al GPS dÃ©bil (Â±${accuracy.toStringAsFixed(0)} m) â $discarded puntos descartados',
+              'Señal GPS débil (±${accuracy.toStringAsFixed(0)} m) — $discarded puntos descartados',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppTheme.inter(

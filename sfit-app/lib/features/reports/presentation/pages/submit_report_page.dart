@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dio/dio.dart' show DioException, DioExceptionType, FormData, MultipartFile;
+import 'package:dio/dio.dart'
+    show DioException, DioExceptionType, FormData, MultipartFile;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -77,18 +78,29 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
   /// 3. Lanzar `getCurrentPosition()` en background con timeout corto
   ///    para refinar la coordenada cuando llegue.
   Future<void> _captureLocation() async {
-    setState(() { _locationLoading = true; _locationError = null; });
+    setState(() {
+      _locationLoading = true;
+      _locationError = null;
+    });
     try {
       LocationPermission perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) {
         perm = await Geolocator.requestPermission();
         if (perm == LocationPermission.denied) {
-          if (mounted) setState(() { _locationError = 'Permiso denegado'; _locationLoading = false; });
+          if (mounted)
+            setState(() {
+              _locationError = 'Permiso denegado';
+              _locationLoading = false;
+            });
           return;
         }
       }
       if (perm == LocationPermission.deniedForever) {
-        if (mounted) setState(() { _locationError = 'Permiso bloqueado. Habilítalo en ajustes.'; _locationLoading = false; });
+        if (mounted)
+          setState(() {
+            _locationError = 'Permiso bloqueado. Habilítalo en ajustes.';
+            _locationLoading = false;
+          });
         return;
       }
 
@@ -122,13 +134,19 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
     } on TimeoutException {
       // Si el preciso falló pero ya tenemos cached, ignoramos el timeout.
       if (mounted && _userPosition == null) {
-        setState(() { _locationError = 'Tiempo agotado'; _locationLoading = false; });
+        setState(() {
+          _locationError = 'Tiempo agotado';
+          _locationLoading = false;
+        });
       } else if (mounted) {
         setState(() => _locationLoading = false);
       }
     } catch (e) {
       if (mounted && _userPosition == null) {
-        setState(() { _locationError = 'No se pudo obtener la ubicación'; _locationLoading = false; });
+        setState(() {
+          _locationError = 'No se pudo obtener la ubicación';
+          _locationLoading = false;
+        });
       } else if (mounted) {
         setState(() => _locationLoading = false);
       }
@@ -154,10 +172,19 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
       setState(() => _searchError = 'Formato de placa inválido (ej: ABC-123)');
       return;
     }
-    setState(() { _searching = true; _searchError = null; _foundVehicle = null; _selectedCategory = null; _descCtrl.clear(); });
+    setState(() {
+      _searching = true;
+      _searchError = null;
+      _foundVehicle = null;
+      _selectedCategory = null;
+      _descCtrl.clear();
+    });
     try {
       final dio = ref.read(dioClientProvider).dio;
-      final resp = await dio.get('/public/vehiculo', queryParameters: {'plate': plate});
+      final resp = await dio.get(
+        '/public/vehiculo',
+        queryParameters: {'plate': plate},
+      );
       final body = resp.data as Map;
       if (body['success'] == true) {
         // El endpoint devuelve { qrSignatureValid, vehicle: {...}, driver: {...} }.
@@ -166,14 +193,29 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
         final data = body['data'] as Map<String, dynamic>;
         final vehicle = (data['vehicle'] as Map<String, dynamic>?) ?? data;
         if (mounted) {
-          setState(() { _foundVehicle = vehicle; _searching = false; _userPosition = null; _selectedLatLng = null; _locationError = null; });
+          setState(() {
+            _foundVehicle = vehicle;
+            _searching = false;
+            _userPosition = null;
+            _selectedLatLng = null;
+            _locationError = null;
+          });
           _captureLocation();
         }
       } else {
-        if (mounted) setState(() { _searchError = (body['error'] as String?) ?? 'Vehículo no encontrado'; _searching = false; });
+        if (mounted)
+          setState(() {
+            _searchError =
+                (body['error'] as String?) ?? 'Vehículo no encontrado';
+            _searching = false;
+          });
       }
     } catch (_) {
-      if (mounted) setState(() { _searchError = 'Vehículo no encontrado'; _searching = false; });
+      if (mounted)
+        setState(() {
+          _searchError = 'Vehículo no encontrado';
+          _searching = false;
+        });
     }
   }
 
@@ -199,7 +241,10 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
       }
     } catch (e) {
       debugPrint('gallery pick error: $e');
-      if (mounted) _showError('No se pudo abrir la galería. Verifica los permisos en ajustes.');
+      if (mounted)
+        _showError(
+          'No se pudo abrir la galería. Verifica los permisos en ajustes.',
+        );
     }
   }
 
@@ -212,14 +257,19 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
         maxWidth: _kMaxImageDim,
         maxHeight: _kMaxImageDim,
       );
-      if (picked != null && mounted) setState(() => _selectedImages.add(picked));
+      if (picked != null && mounted)
+        setState(() => _selectedImages.add(picked));
     } catch (e) {
       debugPrint('camera pick error: $e');
-      if (mounted) _showError('No se pudo abrir la cámara. Verifica los permisos en ajustes.');
+      if (mounted)
+        _showError(
+          'No se pudo abrir la cámara. Verifica los permisos en ajustes.',
+        );
     }
   }
 
-  void _removeImage(int index) => setState(() => _selectedImages.removeAt(index));
+  void _removeImage(int index) =>
+      setState(() => _selectedImages.removeAt(index));
 
   /// Sube las imágenes recibidas y devuelve `urls` exitosas + `failed` con
   /// los `XFile` que fallaron junto al mensaje legible. Loggea cada error
@@ -240,8 +290,15 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
         if (url != null) {
           urls.add(url);
         } else {
-          debugPrint('upload error: respuesta sin url para ${img.name}: ${resp.data}');
-          failed.add(_UploadFailure(file: img, message: 'Respuesta inesperada del servidor'));
+          debugPrint(
+            'upload error: respuesta sin url para ${img.name}: ${resp.data}',
+          );
+          failed.add(
+            _UploadFailure(
+              file: img,
+              message: 'Respuesta inesperada del servidor',
+            ),
+          );
         }
       } on DioException catch (e) {
         final status = e.response?.statusCode;
@@ -250,7 +307,9 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
         failed.add(_UploadFailure(file: img, message: msg));
       } catch (e) {
         debugPrint('upload error [${img.name}]: $e');
-        failed.add(_UploadFailure(file: img, message: 'No se pudo subir la foto'));
+        failed.add(
+          _UploadFailure(file: img, message: 'No se pudo subir la foto'),
+        );
       }
     }
     return _UploadResult(urls: urls, failed: failed);
@@ -258,10 +317,12 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
 
   String _readableUploadError(DioException e) {
     final status = e.response?.statusCode;
-    if (status == 401 || status == 403) return 'Sesión expirada — vuelve a iniciar sesión';
+    if (status == 401 || status == 403)
+      return 'Sesión expirada — vuelve a iniciar sesión';
     if (status == 413) return 'La foto es demasiado pesada (máx. 5 MB)';
     if (status == 415) return 'Formato no permitido (JPG, PNG o WebP)';
-    if (status != null && status >= 500) return 'Error del servidor — intenta de nuevo';
+    if (status != null && status >= 500)
+      return 'Error del servidor — intenta de nuevo';
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout ||
         e.type == DioExceptionType.sendTimeout) {
@@ -286,7 +347,9 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
       // Reintento: solo las que fallaron antes
       if (!mounted) return null;
       setState(() => _uploadingImages = true);
-      final retry = await _uploadImages(current.failed.map((f) => f.file).toList());
+      final retry = await _uploadImages(
+        current.failed.map((f) => f.file).toList(),
+      );
       if (!mounted) return null;
       setState(() => _uploadingImages = false);
       current = _UploadResult(
@@ -300,9 +363,20 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
   // ── Envío ────────────────────────────────────────────────────────
   Future<void> _submitReport() async {
     if (_foundVehicle == null) return;
-    if (_selectedCategory == null) { _showError('Selecciona una categoría'); return; }
+    if (_selectedCategory == null) {
+      _showError('Selecciona una categoría');
+      return;
+    }
     final desc = _descCtrl.text.trim();
-    if (desc.length < 10) { _showError('La descripción debe tener al menos 10 caracteres'); return; }
+    // La descripción es opcional. Si el ciudadano escribió algo pero quedó muy
+    // corta (<10), pedimos que la complete o la borre — descripciones de 1-2
+    // palabras no aportan contexto y pueden disparar falsos positivos del IA.
+    if (desc.isNotEmpty && desc.length < 10) {
+      _showError(
+        'La descripción es opcional, pero si escribes incluye al menos 10 caracteres',
+      );
+      return;
+    }
 
     setState(() => _submitting = true);
     try {
@@ -316,7 +390,10 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
           final resolved = await _resolveUploadFailures(result);
           if (resolved == null) {
             // Usuario canceló el envío
-            if (mounted) setState(() { _submitting = false; });
+            if (mounted)
+              setState(() {
+                _submitting = false;
+              });
             return;
           }
           imageUrls = resolved.urls;
@@ -326,11 +403,13 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
       }
 
       final svc = ref.read(reportsApiServiceProvider);
-      final plate = (_foundVehicle!['plate'] as String?) ?? _plateCtrl.text.trim().toUpperCase();
+      final plate =
+          (_foundVehicle!['plate'] as String?) ??
+          _plateCtrl.text.trim().toUpperCase();
       await svc.submitReport(
         vehiclePlate: plate,
         category: _selectedCategory!,
-        description: desc,
+        description: desc.isEmpty ? null : desc,
         vehicleTypeKey: _foundVehicle!['vehicleTypeKey'] as String?,
         latitude: _selectedLatLng?.latitude,
         longitude: _selectedLatLng?.longitude,
@@ -342,7 +421,11 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
       _onSubmitSuccess();
     } on ReportSubmitException catch (e) {
       debugPrint('submit report error (${e.statusCode}): ${e.message}');
-      if (mounted) setState(() { _submitting = false; _uploadingImages = false; });
+      if (mounted)
+        setState(() {
+          _submitting = false;
+          _uploadingImages = false;
+        });
       // 429 = rate limit alcanzado → diálogo modal claro y bloqueante.
       // Otros errores → snackbar inline (no interrumpe).
       if (e.statusCode == 429 && mounted) {
@@ -355,7 +438,11 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
       }
     } catch (e) {
       debugPrint('submit report error: $e');
-      if (mounted) setState(() { _submitting = false; _uploadingImages = false; });
+      if (mounted)
+        setState(() {
+          _submitting = false;
+          _uploadingImages = false;
+        });
       _showError('No se pudo enviar el reporte. Intenta de nuevo.');
     }
   }
@@ -372,12 +459,20 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+            const Icon(
+              Icons.check_circle_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 '¡Reporte enviado! Será revisado por un fiscal.',
-                style: AppTheme.inter(fontSize: 13.5, color: Colors.white, fontWeight: FontWeight.w600),
+                style: AppTheme.inter(
+                  fontSize: 13.5,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -397,24 +492,50 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
   // ── Sugerencia de categoría ──────────────────────────────────────
   void _inferCategory() {
     final text = _descCtrl.text.toLowerCase();
-    if (text.length < 15) { if (_suggestedCategory != null) setState(() => _suggestedCategory = null); return; }
+    if (text.length < 15) {
+      if (_suggestedCategory != null) setState(() => _suggestedCategory = null);
+      return;
+    }
     const kw = {
-      'Conducción peligrosa':  ['peligros', 'maniobra', 'frenaz', 'adelant', 'semáforo'],
-      'Exceso de velocidad':   ['velocidad', 'rápido', 'rapido', 'acelerado'],
-      'Cobro indebido':        ['cobro', 'precio', 'tarifa', 'excesivo', 'caro'],
-      'Vehículo en mal estado':['mal estado', 'roto', 'humo', 'ruido', 'llanta', 'freno', 'avería'],
+      'Conducción peligrosa': [
+        'peligros',
+        'maniobra',
+        'frenaz',
+        'adelant',
+        'semáforo',
+      ],
+      'Exceso de velocidad': ['velocidad', 'rápido', 'rapido', 'acelerado'],
+      'Cobro indebido': ['cobro', 'precio', 'tarifa', 'excesivo', 'caro'],
+      'Vehículo en mal estado': [
+        'mal estado',
+        'roto',
+        'humo',
+        'ruido',
+        'llanta',
+        'freno',
+        'avería',
+      ],
     };
-    String? best; int bestCount = 0;
+    String? best;
+    int bestCount = 0;
     for (final e in kw.entries) {
       final c = e.value.where((k) => text.contains(k)).length;
-      if (c > bestCount) { bestCount = c; best = e.key; }
+      if (c > bestCount) {
+        bestCount = c;
+        best = e.key;
+      }
     }
     final suggested = bestCount > 0 ? best : null;
-    if (suggested != _suggestedCategory) setState(() => _suggestedCategory = suggested);
+    if (suggested != _suggestedCategory)
+      setState(() => _suggestedCategory = suggested);
   }
 
   void _showError(String msg) => ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(msg), backgroundColor: AppColors.noApto, behavior: SnackBarBehavior.floating),
+    SnackBar(
+      content: Text(msg),
+      backgroundColor: AppColors.noApto,
+      behavior: SnackBarBehavior.floating,
+    ),
   );
 
   /// Limpia el formulario tras un envío exitoso para dejarlo listo para el
@@ -438,9 +559,12 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
 
   @override
   Widget build(BuildContext context) {
-    final String submitLabel = _uploadingImages
-        ? 'Subiendo fotos...'
-        : _submitting ? 'Enviando...' : 'Enviar reporte';
+    final String submitLabel =
+        _uploadingImages
+            ? 'Subiendo fotos...'
+            : _submitting
+            ? 'Enviando...'
+            : 'Enviar reporte';
 
     // Si fue empujado como ruta (vino desde QR / vista pública), conserva su
     // propio Scaffold + AppBar con back arrow del Navigator. Si está montada
@@ -451,261 +575,409 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
     final body = SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Kicker + título ──────────────────────────────────
-              _Kicker(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Kicker + título ──────────────────────────────────
+            _Kicker(),
+            const SizedBox(height: 8),
+            Text(
+              'Reportar vehículo',
+              style: AppTheme.inter(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink9,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              widget.vehicleData != null
+                  ? 'Vehículo identificado. Completa el detalle del reporte.'
+                  : 'Busca el vehículo por placa y completa el formulario.',
+              style: AppTheme.inter(
+                fontSize: 13,
+                color: AppColors.ink5,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 28),
+
+            // ── Búsqueda — solo si no viene pre-llenado y aún no
+            // se identificó un vehículo. Una vez encontrado, la
+            // sección desaparece y se muestra solo el card del
+            // vehículo (con opción "Cambiar" para volver a buscar).
+            if (widget.vehicleData == null && _foundVehicle == null) ...[
+              const _SectionLabel('Buscar vehículo'),
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _plateCtrl,
+                      textCapitalization: TextCapitalization.characters,
+                      textInputAction: TextInputAction.search,
+                      onFieldSubmitted: (_) => _searchVehicle(),
+                      decoration: InputDecoration(
+                        hintText: 'Ej. ABC-123',
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          size: 20,
+                          color: AppColors.ink4,
+                        ),
+                        filled: true,
+                        fillColor: AppColors.ink1,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      style: AppTheme.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.ink9,
+                        tabular: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    height: 50,
+                    child: FilledButton(
+                      onPressed: _searching ? null : _searchVehicle,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(74, 50),
+                        backgroundColor: AppColors.ink9,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child:
+                          _searching
+                              ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                              : Text(
+                                'Buscar',
+                                style: AppTheme.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                    ),
+                  ),
+                ],
+              ),
+              if (_searchError != null) ...[
+                const SizedBox(height: 10),
+                _InlineError(_searchError!),
+              ],
+              const SizedBox(height: 12),
+
+              // ── Alternativa QR — divider + botón outlined ──────
+              Row(
+                children: [
+                  const Expanded(
+                    child: Divider(color: AppColors.ink2, thickness: 1),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text(
+                      'O escanea',
+                      style: AppTheme.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.ink4,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ),
+                  const Expanded(
+                    child: Divider(color: AppColors.ink2, thickness: 1),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: () => context.push('/qr'),
+                  icon: const Icon(
+                    Icons.qr_code_scanner_rounded,
+                    size: 18,
+                    color: AppColors.ink9,
+                  ),
+                  label: Text(
+                    'Escanear QR del vehículo',
+                    style: AppTheme.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.ink9,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.ink3, width: 1.5),
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+
+            // ── Vehículo encontrado ──────────────────────────────
+            if (_foundVehicle != null) ...[
+              const _SectionLabel('Vehículo'),
               const SizedBox(height: 8),
-              Text(
-                'Reportar vehículo',
-                style: AppTheme.inter(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.ink9, letterSpacing: -0.5),
+              _VehicleMiniCard(
+                vehicle: _foundVehicle!,
+                // Solo permitimos "Cambiar" si la página no fue empujada con
+                // un vehículo pre-llenado (ej. desde la vista pública del QR).
+                onChange:
+                    widget.vehicleData != null
+                        ? null
+                        : () {
+                          setState(() {
+                            _foundVehicle = null;
+                            _selectedCategory = null;
+                            _suggestedCategory = null;
+                            _descCtrl.clear();
+                            _selectedImages.clear();
+                            _userPosition = null;
+                            _selectedLatLng = null;
+                            _searchError = null;
+                          });
+                        },
+              ),
+              const SizedBox(height: 24),
+
+              // ── Mapa / ubicación ─────────────────────────────
+              const _SectionLabel('Ubicación'),
+              const SizedBox(height: 8),
+              _LocationSection(
+                loading: _locationLoading,
+                position: _userPosition,
+                initialLatLng: _selectedLatLng,
+                error: _locationError,
+                onRetry: _captureLocation,
+                onLocationChanged:
+                    (latLng) => setState(() => _selectedLatLng = latLng),
+              ),
+              const SizedBox(height: 24),
+
+              // ── Evidencias fotográficas ──────────────────────
+              Row(
+                children: [
+                  const _SectionLabel('Evidencias fotográficas'),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.ink1,
+                      border: Border.all(color: AppColors.ink2),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      'OPCIONAL',
+                      style: AppTheme.inter(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink5,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 4),
               Text(
-                widget.vehicleData != null
-                    ? 'Vehículo identificado. Completa el detalle del reporte.'
-                    : 'Busca el vehículo por placa y completa el formulario.',
-                style: AppTheme.inter(fontSize: 13, color: AppColors.ink5, height: 1.4),
+                'Hasta 3 fotos. Los reportes con evidencia se validan antes.',
+                style: AppTheme.inter(
+                  fontSize: 12,
+                  color: AppColors.ink5,
+                  height: 1.4,
+                ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 10),
+              _PhotoPickerSection(
+                images: _selectedImages,
+                onPickGallery: _pickFromGallery,
+                onPickCamera: _pickFromCamera,
+                onRemove: _removeImage,
+              ),
+              const SizedBox(height: 24),
 
-              // ── Búsqueda (si no viene pre-llenado) ──────────────
-              if (widget.vehicleData == null) ...[
-                const _SectionLabel('Buscar vehículo'),
-                const SizedBox(height: 10),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _plateCtrl,
-                        textCapitalization: TextCapitalization.characters,
-                        textInputAction: TextInputAction.search,
-                        onFieldSubmitted: (_) => _searchVehicle(),
-                        decoration: const InputDecoration(
-                          hintText: 'Ej. ABC-123',
-                          prefixIcon: Icon(Icons.search, size: 20, color: AppColors.ink4),
-                        ),
-                        style: AppTheme.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ink9, tabular: true),
+              // ── Categoría — chips quick-pick (top 5 más comunes) ─
+              const _SectionLabel('Categoría'),
+              const SizedBox(height: 8),
+              _CategoryChips(
+                selected: _selectedCategory,
+                onSelect:
+                    (cat) => setState(() {
+                      _selectedCategory = cat;
+                      if (_suggestedCategory == cat) _suggestedCategory = null;
+                    }),
+              ),
+              const SizedBox(height: 20),
+
+              // ── Descripción (opcional) ───────────────────────
+              Row(
+                children: [
+                  const _SectionLabel('Descripción'),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.ink1,
+                      border: Border.all(color: AppColors.ink2),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      'OPCIONAL',
+                      style: AppTheme.inter(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink5,
+                        letterSpacing: 1.0,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      height: 50,
-                      child: FilledButton(
-                        onPressed: _searching ? null : _searchVehicle,
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size(74, 50),
-                          backgroundColor: AppColors.ink9,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: _searching
-                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : Text('Buscar', style: AppTheme.inter(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
-                      ),
-                    ),
-                  ],
-                ),
-                if (_searchError != null) ...[
-                  const SizedBox(height: 10),
-                  _InlineError(_searchError!),
+                  ),
                 ],
-                const SizedBox(height: 12),
-
-                // ── Alternativa QR — divider + botón outlined ──────
-                Row(
-                  children: [
-                    const Expanded(child: Divider(color: AppColors.ink2, thickness: 1)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Text(
-                        'O escanea',
-                        style: AppTheme.inter(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.ink4, letterSpacing: 0.4),
-                      ),
-                    ),
-                    const Expanded(child: Divider(color: AppColors.ink2, thickness: 1)),
-                  ],
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _descCtrl,
+                maxLines: 4,
+                maxLength: 500,
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
+                decoration: InputDecoration(
+                  hintText:
+                      'Aporta detalles que ayuden al fiscal (qué pasó, hora, ruta…)',
+                  alignLabelWithHint: true,
+                  filled: true,
+                  fillColor: AppColors.ink1,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: OutlinedButton.icon(
-                    onPressed: () => context.push('/qr'),
-                    icon: const Icon(Icons.qr_code_scanner_rounded, size: 18, color: AppColors.ink9),
-                    label: Text(
-                      'Escanear QR del vehículo',
-                      style: AppTheme.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ink9),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.ink3, width: 1.5),
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                onChanged: (_) {
+                  setState(() {});
+                  _inferCategory();
+                },
+              ),
+
+              if (_descCtrl.text.isNotEmpty &&
+                  _descCtrl.text.trim().length < 10)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    'Si escribes, incluye al menos 10 caracteres (${_descCtrl.text.trim().length}/10)',
+                    style: AppTheme.inter(
+                      fontSize: 12,
+                      color: AppColors.riesgo,
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+
+              if (_suggestedCategory != null && _selectedCategory == null) ...[
+                const SizedBox(height: 10),
+                _AISuggestionChip(
+                  category: _suggestedCategory!,
+                  onAccept:
+                      () => setState(() {
+                        _selectedCategory = _suggestedCategory;
+                        _suggestedCategory = null;
+                      }),
+                  onDismiss: () => setState(() => _suggestedCategory = null),
+                ),
               ],
 
-              // ── Vehículo encontrado ──────────────────────────────
-              if (_foundVehicle != null) ...[
-                const _SectionLabel('Vehículo'),
-                const SizedBox(height: 8),
-                _VehicleMiniCard(vehicle: _foundVehicle!),
-                const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
-                // ── Mapa / ubicación ─────────────────────────────
-                const _SectionLabel('Ubicación'),
-                const SizedBox(height: 8),
-                _LocationSection(
-                  loading: _locationLoading,
-                  position: _userPosition,
-                  initialLatLng: _selectedLatLng,
-                  error: _locationError,
-                  onRetry: _captureLocation,
-                  onLocationChanged: (latLng) => setState(() => _selectedLatLng = latLng),
+              // ── Botón enviar ─────────────────────────────────
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton.icon(
+                  onPressed:
+                      (_submitting || _uploadingImages) ? null : _submitReport,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.ink9,
+                    disabledBackgroundColor: AppColors.ink3,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  icon:
+                      (_submitting || _uploadingImages)
+                          ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                          : const Icon(Icons.send_rounded, size: 18),
+                  label: Text(
+                    submitLabel,
+                    style: AppTheme.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 24),
-
-                // ── Evidencias fotográficas ──────────────────────
-                const _SectionLabel('Evidencias fotográficas'),
-                const SizedBox(height: 4),
-                Text(
-                  'Hasta 3 fotos del incidente (opcional)',
+              ),
+              const SizedBox(height: 12),
+              Center(
+                child: Text(
+                  'Tu reporte será revisado por un fiscal asignado.',
                   style: AppTheme.inter(fontSize: 12, color: AppColors.ink4),
                 ),
-                const SizedBox(height: 10),
-                _PhotoPickerSection(
-                  images: _selectedImages,
-                  onPickGallery: _pickFromGallery,
-                  onPickCamera: _pickFromCamera,
-                  onRemove: _removeImage,
-                ),
-                const SizedBox(height: 24),
-
-                // ── Categoría ────────────────────────────────────
-                const _SectionLabel('Categoría'),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  key: ValueKey(_selectedCategory),
-                  initialValue: _selectedCategory,
-                  items: kReportCategories
-                      .map((cat) => DropdownMenuItem(
-                            value: cat,
-                            child: Text(cat, style: AppTheme.inter(fontSize: 14, color: AppColors.ink8)),
-                          ))
-                      .toList(),
-                  onChanged: (v) => setState(() => _selectedCategory = v),
-                  hint: Text('Selecciona una categoría', style: AppTheme.inter(fontSize: 14, color: AppColors.ink4)),
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.ink2, width: 1.5)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.ink2, width: 1.5)),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.ink9, width: 1.5)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                  ),
-                  style: AppTheme.inter(fontSize: 14, color: AppColors.ink8),
-                  dropdownColor: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                const SizedBox(height: 20),
-
-                // ── Descripción ──────────────────────────────────
-                const _SectionLabel('Descripción'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _descCtrl,
-                  maxLines: 5,
-                  maxLength: 500,
-                  keyboardType: TextInputType.multiline,
-                  textInputAction: TextInputAction.newline,
-                  decoration: const InputDecoration(
-                    hintText: 'Describe el incidente con detalle (mín. 10 caracteres)...',
-                    alignLabelWithHint: true,
-                  ),
-                  onChanged: (_) { setState(() {}); _inferCategory(); },
-                ),
-
-                if (_descCtrl.text.isNotEmpty && _descCtrl.text.trim().length < 10)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      'Mínimo 10 caracteres (${_descCtrl.text.trim().length}/10)',
-                      style: AppTheme.inter(fontSize: 12, color: AppColors.noApto),
-                    ),
-                  ),
-
-                if (_suggestedCategory != null && _selectedCategory == null) ...[
-                  const SizedBox(height: 10),
-                  _AISuggestionChip(
-                    category: _suggestedCategory!,
-                    onAccept: () => setState(() { _selectedCategory = _suggestedCategory; _suggestedCategory = null; }),
-                    onDismiss: () => setState(() => _suggestedCategory = null),
-                  ),
-                ],
-
-                const SizedBox(height: 20),
-
-                // ── Advertencia suave si no hay fotos ───────────
-                if (_selectedImages.isEmpty) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.infoBg,
-                      border: Border.all(color: AppColors.infoBorder),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.lightbulb_outline_rounded, size: 16, color: AppColors.info),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Los reportes con evidencia fotográfica se validan más rápido.',
-                            style: AppTheme.inter(fontSize: 12, color: AppColors.info, height: 1.4),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                ],
-
-                // ── Botón enviar ─────────────────────────────────
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: FilledButton.icon(
-                    onPressed: (_submitting || _uploadingImages) ? null : _submitReport,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.ink9,
-                      disabledBackgroundColor: AppColors.ink3,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    icon: (_submitting || _uploadingImages)
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.send_rounded, size: 18),
-                    label: Text(
-                      submitLabel,
-                      style: AppTheme.inter(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Center(
-                  child: Text(
-                    'Tu reporte será revisado por un fiscal asignado.',
-                    style: AppTheme.inter(fontSize: 12, color: AppColors.ink4),
-                  ),
-                ),
-              ],
+              ),
             ],
-          ),
+          ],
         ),
-      );
+      ),
+    );
 
     if (pushedAsRoute) {
       return Scaffold(
@@ -776,16 +1048,29 @@ class _LocationSectionState extends State<_LocationSection> {
         ),
         child: Row(
           children: [
-            const Icon(Icons.location_off_rounded, size: 16, color: AppColors.riesgo),
+            const Icon(
+              Icons.location_off_rounded,
+              size: 16,
+              color: AppColors.riesgo,
+            ),
             const SizedBox(width: 8),
             Expanded(
-              child: Text('${widget.error} — el reporte se enviará sin ubicación.',
-                  style: AppTheme.inter(fontSize: 12.5, color: AppColors.riesgo)),
+              child: Text(
+                '${widget.error} — el reporte se enviará sin ubicación.',
+                style: AppTheme.inter(fontSize: 12.5, color: AppColors.riesgo),
+              ),
             ),
             const SizedBox(width: 8),
             GestureDetector(
               onTap: widget.onRetry,
-              child: Text('Reintentar', style: AppTheme.inter(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.riesgo)),
+              child: Text(
+                'Reintentar',
+                style: AppTheme.inter(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.riesgo,
+                ),
+              ),
             ),
           ],
         ),
@@ -820,7 +1105,8 @@ class _LocationSectionState extends State<_LocationSection> {
                     // Tiles CartoDB Voyager — más limpios que OSM crudo,
                     // sin clutter de POIs y con paleta sobria.
                     TileLayer(
-                      urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                      urlTemplate:
+                          'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
                       subdomains: const ['a', 'b', 'c', 'd'],
                       userAgentPackageName: 'com.sfit.app',
                       maxZoom: 19,
@@ -847,20 +1133,41 @@ class _LocationSectionState extends State<_LocationSection> {
                 top: 8,
                 right: 8,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.92),
                     borderRadius: BorderRadius.circular(999),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4, offset: const Offset(0, 1)),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
                     ],
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.4, color: AppColors.info)),
+                      const SizedBox(
+                        width: 10,
+                        height: 10,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.4,
+                          color: AppColors.info,
+                        ),
+                      ),
                       const SizedBox(width: 6),
-                      Text('Refinando GPS', style: AppTheme.inter(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.info)),
+                      Text(
+                        'Refinando GPS',
+                        style: AppTheme.inter(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.info,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -871,32 +1178,57 @@ class _LocationSectionState extends State<_LocationSection> {
         // Coordenadas + instrucción + link
         Row(
           children: [
-            const Icon(Icons.location_on_rounded, size: 13, color: AppColors.info),
+            const Icon(
+              Icons.location_on_rounded,
+              size: 13,
+              color: AppColors.info,
+            ),
             const SizedBox(width: 5),
             Expanded(
               child: Text(
                 '${marker.latitude.toStringAsFixed(5)}, ${marker.longitude.toStringAsFixed(5)}',
-                style: AppTheme.inter(fontSize: 11.5, color: AppColors.ink5, tabular: true),
+                style: AppTheme.inter(
+                  fontSize: 11.5,
+                  color: AppColors.ink5,
+                  tabular: true,
+                ),
               ),
             ),
             GestureDetector(
               onTap: () async {
-                final url = Uri.parse('https://www.google.com/maps?q=${marker.latitude},${marker.longitude}');
-                if (await canLaunchUrl(url)) await launchUrl(url, mode: LaunchMode.externalApplication);
+                final url = Uri.parse(
+                  'https://www.google.com/maps?q=${marker.latitude},${marker.longitude}',
+                );
+                if (await canLaunchUrl(url))
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
               },
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.open_in_new_rounded, size: 12, color: AppColors.info),
+                  const Icon(
+                    Icons.open_in_new_rounded,
+                    size: 12,
+                    color: AppColors.info,
+                  ),
                   const SizedBox(width: 3),
-                  Text('Ver en Maps', style: AppTheme.inter(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.info)),
+                  Text(
+                    'Ver en Maps',
+                    style: AppTheme.inter(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.info,
+                    ),
+                  ),
                 ],
               ),
             ),
           ],
         ),
         const SizedBox(height: 4),
-        Text('Toca el mapa para ajustar la ubicación exacta.', style: AppTheme.inter(fontSize: 11, color: AppColors.ink4)),
+        Text(
+          'Toca el mapa para ajustar la ubicación exacta.',
+          style: AppTheme.inter(fontSize: 11, color: AppColors.ink4),
+        ),
       ],
     );
   }
@@ -921,13 +1253,21 @@ class _RateLimitDialog extends StatelessWidget {
               color: AppColors.riesgoBg,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.timer_outlined, color: AppColors.riesgo, size: 22),
+            child: const Icon(
+              Icons.timer_outlined,
+              color: AppColors.riesgo,
+              size: 22,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               'Llegaste al límite de hoy',
-              style: AppTheme.inter(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.ink9),
+              style: AppTheme.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink9,
+              ),
             ),
           ),
         ],
@@ -938,7 +1278,11 @@ class _RateLimitDialog extends StatelessWidget {
         children: [
           Text(
             message,
-            style: AppTheme.inter(fontSize: 13.5, color: AppColors.ink7, height: 1.5),
+            style: AppTheme.inter(
+              fontSize: 13.5,
+              color: AppColors.ink7,
+              height: 1.5,
+            ),
           ),
           const SizedBox(height: 12),
           Container(
@@ -950,12 +1294,20 @@ class _RateLimitDialog extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.info_outline_rounded, size: 14, color: AppColors.info),
+                const Icon(
+                  Icons.info_outline_rounded,
+                  size: 14,
+                  color: AppColors.info,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'El contador se reinicia mañana. Tus reportes ya están en revisión.',
-                    style: AppTheme.inter(fontSize: 12, color: AppColors.info, height: 1.4),
+                    style: AppTheme.inter(
+                      fontSize: 12,
+                      color: AppColors.info,
+                      height: 1.4,
+                    ),
                   ),
                 ),
               ],
@@ -968,11 +1320,17 @@ class _RateLimitDialog extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.ink9,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
           child: Text(
             'Entendido',
-            style: AppTheme.inter(fontSize: 13.5, color: Colors.white, fontWeight: FontWeight.w600),
+            style: AppTheme.inter(
+              fontSize: 13.5,
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],
@@ -992,18 +1350,27 @@ class _MapSkeleton extends StatelessWidget {
         child: Stack(
           children: [
             // Patrón sutil de cuadrícula simulando tiles
-            Positioned.fill(
-              child: CustomPaint(painter: _GridPainter()),
-            ),
+            Positioned.fill(child: CustomPaint(painter: _GridPainter())),
             Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.info)),
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.info,
+                    ),
+                  ),
                   const SizedBox(height: 10),
                   Text(
                     'Obteniendo tu ubicación…',
-                    style: AppTheme.inter(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.ink6),
+                    style: AppTheme.inter(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.ink6,
+                    ),
                   ),
                 ],
               ),
@@ -1018,9 +1385,10 @@ class _MapSkeleton extends StatelessWidget {
 class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.ink2
-      ..strokeWidth = 1;
+    final paint =
+        Paint()
+          ..color = AppColors.ink2
+          ..strokeWidth = 1;
     const step = 32.0;
     for (double x = 0; x < size.width; x += step) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
@@ -1071,7 +1439,11 @@ class _SfitMapPin extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Icon(Icons.location_on_rounded, size: 16, color: Colors.white),
+            child: const Icon(
+              Icons.location_on_rounded,
+              size: 16,
+              color: Colors.white,
+            ),
           ),
         ),
       ],
@@ -1096,46 +1468,118 @@ class _PhotoPickerSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canAdd = images.length < 3;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Miniaturas existentes
-        if (images.isNotEmpty) ...[
+        if (images.isEmpty)
+          GestureDetector(
+            onTap: () => _showPickerOptions(context),
+            child: Container(
+              height: 140,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: AppColors.ink1,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.ink3, style: BorderStyle.solid),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2)),
+                      ],
+                    ),
+                    child: const Icon(Icons.add_a_photo_outlined, color: AppColors.ink8, size: 28),
+                  ),
+                  const SizedBox(height: 12),
+                  Text('Añadir fotos o video', style: AppTheme.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ink8)),
+                  const SizedBox(height: 4),
+                  Text('Hasta 3 archivos', style: AppTheme.inter(fontSize: 12, color: AppColors.ink5)),
+                ],
+              ),
+            ),
+          )
+        else
           SizedBox(
-            height: 88,
-            child: ListView.separated(
+            height: 110,
+            child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemCount: images.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (_, i) => _PhotoThumb(image: images[i], onRemove: () => onRemove(i)),
+              itemCount: images.length + (canAdd ? 1 : 0),
+              itemBuilder: (context, i) {
+                if (i < images.length) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: _PhotoThumb(image: images[i], onRemove: () => onRemove(i)),
+                  );
+                } else {
+                  return GestureDetector(
+                    onTap: () => _showPickerOptions(context),
+                    child: Container(
+                      width: 110,
+                      decoration: BoxDecoration(
+                        color: AppColors.ink1,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.ink3),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.add_rounded, size: 32, color: AppColors.ink6),
+                      ),
+                    ),
+                  );
+                }
+              },
             ),
           ),
-          const SizedBox(height: 10),
-        ],
-        // Botones añadir
-        Row(
-          children: [
-            _PhotoAddButton(
-              icon: Icons.photo_library_outlined,
-              label: 'Galería',
-              enabled: canAdd,
-              onTap: onPickGallery,
-            ),
-            const SizedBox(width: 8),
-            _PhotoAddButton(
-              icon: Icons.camera_alt_outlined,
-              label: 'Cámara',
-              enabled: canAdd,
-              onTap: onPickCamera,
-            ),
-            const Spacer(),
-            Text(
-              '${images.length}/3',
-              style: AppTheme.inter(fontSize: 12, color: AppColors.ink4, tabular: true),
-            ),
-          ],
-        ),
       ],
+    );
+  }
+
+  void _showPickerOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.ink2, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 24),
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: AppColors.ink1, borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.camera_alt_outlined, color: AppColors.ink9, size: 24),
+                ),
+                title: Text('Tomar foto', style: AppTheme.inter(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.ink9)),
+                onTap: () { Navigator.pop(ctx); onPickCamera(); },
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: AppColors.ink1, borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.photo_library_outlined, color: AppColors.ink9, size: 24),
+                ),
+                title: Text('Elegir de la galería', style: AppTheme.inter(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.ink9)),
+                onTap: () { Navigator.pop(ctx); onPickGallery(); },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1151,27 +1595,27 @@ class _PhotoThumb extends StatelessWidget {
     return Stack(
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(16),
           child: Image.file(
             File(image.path),
-            width: 88,
-            height: 88,
+            width: 110,
+            height: 110,
             fit: BoxFit.cover,
           ),
         ),
         Positioned(
-          top: 4,
-          right: 4,
+          top: 6,
+          right: 6,
           child: GestureDetector(
             onTap: onRemove,
             child: Container(
-              width: 22,
-              height: 22,
-              decoration: const BoxDecoration(
-                color: Color(0xCC000000),
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.6),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.close_rounded, size: 13, color: Colors.white),
+              child: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
             ),
           ),
         ),
@@ -1186,7 +1630,12 @@ class _PhotoAddButton extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
 
-  const _PhotoAddButton({required this.icon, required this.label, required this.enabled, required this.onTap});
+  const _PhotoAddButton({
+    required this.icon,
+    required this.label,
+    required this.enabled,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1201,11 +1650,19 @@ class _PhotoAddButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 15, color: enabled ? Colors.white : AppColors.ink4),
+            Icon(
+              icon,
+              size: 15,
+              color: enabled ? Colors.white : AppColors.ink4,
+            ),
             const SizedBox(width: 6),
             Text(
               label,
-              style: AppTheme.inter(fontSize: 13, fontWeight: FontWeight.w600, color: enabled ? Colors.white : AppColors.ink4),
+              style: AppTheme.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: enabled ? Colors.white : AppColors.ink4,
+              ),
             ),
           ],
         ),
@@ -1217,15 +1674,21 @@ class _PhotoAddButton extends StatelessWidget {
 // ── Tarjeta mini del vehículo ─────────────────────────────────────────────────
 class _VehicleMiniCard extends StatelessWidget {
   final Map<String, dynamic> vehicle;
-  const _VehicleMiniCard({required this.vehicle});
+
+  /// Si se provee, muestra un link "Cambiar" que limpia el vehículo y
+  /// regresa a la pantalla de búsqueda. `null` = no se puede cambiar
+  /// (ej. cuando el vehículo viene pre-llenado por el QR).
+  final VoidCallback? onChange;
+
+  const _VehicleMiniCard({required this.vehicle, this.onChange});
 
   @override
   Widget build(BuildContext context) {
-    final plate   = vehicle['plate']          as String? ?? '—';
+    final plate = vehicle['plate'] as String? ?? '—';
     final typeKey = vehicle['vehicleTypeKey'] as String? ?? '';
-    final status  = vehicle['status']         as String? ?? '—';
-    final brand   = vehicle['brand']          as String?;
-    final model   = vehicle['model']          as String?;
+    final status = vehicle['status'] as String? ?? '—';
+    final brand = vehicle['brand'] as String?;
+    final model = vehicle['model'] as String?;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -1243,7 +1706,11 @@ class _VehicleMiniCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: AppColors.infoBorder),
             ),
-            child: const Icon(Icons.directions_car_rounded, size: 20, color: AppColors.info),
+            child: const Icon(
+              Icons.directions_car_rounded,
+              size: 20,
+              color: AppColors.info,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1252,40 +1719,89 @@ class _VehicleMiniCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(plate, style: AppTheme.inter(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.ink9, tabular: true)),
+                    Text(
+                      plate,
+                      style: AppTheme.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink9,
+                        tabular: true,
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.infoBg,
                         border: Border.all(color: AppColors.infoBorder),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: Text(status, style: AppTheme.inter(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.info)),
+                      child: Text(
+                        status,
+                        style: AppTheme.inter(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.info,
+                        ),
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  [_typeLabel(typeKey), if (brand != null) brand, if (model != null) model].join(' · '),
+                  [
+                    _typeLabel(typeKey),
+                    if (brand != null) brand,
+                    if (model != null) model,
+                  ].join(' · '),
                   style: AppTheme.inter(fontSize: 12, color: AppColors.ink5),
                 ),
               ],
             ),
           ),
-          const Icon(Icons.check_circle_rounded, size: 20, color: AppColors.info),
+          if (onChange != null)
+            TextButton.icon(
+              onPressed: onChange,
+              icon: const Icon(
+                Icons.edit_outlined,
+                size: 14,
+                color: AppColors.info,
+              ),
+              label: Text(
+                'Cambiar',
+                style: AppTheme.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.info,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            )
+          else
+            const Icon(
+              Icons.check_circle_rounded,
+              size: 20,
+              color: AppColors.info,
+            ),
         ],
       ),
     );
   }
 
   String _typeLabel(String k) => switch (k) {
-        'transporte_publico' => 'Transporte público',
-        'limpieza_residuos'  => 'Limpieza',
-        'emergencia'         => 'Emergencia',
-        'maquinaria'         => 'Maquinaria',
-        _                    => 'Municipal',
-      };
+    'transporte_publico' => 'Transporte público',
+    'limpieza_residuos' => 'Limpieza',
+    'emergencia' => 'Emergencia',
+    'maquinaria' => 'Maquinaria',
+    _ => 'Municipal',
+  };
 }
 
 // ── Error inline ──────────────────────────────────────────────────────────────
@@ -1295,36 +1811,57 @@ class _InlineError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.noAptoBg,
-          border: Border.all(color: AppColors.noAptoBorder),
-          borderRadius: BorderRadius.circular(8),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(
+      color: AppColors.noAptoBg,
+      border: Border.all(color: AppColors.noAptoBorder),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.info_outline, size: 16, color: AppColors.noApto),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            message,
+            style: AppTheme.inter(
+              fontSize: 13,
+              color: AppColors.noApto,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
-        child: Row(
-          children: [
-            const Icon(Icons.info_outline, size: 16, color: AppColors.noApto),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message, style: AppTheme.inter(fontSize: 13, color: AppColors.noApto, fontWeight: FontWeight.w500))),
-          ],
-        ),
-      );
+      ],
+    ),
+  );
 }
 
 // ── Kicker ────────────────────────────────────────────────────────────────────
 class _Kicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(width: 5, height: 5, decoration: const BoxDecoration(color: AppColors.info, shape: BoxShape.circle)),
-          const SizedBox(width: 7),
-          Text(
-            'PORTAL CIUDADANO',
-            style: AppTheme.inter(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.info, letterSpacing: 2.1),
-          ),
-        ],
-      );
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 5,
+        height: 5,
+        decoration: const BoxDecoration(
+          color: AppColors.info,
+          shape: BoxShape.circle,
+        ),
+      ),
+      const SizedBox(width: 7),
+      Text(
+        'PORTAL CIUDADANO',
+        style: AppTheme.inter(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+          color: AppColors.info,
+          letterSpacing: 2.1,
+        ),
+      ),
+    ],
+  );
 }
 
 // ── Etiqueta de sección ───────────────────────────────────────────────────────
@@ -1334,19 +1871,26 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-        children: [
-          Container(
-            width: 3,
-            height: 14,
-            decoration: BoxDecoration(color: AppColors.info, borderRadius: BorderRadius.circular(2)),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: AppTheme.inter(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.ink8),
-          ),
-        ],
-      );
+    children: [
+      Container(
+        width: 3,
+        height: 14,
+        decoration: BoxDecoration(
+          color: AppColors.info,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+      const SizedBox(width: 8),
+      Text(
+        text,
+        style: AppTheme.inter(
+          fontSize: 13.5,
+          fontWeight: FontWeight.w700,
+          color: AppColors.ink8,
+        ),
+      ),
+    ],
+  );
 }
 
 // ── Sugerencia IA ─────────────────────────────────────────────────────────────
@@ -1354,45 +1898,69 @@ class _AISuggestionChip extends StatelessWidget {
   final String category;
   final VoidCallback onAccept;
   final VoidCallback onDismiss;
-  const _AISuggestionChip({required this.category, required this.onAccept, required this.onDismiss});
+  const _AISuggestionChip({
+    required this.category,
+    required this.onAccept,
+    required this.onDismiss,
+  });
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.infoBg,
-          border: Border.all(color: AppColors.infoBorder),
-          borderRadius: BorderRadius.circular(10),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(
+      color: AppColors.infoBg,
+      border: Border.all(color: AppColors.infoBorder),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Row(
+      children: [
+        const Icon(
+          Icons.auto_awesome_outlined,
+          size: 16,
+          color: AppColors.info,
         ),
-        child: Row(
-          children: [
-            const Icon(Icons.auto_awesome_outlined, size: 16, color: AppColors.info),
-            const SizedBox(width: 8),
-            Expanded(
-              child: RichText(
-                text: TextSpan(
-                  style: AppTheme.inter(fontSize: 12.5, color: AppColors.info),
-                  children: [
-                    const TextSpan(text: 'Sugerencia: '),
-                    TextSpan(text: category, style: const TextStyle(fontWeight: FontWeight.w700)),
-                  ],
+        const SizedBox(width: 8),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: AppTheme.inter(fontSize: 12.5, color: AppColors.info),
+              children: [
+                const TextSpan(text: 'Sugerencia: '),
+                TextSpan(
+                  text: category,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
-              ),
+              ],
             ),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: onAccept,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(color: AppColors.info, borderRadius: BorderRadius.circular(6)),
-                child: Text('Usar', style: AppTheme.inter(fontSize: 11.5, fontWeight: FontWeight.w700, color: Colors.white)),
-              ),
-            ),
-            const SizedBox(width: 6),
-            GestureDetector(onTap: onDismiss, child: const Icon(Icons.close, size: 16, color: AppColors.infoBorder)),
-          ],
+          ),
         ),
-      );
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: onAccept,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppColors.info,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              'Usar',
+              style: AppTheme.inter(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        GestureDetector(
+          onTap: onDismiss,
+          child: const Icon(Icons.close, size: 16, color: AppColors.infoBorder),
+        ),
+      ],
+    ),
+  );
 }
 
 // ── Resultado de subida y diálogo de fallo ───────────────────────────────────
@@ -1425,12 +1993,20 @@ class _UploadFailureDialog extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       title: Row(
         children: [
-          const Icon(Icons.error_outline_rounded, color: AppColors.noApto, size: 22),
+          const Icon(
+            Icons.error_outline_rounded,
+            color: AppColors.noApto,
+            size: 22,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               'No se pudieron subir $count $plural',
-              style: AppTheme.inter(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.ink9),
+              style: AppTheme.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink9,
+              ),
             ),
           ),
         ],
@@ -1441,42 +2017,320 @@ class _UploadFailureDialog extends StatelessWidget {
         children: [
           Text(
             firstMessage,
-            style: AppTheme.inter(fontSize: 13, color: AppColors.ink7, height: 1.4),
+            style: AppTheme.inter(
+              fontSize: 13,
+              color: AppColors.ink7,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             'Puedes reintentar la subida o enviar el reporte sin esas evidencias.',
-            style: AppTheme.inter(fontSize: 12, color: AppColors.ink5, height: 1.4),
+            style: AppTheme.inter(
+              fontSize: 12,
+              color: AppColors.ink5,
+              height: 1.4,
+            ),
           ),
         ],
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(_UploadFailureAction.cancel),
+          onPressed:
+              () => Navigator.of(context).pop(_UploadFailureAction.cancel),
           child: Text(
             'Cancelar envío',
-            style: AppTheme.inter(fontSize: 13, color: AppColors.ink5, fontWeight: FontWeight.w600),
+            style: AppTheme.inter(
+              fontSize: 13,
+              color: AppColors.ink5,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         TextButton(
-          onPressed: () => Navigator.of(context).pop(_UploadFailureAction.continueWithout),
+          onPressed:
+              () => Navigator.of(
+                context,
+              ).pop(_UploadFailureAction.continueWithout),
           child: Text(
             'Continuar sin esas',
-            style: AppTheme.inter(fontSize: 13, color: AppColors.ink8, fontWeight: FontWeight.w600),
+            style: AppTheme.inter(
+              fontSize: 13,
+              color: AppColors.ink8,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(context).pop(_UploadFailureAction.retry),
+          onPressed:
+              () => Navigator.of(context).pop(_UploadFailureAction.retry),
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.ink9,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
           child: Text(
             'Reintentar',
-            style: AppTheme.inter(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w600),
+            style: AppTheme.inter(
+              fontSize: 13,
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── Categoría: chips quick-pick + sheet "Más" ────────────────────────────────
+//
+// Los 5 más reportados se muestran como chips visibles. Tap selecciona
+// (estado primaryBg + primaryDark). Si la categoría que necesita el ciudadano
+// no está, "Más categorías" abre un bottom sheet con las restantes.
+//
+// Patrón estándar de apps como Waze incident report / Google Maps issues:
+// el 80% de los reportes cae en 4-5 categorías, los chips reducen tap-count
+// vs un dropdown nativo.
+
+const _kPrimaryCategories = <String>[
+  'Conducción peligrosa',
+  'Exceso de velocidad',
+  'Conductor agresivo',
+  'Vehículo en mal estado',
+  'Cobro indebido',
+];
+
+class _CategoryChips extends StatelessWidget {
+  final String? selected;
+  final ValueChanged<String> onSelect;
+
+  const _CategoryChips({required this.selected, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    // Si la seleccionada no está entre las primarias, la mostramos como chip
+    // adicional para que el usuario vea siempre lo que eligió.
+    final extraSelected =
+        selected != null && !_kPrimaryCategories.contains(selected);
+    final visibleChips = [..._kPrimaryCategories, if (extraSelected) selected!];
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        ...visibleChips.map(
+          (cat) => _CategoryChip(
+            label: cat,
+            selected: cat == selected,
+            onTap: () => onSelect(cat),
+          ),
+        ),
+        _MoreCategoriesChip(selected: selected, onSelect: onSelect),
+      ],
+    );
+  }
+}
+
+class _CategoryChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _CategoryChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primaryBg : Colors.white,
+            border: Border.all(
+              color: selected ? AppColors.primaryBorder : AppColors.ink2,
+              width: 1.3,
+            ),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (selected) ...[
+                const Icon(
+                  Icons.check_rounded,
+                  size: 14,
+                  color: AppColors.primaryDark,
+                ),
+                const SizedBox(width: 5),
+              ],
+              Text(
+                label,
+                style: AppTheme.inter(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: selected ? AppColors.primaryDark : AppColors.ink8,
+                  letterSpacing: -0.1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MoreCategoriesChip extends StatelessWidget {
+  final String? selected;
+  final ValueChanged<String> onSelect;
+
+  const _MoreCategoriesChip({required this.selected, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _openSheet(context),
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            color: AppColors.ink1,
+            border: Border.all(color: AppColors.ink2, width: 1.3),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.more_horiz_rounded,
+                size: 16,
+                color: AppColors.ink7,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                'Más',
+                style: AppTheme.inter(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ink7,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder:
+          (ctx) => _CategorySheet(
+            selected: selected,
+            onSelect: (cat) {
+              onSelect(cat);
+              Navigator.of(ctx).pop();
+            },
+          ),
+    );
+  }
+}
+
+class _CategorySheet extends StatelessWidget {
+  final String? selected;
+  final ValueChanged<String> onSelect;
+
+  const _CategorySheet({required this.selected, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 10, bottom: 14),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.ink2,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: Text(
+              'Selecciona una categoría',
+              style: AppTheme.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink9,
+              ),
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.ink2),
+          ...kReportCategories.map((cat) {
+            final isSelected = cat == selected;
+            return InkWell(
+              onTap: () => onSelect(cat),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
+                color: isSelected ? AppColors.primaryBg : null,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        cat,
+                        style: AppTheme.inter(
+                          fontSize: 14,
+                          fontWeight:
+                              isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color:
+                              isSelected
+                                  ? AppColors.primaryDark
+                                  : AppColors.ink8,
+                        ),
+                      ),
+                    ),
+                    if (isSelected)
+                      const Icon(
+                        Icons.check_rounded,
+                        size: 18,
+                        color: AppColors.primaryDark,
+                      ),
+                  ],
+                ),
+              ),
+            );
+          }),
+          const SizedBox(height: 8),
+        ],
+      ),
     );
   }
 }

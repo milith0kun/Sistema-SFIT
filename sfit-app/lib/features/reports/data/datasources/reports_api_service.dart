@@ -38,7 +38,7 @@ class ReportsApiService {
   Future<String> submitReport({
     required String vehiclePlate,
     required String category,
-    required String description,
+    String? description,
     String? vehicleTypeKey,
     double? latitude,
     double? longitude,
@@ -48,7 +48,10 @@ class ReportsApiService {
     final resp = await _dio.post('/reportes', data: {
       'vehiclePlate': vehiclePlate,
       'category': category,
-      'description': description,
+      // Omitir el campo si viene vacío — el backend valida min:10
+      // y rechazaría con 422 si se envía cadena vacía.
+      if (description != null && description.trim().isNotEmpty)
+        'description': description.trim(),
       if (vehicleTypeKey != null) 'vehicleTypeKey': vehicleTypeKey,
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
@@ -59,7 +62,19 @@ class ReportsApiService {
     // dio_client tiene `validateStatus: status < 500`, así que 4xx llega
     // como respuesta normal — hay que detectar `success: false` aquí.
     if (body == null || body['success'] == false) {
-      final msg = body?['error'] as String?;
+      // Express-validator envía errores en `errors: { campo: [msg] }`.
+      // Si está, devolvemos el primer mensaje (más informativo que el genérico).
+      String? msg;
+      final errors = body?['errors'];
+      if (errors is Map && errors.isNotEmpty) {
+        final first = errors.values.first;
+        if (first is List && first.isNotEmpty) {
+          msg = first.first.toString();
+        } else if (first is String) {
+          msg = first;
+        }
+      }
+      msg ??= body?['error'] as String?;
       throw ReportSubmitException(
         msg ?? 'No se pudo enviar el reporte',
         statusCode: resp.statusCode,

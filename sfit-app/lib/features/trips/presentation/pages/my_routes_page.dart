@@ -31,6 +31,27 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
     await ref.read(misRecorridosProvider.future);
   }
 
+  /// Abre el wizard de inicio de turno y refresca al volver. Si el conductor
+  /// completa el wizard, `TripCheckinPage` navega a `/home?tab=mapa` con
+  /// `context.go`, así que este `await` retorna sin cambios visibles. Cuando
+  /// el usuario regrese al tab "Mis rutas" el provider ya estará invalidado.
+  Future<void> _startNewShift() async {
+    await context.push('/viaje-checkin');
+    if (mounted) ref.invalidate(misRecorridosProvider);
+  }
+
+  Future<void> _closeActiveShift(PassData entry) async {
+    await context.push(
+      '/viaje-checkout/${entry.id}',
+      extra: {
+        'vehiclePlate': entry.vehiclePlate,
+        'departureTime': entry.departureTime ?? '',
+        'estimatedKm': null,
+      },
+    );
+    if (mounted) ref.invalidate(misRecorridosProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(misRecorridosProvider);
@@ -38,29 +59,26 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
     return SafeArea(
       child: Column(
         children: [
-          // ── Header ──────────────────────────────────────────────
+          // ── Subtítulo (el AppBar ya muestra "Mis rutas") ────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Mis rutas',
-                    style: AppTheme.inter(
-                      fontSize: 18, fontWeight: FontWeight.w800,
-                      color: AppColors.ink9)),
-                const SizedBox(height: 2),
-                Text('Tus pasadas agrupadas por ruta',
-                    style: AppTheme.inter(fontSize: 13, color: AppColors.ink5)),
-              ],
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Inicia un turno o revisa tus pasadas anteriores.',
+                style: AppTheme.inter(
+                  fontSize: 12.5,
+                  color: AppColors.ink5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 8),
 
           // ── Cuerpo ──────────────────────────────────────────────
           Expanded(
             child: async.when(
-              loading: () => const Center(
-                  child: CircularProgressIndicator(color: AppColors.gold)),
+              loading: () => const _RoutesLoadingSkeleton(),
               error: (_, __) => _ErrorState(onRetry: _refresh),
               data: (data) {
                 final hasActive = data.activeEntry != null;
@@ -69,9 +87,9 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
                   return RefreshIndicator(
                     onRefresh: _refresh,
                     color: AppColors.gold,
-                    child: ListView(children: const [
-                      SizedBox(height: 60),
-                      _EmptyState(),
+                    child: ListView(children: [
+                      const SizedBox(height: 40),
+                      _EmptyState(onStart: _startNewShift),
                     ]),
                   );
                 }
@@ -86,23 +104,14 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
                         const SizedBox(height: 6),
                         _ActiveEntryCard(
                           entry: data.activeEntry!,
-                          onClose: () {
-                            final id = data.activeEntry!.id;
-                            final plate = data.activeEntry!.vehiclePlate;
-                            final dep = data.activeEntry!.departureTime ?? '';
-                            context.push(
-                              '/viaje-checkout/$id',
-                              extra: {
-                                'vehiclePlate': plate,
-                                'departureTime': dep,
-                                'estimatedKm': null,
-                              },
-                            );
-                          },
+                          onClose: () => _closeActiveShift(data.activeEntry!),
                           onSeeMap: () {
                             context.push('/buses-en-vivo/${data.activeEntry!.id}');
                           },
                         ),
+                        const SizedBox(height: 18),
+                      ] else ...[
+                        _StartShiftCard(onTap: _startNewShift),
                         const SizedBox(height: 18),
                       ],
                       if (hasRoutes) ...[
@@ -129,9 +138,78 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
   }
 }
 
+/// Card de invitación a iniciar un nuevo turno cuando no hay `activeEntry`.
+/// Se muestra arriba del listado de pasadas históricas para que el conductor
+/// siempre tenga el CTA principal a la vista.
+class _StartShiftCard extends StatelessWidget {
+  final VoidCallback onTap;
+  const _StartShiftCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 16, 14, 16),
+          decoration: BoxDecoration(
+            color: AppColors.goldBg,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.goldBorder, width: 1.2),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  color: AppColors.gold,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.play_arrow_rounded,
+                    color: Colors.white, size: 26),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Iniciar nuevo turno',
+                      style: AppTheme.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.ink9,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Selecciona vehículo y ruta. Empezamos a registrar tu trazo.',
+                      style: AppTheme.inter(
+                        fontSize: 12,
+                        color: AppColors.ink6,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.arrow_forward_rounded,
+                  size: 20, color: AppColors.goldDark),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ── Provider ────────────────────────────────────────────────────────────────
 
-/// Carga el endpoint `/conductor/mis-recorridos` ya tipado en `MisRecorridos`.
+/// Carga el endpoint `/conductor/mis-recorridos` parseado a `MisRecorridosData`.
 /// Invalidable con `ref.invalidate(misRecorridosProvider)`.
 final misRecorridosProvider =
     FutureProvider.autoDispose<MisRecorridosData>((ref) async {
@@ -224,6 +302,14 @@ class PassData {
   final double? score;
   final bool isBest;
   final List<LatLng>? track;
+  /// Estado de la `RouteCapture` asociada al turno cerrado:
+  ///   - `"raw"`: el turno tenía routeId; la captura alimenta convergencia.
+  ///   - `"candidate"`: turno sin ruta; el operador puede validarla.
+  ///   - `"validated"`: la candidata fue promovida a Route oficial.
+  ///   - `"merged"` / `"rejected"`: estados terminales menos relevantes.
+  ///   - `null`: el turno aún no generó captura (en_ruta o <20 pings).
+  final String? captureStatus;
+  final int? captureQualityScore;
 
   const PassData({
     required this.id,
@@ -243,6 +329,8 @@ class PassData {
     required this.score,
     required this.isBest,
     required this.track,
+    this.captureStatus,
+    this.captureQualityScore,
   });
 
   factory PassData.fromJson(Map<String, dynamic> j) {
@@ -276,6 +364,8 @@ class PassData {
       score: (j['score'] as num?)?.toDouble(),
       isBest: j['isBest'] as bool? ?? false,
       track: track,
+      captureStatus: j['captureStatus'] as String?,
+      captureQualityScore: (j['captureQualityScore'] as num?)?.toInt(),
     );
   }
 }
@@ -813,6 +903,54 @@ class _PassRow extends StatelessWidget {
                                   letterSpacing: 0.6)),
                         ),
                       ],
+                      // Chip de estado de captura GPS:
+                      //   - candidate → trazo orgánico en revisión por operador
+                      //   - validated → fue promovida a Route oficial
+                      if (pass.captureStatus == 'candidate') ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.goldBg,
+                            border: Border.all(color: AppColors.goldBorder),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.add_road_outlined,
+                                size: 10, color: AppColors.goldDark),
+                            const SizedBox(width: 2),
+                            Text('CANDIDATA',
+                                style: AppTheme.inter(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.goldDark,
+                                    letterSpacing: 0.6)),
+                          ]),
+                        ),
+                      ] else if (pass.captureStatus == 'validated') ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.aptoBg,
+                            border: Border.all(color: AppColors.aptoBorder),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.verified_rounded,
+                                size: 10, color: AppColors.apto),
+                            const SizedBox(width: 2),
+                            Text('PROMOVIDA',
+                                style: AppTheme.inter(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.apto,
+                                    letterSpacing: 0.6)),
+                          ]),
+                        ),
+                      ],
                     ]),
                     const SizedBox(height: 3),
                     Row(children: [
@@ -883,7 +1021,8 @@ class _PassRow extends StatelessWidget {
 // ── Estados auxiliares ─────────────────────────────────────────────────────
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  final VoidCallback onStart;
+  const _EmptyState({required this.onStart});
 
   @override
   Widget build(BuildContext context) {
@@ -904,18 +1043,38 @@ class _EmptyState extends StatelessWidget {
                   size: 30, color: AppColors.goldDark),
             ),
             const SizedBox(height: 16),
-            Text('Aún no tenés pasadas',
+            Text('Aún no tienes pasadas',
                 style: AppTheme.inter(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
                     color: AppColors.ink9)),
             const SizedBox(height: 4),
             Text(
-              'Iniciá tu primer turno desde "Inicio" del conductor.\n'
-              'Tus pasadas se irán agrupando por ruta automáticamente.',
+              'Inicia tu primer turno y comenzaremos a registrar tu trazo.\n'
+              'Las pasadas se agruparán por ruta automáticamente.',
               textAlign: TextAlign.center,
               style: AppTheme.inter(
                   fontSize: 12.5, color: AppColors.ink6, height: 1.4),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: onStart,
+              icon: const Icon(Icons.play_arrow_rounded, size: 20),
+              label: Text(
+                'Iniciar mi primer turno',
+                style: AppTheme.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.gold,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(220, 46),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
             ),
           ],
         ),
@@ -954,5 +1113,154 @@ class _ErrorState extends StatelessWidget {
         ),
       ),
     ]);
+  }
+}
+
+/// Skeleton de carga de "Mis rutas".
+///
+/// Renderiza una card de turno activo + 3 cards de ruta colapsada con
+/// shimmer mientras viene la data del backend. Usa un único
+/// `AnimationController` compartido por todos los shimmer boxes.
+class _RoutesLoadingSkeleton extends StatefulWidget {
+  const _RoutesLoadingSkeleton();
+
+  @override
+  State<_RoutesLoadingSkeleton> createState() => _RoutesLoadingSkeletonState();
+}
+
+class _RoutesLoadingSkeletonState extends State<_RoutesLoadingSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      duration: const Duration(milliseconds: 1100),
+      vsync: this,
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 24),
+      children: [
+        // Card "turno en curso" placeholder
+        _SkeletonCardLarge(controller: _ctrl),
+        const SizedBox(height: 14),
+        // Header de sección
+        _Shim(controller: _ctrl, w: 90, h: 11, r: 3),
+        const SizedBox(height: 12),
+        // Cards de ruta
+        _SkeletonRouteRow(controller: _ctrl),
+        const SizedBox(height: 8),
+        _SkeletonRouteRow(controller: _ctrl),
+        const SizedBox(height: 8),
+        _SkeletonRouteRow(controller: _ctrl),
+      ],
+    );
+  }
+}
+
+class _SkeletonCardLarge extends StatelessWidget {
+  final AnimationController controller;
+  const _SkeletonCardLarge({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.ink2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            _Shim(controller: controller, w: 60, h: 18, r: 999),
+            const Spacer(),
+            _Shim(controller: controller, w: 76, h: 12, r: 3),
+          ]),
+          const SizedBox(height: 12),
+          _Shim(controller: controller, w: double.infinity, h: 110, r: 10),
+          const SizedBox(height: 10),
+          Row(children: [
+            _Shim(controller: controller, w: 90, h: 12, r: 3),
+            const Spacer(),
+            _Shim(controller: controller, w: 110, h: 32, r: 8),
+          ]),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonRouteRow extends StatelessWidget {
+  final AnimationController controller;
+  const _SkeletonRouteRow({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.ink2),
+      ),
+      child: Row(children: [
+        _Shim(controller: controller, w: 38, h: 22, r: 5),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Shim(controller: controller, w: 160, h: 13, r: 4),
+              const SizedBox(height: 6),
+              _Shim(controller: controller, w: 110, h: 10, r: 3),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        _Shim(controller: controller, w: 64, h: 22, r: 999),
+      ]),
+    );
+  }
+}
+
+class _Shim extends StatelessWidget {
+  final AnimationController controller;
+  final double w;
+  final double h;
+  final double r;
+  const _Shim({required this.controller, required this.w, required this.h, required this.r});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (_, __) => Container(
+        width: w,
+        height: h,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(r),
+          gradient: LinearGradient(
+            begin: Alignment(-1 + controller.value * 2, -0.3),
+            end: Alignment(1 + controller.value * 2, 0.3),
+            colors: const [AppColors.ink1, AppColors.ink2, AppColors.ink1],
+            stops: const [0.0, 0.5, 1.0],
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -7,6 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/location_tracking_service.dart';
 import '../../data/datasources/trips_api_service.dart';
 import '../../../fleet/data/datasources/fleet_api_service.dart';
+import 'my_routes_page.dart' show misRecorridosProvider;
 
 /// Wizard de 2 pasos para iniciar un turno (RF-conductor).
 ///
@@ -270,8 +271,12 @@ class _TripCheckinPageState extends ConsumerState<TripCheckinPage> {
         routeId: routeId,
       );
       // Refresca la caché de turnos para que "Mis rutas" muestre el banner
-      // de turno activo de inmediato.
+      // de turno activo de inmediato. `misRecorridosProvider` alimenta la tab
+      // "Mis rutas" (mantenida montada por el Stack/Offstage del HomePage),
+      // así que sin invalidación explícita el activeEntry recién creado no
+      // aparece hasta hacer pull-to-refresh.
       ref.invalidate(myFleetEntriesProvider);
+      ref.invalidate(misRecorridosProvider);
       if (mounted) {
         context.go('/home?tab=mapa');
       }

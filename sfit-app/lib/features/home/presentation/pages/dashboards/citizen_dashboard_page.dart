@@ -14,7 +14,8 @@ class CitizenDashboardPage extends ConsumerStatefulWidget {
   const CitizenDashboardPage({super.key, required this.onSelectTab});
 
   @override
-  ConsumerState<CitizenDashboardPage> createState() => _CitizenDashboardPageState();
+  ConsumerState<CitizenDashboardPage> createState() =>
+      _CitizenDashboardPageState();
 }
 
 class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
@@ -33,7 +34,9 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
   Future<void> _load() async {
     try {
       final coinsFut = ref.read(rewardsApiServiceProvider).getCoinsStatus();
-      final reportsFut = ref.read(reportsApiServiceProvider).getMisReportes(limit: 100);
+      final reportsFut = ref
+          .read(reportsApiServiceProvider)
+          .getMisReportes(limit: 100);
       final results = await Future.wait([coinsFut, reportsFut]);
       if (!mounted) return;
       final coins = results[0] as CoinsStatus;
@@ -82,8 +85,14 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
                 title: '¡Hola, $name!',
                 subtitle: 'Participa y mejora el transporte de tu ciudad.',
                 pills: [
-                  SfitHeroPill(label: 'SFITCoins', value: _loading ? '...' : coinsValue),
-                  SfitHeroPill(label: 'Reportes', value: _loading ? '...' : '$_totalReportes'),
+                  SfitHeroPill(
+                    label: 'SFITCoins',
+                    value: _loading ? '...' : coinsValue,
+                  ),
+                  SfitHeroPill(
+                    label: 'Reportes',
+                    value: _loading ? '...' : '$_totalReportes',
+                  ),
                 ],
               ),
               const SizedBox(height: 14),
@@ -126,26 +135,26 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
               SfitCategorizedFeatures(
                 categories: [
                   SfitFeatureCategory(
-                    label: 'REPORTES',
-                    icon: Icons.flag_outlined,
+                    label: 'CONSULTAS',
+                    icon: Icons.search_rounded,
                     modules: [
                       SfitFeatureCard(
-                        icon: Icons.campaign_outlined,
-                        title: 'Reportar',
-                        subtitle: 'Nueva infracción',
-                        onTap: () => widget.onSelectTab('reportar'),
-                      ),
-                      SfitFeatureCard(
-                        icon: Icons.list_alt_outlined,
-                        title: 'Mis reportes',
-                        subtitle: 'Seguimiento',
-                        onTap: () => widget.onSelectTab('mis-reportes'),
+                        icon: Icons.directions_bus_outlined,
+                        title: 'Buses en vivo',
+                        subtitle: 'Mapa en tiempo real',
+                        onTap: () => context.push('/buses-en-vivo'),
                       ),
                       SfitFeatureCard(
                         icon: Icons.qr_code_scanner_outlined,
                         title: 'Escanear QR',
                         subtitle: 'Info vehicular',
                         onTap: () => context.push('/qr'),
+                      ),
+                      SfitFeatureCard(
+                        icon: Icons.list_alt_outlined,
+                        title: 'Mis reportes',
+                        subtitle: 'Tu historial',
+                        onTap: () => widget.onSelectTab('mis-reportes'),
                       ),
                     ],
                   ),
@@ -156,13 +165,13 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
                       SfitFeatureCard(
                         icon: Icons.dynamic_feed_outlined,
                         title: 'Feed',
-                        subtitle: 'Comunidad',
+                        subtitle: 'Reportes sociales',
                         onTap: () => widget.onSelectTab('inicio-feed'),
                       ),
                       SfitFeatureCard(
                         icon: Icons.leaderboard_outlined,
                         title: 'Ranking',
-                        subtitle: 'Tabla ciudadanos',
+                        subtitle: 'Top ciudadanos',
                         onTap: () => context.push('/ranking'),
                       ),
                       SfitFeatureCard(
@@ -173,26 +182,9 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
                       ),
                     ],
                   ),
-                  SfitFeatureCategory(
-                    label: 'MÁS',
-                    icon: Icons.apps_rounded,
-                    modules: [
-                      SfitFeatureCard(
-                        icon: Icons.directions_bus_outlined,
-                        title: 'Buses en vivo',
-                        subtitle: 'Mapa en tiempo real',
-                        onTap: () => context.push('/buses-en-vivo'),
-                      ),
-                      SfitFeatureCard(
-                        icon: Icons.person_outline,
-                        title: 'Mi perfil',
-                        subtitle: 'Datos y cuenta',
-                        onTap: () => widget.onSelectTab('perfil'),
-                      ),
-                    ],
-                  ),
                 ],
               ),
+              const SizedBox(height: 24),
             ],
           ),
         ),

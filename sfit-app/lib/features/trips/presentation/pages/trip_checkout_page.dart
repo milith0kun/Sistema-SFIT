@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/location_tracking_service.dart';
 import '../../data/datasources/trips_api_service.dart';
+import 'my_routes_page.dart' show misRecorridosProvider;
 
 /// Pantalla de cierre de turno del conductor (RF-conductor).
 ///
@@ -75,9 +76,11 @@ class _TripCheckoutPageState extends ConsumerState<TripCheckoutPage> {
       await ref.read(locationTrackingProvider.notifier).stopTracking();
       // Invalida la caché de turnos del conductor — sin esto, "Mis rutas"
       // sigue mostrando el turno como en_ruta hasta que el usuario haga
-      // pull-to-refresh manual.
+      // pull-to-refresh manual. `misRecorridosProvider` alimenta la tab
+      // que ahora consume el endpoint agrupado por ruta.
       ref.invalidate(myFleetEntriesProvider);
       ref.invalidate(myRoutesProvider);
+      ref.invalidate(misRecorridosProvider);
       if (mounted) {
         // Reemplazamos la pantalla actual por el resumen full-screen del viaje
         // (en lugar de volver a /home con snackbar). El conductor ve métricas

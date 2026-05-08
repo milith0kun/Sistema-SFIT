@@ -1,9 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/navigation/navigation_key.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -51,6 +53,13 @@ class _FeedDetailPageState extends ConsumerState<FeedDetailPage> {
         scrolledUnderElevation: 0,
         foregroundColor: AppColors.ink9,
         shape: const Border(bottom: BorderSide(color: AppColors.ink2)),
+        actions: [
+          IconButton(
+            tooltip: 'Compartir',
+            icon: const Icon(Icons.share_outlined, size: 20),
+            onPressed: () => _shareReport(r),
+          ),
+        ],
       ),
       body: ListView(
         padding: EdgeInsets.zero,
@@ -64,17 +73,32 @@ class _FeedDetailPageState extends ConsumerState<FeedDetailPage> {
                 _buildHeader(r),
                 const SizedBox(height: 18),
                 _buildCategoryAndPlate(r),
-                const SizedBox(height: 14),
-                Text(
-                  r.description,
-                  style: AppTheme.inter(
-                    fontSize: 14.5,
-                    color: AppColors.ink8,
-                    height: 1.55,
+                if (r.description.trim().isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.ink1,
+                      border: Border.all(color: AppColors.ink2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      r.description,
+                      style: AppTheme.inter(
+                        fontSize: 14,
+                        color: AppColors.ink8,
+                        height: 1.55,
+                      ),
+                    ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 18),
-                _buildApoyoBar(r),
+                _AnimatedApoyoBar(
+                  apoyado: r.apoyado,
+                  count: r.apoyosCount,
+                  onTap: () => _toggleApoyo(r.id),
+                ),
               ],
             ),
           ),
@@ -259,6 +283,7 @@ class _FeedDetailPageState extends ConsumerState<FeedDetailPage> {
   }
 
   Widget _buildCategoryAndPlate(FeedReport r) {
+    final (icon, bg, fg) = _categoryStyle(r.category);
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -266,22 +291,21 @@ class _FeedDetailPageState extends ConsumerState<FeedDetailPage> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: AppColors.noAptoBg,
-            border: Border.all(color: AppColors.noAptoBorder),
+            color: bg,
+            border: Border.all(color: fg.withValues(alpha: 0.25)),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.warning_amber_rounded,
-                  size: 14, color: AppColors.noApto),
+              Icon(icon, size: 14, color: fg),
               const SizedBox(width: 5),
               Text(
                 r.category,
                 style: AppTheme.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.noApto,
+                  color: fg,
                 ),
               ),
             ],
@@ -327,52 +351,67 @@ class _FeedDetailPageState extends ConsumerState<FeedDetailPage> {
     );
   }
 
-  Widget _buildApoyoBar(FeedReport r) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.ink1,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            r.apoyado ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-            color: r.apoyado ? AppColors.noApto : AppColors.ink6,
-            size: 22,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              r.apoyosCount == 0
-                  ? 'Sé el primero en apoyar'
-                  : 'Apoyado por ${r.apoyosCount} ${r.apoyosCount == 1 ? "ciudadano" : "ciudadanos"}',
-              style: AppTheme.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.ink8,
-              ),
+  // ── Helpers compartidos: categoría → (icon, bg, fg) ────────────────────
+  // Mismo mapping que `feed_post_card.dart` para mantener consistencia
+  // visual entre la card del feed y este detalle.
+  (IconData, Color, Color) _categoryStyle(String c) {
+    final lower = c.toLowerCase();
+    if (lower.contains('peligros')) {
+      return (Icons.warning_amber_rounded, AppColors.noAptoBg, AppColors.noApto);
+    }
+    if (lower.contains('velocidad')) {
+      return (Icons.speed_rounded, AppColors.noAptoBg, AppColors.noApto);
+    }
+    if (lower.contains('agresivo')) {
+      return (Icons.sentiment_very_dissatisfied_rounded, AppColors.noAptoBg, AppColors.noApto);
+    }
+    if (lower.contains('cobro')) {
+      return (Icons.payments_outlined, AppColors.riesgoBg, AppColors.riesgo);
+    }
+    if (lower.contains('mal estado')) {
+      return (Icons.car_crash_outlined, AppColors.riesgoBg, AppColors.riesgo);
+    }
+    if (lower.contains('mantenimiento')) {
+      return (Icons.build_circle_outlined, AppColors.riesgoBg, AppColors.riesgo);
+    }
+    if (lower.contains('contamin')) {
+      return (Icons.eco_outlined, AppColors.aptoBg, AppColors.apto);
+    }
+    if (lower.contains('ruta')) {
+      return (Icons.alt_route_rounded, AppColors.infoBg, AppColors.info);
+    }
+    if (lower.contains('señaliz')) {
+      return (Icons.traffic_outlined, AppColors.infoBg, AppColors.info);
+    }
+    return (Icons.report_gmailerrorred_outlined, AppColors.ink1, AppColors.ink7);
+  }
+
+  // ── Compartir reporte: texto al portapapeles + snackbar de confirmación ──
+  Future<void> _shareReport(FeedReport r) async {
+    final plate = r.vehicle?.plate ?? '—';
+    final loc = _locationLabel(r);
+    final shareText = 'Reporte SFIT · ${r.category}\n'
+        'Vehículo: $plate\n'
+        'Lugar: $loc\n'
+        'Estado: ${r.status.toUpperCase()}\n'
+        '${r.description}';
+    await Clipboard.setData(ClipboardData(text: shareText));
+    if (!mounted) return;
+    showAppSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 10),
+            Text(
+              'Texto del reporte copiado',
+              style: AppTheme.inter(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w600),
             ),
-          ),
-          FilledButton.icon(
-            onPressed: () => _toggleApoyo(r.id),
-            icon: Icon(
-              r.apoyado
-                  ? Icons.favorite_rounded
-                  : Icons.favorite_border_rounded,
-              size: 16,
-            ),
-            label: Text(r.apoyado ? 'Apoyando' : 'Apoyar'),
-            style: FilledButton.styleFrom(
-              backgroundColor: r.apoyado ? AppColors.noApto : AppColors.ink9,
-              foregroundColor: Colors.white,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              textStyle:
-                  AppTheme.inter(fontSize: 12.5, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
+          ],
+        ),
+        backgroundColor: AppColors.apto,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -384,13 +423,19 @@ class _FeedDetailPageState extends ConsumerState<FeedDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Ubicación reportada',
-            style: AppTheme.inter(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w700,
-              color: AppColors.ink9,
-            ),
+          Row(
+            children: [
+              const Icon(Icons.location_on_rounded, size: 16, color: AppColors.ink7),
+              const SizedBox(width: 6),
+              Text(
+                'Ubicación reportada',
+                style: AppTheme.inter(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink9,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           ClipRRect(
@@ -429,9 +474,54 @@ class _FeedDetailPageState extends ConsumerState<FeedDetailPage> {
               ),
             ),
           ),
+          const SizedBox(height: 10),
+          // Coordenadas + link a Google Maps externo
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${r.latitude!.toStringAsFixed(5)}, ${r.longitude!.toStringAsFixed(5)}',
+                  style: AppTheme.inter(
+                    fontSize: 11.5,
+                    color: AppColors.ink5,
+                    tabular: true,
+                  ),
+                ),
+              ),
+              InkWell(
+                borderRadius: BorderRadius.circular(6),
+                onTap: () => _openInMaps(r.latitude!, r.longitude!),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.open_in_new_rounded, size: 13, color: AppColors.info),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Ver en Maps',
+                        style: AppTheme.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.info,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _openInMaps(double lat, double lng) async {
+    final url = Uri.parse('https://www.google.com/maps?q=$lat,$lng');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
   }
 
   Future<void> _toggleApoyo(String id) async {
@@ -565,6 +655,144 @@ class _FullscreenGalleryState extends State<_FullscreenGallery> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Barra de apoyo con corazón animado (scale pulse + cross-fade) + counter
+/// dinámico. Reemplaza la versión estática anterior. Al tap dispara una
+/// animación 1.0 → 1.4 → 1.0 con `easeOutBack` (overshoot leve), luego
+/// llama al callback de toggle.
+class _AnimatedApoyoBar extends StatefulWidget {
+  final bool apoyado;
+  final int count;
+  final VoidCallback onTap;
+
+  const _AnimatedApoyoBar({
+    required this.apoyado,
+    required this.count,
+    required this.onTap,
+  });
+
+  @override
+  State<_AnimatedApoyoBar> createState() => _AnimatedApoyoBarState();
+}
+
+class _AnimatedApoyoBarState extends State<_AnimatedApoyoBar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      duration: const Duration(milliseconds: 320),
+      vsync: this,
+    );
+    _scale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.4), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: 1.4, end: 1.0), weight: 60),
+    ]).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _handleTap() {
+    _ctrl.forward(from: 0);
+    widget.onTap();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = widget.apoyado ? AppColors.noApto : AppColors.ink8;
+    final label = widget.count == 0
+        ? 'Sé el primero en apoyar'
+        : 'Apoyado por ${widget.count} ${widget.count == 1 ? "ciudadano" : "ciudadanos"}';
+
+    return Material(
+      color: AppColors.ink1,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: _handleTap,
+        splashColor: AppColors.noAptoBg.withValues(alpha: 0.6),
+        highlightColor: AppColors.noAptoBg.withValues(alpha: 0.25),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.ink2),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              ScaleTransition(
+                scale: _scale,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  transitionBuilder: (child, anim) =>
+                      ScaleTransition(scale: anim, child: child),
+                  child: Icon(
+                    widget.apoyado
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    key: ValueKey(widget.apoyado),
+                    size: 24,
+                    color: accent,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.ink8,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: widget.apoyado ? AppColors.noApto : AppColors.ink9,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      widget.apoyado
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      size: 14,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      widget.apoyado ? 'Apoyando' : 'Apoyar',
+                      style: AppTheme.inter(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

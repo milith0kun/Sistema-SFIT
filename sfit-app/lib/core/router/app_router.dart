@@ -29,7 +29,6 @@ import '../../features/conductor/presentation/pages/trip_summary_page.dart';
 import '../../features/conductor/presentation/pages/pending_trips_page.dart';
 import '../../features/conductor/presentation/pages/available_trips_page.dart';
 import '../../features/conductor/presentation/pages/mi_empresa_page.dart';
-import '../../features/conductor/presentation/pages/mis_recorridos_page.dart';
 import '../../features/conductor/presentation/pages/editar_perfil_conductor_page.dart';
 import '../../features/operator/presentation/pages/asociar_conductores_page.dart';
 import '../../features/operator/presentation/pages/vehicle_qr_page.dart';
@@ -222,10 +221,6 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: '/conductor/empresa',
         builder: (_, __) => const MiEmpresaPage(),
-      ),
-      GoRoute(
-        path: '/conductor/mis-recorridos',
-        builder: (_, __) => const MisRecorridosPage(),
       ),
       GoRoute(
         path: '/conductor/perfil',

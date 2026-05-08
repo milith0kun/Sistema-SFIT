@@ -41,8 +41,7 @@ class _FeedPageState extends ConsumerState<FeedPage> {
   }
 
   void _onScroll() {
-    if (_scroll.position.pixels >=
-        _scroll.position.maxScrollExtent - 320) {
+    if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 320) {
       ref.read(feedProvider.notifier).loadMore();
     }
   }
@@ -52,7 +51,7 @@ class _FeedPageState extends ConsumerState<FeedPage> {
     final state = ref.watch(feedProvider);
 
     return Container(
-      color: AppColors.ink1,
+      color: Colors.white,
       child: RefreshIndicator(
         color: AppColors.primary,
         onRefresh: () => ref.read(feedProvider.notifier).refresh(),
@@ -60,47 +59,11 @@ class _FeedPageState extends ConsumerState<FeedPage> {
           controller: _scroll,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(width: 5, height: 5, decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle)),
-                        const SizedBox(width: 6),
-                        Text(
-                          'COMUNIDAD SFIT',
-                          style: AppTheme.inter(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                            letterSpacing: 1.6,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Feed de reportes',
-                      style: AppTheme.inter(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.ink9,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
             SliverPersistentHeader(
               pinned: true,
               delegate: _FilterBarDelegate(
                 filters: state.filters,
-                onChanged: (f) =>
-                    ref.read(feedProvider.notifier).setFilters(f),
+                onChanged: (f) => ref.read(feedProvider.notifier).setFilters(f),
               ),
             ),
             if (state.loading)
@@ -110,8 +73,7 @@ class _FeedPageState extends ConsumerState<FeedPage> {
                 hasScrollBody: false,
                 child: _FeedError(
                   message: state.error!,
-                  onRetry: () =>
-                      ref.read(feedProvider.notifier).refresh(),
+                  onRetry: () => ref.read(feedProvider.notifier).refresh(),
                 ),
               )
             else if (state.items.isEmpty)
@@ -140,10 +102,13 @@ class _FeedPageState extends ConsumerState<FeedPage> {
                     );
                   }
                   final r = state.items[i];
-                  return FeedPostCard(
-                    report: r,
-                    onTap: () => _openDetail(r),
-                    onToggleApoyo: () => _toggleApoyo(r.id),
+                  return _AnimatedFeedItem(
+                    key: ValueKey(r.id),
+                    child: FeedPostCard(
+                      report: r,
+                      onTap: () => _openDetail(r),
+                      onToggleApoyo: () => _toggleApoyo(r.id),
+                    ),
                   );
                 },
               ),
@@ -180,81 +145,117 @@ class _FilterBarDelegate extends SliverPersistentHeaderDelegate {
   _FilterBarDelegate({required this.filters, required this.onChanged});
 
   @override
-  double get minExtent => 96;
+  double get minExtent => 84;
   @override
-  double get maxExtent => 96;
+  double get maxExtent => 84;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     return Container(
-      color: AppColors.ink1,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: AppColors.ink2, width: 1)),
+      ),
       child: Column(
         children: [
-          // Fila 1: regiones (segmented)
+          // Fila 1: regiones — segmented full-width centrado.
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-            child: SegmentedButton<FeedRegion>(
-              showSelectedIcon: false,
-              style: ButtonStyle(
-                visualDensity: VisualDensity.compact,
-                textStyle: WidgetStatePropertyAll(
-                  AppTheme.inter(fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-                backgroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return AppColors.primary;
-                  }
-                  return Colors.white;
-                }),
-                foregroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            child: SizedBox(
+              height: 34,
+              width: double.infinity,
+              child: SegmentedButton<FeedRegion>(
+                showSelectedIcon: false,
+                expandedInsets: EdgeInsets.zero,
+                style: ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  padding: const WidgetStatePropertyAll(
+                    EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                  ),
+                  textStyle: WidgetStatePropertyAll(
+                    AppTheme.inter(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                  backgroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return AppColors.primary;
+                    }
                     return Colors.white;
-                  }
-                  return AppColors.ink8;
-                }),
-                side: const WidgetStatePropertyAll(
-                  BorderSide(color: AppColors.ink2),
-                ),
-              ),
-              segments: FeedRegion.values
-                  .map((r) => ButtonSegment(value: r, label: Text(r.label)))
-                  .toList(),
-              selected: {filters.region},
-              onSelectionChanged: (sel) =>
-                  onChanged(filters.copyWith(region: sel.first)),
-            ),
-          ),
-          // Fila 2: categorías scrolleables + orden
-          Expanded(
-            child: Row(
-              children: [
-                Expanded(
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    children: [
-                      _CategoryChip(
-                        label: 'Todas',
-                        selected: filters.category == null,
-                        onTap: () => onChanged(filters.copyWith(category: null)),
-                      ),
-                      ...kReportCategories.map(
-                        (c) => _CategoryChip(
-                          label: c,
-                          selected: filters.category == c,
-                          onTap: () =>
-                              onChanged(filters.copyWith(category: c)),
-                        ),
-                      ),
-                    ],
+                  }),
+                  foregroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return Colors.white;
+                    }
+                    return AppColors.ink8;
+                  }),
+                  side: const WidgetStatePropertyAll(
+                    BorderSide(color: AppColors.ink2),
                   ),
                 ),
-                _OrderButton(
-                  current: filters.order,
-                  onChange: (o) => onChanged(filters.copyWith(order: o)),
+                segments:
+                    FeedRegion.values
+                        .map(
+                          (r) => ButtonSegment(value: r, label: Text(r.label)),
+                        )
+                        .toList(),
+                selected: {filters.region},
+                onSelectionChanged:
+                    (sel) => onChanged(filters.copyWith(region: sel.first)),
+              ),
+            ),
+          ),
+          // Fila 2: orden inline al inicio + categorías scroll.
+          // El orden ahora es un chip más en la fila (no un ícono raro
+          // pegado a la derecha), mejor jerarquía visual.
+          Expanded(
+            child: ShaderMask(
+              shaderCallback:
+                  (bounds) => const LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    stops: [0.0, 0.015, 0.985, 1.0],
+                    colors: [
+                      Colors.transparent,
+                      Colors.black,
+                      Colors.black,
+                      Colors.transparent,
+                    ],
+                  ).createShader(bounds),
+              blendMode: BlendMode.dstIn,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
                 ),
-                const SizedBox(width: 8),
-              ],
+                children: [
+                  _OrderChip(
+                    current: filters.order,
+                    onChange: (o) => onChanged(filters.copyWith(order: o)),
+                  ),
+                  Container(
+                    width: 1,
+                    height: 22,
+                    color: AppColors.ink2,
+                    margin: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  _CategoryChip(
+                    label: 'Todas',
+                    selected: filters.category == null,
+                    onTap: () => onChanged(filters.copyWith(category: null)),
+                  ),
+                  ...kReportCategories.map(
+                    (c) => _CategoryChip(
+                      label: c,
+                      selected: filters.category == c,
+                      onTap: () => onChanged(filters.copyWith(category: c)),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -314,23 +315,58 @@ class _CategoryChip extends StatelessWidget {
   }
 }
 
-class _OrderButton extends StatelessWidget {
+/// Chip de orden integrado en la fila de chips de categoría.
+///
+/// Visualmente igual a un `_CategoryChip` pero con un ícono distintivo y
+/// abre un PopupMenu con las opciones (Recientes / Más apoyados). El estado
+/// activo cambia el color del chip a primaryBg cuando hay una opción no-default.
+class _OrderChip extends StatelessWidget {
   final FeedOrder current;
   final ValueChanged<FeedOrder> onChange;
 
-  const _OrderButton({required this.current, required this.onChange});
+  const _OrderChip({required this.current, required this.onChange});
 
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<FeedOrder>(
-      tooltip: 'Ordenar',
+      tooltip: 'Ordenar feed',
       initialValue: current,
       onSelected: onChange,
-      itemBuilder: (_) => FeedOrder.values
-          .map((o) => PopupMenuItem(value: o, child: Text(o.label)))
-          .toList(),
+      offset: const Offset(0, 36),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      color: Colors.white,
+      itemBuilder:
+          (_) =>
+              FeedOrder.values.map((o) {
+                final selected = o == current;
+                return PopupMenuItem(
+                  value: o,
+                  height: 40,
+                  child: Row(
+                    children: [
+                      Icon(
+                        o == FeedOrder.recent
+                            ? Icons.schedule_rounded
+                            : Icons.local_fire_department_rounded,
+                        size: 16,
+                        color: selected ? AppColors.primary : AppColors.ink6,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        o.label,
+                        style: AppTheme.inter(
+                          fontSize: 13,
+                          fontWeight:
+                              selected ? FontWeight.w700 : FontWeight.w500,
+                          color: selected ? AppColors.primary : AppColors.ink8,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border.all(color: AppColors.ink2),
@@ -343,12 +379,24 @@ class _OrderButton extends StatelessWidget {
               current == FeedOrder.recent
                   ? Icons.schedule_rounded
                   : Icons.local_fire_department_rounded,
-              size: 14,
+              size: 13,
               color: AppColors.ink7,
             ),
-            const SizedBox(width: 4),
-            const Icon(Icons.expand_more_rounded,
-                size: 16, color: AppColors.ink5),
+            const SizedBox(width: 5),
+            Text(
+              current.label,
+              style: AppTheme.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.ink7,
+              ),
+            ),
+            const SizedBox(width: 2),
+            const Icon(
+              Icons.expand_more_rounded,
+              size: 14,
+              color: AppColors.ink5,
+            ),
           ],
         ),
       ),
@@ -410,53 +458,116 @@ class _SkeletonCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 14),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: AppColors.ink2, width: 1),
-        borderRadius: BorderRadius.circular(14),
+        border: Border(bottom: BorderSide(color: AppColors.ink2, width: 1)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header: avatar + nombre + ubicación
-          Row(
-            children: [
-              _ShimmerBox(controller: controller, width: 36, height: 36, radius: 18),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 12, bottom: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header: avatar + nombre + ubicación
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
                 children: [
-                  _ShimmerBox(controller: controller, width: 120, height: 12, radius: 4),
-                  const SizedBox(height: 6),
-                  _ShimmerBox(controller: controller, width: 80, height: 10, radius: 3),
+                  _ShimmerBox(
+                    controller: controller,
+                    width: 40,
+                    height: 40,
+                    radius: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _ShimmerBox(
+                        controller: controller,
+                        width: 120,
+                        height: 14,
+                        radius: 4,
+                      ),
+                      const SizedBox(height: 6),
+                      _ShimmerBox(
+                        controller: controller,
+                        width: 80,
+                        height: 10,
+                        radius: 3,
+                      ),
+                    ],
+                  ),
                 ],
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Imagen placeholder (4:3 como el carrusel real)
-          AspectRatio(
-            aspectRatio: 4 / 3,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+            ),
+            const SizedBox(height: 8),
+            // Imagen placeholder (4:3 como el carrusel real) sin márgenes laterales
+            AspectRatio(
+              aspectRatio: 4 / 3,
               child: _ShimmerBox(
                 controller: controller,
                 width: double.infinity,
                 height: double.infinity,
-                radius: 8,
+                radius: 0,
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          // Categoría + descripción (2 líneas)
-          _ShimmerBox(controller: controller, width: 140, height: 12, radius: 4),
-          const SizedBox(height: 8),
-          _ShimmerBox(controller: controller, width: double.infinity, height: 10, radius: 3),
-          const SizedBox(height: 6),
-          _ShimmerBox(controller: controller, width: 220, height: 10, radius: 3),
-        ],
+            const SizedBox(height: 12),
+            // Categoría + descripción (2 líneas)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _ShimmerBox(
+                    controller: controller,
+                    width: 140,
+                    height: 12,
+                    radius: 4,
+                  ),
+                  const SizedBox(height: 8),
+                  _ShimmerBox(
+                    controller: controller,
+                    width: double.infinity,
+                    height: 10,
+                    radius: 3,
+                  ),
+                  const SizedBox(height: 6),
+                  _ShimmerBox(
+                    controller: controller,
+                    width: 220,
+                    height: 10,
+                    radius: 3,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      _ShimmerBox(
+                        controller: controller,
+                        width: 60,
+                        height: 24,
+                        radius: 12,
+                      ),
+                      const SizedBox(width: 16),
+                      _ShimmerBox(
+                        controller: controller,
+                        width: 60,
+                        height: 24,
+                        radius: 12,
+                      ),
+                      const SizedBox(width: 16),
+                      _ShimmerBox(
+                        controller: controller,
+                        width: 60,
+                        height: 24,
+                        radius: 12,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -488,11 +599,7 @@ class _ShimmerBox extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment(-1 + controller.value * 2, -0.3),
               end: Alignment(1 + controller.value * 2, 0.3),
-              colors: const [
-                AppColors.ink1,
-                AppColors.ink2,
-                AppColors.ink1,
-              ],
+              colors: const [AppColors.ink1, AppColors.ink2, AppColors.ink1],
               stops: const [0.0, 0.5, 1.0],
             ),
           ),
@@ -559,7 +666,11 @@ class _FeedError extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.cloud_off_rounded, size: 56, color: AppColors.noApto),
+          const Icon(
+            Icons.cloud_off_rounded,
+            size: 56,
+            color: AppColors.noApto,
+          ),
           const SizedBox(height: 14),
           Text(
             'No se pudo cargar el feed',
@@ -590,6 +701,54 @@ class _FeedError extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Wrap que anima la primera aparición de una card del feed:
+/// fade + slide vertical sutil (12px abajo → 0). Solo dispara una vez por
+/// instancia gracias al `ValueKey(report.id)` del padre — al volver a
+/// visualizar una card ya construida no se re-anima.
+class _AnimatedFeedItem extends StatefulWidget {
+  final Widget child;
+  const _AnimatedFeedItem({super.key, required this.child});
+
+  @override
+  State<_AnimatedFeedItem> createState() => _AnimatedFeedItemState();
+}
+
+class _AnimatedFeedItemState extends State<_AnimatedFeedItem>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _opacity;
+  late final Animation<Offset> _offset;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      duration: const Duration(milliseconds: 320),
+      vsync: this,
+    );
+    _opacity = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _offset = Tween<Offset>(
+      begin: const Offset(0, 0.04),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _opacity,
+      child: SlideTransition(position: _offset, child: widget.child),
     );
   }
 }

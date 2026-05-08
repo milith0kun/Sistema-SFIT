@@ -8,8 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 
 /// Pantalla de resumen al cerrar un FleetEntry. Llamada con
-/// `context.push('/conductor/trip-summary/<entryId>')` desde
-/// `MyRoutesPage._endTrip` o `TripCheckoutPage`.
+/// `context.push('/conductor/trip-summary/<entryId>')` desde `TripCheckoutPage`.
 ///
 /// Consulta GET /api/flota/[id] (que incluye trackPoints y métricas
 /// calculadas al cerrar: distanceMeters, durationSeconds,

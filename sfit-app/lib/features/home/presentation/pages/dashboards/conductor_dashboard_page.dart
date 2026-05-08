@@ -159,12 +159,6 @@ class _ConductorDashboardPageState extends ConsumerState<ConductorDashboardPage>
                         subtitle: 'Historial diario',
                         onTap: () => widget.onSelectTab('viajes'),
                       ),
-                      SfitFeatureCard(
-                        icon: Icons.tour_outlined,
-                        title: 'Mis recorridos',
-                        subtitle: 'Histórico de turnos',
-                        onTap: () => context.push('/conductor/mis-recorridos'),
-                      ),
                     ],
                   ),
                   SfitFeatureCategory(

@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db/mongoose";
 import { FleetEntry } from "@/models/FleetEntry";
 import { LocationPing } from "@/models/LocationPing";
 import { Driver } from "@/models/Driver";
+import { RouteCapture, type RouteCaptureStatus } from "@/models/RouteCapture";
 import "@/models/Vehicle";
 import "@/models/Route";
 import {
@@ -165,6 +166,22 @@ export async function GET(request: NextRequest) {
     groupedById.set(String(g._id), { points: g.points, total: g.total });
   }
 
+  // 3b. RouteCaptures asociadas a estos turnos (para mostrar al conductor
+  //     si su trazo se promovió a una candidata, ya quedó como raw alimentando
+  //     una ruta oficial, o aún no califica).
+  const captures = await RouteCapture.find({ fleetEntryId: { $in: entryIds } })
+    .select("fleetEntryId status qualityScore")
+    .lean();
+  const captureByEntryId = new Map<string, { id: string; status: RouteCaptureStatus; qualityScore: number }>();
+  for (const c of captures) {
+    if (!c.fleetEntryId) continue;
+    captureByEntryId.set(String(c.fleetEntryId), {
+      id: String(c._id),
+      status: c.status,
+      qualityScore: c.qualityScore ?? 0,
+    });
+  }
+
   // 4. Enriquecer cada entry con métricas + score.
   type Pass = {
     id: string;
@@ -186,6 +203,11 @@ export async function GET(request: NextRequest) {
     trackPointsTotal: number;
     score: number | null;
     isBest: boolean;
+    /** Captura GPS asociada (RouteCapture). null si el turno no generó captura
+     *  (p.ej. <20 pings o todavía está en_ruta). */
+    captureId: string | null;
+    captureStatus: RouteCaptureStatus | null;
+    captureQualityScore: number | null;
     track?: Array<{ lat: number; lng: number }>;
   };
 
@@ -226,6 +248,7 @@ export async function GET(request: NextRequest) {
       maxGapSeconds: gap,
     });
 
+    const cap = captureByEntryId.get(String(e._id));
     const pass: Pass = {
       id: String(e._id),
       date: e.date ?? null,
@@ -246,6 +269,9 @@ export async function GET(request: NextRequest) {
       trackPointsTotal: numPings,
       score,
       isBest: false,
+      captureId: cap?.id ?? null,
+      captureStatus: cap?.status ?? null,
+      captureQualityScore: cap?.qualityScore ?? null,
     };
 
     // Detectar el turno activo (en_ruta). Con el track completo para mostrar
