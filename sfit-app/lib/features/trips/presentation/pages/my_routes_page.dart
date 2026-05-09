@@ -811,100 +811,102 @@ class _PassRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(children: [
-                      Text(_fmtDate(pass.date),
-                          style: AppTheme.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.ink9)),
-                      if (pass.isBest) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.gold,
-                            borderRadius: BorderRadius.circular(4),
+                    // Wrap en lugar de Row para que los badges fluyan a una
+                    // segunda línea cuando no hay ancho — antes la fila
+                    // destacada (MEJOR + CANDIDATA) provocaba overflow de
+                    // ~3px en pantallas estrechas.
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(_fmtDate(pass.date),
+                            style: AppTheme.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.ink9)),
+                        if (pass.isBest)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.gold,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              const Icon(Icons.workspace_premium,
+                                  size: 10, color: Colors.white),
+                              const SizedBox(width: 2),
+                              Text('MEJOR',
+                                  style: AppTheme.inter(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                      letterSpacing: 0.6)),
+                            ]),
                           ),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            const Icon(Icons.workspace_premium,
-                                size: 10, color: Colors.white),
-                            const SizedBox(width: 2),
-                            Text('MEJOR',
+                        if (isLive)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.apto,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text('EN VIVO',
                                 style: AppTheme.inter(
                                     fontSize: 9.5,
                                     fontWeight: FontWeight.w800,
                                     color: Colors.white,
                                     letterSpacing: 0.6)),
-                          ]),
-                        ),
-                      ],
-                      if (isLive) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.apto,
-                            borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Text('EN VIVO',
-                              style: AppTheme.inter(
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                  letterSpacing: 0.6)),
-                        ),
-                      ],
-                      // Chip de estado de captura GPS:
-                      //   - candidate → trazo orgánico en revisión por operador
-                      //   - validated → fue promovida a Route oficial
-                      if (pass.captureStatus == 'candidate') ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.goldBg,
-                            border: Border.all(color: AppColors.goldBorder),
-                            borderRadius: BorderRadius.circular(4),
+                        // Chip de estado de captura GPS:
+                        //   - candidate → trazo orgánico en revisión por operador
+                        //   - validated → fue promovida a Route oficial
+                        if (pass.captureStatus == 'candidate')
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.goldBg,
+                              border: Border.all(color: AppColors.goldBorder),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              const Icon(Icons.add_road_outlined,
+                                  size: 10, color: AppColors.goldDark),
+                              const SizedBox(width: 2),
+                              Text('CANDIDATA',
+                                  style: AppTheme.inter(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.goldDark,
+                                      letterSpacing: 0.6)),
+                            ]),
+                          )
+                        else if (pass.captureStatus == 'validated')
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.aptoBg,
+                              border: Border.all(color: AppColors.aptoBorder),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              const Icon(Icons.verified_rounded,
+                                  size: 10, color: AppColors.apto),
+                              const SizedBox(width: 2),
+                              Text('PROMOVIDA',
+                                  style: AppTheme.inter(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.apto,
+                                      letterSpacing: 0.6)),
+                            ]),
                           ),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            const Icon(Icons.add_road_outlined,
-                                size: 10, color: AppColors.goldDark),
-                            const SizedBox(width: 2),
-                            Text('CANDIDATA',
-                                style: AppTheme.inter(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.goldDark,
-                                    letterSpacing: 0.6)),
-                          ]),
-                        ),
-                      ] else if (pass.captureStatus == 'validated') ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.aptoBg,
-                            border: Border.all(color: AppColors.aptoBorder),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            const Icon(Icons.verified_rounded,
-                                size: 10, color: AppColors.apto),
-                            const SizedBox(width: 2),
-                            Text('PROMOVIDA',
-                                style: AppTheme.inter(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.apto,
-                                    letterSpacing: 0.6)),
-                          ]),
-                        ),
                       ],
-                    ]),
+                    ),
                     const SizedBox(height: 3),
                     Row(children: [
                       const Icon(Icons.access_time,
