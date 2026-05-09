@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
 import { Municipality } from "@/models/Municipality";
 import { Driver } from "@/models/Driver";
+import { Company } from "@/models/Company";
 import {
   apiResponse, apiError, apiUnauthorized, apiValidationError,
 } from "@/lib/api/response";
@@ -29,14 +30,35 @@ import { isValidObjectId } from "mongoose";
 
 const Schema = z.object({
   dni:   z.string().regex(/^\d{6,12}$/, "DNI debe tener entre 6 y 12 dígitos"),
-  phone: z.string().min(7).max(30),
+  // Teléfono opcional — el sistema no lo requiere para operar (los flujos
+  // críticos usan email/notificaciones in-app). Acepta vacío.
+  phone: z.string().min(7).max(30).optional().or(z.literal("")),
   image: z.string().url("URL de imagen inválida").optional(),
   newPassword: z.string().min(8, "Mínimo 8 caracteres").max(128).optional(),
+  // Datos personales auto-resueltos por RENIEC (apiperu). Si llegan y el
+  // User.name viene incompleto desde Google, lo actualizamos.
+  reniec: z.object({
+    nombres:         z.string().max(120).optional(),
+    apellidoPaterno: z.string().max(80).optional(),
+    apellidoMaterno: z.string().max(80).optional(),
+  }).optional(),
   // Datos institucionales — sólo se aplican si el usuario es admin_municipal
   // y su municipalidad aún no los tiene.
   municipality: z.object({
     ruc:         z.string().regex(/^\d{11}$/, "RUC debe tener 11 dígitos"),
     razonSocial: z.string().min(2).max(200).trim(),
+  }).optional(),
+  // Datos de empresa de transporte — sólo aplican si el rol es OPERADOR y
+  // aún no tiene companyId asignada. Auto-rellenado desde SUNAT (RUC) en la
+  // app: el operador escribe el RUC y se popula razón social + domicilio +
+  // ubigeo. Acá creamos/upserteamos la Company y la vinculamos al User.
+  company: z.object({
+    ruc:         z.string().regex(/^\d{11}$/, "RUC debe tener 11 dígitos"),
+    razonSocial: z.string().min(2).max(200).trim(),
+    domicilio:   z.string().max(300).optional(),
+    departmentCode: z.string().regex(/^\d{2}$/).optional(),
+    provinceCode:   z.string().regex(/^\d{4}$/).optional(),
+    districtCode:   z.string().regex(/^\d{6}$/).optional(),
   }).optional(),
   // Datos de conductor — sólo se aplican si el rol del usuario es conductor.
   // Crea/actualiza el documento Driver vinculado por dni del propio usuario.
@@ -72,7 +94,7 @@ export async function POST(request: NextRequest) {
     return apiValidationError(errors);
   }
 
-  const { dni, phone, image, newPassword, municipality, driver } = parsed.data;
+  const { dni, phone, image, newPassword, reniec, municipality, company, driver } = parsed.data;
 
   try {
     await connectDB();
@@ -85,8 +107,23 @@ export async function POST(request: NextRequest) {
     if (dupDni) return apiError("El DNI ya está registrado en otra cuenta", 409);
 
     user.dni   = dni;
-    user.phone = phone;
+    if (phone && phone.trim().length > 0) {
+      user.phone = phone.trim();
+    }
     if (image) user.image = image;
+
+    // Datos RENIEC: completan/sobreescriben el nombre cuando llega el bloque
+    // (típicamente cuando el operador llenó el DNI y la app mostró RENIEC).
+    // No bloqueamos si vienen vacíos — son best-effort.
+    if (reniec && (reniec.nombres || reniec.apellidoPaterno || reniec.apellidoMaterno)) {
+      const fullName = [reniec.nombres, reniec.apellidoPaterno, reniec.apellidoMaterno]
+        .filter((s) => s && s.trim().length > 0)
+        .join(" ")
+        .trim();
+      if (fullName.length >= 3) {
+        user.name = fullName;
+      }
+    }
 
     if (newPassword) {
       user.password = await bcrypt.hash(newPassword, 12);
@@ -94,6 +131,9 @@ export async function POST(request: NextRequest) {
     }
 
     user.profileCompleted = true;
+    // Save inicial para persistir DNI/teléfono/nombre. Se hará un segundo
+    // save() al final si los bloques `company`/`driver` modificaron user
+    // (companyId, etc.).
     await user.save();
 
     // Si es admin_municipal y vino bloque `municipality`, completar los datos
@@ -119,6 +159,45 @@ export async function POST(request: NextRequest) {
         await muni.save();
       }
       municipalityDataCompleted = muni.dataCompleted;
+    }
+
+    // Si es operador y vino bloque `company`, upsert la empresa por RUC y
+    // vincular User.companyId. Si la empresa ya existe (otro operador o
+    // admin la creó), simplemente reusamos su _id sin sobrescribir datos.
+    if (user.role === ROLES.OPERADOR && company) {
+      if (!user.municipalityId) {
+        return apiError(
+          "El operador requiere municipalidad asociada antes de registrar empresa",
+          422,
+        );
+      }
+      let companyDoc = await Company.findOne({ ruc: company.ruc });
+      if (!companyDoc) {
+        companyDoc = await Company.create({
+          municipalityId: user.municipalityId,
+          razonSocial: company.razonSocial,
+          ruc: company.ruc,
+          representanteLegal: { name: user.name, dni },
+          vehicleTypeKeys: [],
+          documents: [],
+          active: true,
+          reputationScore: 100,
+          serviceScope: "urbano_provincial",
+          coverage: {
+            departmentCodes: company.departmentCode ? [company.departmentCode] : [],
+            provinceCodes:   company.provinceCode   ? [company.provinceCode]   : [],
+            districtCodes:   company.districtCode   ? [company.districtCode]   : [],
+          },
+          authorizations: [],
+        });
+      }
+      // Vincular User.companyId si aún no está seteado. No sobrescribimos
+      // si el operador ya tenía empresa (cambio de empresa requiere flujo
+      // distinto con auditoría).
+      if (!user.companyId) {
+        user.companyId = companyDoc._id;
+        await user.save();
+      }
     }
 
     // Si es conductor y vino bloque `driver`, creamos o actualizamos el

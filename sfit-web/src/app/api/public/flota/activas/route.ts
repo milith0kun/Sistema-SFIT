@@ -17,7 +17,11 @@ import type { ICurrentLocation, IVisitedStop } from "@/models/FleetEntry";
  * para que el ciudadano vea la dirección en la que va el bus aún cuando la
  * ruta no esté predefinida.
  */
-const LIVE_TRACK_POINTS_LIMIT = 50;
+// Hasta 500 pings (≈83 min con ping cada 10s) para que la "línea trazada"
+// del bus en el mapa del ciudadano se vea completa desde que arrancó el
+// turno y no aparente desvanecerse cuando el bus avanza más lejos. Se
+// envía como `liveTrack` ya en orden cronológico ascendente.
+const LIVE_TRACK_POINTS_LIMIT = 500;
 
 /**
  * Detección de paradas aprendidas a partir del trazo. Una parada existe

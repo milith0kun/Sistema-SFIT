@@ -16,6 +16,7 @@
  */
 import { NextRequest } from "next/server";
 import { z } from "zod";
+import mongoose from "mongoose";
 import { connectDB } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
 import { Company } from "@/models/Company";
@@ -110,7 +111,7 @@ export async function POST(request: NextRequest) {
       authorizations: [],
     });
 
-    operador.companyId = company._id as typeof operador.companyId;
+    operador.companyId = company._id as mongoose.Types.ObjectId;
     operador.profileCompleted = true;
     await operador.save();
 
