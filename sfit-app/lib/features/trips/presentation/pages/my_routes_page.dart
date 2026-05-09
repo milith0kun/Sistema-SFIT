@@ -201,6 +201,7 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
                               // Excluir la pasada destacada del listado para
                               // no duplicarla — ya se ve prominente arriba.
                               excludePassId: featured?.id,
+                              onDeletePass: _confirmDeletePass,
                             ),
                           ),
                       ],
@@ -860,9 +861,10 @@ class _RouteGroupTileState extends State<_RouteGroupTile> {
                           extra: visiblePasses[i].track,
                         );
                       },
-                      onLongPress: visiblePasses[i].status == 'en_ruta'
+                      onLongPress: (visiblePasses[i].status == 'en_ruta' ||
+                              widget.onDeletePass == null)
                           ? null
-                          : () => _confirmDeletePass(visiblePasses[i]),
+                          : () => widget.onDeletePass!(visiblePasses[i]),
                     ),
                     if (i < visiblePasses.length - 1)
                       Container(
