@@ -532,8 +532,8 @@
     "hash": "13a9406ecf1988fc131ccac65d30c11b"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-app\\lib\\features\\trips\\data\\datasources\\trips_api_service.dart": {
-    "mtime": 1778296729.856691,
-    "hash": "09a119e543345403aa947fcfa73f27ec"
+    "mtime": 1778297932.074207,
+    "hash": "156848b5bc077458570b80398e3d0010"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-app\\lib\\features\\trips\\data\\models\\trip_model.dart": {
     "mtime": 1776960004.0590029,
@@ -544,8 +544,8 @@
     "hash": "2138b2848212a0e7163f15b5382a1403"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-app\\lib\\features\\trips\\presentation\\pages\\my_routes_page.dart": {
-    "mtime": 1778218128.8602722,
-    "hash": "64306086928de92d2406b2fa398f51a0"
+    "mtime": 1778298093.7912846,
+    "hash": "e580e66c8854e8dca55e9d8b80222dc5"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-app\\lib\\features\\trips\\presentation\\pages\\my_trips_page.dart": {
     "mtime": 1778257014.703334,
@@ -1316,8 +1316,8 @@
     "hash": "c7a3d4d051f4538286a3c0ca987dcf28"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\conductor\\mis-recorridos\\route.ts": {
-    "mtime": 1778206831.8951836,
-    "hash": "76cfaff375d56a70226b272c6e59a43a"
+    "mtime": 1778297878.0127492,
+    "hash": "cd2e47553b61cf858f98f217ff14a450"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\conductor\\preferencias\\route.ts": {
     "mtime": 1777531199.9318388,
@@ -1364,12 +1364,12 @@
     "hash": "c96349356fed6026790766df68c13f13"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\flota\\[id]\\route.ts": {
-    "mtime": 1778268818.613554,
-    "hash": "66c884ceab8ec4ad861d676f12bb8584"
+    "mtime": 1778297907.789143,
+    "hash": "efa40746ead260167017182dfe92eb46"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\flota\\[id]\\location\\route.ts": {
-    "mtime": 1778290449.8881953,
-    "hash": "2d628974270171bf69fbdd0ba1126b20"
+    "mtime": 1778298621.1947222,
+    "hash": "bf43bda405dd5883f618cdb8a68d82a7"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\flota\\[id]\\track-bulk\\route.ts": {
     "mtime": 1778296625.0297425,
