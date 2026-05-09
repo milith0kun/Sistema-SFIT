@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/services/location_tracking_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../trips/data/datasources/trips_api_service.dart';
@@ -81,6 +82,19 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Si la cola Hive del tracking todavía tiene pings al abrir el resumen
+    // (caso típico: turno largo + outbox tras red intermitente), recargamos
+    // el detalle del FleetEntry cuando termine el drain. Sin esto, el
+    // usuario veía métricas calculadas con datos parciales (0 km, "GPS no
+    // registrado") y al refrescar a mano sí aparecían las correctas.
+    ref.listen<TrackingState>(locationTrackingProvider, (prev, next) {
+      if (prev != null && prev.queuedPoints > 0 && next.queuedPoints == 0) {
+        _load();
+      }
+    });
+    final pendingPings =
+        ref.watch(locationTrackingProvider.select((s) => s.queuedPoints));
+
     if (_loading) {
       return const Scaffold(
         backgroundColor: AppColors.paper,
@@ -173,6 +187,7 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
         compliance: compliance,
         visitedCount: visitedCount,
         totalStops: totalStops,
+        pendingPings: pendingPings,
       ),
     );
   }
@@ -191,6 +206,7 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
     required num? compliance,
     required int visitedCount,
     required int totalStops,
+    required int pendingPings,
   }) {
     // Cuando no hay track válido, centramos en Cusco como referencia
     // visual (la mayoría de viajes son ahí). El conductor puede pan/zoom
@@ -381,8 +397,16 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
             ),
           ),
         ),
+        // ── Banner cuando aún hay pings encolados subiendo ───────
+        if (pendingPings > 0)
+          Positioned(
+            left: 16,
+            right: 16,
+            top: 88,
+            child: _PendingSyncBanner(count: pendingPings),
+          ),
         // ── Banner cuando no hay GPS registrado ──────────────────
-        if (!hasValidTrack)
+        if (!hasValidTrack && pendingPings == 0)
           Positioned(
             left: 16,
             right: 16,
@@ -815,6 +839,71 @@ class _MapTopButton extends StatelessWidget {
           height: 40,
           child: Icon(icon, size: 20, color: AppColors.ink9),
         ),
+      ),
+    );
+  }
+}
+
+/// Banner que avisa que aún quedan pings GPS subiendo al servidor — las
+/// métricas y el trazo del mapa se actualizarán automáticamente cuando la
+/// cola termine de drenarse (`ref.listen` en `build`).
+class _PendingSyncBanner extends StatelessWidget {
+  final int count;
+  const _PendingSyncBanner({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.goldBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.2,
+              color: AppColors.gold,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Subiendo ruta…',
+                  style: AppTheme.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink9,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$count punto${count == 1 ? '' : 's'} pendiente${count == 1 ? '' : 's'} de sincronizar. Las métricas se actualizarán al terminar.',
+                  style: AppTheme.inter(
+                    fontSize: 11.5,
+                    color: AppColors.ink6,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
