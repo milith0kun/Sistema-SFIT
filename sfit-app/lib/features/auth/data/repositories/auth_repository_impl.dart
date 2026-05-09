@@ -186,6 +186,7 @@ class AuthRepositoryImpl implements AuthRepository {
         regionId: model.regionId,
         phone: model.phone,
         dni: model.dni,
+        profileCompleted: model.profileCompleted,
       );
 
   @override

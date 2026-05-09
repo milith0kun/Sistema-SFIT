@@ -20,6 +20,7 @@ import '../../features/notifications/presentation/pages/notifications_page.dart'
 import '../../features/ai_ocr/presentation/pages/document_ocr_page.dart';
 import '../../features/ocr/presentation/pages/plate_scanner_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
+import '../../features/onboarding/presentation/pages/onboarding_profile_page.dart';
 import '../../features/profile/presentation/pages/change_password_page.dart';
 import '../../features/qr_scanner/presentation/pages/qr_scanner_page.dart';
 import '../../features/splash/presentation/pages/splash_page.dart';
@@ -83,11 +84,14 @@ GoRouter router(Ref ref) {
     debugLogDiagnostics: kDebugMode,
     refreshListenable: refresh,
     redirect: (context, state) async {
-      final authStatus = ref.read(authProvider).status;
+      final authState  = ref.read(authProvider);
+      final authStatus = authState.status;
+      final user       = authState.user;
       final path       = state.uri.path;
       final isAuth     = path == '/login' || path == '/register';
       final isSplash   = path == '/';
       final isOnboarding = path == '/onboarding';
+      final isProfileOnboarding = path == '/onboarding/perfil';
       // Rutas accesibles sin autenticación
       final isPublic   = path == '/qr' || path.startsWith('/vehiculo-publico/');
 
@@ -96,7 +100,15 @@ GoRouter router(Ref ref) {
           return isSplash ? null : '/';
 
         case AuthStatus.authenticated:
-          if (isAuth || isSplash || isOnboarding) return '/home';
+          // Si el usuario aún no completó su perfil (DNI + teléfono tras
+          // primer login con Google), lo enviamos al onboarding por rol antes
+          // de cualquier otra pantalla.
+          if (user != null && user.profileCompleted == false) {
+            return isProfileOnboarding ? null : '/onboarding/perfil';
+          }
+          if (isAuth || isSplash || isOnboarding || isProfileOnboarding) {
+            return '/home';
+          }
           return null;
 
         case AuthStatus.pendingApproval:
@@ -120,6 +132,10 @@ GoRouter router(Ref ref) {
     routes: [
       GoRoute(path: '/',            builder: (_, __) => const SplashPage()),
       GoRoute(path: '/onboarding',  builder: (_, __) => const OnboardingPage()),
+      GoRoute(
+        path: '/onboarding/perfil',
+        builder: (_, __) => const OnboardingProfilePage(),
+      ),
       GoRoute(path: '/login',       builder: (_, __) => const LoginPage()),
       GoRoute(path: '/register',    builder: (_, __) => const RegisterPage()),
       GoRoute(path: '/pending',     builder: (_, __) => const PendingPage()),

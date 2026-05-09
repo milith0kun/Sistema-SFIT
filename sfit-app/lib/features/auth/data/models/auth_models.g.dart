@@ -18,6 +18,7 @@ _UserModel _$UserModelFromJson(Map<String, dynamic> json) => _UserModel(
   regionId: json['regionId'] as String?,
   phone: json['phone'] as String?,
   dni: json['dni'] as String?,
+  profileCompleted: json['profileCompleted'] as bool? ?? true,
 );
 
 Map<String, dynamic> _$UserModelToJson(_UserModel instance) =>
@@ -33,6 +34,7 @@ Map<String, dynamic> _$UserModelToJson(_UserModel instance) =>
       'regionId': instance.regionId,
       'phone': instance.phone,
       'dni': instance.dni,
+      'profileCompleted': instance.profileCompleted,
     };
 
 _AuthTokenModel _$AuthTokenModelFromJson(Map<String, dynamic> json) =>

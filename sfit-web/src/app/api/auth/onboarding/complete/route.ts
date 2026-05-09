@@ -4,11 +4,13 @@ import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
 import { Municipality } from "@/models/Municipality";
+import { Driver } from "@/models/Driver";
 import {
   apiResponse, apiError, apiUnauthorized, apiValidationError,
 } from "@/lib/api/response";
 import { verifyAccessToken } from "@/lib/auth/jwt";
 import { ROLES } from "@/lib/constants";
+import { isValidObjectId } from "mongoose";
 
 /**
  * POST /api/auth/onboarding/complete
@@ -35,6 +37,13 @@ const Schema = z.object({
   municipality: z.object({
     ruc:         z.string().regex(/^\d{11}$/, "RUC debe tener 11 dígitos"),
     razonSocial: z.string().min(2).max(200).trim(),
+  }).optional(),
+  // Datos de conductor — sólo se aplican si el rol del usuario es conductor.
+  // Crea/actualiza el documento Driver vinculado por dni del propio usuario.
+  driver: z.object({
+    licenseNumber:   z.string().min(4).max(20).trim(),
+    licenseCategory: z.string().min(2).max(10).trim(),
+    companyId:       z.string().optional(),
   }).optional(),
 });
 
@@ -63,7 +72,7 @@ export async function POST(request: NextRequest) {
     return apiValidationError(errors);
   }
 
-  const { dni, phone, image, newPassword, municipality } = parsed.data;
+  const { dni, phone, image, newPassword, municipality, driver } = parsed.data;
 
   try {
     await connectDB();
@@ -110,6 +119,44 @@ export async function POST(request: NextRequest) {
         await muni.save();
       }
       municipalityDataCompleted = muni.dataCompleted;
+    }
+
+    // Si es conductor y vino bloque `driver`, creamos o actualizamos el
+    // documento Driver vinculado por DNI. El conductor puede entrar sin
+    // companyId (lo asociará después en pantalla "Mi empresa") o con uno
+    // ya elegido del listado público.
+    if (user.role === ROLES.CONDUCTOR && driver) {
+      if (!user.municipalityId) {
+        return apiError(
+          "El conductor requiere municipalidad asociada antes de completar perfil",
+          422,
+        );
+      }
+      if (driver.companyId && !isValidObjectId(driver.companyId)) {
+        return apiError("companyId inválido", 400);
+      }
+      const dupLicense = await Driver.findOne({
+        licenseNumber: driver.licenseNumber,
+        dni: { $ne: dni },
+      });
+      if (dupLicense) {
+        return apiError("La licencia ya está registrada con otro DNI", 409);
+      }
+      await Driver.findOneAndUpdate(
+        { dni },
+        {
+          $set: {
+            municipalityId: user.municipalityId,
+            name: user.name,
+            dni,
+            phone,
+            licenseNumber:   driver.licenseNumber,
+            licenseCategory: driver.licenseCategory,
+            ...(driver.companyId ? { companyId: driver.companyId } : {}),
+          },
+        },
+        { upsert: true, new: true, runValidators: true },
+      );
     }
 
     return apiResponse({

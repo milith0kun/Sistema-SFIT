@@ -288,6 +288,42 @@ class Auth extends _$Auth {
     return 'No se pudo iniciar sesión. Inténtalo de nuevo.';
   }
 
+  // ── Refrescar usuario desde el servidor ───────────────────────
+  /// Vuelve a leer `/auth/perfil` para sincronizar el `UserEntity` local
+  /// (rol, profileCompleted, datos territoriales) con la BD. Útil tras
+  /// completar onboarding o cuando un admin cambió algo del usuario y
+  /// queremos reflejarlo sin forzar un re-login.
+  Future<void> refreshUserFromServer() async {
+    try {
+      final dio = ref.read(dioClientProvider).dio;
+      final resp = await dio.get('/auth/perfil');
+      final body = resp.data;
+      if (body is! Map || body['success'] != true) return;
+      final data = body['data'];
+      if (data is! Map) return;
+      final current = state.user;
+      final next = UserEntity(
+        id:             (data['id'] ?? current?.id ?? '').toString(),
+        name:           (data['name'] ?? current?.name ?? '').toString(),
+        email:          (data['email'] ?? current?.email ?? '').toString(),
+        role:           (data['role'] ?? current?.role ?? 'ciudadano').toString(),
+        status:         (data['status'] ?? current?.status ?? 'activo').toString(),
+        image:          data['image'] as String? ?? current?.image,
+        municipalityId: data['municipalityId'] as String? ?? current?.municipalityId,
+        provinceId:     data['provinceId'] as String? ?? current?.provinceId,
+        regionId:       current?.regionId,
+        phone:          data['phone'] as String? ?? current?.phone,
+        dni:            data['dni'] as String? ?? current?.dni,
+        profileCompleted: data['profileCompleted'] as bool? ??
+            current?.profileCompleted ??
+            true,
+      );
+      state = AuthState(status: _statusFor(next), user: next);
+    } catch (_) {
+      // Silencioso: el caller decide qué hacer si necesita la actualización.
+    }
+  }
+
   // ── Actualizar perfil propio ──────────────────────────────────
   /// Devuelve `null` si tuvo éxito, o el mensaje de error.
   Future<String?> updatePerfil({String? name, String? phone, String? dni}) async {

@@ -60,7 +60,11 @@ export async function POST(request: NextRequest) {
     const isInitialAdmin =
       !!initialAdminEmail && payload.email.toLowerCase() === initialAdminEmail;
 
-    // Registro automático si no existe (RF-01-01)
+    // Registro automático si no existe (RF-01-01).
+    // Los ciudadanos nuevos quedan con profileCompleted=false (default del
+    // schema) para forzar onboarding (DNI + teléfono) en su primer login;
+    // el bootstrap del super_admin sí entra ya con perfil completo porque
+    // su DNI y datos vienen del seed inicial.
     if (!user) {
       user = await User.create({
         name: payload.name ?? payload.email.split("@")[0],
@@ -70,6 +74,7 @@ export async function POST(request: NextRequest) {
         providerId: payload.sub,
         role: isInitialAdmin ? ROLES.SUPER_ADMIN : ROLES.CIUDADANO,
         status: USER_STATUS.ACTIVO,
+        profileCompleted: isInitialAdmin ? true : false,
       });
     } else {
       // Vinculación automática: si la cuenta ya existe (con cualquier provider)
