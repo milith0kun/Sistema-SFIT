@@ -236,8 +236,8 @@
     "hash": "6c46ac0e7695e233e64ad75ef650acba"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-app\\lib\\features\\conductor\\presentation\\pages\\trip_summary_page.dart": {
-    "mtime": 1778296773.4022748,
-    "hash": "112b4502683117e474274b25545c7789"
+    "mtime": 1778304745.2625318,
+    "hash": "f50abdd926a59bf9497fdb5ffa40d4b2"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-app\\lib\\features\\drivers\\data\\datasources\\driver_api_service.dart": {
     "mtime": 1778266867.1899455,
@@ -544,8 +544,8 @@
     "hash": "2138b2848212a0e7163f15b5382a1403"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-app\\lib\\features\\trips\\presentation\\pages\\my_routes_page.dart": {
-    "mtime": 1778298093.7912846,
-    "hash": "e580e66c8854e8dca55e9d8b80222dc5"
+    "mtime": 1778303198.3729982,
+    "hash": "02123df6ef55ec49f776cfc7d4ec9d97"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-app\\lib\\features\\trips\\presentation\\pages\\my_trips_page.dart": {
     "mtime": 1778257014.703334,
@@ -568,8 +568,8 @@
     "hash": "ac98d2ce1ba803a155fe1fd0cd549f21"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-app\\lib\\features\\trips\\presentation\\pages\\trip_map_page.dart": {
-    "mtime": 1778296378.9090962,
-    "hash": "f91c1a562a2a0bf9a00805c8711733a4"
+    "mtime": 1778304662.637561,
+    "hash": "f7d9c160b6d69439adedef5184edd0d7"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-app\\lib\\features\\vehicles\\data\\datasources\\vehicle_api_service.dart": {
     "mtime": 1778272136.4114869,
@@ -686,6 +686,10 @@
   "D:\\Proyectos\\Sistema Sfit\\sfit-app\\lib\\shared\\widgets\\widgets.dart": {
     "mtime": 1778119131.1150022,
     "hash": "a59cc6e93de32baa73718d05f1a1f4ff"
+  },
+  "D:\\Proyectos\\Sistema Sfit\\sfit-app\\lib\\shared\\widgets\\map\\sfit_map_markers.dart": {
+    "mtime": 1778304597.5270617,
+    "hash": "d2aaafb8fd7fe826467d42c70ed85886"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-app\\test\\widget_test.dart": {
     "mtime": 1776522892.76817,
@@ -2330,5 +2334,9 @@
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\AGENTS.md": {
     "mtime": 1776908158.4165578,
     "hash": "7f4a264a88e84191d96fd516a3f1f50f"
+  },
+  "D:\\Proyectos\\Sistema Sfit\\image.png": {
+    "mtime": 1778303145.95496,
+    "hash": "11155eac9a010b7b896f23cca5ceef5d"
   }
 }
