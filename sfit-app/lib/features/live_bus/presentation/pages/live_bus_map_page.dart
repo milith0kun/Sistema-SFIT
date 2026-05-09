@@ -9,6 +9,7 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/location_smoother.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/map/sfit_map_markers.dart';
 import 'live_bus_data.dart';
 
 /// Pantalla "Buses en vivo" para el ciudadano.
@@ -511,7 +512,7 @@ class _ViewToggle extends StatelessWidget {
 }
 
 // ── Vista Mapa ─────────────────────────────────────────────────────────
-class _MapView extends StatelessWidget {
+class _MapView extends StatefulWidget {
   final List<BusData> buses;
   /// Catálogo completo de rutas del municipio. Se dibujan en gris tenue como
   /// "fondo" para que el ciudadano vea siempre el mapa de rutas aunque no
@@ -543,13 +544,24 @@ class _MapView extends StatelessWidget {
     this.highlight,
   });
 
+  @override
+  State<_MapView> createState() => _MapViewState();
+}
+
+class _MapViewState extends State<_MapView> {
+  /// Zoom actual del mapa. Lo trackeamos para que markers y polylines escalen
+  /// con SfitMapStyle (sin esto, los íconos del bus se ven gigantes a zoom
+  /// bajo y los paraderos invisibles a zoom muy alto).
+  double _currentZoom = 14;
+
   /// Construye la lista de puntos del tramo dorado:
   /// posición actual del bus → waypoints intermedios pendientes → paradero del usuario.
   /// Devuelve null si el bus ya pasó tu paradero o si no hay datos suficientes.
   List<LatLng>? _userStopSegment(BusData bus) {
+    final highlight = widget.highlight;
     if (highlight == null) return null;
-    final route = highlight!.route;
-    final stop = highlight!.stop;
+    final route = highlight.route;
+    final stop = highlight.stop;
     if (bus.routeId != route.routeId) return null;
 
     // Waypoints pendientes: los que el bus aún no ha visitado, en orden creciente.
@@ -561,7 +573,7 @@ class _MapView extends StatelessWidget {
     if (visitedTarget) return null;
 
     // Tomar paraderos pendientes hasta llegar a tu paradero (inclusive).
-    final segment = <LatLng>[displayPos(bus)];
+    final segment = <LatLng>[widget.displayPos(bus)];
     for (final s in pending) {
       segment.add(LatLng(s.lat, s.lng));
       if (s.stopIndex == stop.stopIndex) return segment;
@@ -577,14 +589,37 @@ class _MapView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final buses = widget.buses;
+    final allRoutes = widget.allRoutes;
+    final filterRouteIds = widget.filterRouteIds;
+    final userPos = widget.userPos;
+    final highlight = widget.highlight;
+    final statusColor = widget.statusColor;
+    final displayPos = widget.displayPos;
+    final onTapBus = widget.onTapBus;
+    final zoom = _currentZoom;
+    final stopSize = SfitMapStyle.stopMarkerSize(zoom);
+    final myLocSize = SfitMapStyle.myLocationSize(zoom);
     final initialCenter = userPos != null
-        ? LatLng(userPos!.latitude, userPos!.longitude)
+        ? LatLng(userPos.latitude, userPos.longitude)
         : (buses.isNotEmpty
             ? LatLng(buses.first.lat, buses.first.lng)
             : const LatLng(-13.5319, -71.9675));
     return FlutterMap(
-      mapController: mapCtl,
-      options: MapOptions(initialCenter: initialCenter, initialZoom: 14),
+      mapController: widget.mapCtl,
+      options: MapOptions(
+        initialCenter: initialCenter,
+        initialZoom: 14,
+        // Trackeamos el zoom para escalar markers y polylines con SfitMapStyle.
+        // Solo refrescamos si el delta supera 0.4 niveles para evitar rebuilds
+        // por cada panning sutil.
+        onPositionChanged: (pos, _) {
+          final z = pos.zoom;
+          if ((z - _currentZoom).abs() > 0.4) {
+            setState(() => _currentZoom = z);
+          }
+        },
+      ),
       children: [
         TileLayer(
           urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
@@ -604,87 +639,98 @@ class _MapView extends StatelessWidget {
         // or NaN toInt' cuando una polyline tiene zero spread espacial al
         // calcular sus bounds internas para tile rendering.
         PolylineLayer(
-          polylines: _buildPolylinesSafe(allRoutes, filterRouteIds),
+          polylines: _buildPolylinesSafe(allRoutes, filterRouteIds, zoom),
         ),
-        // ── Paraderos numerados (solo si hay UNA ruta validada filtrada) ──
-        // Las candidatas no tienen waypoints oficiales; no las numeramos.
+        // ── Paraderos de la ruta filtrada ──
+        // Antes solo se mostraban si la ruta era "validated"; ahora también
+        // dibujamos los waypoints de candidatas (con estilo más sobrio) para
+        // que el ciudadano vea siempre los puntos de embarque cuando filtra.
         if (filterRouteIds.length == 1)
           for (final r in allRoutes)
-            if (r.routeId == filterRouteIds.first && r.validated)
+            if (r.routeId == filterRouteIds.first && r.waypoints.isNotEmpty)
               MarkerLayer(
-                markers: r.waypoints
-                    .map((w) => Marker(
-                          point: LatLng(w.lat, w.lng),
-                          width: 24, height: 24,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: AppColors.goldDark, width: 2),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
+                markers: r.waypoints.map((w) {
+                  final main = r.validated ? AppColors.goldDark : AppColors.ink5;
+                  return Marker(
+                    point: LatLng(w.lat, w.lng),
+                    width: stopSize,
+                    height: stopSize,
+                    alignment: Alignment.center,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: main, width: stopSize < 22 ? 1.6 : 2.2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 3,
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: SfitMapStyle.showStopLabels(zoom)
+                          ? Text(
                               '${w.order + 1}',
                               style: AppTheme.inter(
-                                fontSize: 10,
+                                fontSize: stopSize * 0.34,
                                 fontWeight: FontWeight.w800,
-                                color: AppColors.goldDark,
+                                color: main,
                                 tabular: true,
                               ),
+                            )
+                          : Icon(
+                              Icons.circle,
+                              size: stopSize * 0.36,
+                              color: main,
                             ),
-                          ),
-                        ))
-                    .toList(),
+                    ),
+                  );
+                }).toList(),
               ),
-        // Marcador del ciudadano
+        // Marcador del ciudadano (escala con zoom)
         if (userPos != null)
           MarkerLayer(markers: [
             Marker(
-              point: LatLng(userPos!.latitude, userPos!.longitude),
-              width: 22, height: 22,
+              point: LatLng(userPos.latitude, userPos.longitude),
+              width: myLocSize,
+              height: myLocSize,
+              alignment: Alignment.center,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.blue,
+                  color: const Color(0xFF2563EB),
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4)],
+                  border: Border.all(color: Colors.white, width: myLocSize < 18 ? 2 : 3),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 4)],
                 ),
               ),
             ),
           ]),
-        // Polylines de la ruta de cada bus (línea más gruesa por encima).
-        // Preferencia: geometría real de Google Routes (siguiendo calles)
-        // si está cacheada en el backend; fallback a waypoints crudos
-        // (líneas rectas entre paraderos) si no — mejor que nada.
-        // Cuando hay highlight (ruta filtrada + GPS): la polyline base
-        // se atenúa más para que el tramo dorado "bus → tu paradero"
-        // se destaque encima.
-        PolylineLayer(
-          polylines: [
-            for (final b in buses)
-              if (b.polylineCoords.isNotEmpty)
-                Polyline(
-                  points: b.polylineCoords
-                      .map((c) => LatLng(c[0], c[1]))
-                      .toList(),
-                  strokeWidth: 3,
-                  color: statusColor(b.vehicleStatus).withValues(
-                    alpha: highlight != null ? 0.20 : 0.45,
-                  ),
-                )
-              else if (b.waypoints.length >= 2)
-                Polyline(
-                  points: b.waypoints
-                      .map((w) => LatLng(w.lat, w.lng))
-                      .toList(),
-                  strokeWidth: 2.5,
-                  color: statusColor(b.vehicleStatus).withValues(
-                    alpha: highlight != null ? 0.18 : 0.30,
-                  ),
-                  pattern: const StrokePattern.dotted(),
+        // Polylines de la ruta de cada bus. Dibujamos en este orden de
+        // abajo hacia arriba para que las capas se compongan bien:
+        //   1. Ruta planificada PENDIENTE (del bus al fin) → punteada tenue
+        //   2. Ruta planificada YA PASADA (inicio → bus) → sólida color tenue
+        //   3. liveTrack real recorrido → sólida color marcado (encima)
+        // El liveTrack es la "línea trazada" real del bus durante el turno.
+        // La planificada queda como contexto/referencia visual.
+        for (final b in buses)
+          ..._buildBusRoutePolylines(b, statusColor, displayPos(b), highlight, zoom),
+        // Capa del recorrido REAL del bus (puntos GPS reportados durante el
+        // turno) — es la "línea trazada" que el ciudadano espera ver completa
+        // desde el inicio del recorrido.
+        for (final b in buses)
+          if (b.liveTrack.length >= 2)
+            PolylineLayer(polylines: [
+              Polyline(
+                points: b.liveTrack
+                    .map((c) => LatLng(c[0], c[1]))
+                    .toList(),
+                strokeWidth: SfitMapStyle.recentStroke(zoom),
+                color: statusColor(b.vehicleStatus).withValues(
+                  alpha: highlight != null ? 0.55 : 0.85,
                 ),
-          ],
-        ),
+              ),
+            ]),
         // Tramo "bus → tu paradero" en dorado, resaltando lo que falta para
         // que el bus llegue a donde está el ciudadano. Halo blanco + dorado
         // encima para asegurar contraste sobre cualquier zona del mapa.
@@ -692,24 +738,33 @@ class _MapView extends StatelessWidget {
           PolylineLayer(
             polylines: [
               for (final b in buses)
-                if (b.routeId == highlight!.route.routeId)
+                if (b.routeId == highlight.route.routeId)
                   if (_userStopSegment(b) case final seg? when seg.length >= 2)
-                    Polyline(points: seg, strokeWidth: 7, color: Colors.white),
+                    Polyline(
+                      points: seg,
+                      strokeWidth: SfitMapStyle.recentStroke(zoom) + 3,
+                      color: Colors.white,
+                    ),
             ],
           ),
           PolylineLayer(
             polylines: [
               for (final b in buses)
-                if (b.routeId == highlight!.route.routeId)
+                if (b.routeId == highlight.route.routeId)
                   if (_userStopSegment(b) case final seg? when seg.length >= 2)
-                    Polyline(points: seg, strokeWidth: 4.5, color: AppColors.gold),
+                    Polyline(
+                      points: seg,
+                      strokeWidth: SfitMapStyle.recentStroke(zoom) + 1,
+                      color: AppColors.gold,
+                    ),
             ],
           ),
           // Marker del paradero más cercano al ciudadano (halo dorado)
           MarkerLayer(markers: [
             Marker(
-              point: LatLng(highlight!.stop.lat, highlight!.stop.lng),
-              width: 38, height: 38,
+              point: LatLng(highlight.stop.lat, highlight.stop.lng),
+              width: stopSize * 1.35,
+              height: stopSize * 1.35,
               alignment: Alignment.center,
               child: Container(
                 decoration: BoxDecoration(
@@ -725,70 +780,94 @@ class _MapView extends StatelessWidget {
                   ],
                 ),
                 alignment: Alignment.center,
-                child: const Icon(Icons.place, size: 18, color: Colors.white),
+                child: Icon(
+                  Icons.place,
+                  size: stopSize * 0.6,
+                  color: Colors.white,
+                ),
               ),
             ),
           ]),
         ],
-        // Marcadores de buses (posición smoothed + badge off-route)
+        // Marcadores de buses: ícono completo (no círculo), escala con zoom.
         MarkerLayer(
-          markers: buses.map((b) {
-            final color = statusColor(b.vehicleStatus);
-            return Marker(
-              point: displayPos(b),
-              width: 48, height: 48,
-              child: GestureDetector(
+          markers: [
+            for (final b in buses)
+              sfitBusMarker(
+                point: displayPos(b),
+                zoom: zoom,
+                statusColor: statusColor(b.vehicleStatus),
+                isOffRoute: b.isOffRoute,
                 onTap: () => onTapBus(b),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeOut,
-                      width: 44, height: 44,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2.5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 6,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.directions_bus_rounded,
-                        size: 20,
-                        color: Colors.white,
-                      ),
-                    ),
-                    if (b.isOffRoute)
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: Container(
-                          width: 16, height: 16,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFB45309), // ámbar warn
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                          child: const Icon(
-                            Icons.warning_amber_rounded,
-                            size: 9,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
               ),
-            );
-          }).toList(),
+          ],
         ),
       ],
     );
+  }
+
+  /// Construye los layers de la RUTA PLANIFICADA del bus como contexto/
+  /// referencia visual. El recorrido real ya lo dibuja una capa de liveTrack
+  /// más arriba, así que aquí solo añadimos:
+  ///  - El tramo PENDIENTE (del bus al fin de ruta) punteado tenue, para que
+  ///    el ciudadano sepa por dónde va a continuar el bus.
+  ///  - Cuando no hay liveTrack todavía, también dibujamos el tramo "ya
+  ///    pasado" de la planificada como respaldo (antes de que llegue el
+  ///    primer ping en vivo).
+  List<Widget> _buildBusRoutePolylines(
+    BusData b,
+    Color Function(String) statusColor,
+    LatLng currentPos,
+    ({ActiveRouteData route, NearestStop stop})? highlight,
+    double zoom,
+  ) {
+    List<LatLng> path;
+    bool dotted;
+    if (b.polylineCoords.isNotEmpty) {
+      path = b.polylineCoords.map((c) => LatLng(c[0], c[1])).toList();
+      dotted = false;
+    } else if (b.waypoints.length >= 2) {
+      path = b.waypoints.map((w) => LatLng(w.lat, w.lng)).toList();
+      dotted = true;
+    } else {
+      return const <Widget>[];
+    }
+    final split = splitPolylineAtPosition(path, currentPos);
+    final base = statusColor(b.vehicleStatus);
+    // Cuando hay un tramo dorado activo (highlight de paradero del usuario),
+    // bajamos la opacidad para que el dorado destaque encima.
+    final mute = highlight != null;
+    final hasLiveTrack = b.liveTrack.length >= 2;
+    final traveledStroke = SfitMapStyle.plannedStroke(zoom);
+    final remainingStroke = SfitMapStyle.plannedStroke(zoom);
+    return [
+      // Solo dibujamos el "ya pasado" planificado si NO hay liveTrack todavía.
+      // Si hay liveTrack, esa capa muestra el recorrido real y ésta sería
+      // ruido visual.
+      if (!hasLiveTrack && split.traveled.length >= 2)
+        PolylineLayer(
+          polylines: [
+            Polyline(
+              points: split.traveled,
+              strokeWidth: traveledStroke,
+              color: base.withValues(alpha: mute ? 0.20 : 0.45),
+              pattern: dotted ? const StrokePattern.dotted() : const StrokePattern.solid(),
+            ),
+          ],
+        ),
+      // El tramo pendiente siempre se dibuja punteado tenue como guía visual.
+      if (split.remaining.length >= 2)
+        PolylineLayer(
+          polylines: [
+            Polyline(
+              points: split.remaining,
+              strokeWidth: remainingStroke,
+              color: base.withValues(alpha: mute ? 0.10 : 0.22),
+              pattern: const StrokePattern.dotted(),
+            ),
+          ],
+        ),
+    ];
   }
 }
 
@@ -1304,7 +1383,13 @@ List<LatLng> _coordsToLatLngs(List<List<double>> coords) {
 List<Polyline> _buildPolylinesSafe(
   List<ActiveRouteData> allRoutes,
   Set<String> filterRouteIds,
+  double zoom,
 ) {
+  // Grosor base de las polylines de fondo (rutas del catálogo). Las focused
+  // usan el grosor "histórico" (más visible), las no-focused el "planeado"
+  // (más fino para no saturar).
+  final focusedStroke = SfitMapStyle.historicalStroke(zoom);
+  final unfocusedStroke = SfitMapStyle.plannedStroke(zoom);
   final out = <Polyline>[];
   for (final r in allRoutes) {
     if (!(filterRouteIds.isEmpty || filterRouteIds.contains(r.routeId))) {
@@ -1321,7 +1406,7 @@ List<Polyline> _buildPolylinesSafe(
         if (pts.length >= 2) {
           out.add(Polyline(
             points: pts,
-            strokeWidth: isFocused ? 3.5 : 2.5,
+            strokeWidth: isFocused ? focusedStroke : unfocusedStroke,
             color: AppColors.ink5.withValues(alpha: isFocused ? 0.7 : 0.4),
             pattern: StrokePattern.dashed(segments: const [6.0, 4.0]),
           ));
@@ -1332,7 +1417,7 @@ List<Polyline> _buildPolylinesSafe(
         if (pts.length >= 2) {
           out.add(Polyline(
             points: pts,
-            strokeWidth: isFocused ? 3.5 : 2.5,
+            strokeWidth: isFocused ? focusedStroke : unfocusedStroke,
             color: AppColors.ink5.withValues(alpha: isFocused ? 0.7 : 0.4),
             pattern: StrokePattern.dashed(segments: const [6.0, 4.0]),
           ));
@@ -1345,7 +1430,7 @@ List<Polyline> _buildPolylinesSafe(
         if (pts.length >= 2 && _ptsHaveVariance(pts)) {
           out.add(Polyline(
             points: pts,
-            strokeWidth: 2,
+            strokeWidth: unfocusedStroke,
             color: AppColors.ink5.withValues(alpha: 0.35),
             pattern: const StrokePattern.dotted(),
           ));
@@ -1360,7 +1445,7 @@ List<Polyline> _buildPolylinesSafe(
         if (pts.length >= 2) {
           out.add(Polyline(
             points: pts,
-            strokeWidth: isFocused ? 4 : 2.5,
+            strokeWidth: isFocused ? focusedStroke + 0.6 : unfocusedStroke,
             color: isFocused
                 ? AppColors.gold.withValues(alpha: 0.7)
                 : AppColors.ink4.withValues(alpha: 0.35),
@@ -1374,7 +1459,7 @@ List<Polyline> _buildPolylinesSafe(
         if (pts.length >= 2 && _ptsHaveVariance(pts)) {
           out.add(Polyline(
             points: pts,
-            strokeWidth: 2,
+            strokeWidth: unfocusedStroke,
             color: AppColors.ink3.withValues(alpha: 0.4),
             pattern: const StrokePattern.dotted(),
           ));

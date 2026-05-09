@@ -69,54 +69,112 @@ class SfitMapStyle {
   static bool showStopLabels(double zoom) => zoom >= 15;
 }
 
-/// Marker del bus: círculo dorado con icono de navegación. Escala con zoom
-/// y cambia a rojo si está fuera de ruta. Sombra suave para destacar sobre
-/// el mapa sin tapar demasiado.
+/// Marker del bus: el ícono `directions_bus_filled_rounded` mostrado completo
+/// y a tamaño según el zoom (sin círculo de fondo encima del ícono pequeño).
+/// Color por estado del vehículo, halo blanco para legibilidad sobre cualquier
+/// fondo del mapa. Si el bus está fuera de ruta, se cambia el color base.
 ///
 /// Uso:
 /// ```dart
 /// MarkerLayer(markers: [
-///   sfitBusMarker(point: pos, zoom: _currentZoom, isOffRoute: false),
+///   sfitBusMarker(point: pos, zoom: _currentZoom, statusColor: c),
 /// ])
 /// ```
 Marker sfitBusMarker({
   required LatLng point,
   required double zoom,
+  Color? statusColor,
   bool isOffRoute = false,
   double rotation = 0,
+  VoidCallback? onTap,
 }) {
   final size = SfitMapStyle.busMarkerSize(zoom);
-  final color = isOffRoute ? AppColors.noApto : AppColors.gold;
-  final iconSize = size * 0.5;
-  final borderWidth = size < 30 ? 1.6 : 2.5;
+  final base = statusColor ?? (isOffRoute ? AppColors.noApto : AppColors.gold);
+  final tap = onTap;
   return Marker(
     point: point,
     width: size,
     height: size,
     alignment: Alignment.center,
-    child: Container(
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: borderWidth),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.35),
-            blurRadius: size * 0.25,
-            spreadRadius: size * 0.06,
+    child: GestureDetector(
+      onTap: tap,
+      behavior: tap != null ? HitTestBehavior.opaque : HitTestBehavior.deferToChild,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Halo blanco — ensancha el contraste sobre tiles oscuras o claras.
+          Icon(
+            Icons.directions_bus_filled_rounded,
+            size: size,
+            color: Colors.white,
           ),
+          // Ícono coloreado encima, ligeramente más chico para que el halo
+          // blanco se note como borde.
+          Transform.rotate(
+            angle: rotation,
+            child: Icon(
+              Icons.directions_bus_filled_rounded,
+              size: size * 0.86,
+              color: base,
+              shadows: const [
+                Shadow(color: Color(0x55000000), blurRadius: 4, offset: Offset(0, 1)),
+              ],
+            ),
+          ),
+          if (isOffRoute)
+            Positioned(
+              right: 0,
+              top: 0,
+              child: Container(
+                width: size * 0.30,
+                height: size * 0.30,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFB45309),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.4),
+                ),
+                child: Icon(
+                  Icons.warning_amber_rounded,
+                  size: size * 0.18,
+                  color: Colors.white,
+                ),
+              ),
+            ),
         ],
-      ),
-      child: Transform.rotate(
-        angle: rotation,
-        child: Icon(
-          Icons.navigation_rounded,
-          color: Colors.white,
-          size: iconSize,
-        ),
       ),
     ),
   );
+}
+
+/// Trunca una polyline al punto más cercano a [currentPos]. Devuelve dos
+/// listas: `(traveled, remaining)`. La primera es lo que el bus YA recorrió
+/// (de inicio hasta el punto más cercano, inclusive), la segunda es lo que
+/// le falta. Útil para que la línea trazada no aparezca "más adelante" del
+/// marker del bus cuando el backend manda la geometría completa de la ruta.
+({List<LatLng> traveled, List<LatLng> remaining}) splitPolylineAtPosition(
+  List<LatLng> path,
+  LatLng currentPos,
+) {
+  if (path.length < 2) {
+    return (traveled: const <LatLng>[], remaining: path);
+  }
+  int closestIdx = 0;
+  double minSq = double.infinity;
+  for (var i = 0; i < path.length; i++) {
+    final p = path[i];
+    final dLat = p.latitude - currentPos.latitude;
+    final dLng = p.longitude - currentPos.longitude;
+    final sq = dLat * dLat + dLng * dLng;
+    if (sq < minSq) {
+      minSq = sq;
+      closestIdx = i;
+    }
+  }
+  final traveled = path.sublist(0, closestIdx + 1);
+  // Insertamos `currentPos` al inicio del remaining para que la línea
+  // futura arranque exactamente desde el bus, no desde el waypoint anterior.
+  final remaining = <LatLng>[currentPos, ...path.sublist(closestIdx + 1)];
+  return (traveled: traveled, remaining: remaining);
 }
 
 /// Marker "tú estás aquí" para el conductor (cuando no es el bus, sino la

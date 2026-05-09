@@ -9,6 +9,7 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/location_smoother.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/map/sfit_map_markers.dart';
 import 'live_bus_data.dart';
 
 /// Pantalla completa de detalle de un bus en vivo.
@@ -51,6 +52,9 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
 
   final _smoother = LocationSmoother();
   LatLng? _smoothedPos;
+  /// Zoom actual del mapa: trackeado para que markers y polylines escalen
+  /// con SfitMapStyle (sin esto el bus se ve gigante a zoom bajo).
+  double _currentZoom = 14;
 
   @override
   void initState() {
@@ -307,128 +311,177 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
       body: Stack(children: [
         // ── Mapa a pantalla completa ────────────────────────────────
         Positioned.fill(
-          child: FlutterMap(
-            mapController: _mapCtl,
-            options: MapOptions(initialCenter: displayPos, initialZoom: 14),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-                subdomains: const ['a', 'b', 'c', 'd'],
-                userAgentPackageName: 'com.sfit.sfit_app',
+          child: Builder(builder: (context) {
+            final zoom = _currentZoom;
+            final stopSize = SfitMapStyle.stopMarkerSize(zoom);
+            final myLocSize = SfitMapStyle.myLocationSize(zoom);
+            // Lógica de capas para no compitan visualmente:
+            //  - Si hay liveTrack (recorrido GPS real del turno): es la línea
+            //    PRINCIPAL sólida color del estado. La planificada queda
+            //    detrás como guía punteada tenue desde el bus al final.
+            //  - Si NO hay liveTrack todavía (turno recién iniciado): usamos
+            //    la planificada partida en (recorrida sólida, pendiente
+            //    punteada) como hasta antes.
+            final hasLiveTrack = liveTrackLatLng.length >= 2;
+            final plannedPath = realPolyline.length >= 2
+                ? realPolyline
+                : (waypointsLatLng.length >= 2 ? waypointsLatLng : <LatLng>[]);
+            final plannedDotted = realPolyline.length < 2 && waypointsLatLng.length >= 2;
+            final plannedSplit = (plannedPath.length >= 2 && hasValidPos)
+                ? splitPolylineAtPosition(plannedPath, displayPos)
+                : (traveled: <LatLng>[], remaining: plannedPath);
+            return FlutterMap(
+              mapController: _mapCtl,
+              options: MapOptions(
+                initialCenter: displayPos,
+                initialZoom: 14,
+                onPositionChanged: (pos, _) {
+                  if ((pos.zoom - _currentZoom).abs() > 0.4) {
+                    setState(() => _currentZoom = pos.zoom);
+                  }
+                },
               ),
-              // Polyline: 1) ruta real (calles); 2) waypoints crudos;
-              // 3) trazo en vivo (lo que el conductor ya recorrió).
-              if (realPolyline.length >= 2)
-                PolylineLayer(polylines: [
-                  Polyline(points: realPolyline, color: color.withValues(alpha: 0.55), strokeWidth: 4),
-                ])
-              else if (waypointsLatLng.length >= 2)
-                PolylineLayer(polylines: [
-                  Polyline(
-                    points: waypointsLatLng,
-                    color: AppColors.ink3,
-                    strokeWidth: 3,
-                    pattern: const StrokePattern.dotted(),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+                  subdomains: const ['a', 'b', 'c', 'd'],
+                  userAgentPackageName: 'com.sfit.sfit_app',
+                ),
+                // Planificada YA PASADA: solo si no hay liveTrack (sino sería ruido).
+                if (!hasLiveTrack && plannedSplit.traveled.length >= 2)
+                  PolylineLayer(polylines: [
+                    Polyline(
+                      points: plannedSplit.traveled,
+                      color: color.withValues(alpha: 0.55),
+                      strokeWidth: SfitMapStyle.plannedStroke(zoom),
+                      pattern: plannedDotted
+                          ? const StrokePattern.dotted()
+                          : const StrokePattern.solid(),
+                    ),
+                  ]),
+                // Planificada PENDIENTE: siempre punteada tenue como guía visual.
+                if (plannedSplit.remaining.length >= 2)
+                  PolylineLayer(polylines: [
+                    Polyline(
+                      points: plannedSplit.remaining,
+                      color: color.withValues(alpha: 0.22),
+                      strokeWidth: SfitMapStyle.plannedStroke(zoom),
+                      pattern: const StrokePattern.dotted(),
+                    ),
+                  ]),
+                // Recorrido REAL del bus en el turno (liveTrack): es la
+                // "línea trazada" principal que el ciudadano espera ver
+                // completa desde el inicio del recorrido.
+                if (hasLiveTrack)
+                  PolylineLayer(polylines: [
+                    Polyline(
+                      points: liveTrackLatLng,
+                      color: color.withValues(alpha: 0.85),
+                      strokeWidth: SfitMapStyle.recentStroke(zoom),
+                    ),
+                  ]),
+                // Paradas aprendidas (clusters detectados del trazo en vivo).
+                // Solo se muestran cuando NO hay waypoints formales para no
+                // duplicar marcadores con paraderos oficiales.
+                if (waypointsLatLng.isEmpty && bus.learnedStops.isNotEmpty)
+                  MarkerLayer(
+                    markers: bus.learnedStops
+                        .where((s) => _validCoord(s.lat, s.lng))
+                        .map((s) {
+                      return Marker(
+                        point: LatLng(s.lat, s.lng),
+                        width: stopSize * 0.85,
+                        height: stopSize * 0.85,
+                        alignment: Alignment.center,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.info, width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.info.withValues(alpha: 0.3),
+                                blurRadius: 4,
+                              ),
+                            ],
+                          ),
+                          alignment: Alignment.center,
+                          child: Icon(
+                            Icons.local_taxi_outlined,
+                            size: stopSize * 0.42,
+                            color: AppColors.info,
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
-                ])
-              else if (liveTrackLatLng.length >= 2)
-                PolylineLayer(polylines: [
-                  Polyline(
-                    points: liveTrackLatLng,
-                    color: color.withValues(alpha: 0.7),
-                    strokeWidth: 4,
-                  ),
-                ]),
-              // Paradas aprendidas (clusters detectados del trazo en vivo).
-              // Solo se muestran cuando NO hay waypoints formales para no
-              // duplicar marcadores con paraderos oficiales.
-              if (waypointsLatLng.isEmpty && bus.learnedStops.isNotEmpty)
                 MarkerLayer(
-                  markers: bus.learnedStops
-                      .where((s) => _validCoord(s.lat, s.lng))
-                      .map((s) {
+                  markers: bus.waypoints
+                      .where((w) => _validCoord(w.lat, w.lng))
+                      .map((w) {
+                    final visited = bus.etaByStop.any((s) => s.stopIndex == w.order && s.visited);
                     return Marker(
-                      point: LatLng(s.lat, s.lng),
-                      width: 22, height: 22,
+                      point: LatLng(w.lat, w.lng),
+                      width: stopSize,
+                      height: stopSize,
+                      alignment: Alignment.center,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: visited ? AppColors.apto : Colors.white,
                           shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.info, width: 2.5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.info.withValues(alpha: 0.3),
-                              blurRadius: 4,
-                            ),
-                          ],
+                          border: Border.all(
+                            color: visited ? AppColors.apto : AppColors.ink4,
+                            width: stopSize < 22 ? 1.5 : 2,
+                          ),
                         ),
                         alignment: Alignment.center,
-                        child: const Icon(Icons.local_taxi_outlined, size: 11, color: AppColors.info),
+                        child: SfitMapStyle.showStopLabels(zoom)
+                            ? Text(
+                                '${w.order + 1}',
+                                style: AppTheme.inter(
+                                  fontSize: stopSize * 0.34,
+                                  fontWeight: FontWeight.w800,
+                                  color: visited ? Colors.white : AppColors.ink7,
+                                  tabular: true,
+                                ),
+                              )
+                            : Icon(
+                                Icons.circle,
+                                size: stopSize * 0.36,
+                                color: visited ? Colors.white : AppColors.ink7,
+                              ),
                       ),
                     );
                   }).toList(),
                 ),
-              MarkerLayer(
-                markers: bus.waypoints
-                    .where((w) => _validCoord(w.lat, w.lng))
-                    .map((w) {
-                  final visited = bus.etaByStop.any((s) => s.stopIndex == w.order && s.visited);
-                  return Marker(
-                    point: LatLng(w.lat, w.lng),
-                    width: 26, height: 26,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: visited ? AppColors.apto : Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: visited ? AppColors.apto : AppColors.ink4, width: 2),
-                      ),
+                if (_userPos != null && _validCoord(_userPos!.latitude, _userPos!.longitude))
+                  MarkerLayer(markers: [
+                    Marker(
+                      point: LatLng(_userPos!.latitude, _userPos!.longitude),
+                      width: myLocSize,
+                      height: myLocSize,
                       alignment: Alignment.center,
-                      child: Text(
-                        '${w.order + 1}',
-                        style: AppTheme.inter(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: visited ? Colors.white : AppColors.ink7,
-                          tabular: true,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2563EB),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: myLocSize < 18 ? 2 : 3),
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 4)],
                         ),
                       ),
                     ),
-                  );
-                }).toList(),
-              ),
-              if (_userPos != null && _validCoord(_userPos!.latitude, _userPos!.longitude))
-                MarkerLayer(markers: [
-                  Marker(
-                    point: LatLng(_userPos!.latitude, _userPos!.longitude),
-                    width: 22, height: 22,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.blue,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4)],
-                      ),
+                  ]),
+                if (hasValidPos)
+                  MarkerLayer(markers: [
+                    sfitBusMarker(
+                      point: displayPos,
+                      zoom: zoom,
+                      statusColor: color,
                     ),
-                  ),
-                ]),
-              if (hasValidPos)
-                MarkerLayer(markers: [
-                  Marker(
-                    point: displayPos,
-                    width: 50, height: 50,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 6)],
-                      ),
-                      child: const Icon(Icons.directions_bus_rounded, color: Colors.white, size: 24),
-                    ),
-                  ),
-                ]),
-            ],
-          ),
+                  ]),
+              ],
+            );
+          }),
         ),
         // ── Controles flotantes superiores ──────────────────────────
         Positioned(

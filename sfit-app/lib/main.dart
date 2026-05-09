@@ -1,5 +1,8 @@
+import 'dart:developer' as developer;
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -10,6 +13,30 @@ import 'core/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Reportar errores de Flutter (incluido en builds release) al logcat con
+  // tag 'SFIT_ERROR' para poder diagnosticar pantallas rojas en campo via
+  // `adb logcat -s flutter:V SFIT_ERROR:V`. Sin esto, los CastError /
+  // TypeError se atrapan silenciosamente y solo el FlutterErrorWidget rojo
+  // queda visible.
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    developer.log(
+      'FLUTTER ERROR: ${details.exceptionAsString()}',
+      name: 'SFIT_ERROR',
+      error: details.exception,
+      stackTrace: details.stack,
+    );
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    developer.log(
+      'PLATFORM ERROR: $error',
+      name: 'SFIT_ERROR',
+      error: error,
+      stackTrace: stack,
+    );
+    return true;
+  };
 
   // Inicializa los símbolos de fecha en español para que `DateFormat`
   // pueda formatear fechas con locale 'es' (ej. "1 de mayo, 14:23").
