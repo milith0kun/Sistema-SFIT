@@ -12,7 +12,7 @@ import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 
 import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
-type TripStatus = "en_curso" | "completado" | "auto_cierre" | "cerrado_automatico";
+type TripStatus = "en_curso" | "completado" | "auto_cierre";
 type Trip = {
   id: string;
   vehicle: { plate: string };
@@ -37,7 +37,6 @@ const STATUS_META: Record<TripStatus, { color: string; bd: string; label: string
   en_curso:           { color: INFO,   bd: INFO_BD,   label: "EN CURSO" },
   completado:         { color: APTO,   bd: APTO_BD,   label: "COMPLETADO" },
   auto_cierre:        { color: RIESGO, bd: RIESGO_BD, label: "AUTO-CIERRE" },
-  cerrado_automatico: { color: RIESGO, bd: RIESGO_BD, label: "AUTO-CIERRE" },
 };
 
 function StatusBadge({ s }: { s: TripStatus | undefined }) {
@@ -101,9 +100,7 @@ export default function ViajesPage() {
   const enCurso = items.filter(t => t.status === "en_curso").length;
   const completados = items.filter(t => t.status === "completado").length;
   const totalKm = items.reduce((s, t) => s + (t.km ?? 0), 0);
-  const autoCierre = items.filter(
-    t => t.status === "auto_cierre" || t.status === "cerrado_automatico"
-  ).length;
+  const autoCierre = items.filter(t => t.status === "auto_cierre").length;
   const totalPasajeros = items.reduce((s, t) => s + (t.passengers ?? 0), 0);
 
   const canCreate = user ? CAN_CREATE.includes(user.role) : false;

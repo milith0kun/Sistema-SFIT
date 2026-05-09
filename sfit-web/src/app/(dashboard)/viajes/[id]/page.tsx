@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/useToast";
 
 import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
-type TripStatus = "en_curso" | "completado" | "auto_cierre" | "cerrado_automatico";
+type TripStatus = "en_curso" | "completado" | "auto_cierre";
 
 type Trip = {
   id: string;
@@ -49,7 +49,6 @@ const STATUS_META: Record<TripStatus, { color: string; bg: string; bd: string; l
   en_curso:           { color: INFO, bg: "#fff", bd: INFO_BD, label: "En curso" },
   completado:         { color: APTO, bg: APTO_BG, bd: APTO_BD, label: "Completado" },
   auto_cierre:        { color: RIESGO, bg: RIESGO_BG, bd: RIESGO_BD, label: "Auto-cierre" },
-  cerrado_automatico: { color: RIESGO, bg: RIESGO_BG, bd: RIESGO_BD, label: "Auto-cierre" },
 };
 
 const FIELD: React.CSSProperties = {

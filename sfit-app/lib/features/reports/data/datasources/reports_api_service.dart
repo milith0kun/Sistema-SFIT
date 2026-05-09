@@ -2,17 +2,26 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/offline/outbox.dart';
+import '../../../../core/offline/outbox_registry.dart';
 import '../models/report_model.dart';
 
 part 'reports_api_service.g.dart';
 
 @riverpod
 ReportsApiService reportsApiService(Ref ref) =>
-    ReportsApiService(ref.watch(dioClientProvider).dio);
+    ReportsApiService(
+      ref.watch(dioClientProvider).dio,
+      offlineOutbox: ref.watch(reportsOutboxProvider),
+    );
 
 class ReportsApiService {
   final Dio _dio;
-  ReportsApiService(this._dio);
+  /// Outbox para encolar reportes cuando el envío falla por red. El backend
+  /// los recibe luego con el header `Idempotency-Key` para deduplicar
+  /// reintentos (mismo payload → misma sanción/reporte único).
+  final Outbox? _outbox;
+  ReportsApiService(this._dio, {Outbox? offlineOutbox}) : _outbox = offlineOutbox;
 
   /// GET /reportes — retorna lista de reportes, filtrable por estado.
   Future<List<ReportModel>> getReports({
@@ -32,9 +41,16 @@ class ReportsApiService {
   }
 
   /// POST /reportes — envía un nuevo reporte ciudadano.
-  /// Retorna el ID del reporte creado.
-  /// Lanza [ReportSubmitException] con el mensaje del backend si la
-  /// respuesta no es exitosa (ej. 429 rate limit, 400 validación).
+  ///
+  /// Comportamiento:
+  ///   - Online + OK: retorna el id del reporte creado.
+  ///   - Online + validación rechazada (400/422 con `success:false`):
+  ///     lanza [ReportSubmitException] con el mensaje del backend.
+  ///   - Offline / red caída: si hay un [Outbox] registrado, encola el
+  ///     payload (con `Idempotency-Key`) y retorna un id placeholder
+  ///     `offline-<timestamp>`. El UI debe interpretar ese prefijo como
+  ///     "pendiente de sincronizar". Si no hay outbox, relanza la
+  ///     excepción de red.
   Future<String> submitReport({
     required String vehiclePlate,
     required String category,
@@ -45,7 +61,7 @@ class ReportsApiService {
     String? qrToken,
     List<String>? imageUrls,
   }) async {
-    final resp = await _dio.post('/reportes', data: {
+    final payload = <String, dynamic>{
       'vehiclePlate': vehiclePlate,
       'category': category,
       // Omitir el campo si viene vacío — el backend valida min:10
@@ -57,7 +73,28 @@ class ReportsApiService {
       if (longitude != null) 'longitude': longitude,
       if (qrToken != null) 'qrToken': qrToken,
       if (imageUrls != null && imageUrls.isNotEmpty) 'imageUrls': imageUrls,
-    });
+    };
+
+    Response<dynamic> resp;
+    try {
+      resp = await _dio.post('/reportes', data: payload);
+    } on DioException catch (e) {
+      // Error puro de red (sin respuesta del backend) → encolar si hay
+      // outbox configurado. Errores con respuesta del backend (4xx/5xx
+      // que escapan al `validateStatus`) se relanzan tal cual: NO los
+      // encolamos porque el backend ya rechazó la entrada.
+      final isNetworkError = e.response == null && (
+        e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.connectionError ||
+        e.type == DioExceptionType.sendTimeout ||
+        e.type == DioExceptionType.receiveTimeout
+      );
+      if (isNetworkError && _outbox != null) {
+        await _outbox.enqueue(payload);
+        return 'offline-${DateTime.now().millisecondsSinceEpoch}';
+      }
+      rethrow;
+    }
     final body = resp.data as Map?;
     // dio_client tiene `validateStatus: status < 500`, así que 4xx llega
     // como respuesta normal — hay que detectar `success: false` aquí.

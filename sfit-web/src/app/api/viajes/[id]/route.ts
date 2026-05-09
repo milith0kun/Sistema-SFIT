@@ -20,7 +20,7 @@ const UpdateSchema = z.object({
   status: z
     .enum([
       "pendiente_aceptacion", "aceptado", "rechazado", "cancelado",
-      "en_curso", "completado", "auto_cierre", "cerrado_automatico",
+      "en_curso", "completado", "auto_cierre",
     ])
     .optional(),
 });
@@ -108,7 +108,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const becameTerminal =
     parsed.data.status &&
     parsed.data.status !== previousStatus &&
-    ["completado", "auto_cierre", "cerrado_automatico"].includes(parsed.data.status);
+    ["completado", "auto_cierre"].includes(parsed.data.status);
 
   if (becameTerminal && trip.routeId && trip.fleetEntryId) {
     void (async () => {

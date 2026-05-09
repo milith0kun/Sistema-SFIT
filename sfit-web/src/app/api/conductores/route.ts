@@ -19,10 +19,14 @@ const CreateDriverSchema = z.object({
   licenseNumber: z.string().min(4).max(30),
   licenseCategory: z.string().min(2).max(20),
   phone: z.string().max(30).optional(),
-  status: z.enum(["apto", "riesgo", "no_apto"]).optional(),
-  continuousHours: z.number().min(0).max(24).optional(),
-  restHours: z.number().min(0).max(24).optional(),
-  reputationScore: z.number().min(0).max(100).optional(),
+  // Defaults explícitos vía zod: el contrato del endpoint queda visible en
+  // el schema y los handlers no necesitan re-aplicar `?? valor` por cada
+  // campo. Coincide con los defaults del modelo Driver y con la
+  // política de fatiga (estado inicial "apto", 8h descanso baseline).
+  status: z.enum(["apto", "riesgo", "no_apto"]).default("apto"),
+  continuousHours: z.number().min(0).max(24).default(0),
+  restHours: z.number().min(0).max(24).default(8),
+  reputationScore: z.number().min(0).max(100).default(100),
 });
 
 export async function GET(request: NextRequest) {
@@ -170,10 +174,10 @@ export async function POST(request: NextRequest) {
       licenseNumber: parsed.data.licenseNumber,
       licenseCategory: parsed.data.licenseCategory,
       phone: parsed.data.phone,
-      status: parsed.data.status ?? DRIVER_STATUS.APTO,
-      continuousHours: parsed.data.continuousHours ?? 0,
-      restHours: parsed.data.restHours ?? 8,
-      reputationScore: parsed.data.reputationScore ?? 100,
+      status: parsed.data.status,
+      continuousHours: parsed.data.continuousHours,
+      restHours: parsed.data.restHours,
+      reputationScore: parsed.data.reputationScore,
     });
 
     return apiResponse({ id: String(created._id), ...created.toObject() }, 201);

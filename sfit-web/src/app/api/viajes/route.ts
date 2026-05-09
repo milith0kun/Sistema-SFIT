@@ -166,6 +166,20 @@ export async function POST(request: NextRequest) {
 
     await connectDB();
 
+    // Operador: bloquear creación si no tiene empresa, y validar que el
+    // vehicleId pertenezca a SU empresa (no permitir crear viajes con buses
+    // de otras empresas).
+    if (auth.session.role === ROLES.OPERADOR) {
+      const myCompanyId = await getOperatorCompanyId(auth.session.userId);
+      if (!myCompanyId) return apiError("Sin empresa asignada", 400);
+      const vehicle = await Vehicle.findById(parsed.data.vehicleId)
+        .select("companyId")
+        .lean<{ companyId?: unknown } | null>();
+      if (!vehicle || String(vehicle.companyId ?? "") !== String(myCompanyId)) {
+        return apiForbidden();
+      }
+    }
+
     const created = await Trip.create({
       municipalityId,
       vehicleId: parsed.data.vehicleId,

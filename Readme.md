@@ -218,6 +218,19 @@ Registro (Google o correo) → indica rol solicitado
         └── Notificación push + correo
 ```
 
+### Matriz RBAC detallada
+
+La matriz centralizada de permisos (recurso × rol × acción V/C/E/D) vive en
+[`sfit-web/src/lib/auth/roleMatrix.ts`](sfit-web/src/lib/auth/roleMatrix.ts) — fuente única de verdad consumida tanto por handlers API (`rolesFor` + `requireRole`) como por las páginas web (`hasWebPermission`).
+
+Una versión legible auto-generada con cada cambio del código está en [`docs/rbac-matrix.md`](docs/rbac-matrix.md). Re-genera con:
+
+```bash
+cd sfit-web && npm run docs:rbac
+```
+
+Los scopes territoriales (`regionId`, `provinceId`, `municipalityId`) y `companyId` (operador) se aplican **encima** de la matriz: los endpoints filtran por scope tras el check de rol.
+
 ---
 
 ## 6. Tipos de vehículo
@@ -378,11 +391,11 @@ GoRouter con `redirect` global basado en `AuthStatus` (loading → splash, authe
 | `Apelacion` | Apelación a sanción | denorm en Sanction |
 | `CitizenReport` | Reporte ciudadano con `fraudScore`, capas anti-fraude, geolocalización | `municipalityId` |
 | `Notification` | Inbox + categorías (sistema, aprobacion, sancion, fatiga, reporte) | `userId` |
-| `Recompensa`, `SfitCoin`, `CitTokenBalance`, `CitTokenTransaction` | Catálogo + balance + historial de gamificación | `userId` / global |
+| `Recompensa`, `SfitCoin` | Catálogo + balance + historial de gamificación | `userId` / global |
 | `TransportAuthorization`, `AuthorizedVehicle` | Autorizaciones MTC | `companyId` |
 | `Webhook` | Suscripciones a eventos del tenant | `municipalityId` |
 | `AuditLog` | Log de acciones críticas (RNF-16) | `municipalityId` |
-| `UploadedFile`, `ReportApoyo` | Soporte | varios |
+| `UploadedFile`, `ReportApoyo` | Soporte (uploads / likes del feed comunitario) | varios |
 
 ### Multi-tenancy
 

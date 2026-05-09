@@ -41,9 +41,9 @@ import { ROLES } from "@/lib/constants";
 
 const SAMPLE_LIMIT = 30;
 const PAGE_LIMIT_DEFAULT = 60;
-const PAGE_LIMIT_MAX = 200;
-const PER_ROUTE_DEFAULT = 10;
-const PER_ROUTE_MAX = 50;
+const PAGE_LIMIT_MAX = 1000;
+const PER_ROUTE_DEFAULT = 50;
+const PER_ROUTE_MAX = 500;
 
 /** Score de una pasada cerrada. Devuelve null si no califica. */
 function calcPassScore(p: {

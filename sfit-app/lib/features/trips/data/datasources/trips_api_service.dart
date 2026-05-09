@@ -194,6 +194,13 @@ class TripsApiService {
     return body['data'] as Map<String, dynamic>;
   }
 
+  /// DELETE /flota/:id — borra un turno cerrado (y sus LocationPings y
+  /// RouteCapture asociadas). El conductor solo puede borrar sus propios
+  /// turnos cerrados (validado server-side por driver match + status).
+  Future<void> deleteFleetEntry(String entryId) async {
+    await _dio.delete('/flota/$entryId');
+  }
+
   /// PATCH /flota/:id — cierra el turno del conductor.
   ///
   /// El kilometraje real lo calcula el backend desde los `LocationPing`

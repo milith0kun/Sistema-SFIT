@@ -153,6 +153,20 @@ export async function POST(request: NextRequest) {
 
     await connectDB();
 
+    // Operador: bloquear sin empresa y validar que el vehicleId pertenezca
+    // a su empresa. Sin esto un operador sin companyId podría inyectar
+    // entradas de flota usando vehículos de otras empresas.
+    if (auth.session.role === ROLES.OPERADOR) {
+      const myCompanyId = await getOperatorCompanyId(auth.session.userId);
+      if (!myCompanyId) return apiError("Sin empresa asignada", 400);
+      const vehicle = await Vehicle.findById(parsed.data.vehicleId)
+        .select("companyId")
+        .lean<{ companyId?: unknown } | null>();
+      if (!vehicle || String(vehicle.companyId ?? "") !== String(myCompanyId)) {
+        return apiForbidden();
+      }
+    }
+
     const created = await FleetEntry.create({
       municipalityId,
       vehicleId: parsed.data.vehicleId,

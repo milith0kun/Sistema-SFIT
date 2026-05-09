@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/datasources/trips_api_service.dart';
 
 /// Pantalla "Mis rutas" del Conductor — RF-conductor.
 ///
@@ -50,6 +51,54 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
       },
     );
     if (mounted) ref.invalidate(misRecorridosProvider);
+  }
+
+  /// Borra una pasada (FleetEntry cerrado) tras confirmación. El backend
+  /// borra también los LocationPings y la RouteCapture asociada.
+  Future<void> _confirmDeletePass(PassData pass) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar recorrido'),
+        content: Text(
+          'Esta acción borrará el recorrido del ${pass.date != null ? DateFormat('d MMM y', 'es').format(pass.date!.toLocal()) : ''} '
+          'y su trazo GPS. No se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.noApto),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await ref.read(tripsApiServiceProvider).deleteFleetEntry(pass.id);
+      if (!mounted) return;
+      ref.invalidate(misRecorridosProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Recorrido eliminado'),
+          backgroundColor: AppColors.apto,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo eliminar: $e'),
+          backgroundColor: AppColors.noApto,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
@@ -244,7 +293,7 @@ final misRecorridosProvider =
     FutureProvider.autoDispose<MisRecorridosData>((ref) async {
   final dio = ref.watch(dioClientProvider).dio;
   final resp = await dio.get('/conductor/mis-recorridos',
-      queryParameters: {'limit': 80, 'perRoute': 10});
+      queryParameters: {'limit': 1000, 'perRoute': 500});
   final body = resp.data as Map<String, dynamic>;
   final data = body['data'] as Map<String, dynamic>? ?? body;
   return MisRecorridosData.fromJson(data);
@@ -663,10 +712,14 @@ class _RouteGroupTile extends StatefulWidget {
   /// Si está presente, esa pasada se excluye del listado para evitar
   /// duplicación visual.
   final String? excludePassId;
+  /// Callback para borrar una pasada (long-press). Si es null, no se ofrece
+  /// la acción.
+  final void Function(PassData)? onDeletePass;
   const _RouteGroupTile({
     required this.group,
     this.initiallyExpanded = false,
     this.excludePassId,
+    this.onDeletePass,
   });
 
   @override
@@ -807,6 +860,9 @@ class _RouteGroupTileState extends State<_RouteGroupTile> {
                           extra: visiblePasses[i].track,
                         );
                       },
+                      onLongPress: visiblePasses[i].status == 'en_ruta'
+                          ? null
+                          : () => _confirmDeletePass(visiblePasses[i]),
                     ),
                     if (i < visiblePasses.length - 1)
                       Container(
@@ -878,7 +934,12 @@ class _RouteGroupTileState extends State<_RouteGroupTile> {
 class _PassRow extends StatelessWidget {
   final PassData pass;
   final VoidCallback onTap;
-  const _PassRow({required this.pass, required this.onTap});
+  final VoidCallback? onLongPress;
+  const _PassRow({
+    required this.pass,
+    required this.onTap,
+    this.onLongPress,
+  });
 
   String _fmtDate(DateTime? d) {
     if (d == null) return '—';
@@ -925,6 +986,7 @@ class _PassRow extends StatelessWidget {
           : Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           child: Row(

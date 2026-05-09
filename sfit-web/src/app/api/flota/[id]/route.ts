@@ -205,6 +205,73 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   return apiResponse({ id: String(entry._id), ...entry.toObject(), capture });
 }
 
+/**
+ * DELETE /api/flota/[id]
+ * Borra un FleetEntry junto con sus LocationPings y RouteCapture asociadas.
+ * El conductor solo puede borrar SUS propios turnos cerrados (no en_ruta —
+ * para no perder el turno activo por error). Admin/operador pueden borrar
+ * cualquiera dentro de su scope.
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  // CONDUCTOR puede borrar SUS propios turnos cerrados (verificado driver
+  // match abajo); admin/operador entran por la matriz.
+  const auth = requireRole(request, [
+    ...rolesFor("flota", "delete"),
+    ROLES.CONDUCTOR,
+  ]);
+  if ("error" in auth) {
+    return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
+  }
+
+  const { id } = await params;
+  if (!isValidObjectId(id)) return apiError("ID inválido", 400);
+
+  await connectDB();
+  const entry = await FleetEntry.findById(id);
+  if (!entry) return apiNotFound("Entrada de flota no encontrada");
+
+  if (auth.session.role === ROLES.CONDUCTOR) {
+    const driver = await Driver.findOne({ userId: auth.session.userId })
+      .select("_id")
+      .lean();
+    if (!driver || String(entry.driverId) !== String(driver._id)) {
+      return apiForbidden();
+    }
+    if (entry.status === "en_ruta") {
+      return apiError(
+        "No se puede borrar un turno activo. Ciérralo primero.",
+        400,
+      );
+    }
+  } else {
+    if (
+      !(await canAccessMunicipality(auth.session, String(entry.municipalityId)))
+    ) {
+      return apiForbidden();
+    }
+  }
+
+  // Borrado en cascada: LocationPings, RouteCapture y el entry mismo.
+  // Hacemos best-effort en cada parte; si una falla, registramos pero
+  // continuamos para no dejar el entry huérfano.
+  try {
+    await LocationPing.deleteMany({ entryId: entry._id });
+  } catch (e) {
+    console.error("[flota DELETE] LocationPing cleanup failed", { id, error: e });
+  }
+  try {
+    await RouteCapture.deleteMany({ fleetEntryId: entry._id });
+  } catch (e) {
+    console.error("[flota DELETE] RouteCapture cleanup failed", { id, error: e });
+  }
+  await entry.deleteOne();
+
+  return apiResponse({ deleted: true, id });
+}
+
 /** Convierte "HH:mm" o ISO a Date sobre `baseDate`. */
 function parseTime(value: string, baseDate: Date): Date | null {
   if (!value) return null;

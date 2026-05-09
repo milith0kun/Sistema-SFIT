@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       { _id: { $in: ids } },
       {
         $set: {
-          status: "cerrado_automatico",
+          status: "auto_cierre",
           closedAt: now,
           endTime: now,
           autoClosedReason: "tiempo_excedido",

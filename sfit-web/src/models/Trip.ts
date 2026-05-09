@@ -7,8 +7,7 @@ export type TripStatus =
   | "cancelado"             // Operador canceló (terminal)
   | "en_curso"              // En ejecución
   | "completado"            // Finalizado normalmente
-  | "auto_cierre"           // Cerrado por el sistema (timeout viejo)
-  | "cerrado_automatico";   // Cerrado por el sistema (timeout viejo, alias)
+  | "auto_cierre";          // Cerrado por el sistema (timeout)
 
 export type TripDirection = "ida" | "vuelta" | "circular";
 
@@ -71,7 +70,7 @@ const TripSchema = new Schema<ITrip>(
       type: String,
       enum: [
         "pendiente_aceptacion", "aceptado", "rechazado", "cancelado",
-        "en_curso", "completado", "auto_cierre", "cerrado_automatico",
+        "en_curso", "completado", "auto_cierre",
       ],
       default: "en_curso",
     },

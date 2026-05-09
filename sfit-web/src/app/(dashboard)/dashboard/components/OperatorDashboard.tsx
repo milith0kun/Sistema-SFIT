@@ -52,14 +52,12 @@ const STATUS_LABEL: Record<string, string> = {
   en_curso: "En curso",
   completado: "Completado",
   auto_cierre: "Auto-cierre",
-  cerrado_automatico: "Auto-cierre",
   programado: "Programado",
 };
 const STATUS_COLOR: Record<string, { fg: string; bg: string; bd: string }> = {
   en_curso:           { fg: "#1E40AF", bg: "#EFF6FF", bd: "#BFDBFE" },
   completado:         { fg: "#15803d", bg: APTO_BG, bd: APTO_BD },
   auto_cierre:        { fg: "#B45309", bg: "#FFFBEB", bd: "#FDE68A" },
-  cerrado_automatico: { fg: "#B45309", bg: "#FFFBEB", bd: "#FDE68A" },
   programado:         { fg: INK6, bg: INK1, bd: INK2 },
 };
 

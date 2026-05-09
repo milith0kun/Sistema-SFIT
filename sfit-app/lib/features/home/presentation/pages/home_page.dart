@@ -31,6 +31,7 @@ import 'dashboards/conductor_dashboard_page.dart';
 import 'dashboards/fiscal_dashboard_page.dart';
 import 'dashboards/operator_dashboard_page.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/offline/outbox_banner.dart';
 import '../../../../core/widgets/connectivity_banner.dart';
 import '../../../../core/widgets/sfit_loading.dart';
 
@@ -237,6 +238,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       body: Column(
         children: [
           const ConnectivityBanner(),
+          const OutboxBanner(),
           Expanded(
             child: Stack(
               fit: StackFit.expand,
