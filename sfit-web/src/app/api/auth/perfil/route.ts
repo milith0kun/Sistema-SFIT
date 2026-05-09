@@ -37,12 +37,23 @@ export async function GET(request: NextRequest) {
   try {
     await connectDB();
     const user = await User.findById(session.userId)
-      .select("name email role status provider phone dni image municipalityId provinceId createdAt")
+      .select("name email role status provider phone dni image municipalityId provinceId createdAt profileCompleted sessionVersion")
       .populate("municipalityId", "name ruc razonSocial dataCompleted")
       .populate("provinceId", "name")
       .lean();
 
     if (!user) return apiNotFound("Usuario no encontrado");
+
+    // Si el JWT del cliente tiene una sessionVersion distinta a la actual,
+    // significa que un admin cambió su rol y debe relogarse. Devolvemos 401
+    // con un código que el cliente reconoce para limpiar tokens y redirigir.
+    if (
+      typeof session.sessionVersion === "number" &&
+      typeof user.sessionVersion === "number" &&
+      session.sessionVersion !== user.sessionVersion
+    ) {
+      return apiError("Sesión invalidada", 401, { code: "SESSION_INVALIDATED" });
+    }
 
     const muni = user.municipalityId as unknown as {
       _id: string; name: string;
@@ -69,6 +80,8 @@ export async function GET(request: NextRequest) {
       provinceId:       prov ? String(prov._id) : null,
       provinceName:     prov?.name ?? null,
       createdAt:        user.createdAt,
+      profileCompleted: user.profileCompleted ?? false,
+      sessionVersion:   user.sessionVersion ?? 1,
     });
   } catch (err) {
     console.error("[auth/perfil GET]", err);

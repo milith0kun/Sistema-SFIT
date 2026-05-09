@@ -1,9 +1,18 @@
 /**
  * Constantes de roles del sistema SFIT.
  * Coinciden con los roles definidos en el Readme (sección 5).
+ *
+ * NOTA: `ADMIN_REGIONAL` está DEPRECADO. El rol fue identificado como
+ * "fantasma" en `graphify-out/role_drift_report.md`: aparecía en VIEW_ROLES
+ * de la web pero la API lo rechazaba con 403. Lo dejamos en la constante
+ * para no romper los `requireRole([...])` repartidos por la API durante la
+ * limpieza incremental, pero ya no es asignable: el enum de Mongoose no
+ * lo acepta y `ROLES_ASSIGNABLE_BY` ya no lo expone. Ningún usuario nuevo
+ * puede crearse con este rol; usar `admin_provincial` en su lugar.
  */
 export const ROLES = {
   SUPER_ADMIN: "super_admin",
+  /** @deprecated Usar ADMIN_PROVINCIAL. Ver migración en scripts/migrate-admin-regional.ts */
   ADMIN_REGIONAL: "admin_regional",
   ADMIN_PROVINCIAL: "admin_provincial",
   ADMIN_MUNICIPAL: "admin_municipal",

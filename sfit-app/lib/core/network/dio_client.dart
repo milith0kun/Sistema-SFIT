@@ -13,6 +13,12 @@ DioClient dioClient(Ref ref) => DioClient();
 /// Cliente HTTP configurado para la API de SFIT.
 /// Instala AuthInterceptor (inyecta Bearer + refresca al 401) y LogInterceptor en debug.
 class DioClient {
+  /// Callback que el AuthProvider registra al iniciar. Se invoca cuando el
+  /// servidor responde 401 con `code: "SESSION_INVALIDATED"` (admin cambió
+  /// el rol del usuario). Permite forzar logout sin acoplar el interceptor
+  /// a Riverpod.
+  static void Function()? onSessionInvalidated;
+
   late final Dio _dio;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
@@ -79,6 +85,23 @@ class _AuthInterceptor extends Interceptor {
       options.headers['Authorization'] = 'Bearer $token';
     }
     handler.next(options);
+  }
+
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) async {
+    // El cliente acepta 401 como respuesta normal (validateStatus < 500),
+    // por lo que detectamos aquí el caso SESSION_INVALIDATED y forzamos
+    // logout: el admin cambió el rol del usuario y el JWT viejo dejó de
+    // ser válido. Sin esto el cliente ignoraría el aviso del servidor.
+    if (response.statusCode == 401 &&
+        !_isAuthEndpoint(response.requestOptions.path)) {
+      final body = response.data;
+      if (body is Map && body['code'] == 'SESSION_INVALIDATED') {
+        await _clearAuth();
+        DioClient.onSessionInvalidated?.call();
+      }
+    }
+    handler.next(response);
   }
 
   @override

@@ -83,6 +83,15 @@ class Auth extends _$Auth {
 
   @override
   AuthState build() {
+    // Cuando el servidor invalida la sesión por cambio de rol del usuario
+    // (response 401 + code SESSION_INVALIDATED), el interceptor Dio limpia
+    // tokens y dispara este callback para que la UI vuelva al login.
+    DioClient.onSessionInvalidated = () {
+      state = const AuthState(
+        status: AuthStatus.unauthenticated,
+        errorMessage: 'Tu rol fue actualizado. Vuelve a iniciar sesión.',
+      );
+    };
     Future.microtask(() => _tryAutoLogin());
     return const AuthState(status: AuthStatus.loading);
   }

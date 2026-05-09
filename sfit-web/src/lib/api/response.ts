@@ -10,9 +10,13 @@ export function apiResponse<T>(data: T, status = 200) {
   );
 }
 
-export function apiError(message: string, status = 400) {
+export function apiError(
+  message: string,
+  status = 400,
+  extra?: Record<string, unknown>,
+) {
   return NextResponse.json(
-    { success: false, error: message },
+    { success: false, error: message, ...(extra ?? {}) },
     { status }
   );
 }

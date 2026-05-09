@@ -127,7 +127,9 @@ const UserSchema = new Schema<IUser>(
       type: String,
       enum: [
         "super_admin",
-        "admin_regional",
+        // "admin_regional" — DEPRECADO (rol fantasma). No se acepta en nuevos
+        // documentos; los registros existentes se migran con
+        // scripts/migrate-admin-regional.ts a admin_provincial.
         "admin_provincial",
         "admin_municipal",
         "fiscal",

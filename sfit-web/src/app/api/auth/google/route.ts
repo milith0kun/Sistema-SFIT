@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
       role: user.role,
       municipalityId: user.municipalityId?.toString(),
       provinceId: user.provinceId?.toString(),
+      sessionVersion: user.sessionVersion,
     };
 
     const accessToken = signAccessToken(tokenPayload);
@@ -141,6 +142,8 @@ export async function POST(request: NextRequest) {
         provinceId: user.provinceId?.toString(),
         phone: user.phone ?? null,
         dni:   user.dni   ?? null,
+        profileCompleted: user.profileCompleted ?? false,
+        mustChangePassword: user.mustChangePassword ?? false,
       },
     });
   } catch (error) {

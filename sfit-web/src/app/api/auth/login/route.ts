@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
       role: user.role,
       municipalityId: user.municipalityId?.toString(),
       provinceId: user.provinceId?.toString(),
+      sessionVersion: user.sessionVersion,
     };
 
     const accessToken = signAccessToken(payload);

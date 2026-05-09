@@ -43,6 +43,7 @@ export default function LoginPage() {
   const [loading, setLoading]       = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError]           = useState<string | null>(null);
+  const [info, setInfo]             = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
@@ -62,6 +63,17 @@ export default function LoginPage() {
 
   useEffect(() => {
     emailInputRef.current?.focus();
+  }, []);
+
+  // Banner informativo cuando llegamos aquí porque la sesión fue invalidada
+  // tras un cambio de rol (el dashboard layout redirige con ?reason=role_changed
+  // al recibir 401 SESSION_INVALIDATED desde /api/auth/perfil).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const reason = new URLSearchParams(window.location.search).get("reason");
+    if (reason === "role_changed") {
+      setInfo("Tu rol fue actualizado por un administrador. Vuelve a iniciar sesión para continuar.");
+    }
   }, []);
 
   // Prefetch agresivo de los destinos posibles para que cuando hagamos
@@ -275,6 +287,19 @@ export default function LoginPage() {
           <AlertCircle className="mt-0.5 shrink-0 text-[#EF4444]" size={18} />
           <p className="text-[13px] sm:text-[14px] text-[#DC2626] font-semibold leading-snug">
             {error}
+          </p>
+        </div>
+      )}
+
+      {/* Banner informativo (sesión invalidada por cambio de rol, etc.) */}
+      {info && !error && (
+        <div
+          role="status"
+          className="mb-6 flex items-start gap-3 rounded-xl p-4 bg-[#FEFCE8] border border-[#FDE68A] animate-fade-up"
+        >
+          <AlertCircle className="mt-0.5 shrink-0 text-[#B45309]" size={18} />
+          <p className="text-[13px] sm:text-[14px] text-[#92400E] font-semibold leading-snug">
+            {info}
           </p>
         </div>
       )}

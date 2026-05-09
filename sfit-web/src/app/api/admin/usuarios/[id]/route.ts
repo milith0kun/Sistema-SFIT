@@ -314,9 +314,24 @@ export async function PATCH(
       }
     }
 
+    // Si el admin cambió el rol del usuario, invalidamos toda sesión activa:
+    // borramos el refreshToken e incrementamos sessionVersion. El próximo
+    // request del cliente obtendrá 401 SESSION_INVALIDATED y se forzará
+    // logout, evitando que el JWT viejo (con rol antiguo) siga vivo hasta
+    // las 2 h de expiración natural y produzca loops o accesos cruzados.
+    const roleChanged = role !== undefined && role !== previousRole;
+    const mongoUpdate: Record<string, unknown> = { $set: update };
+    if (roleChanged) {
+      mongoUpdate.$inc = { sessionVersion: 1 };
+      mongoUpdate.$unset = {
+        refreshToken: "",
+        refreshTokenExpiry: "",
+      };
+    }
+
     const updated = await User.findByIdAndUpdate(
       id,
-      { $set: update },
+      mongoUpdate,
       { returnDocument: "after", runValidators: true }
     )
       .select("name email role status municipalityId provinceId regionId phone dni rejectionReason createdAt image")

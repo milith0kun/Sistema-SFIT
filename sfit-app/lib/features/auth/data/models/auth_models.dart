@@ -17,6 +17,9 @@ abstract class UserModel with _$UserModel {
     String? regionId,
     String? phone,
     String? dni,
+    /// Falso hasta que el usuario complete DNI/teléfono al primer login con
+    /// Google. El cliente lo usa para enrutar al onboarding antes del home.
+    @Default(true) bool profileCompleted,
   }) = _UserModel;
 
   factory UserModel.fromJson(Map<String, dynamic> json) =>

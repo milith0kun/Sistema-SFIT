@@ -46,38 +46,68 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.replace("/login");
       return;
     }
+    let parsed: StoredUser;
     try {
-      const parsed = JSON.parse(raw) as StoredUser;
-      if (parsed.status && parsed.status !== "activo") {
-        router.replace(parsed.status === "rechazado" ? "/rejected" : "/pending");
-      }
-      // Onboarding obligatorio: si el perfil está incompleto o tiene password
-      // temporal, forzamos al usuario a /onboarding antes de cualquier otra ruta.
-      if (parsed.profileCompleted === false || parsed.mustChangePassword === true) {
-        router.replace("/onboarding");
-        return;
-      }
-      // Para admin_municipal verificamos también que su municipalidad tenga
-      // los datos institucionales (RUC + razón social) registrados. Si no
-      // están en localStorage los cargamos del backend una vez por sesión.
-      if (parsed.role === "admin_municipal" && parsed.municipalityDataCompleted !== true) {
-        const token = localStorage.getItem("sfit_access_token");
-        if (!token) return;
-        fetch("/api/auth/perfil", { headers: { Authorization: `Bearer ${token}` } })
-          .then((r) => r.json())
-          .then((data: { success: boolean; data?: { municipalityDataCompleted: boolean | null } }) => {
-            if (!data?.success || !data?.data) return;
-            const completed = data.data.municipalityDataCompleted === true;
-            // Persistimos para evitar re-fetch en próximas navegaciones.
-            const updated = { ...parsed, municipalityDataCompleted: completed };
-            localStorage.setItem("sfit_user", JSON.stringify(updated));
-            if (!completed) router.replace("/onboarding");
-          })
-          .catch(() => { /* silent */ });
-      }
+      parsed = JSON.parse(raw) as StoredUser;
     } catch {
       router.replace("/login");
+      return;
     }
+
+    if (parsed.status && parsed.status !== "activo") {
+      router.replace(parsed.status === "rechazado" ? "/rejected" : "/pending");
+    }
+    // Onboarding obligatorio: si el perfil está incompleto o tiene password
+    // temporal, forzamos al usuario a /onboarding antes de cualquier otra ruta.
+    if (parsed.profileCompleted === false || parsed.mustChangePassword === true) {
+      router.replace("/onboarding");
+      return;
+    }
+
+    // Verificamos contra el backend que la sesión sigue siendo válida.
+    // Si un admin cambió el rol del usuario, sessionVersion en BD avanzó y
+    // /api/auth/perfil responde 401 con code SESSION_INVALIDATED → forzamos
+    // logout limpio para evitar el loop login↔dashboard con JWT obsoleto.
+    const token = localStorage.getItem("sfit_access_token");
+    if (!token) return;
+    fetch("/api/auth/perfil", { headers: { Authorization: `Bearer ${token}` } })
+      .then(async (r) => {
+        if (r.status === 401) {
+          const body = (await r.json().catch(() => ({}))) as { code?: string };
+          if (body?.code === "SESSION_INVALIDATED") {
+            clearSession();
+            router.replace("/login?reason=role_changed");
+          }
+          return null;
+        }
+        return r.json() as Promise<{
+          success: boolean;
+          data?: {
+            role?: string;
+            municipalityDataCompleted: boolean | null;
+            profileCompleted?: boolean;
+          };
+        }>;
+      })
+      .then((data) => {
+        if (!data?.success || !data?.data) return;
+        // Si el rol cambió en backend pero la sesión sigue válida (caso raro:
+        // sessionVersion no se incrementó), sincronizamos el cache local.
+        const next: StoredUser = { ...parsed };
+        if (data.data.role && data.data.role !== parsed.role) {
+          next.role = data.data.role;
+        }
+        if (parsed.role === "admin_municipal") {
+          next.municipalityDataCompleted = data.data.municipalityDataCompleted === true;
+          if (!next.municipalityDataCompleted) {
+            localStorage.setItem("sfit_user", JSON.stringify(next));
+            router.replace("/onboarding");
+            return;
+          }
+        }
+        localStorage.setItem("sfit_user", JSON.stringify(next));
+      })
+      .catch(() => { /* silent */ });
   }, [router]);
 
   function logout() {
