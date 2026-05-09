@@ -113,45 +113,48 @@ export async function PATCH(
       entry.departureTime = now.toISOString();
     }
   } else if (action === "end") {
-    entry.endLocation = { lat, lng };
-    entry.status = "cerrado";
-    if (!entry.returnTime) {
-      entry.returnTime = now.toISOString();
-    }
+    // Si el turno YA fue cerrado por PATCH /flota/:id (flujo normal: el
+    // checkout cierra primero y los pings tardíos llegan después), NO
+    // recalculamos métricas aquí — `[id]/route.ts` ya las computó usando
+    // `parseTime` que maneja correctamente el formato "HH:mm" del campo
+    // `departureTime`. Sólo persistimos el LocationPing al final del flujo
+    // y dejamos que el bloque `entryWasClosed` (más abajo) ajuste
+    // distanceMeters con el set completo. Antes este bloque hacía
+    // `new Date("22:31")` → NaN en durationSeconds → 500.
+    if (entry.status !== "cerrado" && entry.status !== "auto_cierre") {
+      entry.endLocation = { lat, lng };
+      entry.status = "cerrado";
+      if (!entry.returnTime) {
+        entry.returnTime = now.toISOString();
+      }
 
-    // Métricas finales del viaje:
-    //   distanceMeters = suma haversine entre LocationPings del turno
-    //                    (incluyendo el punto que se está cerrando con esta request)
-    //   durationSeconds = returnTime − departureTime
-    //   routeCompliancePercentage = visitedStops.length / route.waypoints.length
-    const pings = await LocationPing.find({ entryId: entry._id })
-      .sort({ ts: 1 })
-      .select("lat lng")
-      .lean<Array<{ lat: number; lng: number }>>();
-    const points = [...pings, { lat, lng }];
-    let total = 0;
-    for (let i = 1; i < points.length; i++) {
-      total += haversineMeters(points[i - 1], points[i]);
-    }
-    entry.distanceMeters = Math.round(total);
+      // Métricas finales del viaje (solo en cierre vía /location):
+      //   distanceMeters = suma haversine entre LocationPings del turno
+      //                    (incluyendo el punto que se está cerrando)
+      //   durationSeconds = returnTime − departureTime (parseTime maneja "HH:mm")
+      //   routeCompliancePercentage = visitedStops.length / route.waypoints.length
+      const pings = await LocationPing.find({ entryId: entry._id })
+        .sort({ ts: 1 })
+        .select("lat lng")
+        .lean<Array<{ lat: number; lng: number }>>();
+      const points = [...pings, { lat, lng }];
+      let total = 0;
+      for (let i = 1; i < points.length; i++) {
+        total += haversineMeters(points[i - 1], points[i]);
+      }
+      entry.distanceMeters = Math.round(total);
 
-    if (entry.departureTime && entry.returnTime) {
-      const dep = new Date(entry.departureTime);
-      const ret = new Date(entry.returnTime);
-      const seconds = Math.max(0, Math.round((ret.getTime() - dep.getTime()) / 1000));
-      entry.durationSeconds = seconds;
-    }
-
-    if (entry.routeId && entry.routeCompliancePercentage == null) {
-      try {
-        const route = await RouteModel.findById(entry.routeId).select("waypoints").lean();
-        const total = route?.waypoints?.length ?? 0;
-        const visitedCount = entry.visitedStops?.length ?? 0;
-        if (total > 0) {
-          entry.routeCompliancePercentage = Math.round((visitedCount / total) * 100);
+      if (entry.routeId && entry.routeCompliancePercentage == null) {
+        try {
+          const route = await RouteModel.findById(entry.routeId).select("waypoints").lean();
+          const totalWp = route?.waypoints?.length ?? 0;
+          const visitedCount = entry.visitedStops?.length ?? 0;
+          if (totalWp > 0) {
+            entry.routeCompliancePercentage = Math.round((visitedCount / totalWp) * 100);
+          }
+        } catch {
+          /* mejor effort */
         }
-      } catch {
-        /* mejor effort */
       }
     }
   }
@@ -256,18 +259,35 @@ export async function PATCH(
   // Histórico GPS por turno: insertamos en colección LocationPing (sin cap).
   // El array `trackPoints` embebido en FleetEntry quedó deprecado por límite
   // de tamaño de documento; aún se acepta en queries legacy de lectura.
-  await LocationPing.create({
-    entryId: entry._id,
-    driverId: entry.driverId,
-    vehicleId: entry.vehicleId,
-    municipalityId: entry.municipalityId,
-    routeId: entry.routeId,
-    lat,
-    lng,
-    ts: now,
-    ...(accuracy !== undefined && { accuracy }),
-    ...(speed !== undefined && { speed }),
-  });
+  //
+  // DEDUPE: si el último LocationPing del turno tiene exactamente las mismas
+  // coords (ej. heartbeat de bus parado), NO insertamos uno nuevo. Mantiene
+  // el histórico limpio sin perder el "latido" del bus (currentLocation se
+  // actualizó arriba). Sin esto, un bus parado 30 min generaba ~70 puntos
+  // idénticos que inflaban el LocationPing y deformaban distanceMeters=0.
+  const lastPing = await LocationPing.findOne({ entryId: entry._id })
+    .sort({ ts: -1 })
+    .select("lat lng")
+    .lean<{ lat: number; lng: number } | null>();
+  const isDuplicate =
+    lastPing != null &&
+    Math.abs(lastPing.lat - lat) < 1e-7 &&
+    Math.abs(lastPing.lng - lng) < 1e-7;
+
+  if (!isDuplicate) {
+    await LocationPing.create({
+      entryId: entry._id,
+      driverId: entry.driverId,
+      vehicleId: entry.vehicleId,
+      municipalityId: entry.municipalityId,
+      routeId: entry.routeId,
+      lat,
+      lng,
+      ts: now,
+      ...(accuracy !== undefined && { accuracy }),
+      ...(speed !== undefined && { speed }),
+    });
+  }
 
   // Pings tardíos (outbox/retry tras red caída) que llegan después del
   // cierre: recalcular distanceMeters y endLocation con el set completo de
