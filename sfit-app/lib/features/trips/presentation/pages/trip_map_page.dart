@@ -7,6 +7,7 @@ import '../../../../core/services/location_tracking_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/connectivity_banner.dart';
+import '../../../../shared/widgets/map/sfit_map_markers.dart';
 import '../../data/datasources/trips_api_service.dart';
 
 /// Calculadora de distancia haversine de `latlong2`. La usamos para estimar
@@ -28,6 +29,10 @@ class _TripMapPageState extends ConsumerState<TripMapPage>
   final _mapController = MapController();
   bool _followMode = true;
   bool _mapReady = false;
+  /// Zoom actual del mapa. Lo escuchamos vía `onPositionChanged` para que
+  /// los markers/polylines (vía `SfitMapStyle`) escalen y no se aglomeren
+  /// al alejar ni se vean diminutos al acercar.
+  double _currentZoom = 15;
 
   // ── Animación del bus entre pings ───────────────────────────────────────
   /// Controlador que interpola la posición visible del bus entre el último
@@ -140,6 +145,12 @@ class _TripMapPageState extends ConsumerState<TripMapPage>
                 if (_followMode) setState(() => _followMode = false);
               }
             },
+            onPositionChanged: (pos, hasGesture) {
+              final z = pos.zoom;
+              if ((z - _currentZoom).abs() > 0.5) {
+                setState(() => _currentZoom = z);
+              }
+            },
           ),
           children: [
             TileLayer(
@@ -153,7 +164,7 @@ class _TripMapPageState extends ConsumerState<TripMapPage>
                   Polyline(
                     points: waypoints.map((w) => w.latLng).toList(),
                     color: const Color(0x993B82F6),
-                    strokeWidth: 3.5,
+                    strokeWidth: SfitMapStyle.plannedStroke(_currentZoom),
                   ),
                 ],
               ),
@@ -169,7 +180,7 @@ class _TripMapPageState extends ConsumerState<TripMapPage>
                             ? AppColors.noApto
                             : AppColors.gold)
                         .withValues(alpha: 0.45),
-                    strokeWidth: 3.0,
+                    strokeWidth: SfitMapStyle.historicalStroke(_currentZoom),
                   ),
                 ],
               ),
@@ -183,7 +194,7 @@ class _TripMapPageState extends ConsumerState<TripMapPage>
                     points: tracking.recentTrack,
                     color:
                         tracking.isOffRoute ? AppColors.noApto : AppColors.gold,
-                    strokeWidth: 5.0,
+                    strokeWidth: SfitMapStyle.recentStroke(_currentZoom),
                   ),
                 ],
               ),
@@ -192,43 +203,17 @@ class _TripMapPageState extends ConsumerState<TripMapPage>
               MarkerLayer(markers: _buildStopMarkers(waypoints, visited)),
             if (currentPos != null)
               // Capa que se redibuja a 60fps con la posición interpolada.
+              // El marker escala con el zoom del mapa vía SfitMapStyle.
               AnimatedBuilder(
                 animation: _busAnim,
                 builder: (context, _) {
                   final animated = _interpolatedPos(currentPos);
                   return MarkerLayer(
                     markers: [
-                      Marker(
+                      sfitBusMarker(
                         point: animated,
-                        width: 44,
-                        height: 44,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: tracking.isOffRoute
-                                ? AppColors.noApto
-                                : AppColors.gold,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white,
-                              width: 2.5,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: (tracking.isOffRoute
-                                        ? AppColors.noApto
-                                        : AppColors.gold)
-                                    .withValues(alpha: 0.4),
-                                blurRadius: 8,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.navigation_rounded,
-                            color: Colors.white,
-                            size: 22,
-                          ),
-                        ),
+                        zoom: _currentZoom,
+                        isOffRoute: tracking.isOffRoute,
                       ),
                     ],
                   );

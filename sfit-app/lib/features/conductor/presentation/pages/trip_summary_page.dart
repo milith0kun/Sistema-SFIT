@@ -9,6 +9,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/services/location_tracking_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/map/sfit_map_markers.dart';
 import '../../../trips/data/datasources/trips_api_service.dart';
 
 /// Pantalla de resumen al cerrar un FleetEntry. Llamada con
@@ -39,6 +40,8 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
   Map<String, dynamic>? _entry;
   bool _loading = true;
   String? _error;
+  /// Zoom actual del mapa (escala markers/polylines vía SfitMapStyle).
+  double _currentZoom = 14;
   /// Track persistido localmente (Hive) — fallback cuando el backend devuelve
   /// trackPoints vacío. Es el respaldo definitivo del trazo.
   List<LatLng> _persistedTrack = const [];
@@ -287,13 +290,23 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
             interactionOptions: const InteractionOptions(
               flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
             ),
+            onPositionChanged: (pos, _) {
+              if ((pos.zoom - _currentZoom).abs() > 0.5) {
+                setState(() => _currentZoom = pos.zoom);
+              }
+            },
           )
-        : const MapOptions(
+        : MapOptions(
             initialCenter: fallbackCenter,
             initialZoom: 13,
-            interactionOptions: InteractionOptions(
+            interactionOptions: const InteractionOptions(
               flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
             ),
+            onPositionChanged: (pos, _) {
+              if ((pos.zoom - _currentZoom).abs() > 0.5) {
+                setState(() => _currentZoom = pos.zoom);
+              }
+            },
           );
 
     return Stack(
@@ -309,13 +322,13 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
                 subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'com.sfit.sfit_app',
               ),
-              // Trazado real del conductor en dorado grueso (solo si hay)
+              // Trazado real del conductor en dorado (grosor adaptable al zoom).
               if (hasValidTrack)
                 PolylineLayer(polylines: [
                   Polyline(
                     points: tpLatLng,
                     color: AppColors.gold,
-                    strokeWidth: 5,
+                    strokeWidth: SfitMapStyle.recentStroke(_currentZoom),
                   ),
                 ]),
               // Markers: paraderos visitados verdes + inicio/fin destacados.
@@ -353,49 +366,15 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
                             size: 14, color: Colors.white),
                       ),
                     )),
-                Marker(
+                sfitTrackEndpointMarker(
                   point: tpLatLng.first,
-                  width: 32,
-                  height: 32,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.apto,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.apto.withValues(alpha: 0.4),
-                          blurRadius: 10,
-                          spreadRadius: 1,
-                        ),
-                      ],
-                    ),
-                    alignment: Alignment.center,
-                    child: const Icon(Icons.play_arrow_rounded,
-                        size: 18, color: Colors.white),
-                  ),
+                  zoom: _currentZoom,
+                  isStart: true,
                 ),
-                Marker(
+                sfitTrackEndpointMarker(
                   point: tpLatLng.last,
-                  width: 32,
-                  height: 32,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.noApto,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.noApto.withValues(alpha: 0.4),
-                          blurRadius: 10,
-                          spreadRadius: 1,
-                        ),
-                      ],
-                    ),
-                    alignment: Alignment.center,
-                    child: const Icon(Icons.stop_rounded,
-                        size: 16, color: Colors.white),
-                  ),
+                  zoom: _currentZoom,
+                  isStart: false,
                 ),
               ]),
             ],
