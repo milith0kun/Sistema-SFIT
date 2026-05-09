@@ -64,6 +64,16 @@ export interface IUser extends Document {
   passwordResetToken?: string;
   passwordResetExpiry?: Date;
 
+  /**
+   * Contador que se incrementa cuando un admin cambia el rol del usuario.
+   * El JWT incluye este número en su payload; cuando un cliente presenta un
+   * token con `sessionVersion` distinto al actual del usuario, el servidor
+   * responde 401 con `code: "SESSION_INVALIDATED"` y el cliente fuerza logout.
+   * Esto garantiza que cambios de rol invaliden las sesiones vivas sin
+   * tener que esperar 2 h a que expire el access token.
+   */
+  sessionVersion: number;
+
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
@@ -163,6 +173,9 @@ const UserSchema = new Schema<IUser>(
     refreshTokenExpiry: { type: Date, select: false },
     passwordResetToken: { type: String, select: false },
     passwordResetExpiry: { type: Date },
+
+    // Versionado de sesión: ver doc en IUser.sessionVersion
+    sessionVersion: { type: Number, default: 1 },
 
     // Timestamps
     lastLoginAt: { type: Date },

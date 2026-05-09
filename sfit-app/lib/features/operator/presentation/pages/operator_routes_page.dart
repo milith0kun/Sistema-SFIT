@@ -8,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/route_candidate_model.dart';
 import '../../../../shared/models/route_model.dart';
 import '../../data/datasources/operator_api_service.dart';
+import '../widgets/department_filter_chip.dart';
 
 /// Tipo público usado por GoRouter como `extra` para navegar al detalle y
 /// formulario de validación de una captura GPS candidata.
@@ -171,6 +172,39 @@ class _OfficialTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Construye opciones del filtro a partir de los departamentos de la
+    // empresa del operador. Si la empresa cubre 1 solo depto, el widget
+    // DepartmentFilterChip se oculta automáticamente.
+    final dashboard = ref.watch(operatorDashboardProvider);
+    final deptOptions = dashboard.maybeWhen(
+      data: (s) => (s.company?.departmentCodes ?? const <String>[])
+          .map((c) => DepartmentOption(
+                code: c,
+                label: kPeruDepartments[c] ?? c,
+              ))
+          .toList(),
+      orElse: () => const <DepartmentOption>[],
+    );
+    final selectedDept = ref.watch(selectedRoutesDepartmentProvider);
+
+    return Column(
+      children: [
+        if (deptOptions.length >= 2)
+          DepartmentFilterChip(
+            options: deptOptions,
+            selectedCode: selectedDept,
+            onChanged: (code) {
+              ref.read(selectedRoutesDepartmentProvider.notifier).state = code;
+            },
+          ),
+        Expanded(
+          child: _buildList(context, ref),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildList(BuildContext context, WidgetRef ref) {
     return RefreshIndicator(
       color: AppColors.primary,
       onRefresh: onRefresh,
@@ -269,7 +303,7 @@ class _OfficialTab extends ConsumerWidget {
 
 // ── Tab: Candidatas ───────────────────────────────────────────────────────
 
-class _CandidatesTab extends ConsumerWidget {
+class _CandidatesTab extends ConsumerStatefulWidget {
   final AsyncValue<List<RouteCandidateModel>> candidatesAsync;
   final Future<void> Function() onRefresh;
 
@@ -279,34 +313,111 @@ class _CandidatesTab extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return RefreshIndicator(
-      color: AppColors.primary,
-      onRefresh: onRefresh,
-      child: candidatesAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
+  ConsumerState<_CandidatesTab> createState() => _CandidatesTabState();
+}
+
+class _CandidatesTabState extends ConsumerState<_CandidatesTab> {
+  // IDs seleccionados para comparativa side-by-side. Limitado a 3 — más
+  // columnas en pantallas móviles encogen los mini-mapas a tamaño inútil.
+  final Set<String> _selected = {};
+  static const int _maxSelectable = 3;
+
+  void _toggleSelection(String id) {
+    setState(() {
+      if (_selected.contains(id)) {
+        _selected.remove(id);
+      } else if (_selected.length < _maxSelectable) {
+        _selected.add(id);
+      } else {
+        // Reemplaza la primera selección — patrón común en pickers de N.
+        _selected.remove(_selected.first);
+        _selected.add(id);
+      }
+    });
+  }
+
+  void _clearSelection() => setState(() => _selected.clear());
+
+  void _openCompare(List<RouteCandidateModel> all) {
+    final picks = all.where((c) => _selected.contains(c.id)).toList();
+    if (picks.length < 2) return;
+    context.push('/operador/candidatas/comparar', extra: picks);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(children: [
+      RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: widget.onRefresh,
+        child: widget.candidatesAsync.when(
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          ),
+          error: (_, __) => _emptyCandidates(),
+          data: (items) {
+            if (items.isEmpty) return _emptyCandidates();
+            return ListView.separated(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 96),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (_, i) {
+                final c = items[i];
+                final isSelected = _selected.contains(c.id);
+                return _CandidateCard(
+                  candidate: c,
+                  selected: isSelected,
+                  selectionActive: _selected.isNotEmpty,
+                  onTap: () {
+                    if (_selected.isNotEmpty) {
+                      _toggleSelection(c.id);
+                    } else {
+                      context
+                          .push('/operador/rutas/candidatas/${c.id}', extra: c)
+                          .then((_) => widget.onRefresh());
+                    }
+                  },
+                  onLongPress: () => _toggleSelection(c.id),
+                );
+              },
+            );
+          },
         ),
-        error: (_, __) => _emptyCandidates(),
-        data: (items) {
-          if (items.isEmpty) return _emptyCandidates();
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 96),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (_, i) {
-              final c = items[i];
-              return _CandidateCard(
-                candidate: c,
-                onTap: () => context
-                    .push('/operador/rutas/candidatas/${c.id}', extra: c)
-                    .then((_) => onRefresh()),
-              );
-            },
-          );
-        },
       ),
-    );
+      // Floating "Comparar (N)" — solo visible cuando hay ≥2 seleccionadas.
+      // Pulsación abre la pantalla side-by-side; la X cancela la selección.
+      if (_selected.length >= 2)
+        Positioned(
+          right: 14,
+          bottom: 14,
+          child: widget.candidatesAsync.maybeWhen(
+            data: (items) => Row(children: [
+              FloatingActionButton.small(
+                heroTag: 'cancel_compare',
+                backgroundColor: AppColors.ink2,
+                onPressed: _clearSelection,
+                child: const Icon(Icons.close, color: AppColors.ink8),
+              ),
+              const SizedBox(width: 8),
+              FloatingActionButton.extended(
+                heroTag: 'open_compare',
+                backgroundColor: AppColors.primary,
+                onPressed: () => _openCompare(items),
+                icon: const Icon(Icons.compare_arrows, color: Colors.white),
+                label: Text(
+                  'Comparar (${_selected.length})',
+                  style: AppTheme.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ]),
+            orElse: () => const SizedBox.shrink(),
+          ),
+        ),
+    ]);
   }
 
   Widget _emptyCandidates() => ListView(children: [
@@ -348,7 +459,19 @@ class _CandidatesTab extends ConsumerWidget {
 class _CandidateCard extends StatelessWidget {
   final RouteCandidateModel candidate;
   final VoidCallback onTap;
-  const _CandidateCard({required this.candidate, required this.onTap});
+  final VoidCallback? onLongPress;
+  /// `true` cuando esta tarjeta está marcada para la comparativa.
+  final bool selected;
+  /// `true` mientras hay alguna selección activa: cambia el affordance del
+  /// tap (selecciona/deselecciona en vez de abrir detalle).
+  final bool selectionActive;
+  const _CandidateCard({
+    required this.candidate,
+    required this.onTap,
+    this.onLongPress,
+    this.selected = false,
+    this.selectionActive = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -375,14 +498,18 @@ class _CandidateCard extends StatelessWidget {
     final distance = (candidate.distanceMeters ?? 0).round();
 
     return Material(
-      color: Colors.white,
+      color: selected ? AppColors.primary.withValues(alpha: 0.05) : Colors.white,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(14),
         child: Container(
           decoration: BoxDecoration(
-            border: Border.all(color: AppColors.ink2),
+            border: Border.all(
+              color: selected ? AppColors.primary : AppColors.ink2,
+              width: selected ? 2 : 1,
+            ),
             borderRadius: BorderRadius.circular(14),
           ),
           child: Column(

@@ -41,6 +41,8 @@ import '../../features/operator/presentation/pages/nuevo_conductor_page.dart';
 import '../../features/operator/presentation/pages/nuevo_vehiculo_page.dart';
 import '../../features/operator/presentation/pages/operator_routes_page.dart';
 import '../../features/operator/presentation/pages/operator_candidate_detail_page.dart';
+import '../../features/operator/presentation/pages/operator_candidates_compare_page.dart';
+import '../../shared/models/route_candidate_model.dart';
 import '../../features/operator/presentation/pages/operator_validate_capture_page.dart';
 import '../../features/operator/presentation/pages/operator_trips_page.dart';
 import '../../features/operator/presentation/pages/operator_trip_detail_page.dart';
@@ -308,6 +310,17 @@ GoRouter router(Ref ref) {
         builder: (_, st) => OperatorValidateCapturePage(
           candidateId: st.pathParameters['id']!,
           candidate: st.extra is Candidate ? st.extra as Candidate : null,
+        ),
+      ),
+      // Comparativa side-by-side de capturas GPS candidatas. Recibe la lista
+      // de candidatas vía `extra` (List<RouteCandidateModel>). Si llega
+      // vacía/inválida, redirige al listado.
+      GoRoute(
+        path: '/operador/candidatas/comparar',
+        builder: (_, st) => OperatorCandidatesComparePage(
+          candidates: st.extra is List<RouteCandidateModel>
+              ? st.extra as List<RouteCandidateModel>
+              : const <RouteCandidateModel>[],
         ),
       ),
       GoRoute(

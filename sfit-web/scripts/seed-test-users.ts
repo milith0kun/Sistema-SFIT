@@ -4,7 +4,9 @@
  * Crea (upsert idempotente):
  *   - 1 Provincia de prueba
  *   - 1 Municipalidad de prueba
+ *   - 1 Empresa de transporte de prueba (asignada al operador)
  *   - 7 usuarios (uno por rol) con bcrypt 12 rounds (RNF-04)
+ *   - El operador queda con User.companyId apuntando a la empresa de prueba
  *
  * Uso: npx tsx scripts/seed-test-users.ts
  */
@@ -24,6 +26,11 @@ config({ path: ".env.local" });
 // UBIGEO ya fue sembrado: `npx tsx scripts/seed-ubigeo.ts`.
 const TEST_PROVINCE_UBIGEO     = "0801";
 const TEST_MUNICIPALITY_UBIGEO = "080101";
+const TEST_DEPARTMENT_UBIGEO   = "08";   // Cusco
+
+// Empresa de transporte de prueba — asignada al operador de seed.
+const TEST_COMPANY_RUC = "20100000001";
+const TEST_COMPANY_RAZON_SOCIAL = "Transportes SFIT Test S.A.C.";
 
 const PASSWORD = "Sfit2026!";
 
@@ -115,6 +122,10 @@ async function main() {
     {},
     { strict: false, collection: "users" },
   );
+  const CompanySchema = new mongoose.Schema(
+    {},
+    { strict: false, collection: "companies" },
+  );
 
   const Province =
     mongoose.models.Province ?? mongoose.model("Province", ProvinceSchema);
@@ -122,6 +133,8 @@ async function main() {
     mongoose.models.Municipality ??
     mongoose.model("Municipality", MunicipalitySchema);
   const User = mongoose.models.User ?? mongoose.model("User", UserSchema);
+  const Company =
+    mongoose.models.Company ?? mongoose.model("Company", CompanySchema);
 
   // 1. Resolver provincia UBIGEO real (Cusco — 0801) y activarla.
   const provinceDoc = await Province.findOne({
@@ -157,7 +170,42 @@ async function main() {
   const municipalityId = muniDoc._id;
   console.log(`✓ Municipalidad UBIGEO ${TEST_MUNICIPALITY_UBIGEO}: ${muniDoc.name} (${municipalityId})`);
 
-  // 3. Usuarios — bcrypt 12 rounds (RNF-04)
+  // 3. Empresa de transporte de prueba — asignada al operador.
+  // RUC único nacional → upsert por RUC. La empresa cubre Cusco (depto 08,
+  // provincia 0801, distrito 080101) con scope urbano_provincial.
+  const companyDoc = await Company.findOneAndUpdate(
+    { ruc: TEST_COMPANY_RUC },
+    {
+      $set: {
+        municipalityId,
+        razonSocial: TEST_COMPANY_RAZON_SOCIAL,
+        ruc: TEST_COMPANY_RUC,
+        representanteLegal: {
+          name: "Operador SFIT",
+          dni: "00000001",
+          phone: "+51 999 000 001",
+        },
+        vehicleTypeKeys: ["omnibus", "minibus", "microbus"],
+        documents: [],
+        active: true,
+        reputationScore: 100,
+        serviceScope: "urbano_provincial",
+        coverage: {
+          departmentCodes: [TEST_DEPARTMENT_UBIGEO],
+          provinceCodes: [TEST_PROVINCE_UBIGEO],
+          districtCodes: [TEST_MUNICIPALITY_UBIGEO],
+        },
+        authorizations: [],
+        updatedAt: new Date(),
+      },
+      $setOnInsert: { createdAt: new Date() },
+    },
+    { upsert: true, new: true },
+  );
+  const companyId = companyDoc._id;
+  console.log(`✓ Empresa transporte: ${TEST_COMPANY_RAZON_SOCIAL} (${companyId})`);
+
+  // 4. Usuarios — bcrypt 12 rounds (RNF-04)
   const hashed = await bcrypt.hash(PASSWORD, 12);
 
   for (const u of USERS) {
@@ -177,6 +225,13 @@ async function main() {
     if (u.scope === "municipality") {
       set.municipalityId = municipalityId;
     }
+    // El operador queda vinculado a la empresa de prueba: sin esto el helper
+    // getOperatorCompanyId() devuelve null y los endpoints filtrados por
+    // empresa retornan listas vacías (la pantalla "Registrar salida" muestra
+    // "Sin vehículos disponibles" / "Sin conductores aptos").
+    if (u.role === "operador") {
+      set.companyId = companyId;
+    }
 
     await User.findOneAndUpdate(
       { email: u.email },
@@ -193,7 +248,7 @@ async function main() {
     console.log(`✓ Usuario ${u.role.padEnd(18)} → ${u.email}`);
   }
 
-  // 4. Tabla resumen
+  // 5. Tabla resumen
   console.log("\n=== CREDENCIALES DE PRUEBA SFIT ===\n");
   console.log(
     "| Email".padEnd(32) +
@@ -215,6 +270,11 @@ async function main() {
   }
   console.log("\nProvincia ID:     " + provinceId);
   console.log("Municipalidad ID: " + municipalityId);
+  console.log("Empresa ID:       " + companyId);
+  console.log(
+    "\nSiguiente paso: poblar vehículos/conductores/rutas para la empresa de prueba:",
+  );
+  console.log("  npx tsx scripts/seed-empresa-test-data.ts");
 
   await mongoose.disconnect();
 }

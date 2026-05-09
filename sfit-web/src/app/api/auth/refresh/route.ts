@@ -42,11 +42,22 @@ export async function POST(request: NextRequest) {
       return apiError("Token inválido o expirado", 401);
     }
 
+    // Si la sesión fue invalidada (cambio de rol u otra acción admin), el
+    // payload del refresh trae una versión distinta a la persistida.
+    if (
+      typeof payload.sessionVersion === "number" &&
+      typeof user.sessionVersion === "number" &&
+      payload.sessionVersion !== user.sessionVersion
+    ) {
+      return apiError("Sesión invalidada", 401, { code: "SESSION_INVALIDATED" });
+    }
+
     const newPayload = {
       userId: user._id.toString(),
       role: user.role,
       municipalityId: user.municipalityId?.toString(),
       provinceId: user.provinceId?.toString(),
+      sessionVersion: user.sessionVersion,
     };
 
     const newAccessToken = signAccessToken(newPayload);

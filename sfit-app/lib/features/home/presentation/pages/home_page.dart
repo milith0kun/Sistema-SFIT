@@ -97,8 +97,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     try {
       final dio = ref.read(dioClientProvider).dio;
       final resp = await dio.get('/notificaciones');
-      final data = (resp.data as Map)['data'] as Map<String, dynamic>;
-      final count = data['unreadCount'] as int? ?? 0;
+      final body = resp.data;
+      final data = (body is Map && body['data'] is Map) ? body['data'] as Map : const {};
+      final count = (data['unreadCount'] as num?)?.toInt() ?? 0;
       if (mounted) setState(() => _unreadNotifCount = count);
     } catch (_) {
       // Silencioso — el badge simplemente no se muestra si falla

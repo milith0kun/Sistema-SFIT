@@ -126,6 +126,32 @@ export async function POST(
     );
   }
 
+  // Recompute polyline real (Google Routes snap-to-roads) tras cambiar
+  // waypoints. Sin esto la geometría guardada refleja waypoints viejos y el
+  // mapa pinta una polyline stale (o nula) que no sigue calles. Fire-and-forget.
+  if (route.waypoints.length >= 2) {
+    void (async () => {
+      try {
+        const { routeAlongWaypoints } = await import("@/lib/routing/routingService");
+        const geom = await routeAlongWaypoints(
+          route.waypoints.map((w) => ({ lat: w.lat, lng: w.lng })),
+        );
+        await Route.findByIdAndUpdate(route._id, {
+          polylineGeometry: geom
+            ? {
+                coords: geom.coords,
+                distanceMeters: geom.distanceMeters,
+                durationSecondsBaseline: geom.durationSeconds,
+                computedAt: new Date(),
+              }
+            : null,
+        });
+      } catch (err) {
+        console.warn("[rutas/[id]/recalcular] recompute geometry failed", err);
+      }
+    })();
+  }
+
   void logAction({
     userId: auth.session.userId,
     action: "route.converged",

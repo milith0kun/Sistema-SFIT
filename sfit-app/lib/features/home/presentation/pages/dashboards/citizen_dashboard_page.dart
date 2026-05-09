@@ -39,9 +39,11 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
           .getMisReportes(limit: 100);
       final results = await Future.wait([coinsFut, reportsFut]);
       if (!mounted) return;
-      final coins = results[0] as CoinsStatus;
-      final reportesMap = results[1] as Map<String, dynamic>;
-      final reportes = reportesMap['items'] as List? ?? [];
+      final coins = results[0] is CoinsStatus ? results[0] as CoinsStatus : null;
+      final reportesMap = results[1] is Map<String, dynamic>
+          ? results[1] as Map<String, dynamic>
+          : <String, dynamic>{};
+      final reportes = reportesMap['items'] as List? ?? const [];
 
       int pendientes = 0;
       int validados = 0;

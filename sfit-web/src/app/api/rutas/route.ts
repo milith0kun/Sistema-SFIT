@@ -21,6 +21,20 @@ const WaypointInputSchema = z.object({
   districtCode: z.string().min(2).max(8).optional(),
 });
 
+const HoraPicoCreateSchema = z.object({
+  from: z.string().regex(TIME_REGEX, "Formato HH:mm requerido"),
+  to:   z.string().regex(TIME_REGEX, "Formato HH:mm requerido"),
+});
+
+const ParametersCreateSchema = z
+  .object({
+    frecuenciaMinutos: z.number().min(0).max(240).nullable().optional(),
+    capacidadAsientos: z.number().min(0).max(200).nullable().optional(),
+    horarioPico: z.array(HoraPicoCreateSchema).max(8).optional(),
+    observaciones: z.string().max(500).nullable().optional(),
+  })
+  .strict();
+
 const CreateSchema = z.object({
   municipalityId: z.string().refine(isValidObjectId).optional(),
   code: z.string().min(1).max(20),
@@ -42,6 +56,8 @@ const CreateSchema = z.object({
     .array(z.string().regex(TIME_REGEX, "Formato HH:mm requerido"))
     .max(48)
     .optional(),
+  tags: z.array(z.string().min(1).max(40)).max(16).optional(),
+  parameters: ParametersCreateSchema.optional(),
 });
 
 /**
@@ -117,6 +133,21 @@ export async function GET(request: NextRequest) {
     if (typeParam === "ruta" || typeParam === "zona") filter.type = typeParam;
     if (statusParam === "activa" || statusParam === "suspendida") filter.status = statusParam;
 
+    // Filtro por departamento (UBIGEO 2 dígitos). Match contra:
+    //   - originDistrictCode (rutas interprovinciales) — primeros 2 chars
+    //   - traversedDistrictCodes (cualquier ruta) — primeros 2 chars
+    // Útil cuando la empresa cubre varios departamentos y el operador quiere
+    // ver solo las rutas del departamento que está revisando.
+    const departmentCode = url.searchParams.get("departmentCode");
+    if (departmentCode && /^\d{2}$/.test(departmentCode)) {
+      const prefix = `^${departmentCode}`;
+      filter.$or = [
+        { originDistrictCode: { $regex: prefix } },
+        { traversedDistrictCodes: { $regex: prefix } },
+        { "waypoints.districtCode": { $regex: prefix } },
+      ];
+    }
+
     // Operador: SIEMPRE acota a las rutas de su empresa (multi-tenant).
     // Si no tiene empresa todavía devolvemos lista vacía (no es error de auth).
     // El alias `?companyId=mine` se mantiene como compat hacia adelante.
@@ -155,6 +186,18 @@ export async function GET(request: NextRequest) {
         status: r.status,
         frequencies: r.frequencies,
         waypoints: r.waypoints ?? [],
+        // Geometría real siguiendo calles (Google Routes snap-to-roads). Sin
+        // esto el frontend pinta líneas rectas waypoint-a-waypoint que
+        // atraviesan manzanas/casas. Puede ser null si Google no respondió;
+        // en ese caso la app cae al fallback de líneas rectas.
+        polylineGeometry: r.polylineGeometry ?? null,
+        // Override manual del operador. Si está presente, la UI debe pintar
+        // esa pasada como "MEJOR (manual)" — gana sobre el isBest automático.
+        preferredCaptureId: r.preferredCaptureId ? String(r.preferredCaptureId) : null,
+        preferredAt: r.preferredAt ?? null,
+        // Metadata operativa editable por el operador.
+        tags: r.tags ?? [],
+        parameters: r.parameters ?? null,
         createdAt: r.createdAt,
         updatedAt: r.updatedAt,
       })),

@@ -142,6 +142,8 @@ class ReportsApiService {
   }
 
   /// GET /reportes/mis-reportes — lista reportes del ciudadano autenticado.
+  /// Defensivo: si el backend responde sin `data` (ej. perfil incompleto)
+  /// devolvemos lista vacía en lugar de propagar un cast nulo a la UI.
   Future<Map<String, dynamic>> getMisReportes({
     int page = 1,
     int limit = 20,
@@ -150,12 +152,17 @@ class ReportsApiService {
       'page': page,
       'limit': limit,
     });
-    final data = (resp.data as Map)['data'] as Map;
+    final body = resp.data;
+    final data = (body is Map && body['data'] is Map)
+        ? Map<String, dynamic>.from(body['data'] as Map)
+        : <String, dynamic>{};
+    final rawItems = data['items'];
+    final items = (rawItems is List)
+        ? rawItems.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
+        : <Map<String, dynamic>>[];
     return {
-      'items': (data['items'] as List)
-          .map((e) => e as Map<String, dynamic>)
-          .toList(),
-      'total': data['total'] ?? 0,
+      'items': items,
+      'total': data['total'] ?? items.length,
     };
   }
 

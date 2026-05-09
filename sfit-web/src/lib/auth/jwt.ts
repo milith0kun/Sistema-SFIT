@@ -11,6 +11,13 @@ export interface JwtPayload {
   provinceId?: string;
   /** Región del usuario; aplica a admin_regional y se denormaliza para roles inferiores. */
   regionId?: string;
+  /**
+   * Versión de la sesión. El servidor incrementa `User.sessionVersion` cuando
+   * un admin cambia el rol del usuario. Los endpoints autenticados validan
+   * que `payload.sessionVersion === user.sessionVersion` y, si no, responden
+   * 401 con `code: "SESSION_INVALIDATED"` para forzar logout en el cliente.
+   */
+  sessionVersion?: number;
 }
 
 /** Access token: 2 horas (RF-01-08) */

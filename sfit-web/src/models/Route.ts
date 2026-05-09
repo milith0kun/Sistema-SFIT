@@ -79,6 +79,36 @@ export interface IRoute extends Document {
     computedAt: Date;
   } | null;
 
+  /**
+   * Override manual del operador: una pasada (FleetEntry) o captura GPS
+   * marcada explícitamente como la "mejor" del corredor. Cuando está
+   * presente gana sobre el `isBest` automático calculado por score —
+   * la UI debe mostrarla como "MEJOR (manual)" para distinguirla.
+   */
+  preferredCaptureId?: mongoose.Types.ObjectId;
+  preferredAt?: Date;
+  preferredBy?: mongoose.Types.ObjectId;     // userId del operador que marcó
+
+  /**
+   * Etiquetas libres que el operador asigna al corredor. Suelen describir
+   * características operativas (ej. "congestionada", "rapida",
+   * "alternativa_lluvia") y se filtran/agrupan en la UI. Formato libre,
+   * sin validación de catálogo — la app sugiere presets pero acepta custom.
+   */
+  tags: string[];
+
+  /**
+   * Parámetros operativos editables. Reemplazan/extienden a `frequencies`:
+   * `frecuenciaMinutos` es estructurado (numérico) mientras que el array
+   * `frequencies` está en texto libre legacy. Mantener ambos hasta migrar.
+   */
+  parameters?: {
+    frecuenciaMinutos?: number | null;
+    capacidadAsientos?: number | null;
+    horarioPico?: { from: string; to: string }[];
+    observaciones?: string | null;
+  };
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -134,6 +164,37 @@ const RouteSchema = new Schema<IRoute>(
         _id: false,
       },
       default: null,
+    },
+
+    // Override manual: el operador puede marcar una captura/pasada como
+    // "preferida". Tiene precedencia sobre el `isBest` automático calculado
+    // a partir del score. Validamos en el endpoint que la captura pertenezca
+    // a la misma empresa que la ruta (multi-tenant).
+    preferredCaptureId: { type: Schema.Types.ObjectId, ref: "FleetEntry" },
+    preferredAt: { type: Date },
+    preferredBy: { type: Schema.Types.ObjectId, ref: "User" },
+
+    // Etiquetas y parámetros operativos. `tags` es flexible (presets +
+    // custom). `parameters` agrupa metadata estructurada para reportes.
+    tags: { type: [String], default: [] },
+    parameters: {
+      type: {
+        frecuenciaMinutos: { type: Number, min: 0, max: 240, default: null },
+        capacidadAsientos: { type: Number, min: 0, max: 200, default: null },
+        horarioPico: {
+          type: [
+            {
+              from: { type: String, required: true }, // HH:mm
+              to:   { type: String, required: true }, // HH:mm
+              _id: false,
+            },
+          ],
+          default: [],
+        },
+        observaciones: { type: String, default: null, maxlength: 500 },
+        _id: false,
+      },
+      default: () => ({}),
     },
   },
   { timestamps: true },

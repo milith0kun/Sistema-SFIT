@@ -15,10 +15,14 @@ class RewardsApiService {
   RewardsApiService(this._dio);
 
   /// GET /ciudadano/coins — Balance, nivel y últimas 20 transacciones.
+  /// Si el backend responde sin campo `data` (perfil incompleto, error
+  /// silencioso), devolvemos un `CoinsStatus` vacío en vez de propagar un
+  /// cast nulo que reventaría el dashboard.
   Future<CoinsStatus> getCoinsStatus() async {
     final resp = await _dio.get('/ciudadano/coins');
-    final data = (resp.data as Map)['data'] as Map<String, dynamic>;
-    return CoinsStatus.fromJson(data);
+    final body = resp.data;
+    final raw = (body is Map && body['data'] is Map) ? body['data'] as Map : const {};
+    return CoinsStatus.fromJson(Map<String, dynamic>.from(raw));
   }
 
   /// GET /ciudadano/recompensas — Catálogo de recompensas activas.

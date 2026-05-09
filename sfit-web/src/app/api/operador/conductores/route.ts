@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import mongoose from "mongoose";
 import { connectDB } from "@/lib/db/mongoose";
 import { Driver } from "@/models/Driver";
 import { User } from "@/models/User";
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
   const onlyUnassigned =
     (url.searchParams.get("onlyUnassigned") ?? "true").toLowerCase() !== "false";
   const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit") ?? 30)));
+  const departmentCode = url.searchParams.get("departmentCode");
 
   await connectDB();
 
@@ -63,6 +65,21 @@ export async function GET(request: NextRequest) {
     municipalityId: operatorUser.municipalityId,
     active: true,
   };
+
+  // Filtro por departamento (UBIGEO 2 dígitos): el operador busca
+  // conductores cuya municipalidad está en ese departamento. Sustituye
+  // el filtro de muni propia por un set de municipalityIds.
+  if (departmentCode && /^\d{2}$/.test(departmentCode)) {
+    const Municipality = mongoose.models.Municipality;
+    if (Municipality) {
+      const munis = await Municipality.find({
+        ubigeoCode: { $regex: `^${departmentCode}` },
+      })
+        .select("_id")
+        .lean<{ _id: mongoose.Types.ObjectId }[]>();
+      filter.municipalityId = { $in: munis.map((m) => m._id) };
+    }
+  }
   if (onlyUnassigned) {
     filter.$or = [
       { companyId: { $exists: false } },

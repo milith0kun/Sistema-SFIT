@@ -14,6 +14,7 @@ import {
 } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
+import { calcPassScore, maxGapSeconds } from "@/lib/routing/passScoring";
 
 /**
  * GET /api/conductor/mis-recorridos?limit=<n>&perRoute=<n>
@@ -45,36 +46,6 @@ const PAGE_LIMIT_MAX = 1000;
 const PER_ROUTE_DEFAULT = 50;
 const PER_ROUTE_MAX = 500;
 
-/** Score de una pasada cerrada. Devuelve null si no califica. */
-function calcPassScore(p: {
-  status?: string;
-  routeCompliancePercentage?: number | null;
-  durationSeconds?: number | null;
-  numPings: number;
-  maxGapSeconds: number;
-}): number | null {
-  if (p.status !== "cerrado" && p.status !== "auto_cierre") return null;
-  if (p.numPings < 3) return null;
-
-  // 50% — cumplimiento de paraderos (0-1).
-  const compliance = Math.max(0, Math.min(1, (p.routeCompliancePercentage ?? 0) / 100));
-
-  // 30% — cobertura GPS (puntos por minuto, normalizado a 60ppm = 1.0).
-  let coverage = 0;
-  if (p.durationSeconds && p.durationSeconds > 0) {
-    const ppm = (p.numPings / p.durationSeconds) * 60;
-    coverage = Math.max(0, Math.min(1, ppm / 60));
-  }
-
-  // 20% — bonus si no hay huecos largos (max gap < 30s = 1.0; >120s = 0).
-  let continuity = 0;
-  if (p.maxGapSeconds <= 30) continuity = 1;
-  else if (p.maxGapSeconds >= 120) continuity = 0;
-  else continuity = 1 - (p.maxGapSeconds - 30) / 90;
-
-  return compliance * 0.5 + coverage * 0.3 + continuity * 0.2;
-}
-
 /** Sample uniforme reduciendo a SAMPLE_LIMIT puntos como máximo. */
 function samplePings(
   all: Array<{ lat: number; lng: number; ts: Date }>,
@@ -89,17 +60,6 @@ function samplePings(
     sampled.push(all[all.length - 1]);
   }
   return sampled.map((p) => ({ lat: p.lat, lng: p.lng }));
-}
-
-/** Calcula el gap máximo (en segundos) entre pings consecutivos. */
-function maxGapSeconds(points: Array<{ ts: Date }>): number {
-  if (points.length < 2) return Infinity;
-  let max = 0;
-  for (let i = 1; i < points.length; i++) {
-    const dt = (points[i].ts.getTime() - points[i - 1].ts.getTime()) / 1000;
-    if (dt > max) max = dt;
-  }
-  return max;
 }
 
 export async function GET(request: NextRequest) {

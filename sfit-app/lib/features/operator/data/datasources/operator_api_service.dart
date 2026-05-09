@@ -10,6 +10,7 @@ import '../../../../shared/models/passenger_model.dart';
 import '../../../../shared/models/route_candidate_model.dart';
 import '../../../../shared/models/route_model.dart';
 import '../../../trips/data/models/trip_model.dart';
+import '../models/operator_dashboard_summary.dart';
 import '../models/vehicle_model.dart';
 
 part 'operator_api_service.g.dart';
@@ -40,10 +41,16 @@ final myFleetProvider =
   return ref.watch(operatorApiServiceProvider).getFlota();
 });
 
-/// Rutas operativas del operador.
+/// Filtro UBIGEO 2-dig seleccionado en el listado de rutas. `null` = todos.
+/// Se mantiene como state global porque el chip de filtro vive en el tab
+/// Oficiales pero los providers consumen el valor.
+final selectedRoutesDepartmentProvider = StateProvider<String?>((_) => null);
+
+/// Rutas operativas del operador. Reactivo al filtro de departamento.
 final operadorRoutesProvider =
     FutureProvider.autoDispose<List<RouteModel>>((ref) async {
-  return ref.watch(operatorApiServiceProvider).getRoutes();
+  final dept = ref.watch(selectedRoutesDepartmentProvider);
+  return ref.watch(operatorApiServiceProvider).getRoutes(departmentCode: dept);
 });
 
 /// Rutas candidatas pendientes de validar/asignar.
@@ -56,6 +63,13 @@ final routeCandidatesProvider =
 final operadorTripsProvider =
     FutureProvider.autoDispose<List<TripModel>>((ref) async {
   return ref.watch(operatorApiServiceProvider).getTrips();
+});
+
+/// Resumen del dashboard del operador (vehículos, conductores, flota del día,
+/// alertas). Reemplaza los KPIs hardcodeados del home.
+final operatorDashboardProvider =
+    FutureProvider.autoDispose<OperatorDashboardSummary>((ref) async {
+  return ref.watch(operatorApiServiceProvider).getDashboard();
 });
 
 // ── Servicio ───────────────────────────────────────────────────────────────
@@ -113,10 +127,13 @@ class OperatorApiService {
   Future<List<ConductorModel>> getOperadorConductores({
     String? q,
     int limit = 50,
+    String? departmentCode,
   }) async {
     final resp = await _dio.get('/operador/conductores', queryParameters: {
       if (q != null && q.trim().isNotEmpty) 'q': q.trim(),
       'limit': limit,
+      if (departmentCode != null && departmentCode.isNotEmpty)
+        'departmentCode': departmentCode,
     });
     final data = (resp.data as Map)['data'] as Map;
     final items = (data['items'] as List).cast<Map<String, dynamic>>();
@@ -132,6 +149,13 @@ class OperatorApiService {
   Future<Map<String, dynamic>> getMiEmpresa() async {
     final resp = await _dio.get('/operador/mi-empresa');
     return (resp.data as Map)['data'] as Map<String, dynamic>;
+  }
+
+  /// Resumen agregado de la empresa para el home (KPIs reales).
+  Future<OperatorDashboardSummary> getDashboard() async {
+    final resp = await _dio.get('/operador/dashboard');
+    final data = (resp.data as Map)['data'] as Map<String, dynamic>;
+    return OperatorDashboardSummary.fromJson(data);
   }
 
   // Flota ───────────────────────────────────────────────────────────────────
@@ -153,8 +177,15 @@ class OperatorApiService {
 
   // Rutas y candidatas ──────────────────────────────────────────────────────
 
-  Future<List<RouteModel>> getRoutes({int limit = 100}) async {
-    final resp = await _dio.get('/rutas', queryParameters: {'limit': limit});
+  Future<List<RouteModel>> getRoutes({
+    int limit = 100,
+    String? departmentCode,
+  }) async {
+    final resp = await _dio.get('/rutas', queryParameters: {
+      'limit': limit,
+      if (departmentCode != null && departmentCode.isNotEmpty)
+        'departmentCode': departmentCode,
+    });
     final data = (resp.data as Map)['data'] as Map;
     final items = (data['items'] as List).cast<Map<String, dynamic>>();
     return items.map((j) => RouteModel.fromJson(normalizeBackendJson(j))).toList();
@@ -212,6 +243,52 @@ class OperatorApiService {
     final resp = await _dio.patch('/rutas/$id', data: patch);
     final data = (resp.data as Map)['data'] as Map<String, dynamic>;
     return RouteModel.fromJson(normalizeBackendJson(data));
+  }
+
+  /// POST /rutas/:id/recalcular — converge capturas GPS y recalcula tanto
+  /// `waypoints` como `polylineGeometry` (snap-to-roads). Sin esto, el mapa
+  /// de la app pinta líneas rectas waypoint-a-waypoint que cruzan manzanas.
+  /// Devuelve `before`/`after` waypoints para mostrar el diff al operador.
+  Future<Map<String, dynamic>> recalculateRoute(
+    String id, {
+    bool preview = false,
+  }) async {
+    final resp = await _dio.post(
+      '/rutas/$id/recalcular',
+      data: {if (preview) 'preview': true},
+    );
+    return (resp.data as Map)['data'] as Map<String, dynamic>;
+  }
+
+  /// GET /rutas/:id/pasadas — historial de pasadas de la ruta con score,
+  /// `isBest` (mejor automática) e `isPreferred` (mejor manual del operador).
+  /// Datos heterogéneos por ahora — el caller los consume como Map.
+  Future<Map<String, dynamic>> getRoutePasses(String routeId, {int limit = 30}) async {
+    final resp = await _dio.get(
+      '/rutas/$routeId/pasadas',
+      queryParameters: {'limit': limit},
+    );
+    return (resp.data as Map)['data'] as Map<String, dynamic>;
+  }
+
+  /// POST /rutas/:id/marcar-preferida — el operador marca manualmente una
+  /// pasada (FleetEntry) como la "mejor" del corredor. Tiene precedencia
+  /// sobre el score automático. La UI debe distinguirlas como
+  /// "MEJOR (manual)" vs "MEJOR (automática)".
+  Future<void> markRoutePreferredCapture(
+    String routeId, {
+    required String captureId,
+  }) async {
+    await _dio.post(
+      '/rutas/$routeId/marcar-preferida',
+      data: {'captureId': captureId},
+    );
+  }
+
+  /// DELETE /rutas/:id/marcar-preferida — limpia el override manual y
+  /// vuelve al `isBest` automático.
+  Future<void> clearRoutePreferredCapture(String routeId) async {
+    await _dio.delete('/rutas/$routeId/marcar-preferida');
   }
 
   // Viajes y pasajeros ──────────────────────────────────────────────────────

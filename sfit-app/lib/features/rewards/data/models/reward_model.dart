@@ -19,11 +19,11 @@ class CoinTransaction {
 
   factory CoinTransaction.fromJson(Map<String, dynamic> j) => CoinTransaction(
         id: j['id'] as String? ?? '',
-        type: j['type'] as String,
-        amount: (j['amount'] as num).toInt(),
-        reason: j['reason'] as String,
-        balance: (j['balance'] as num).toInt(),
-        date: DateTime.parse(j['createdAt'] as String),
+        type: j['type'] as String? ?? '',
+        amount: (j['amount'] as num?)?.toInt() ?? 0,
+        reason: j['reason'] as String? ?? '',
+        balance: (j['balance'] as num?)?.toInt() ?? 0,
+        date: DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
       );
 
   /// Etiqueta legible para la razón de la transacción.
@@ -92,10 +92,11 @@ class CoinsStatus {
   });
 
   factory CoinsStatus.fromJson(Map<String, dynamic> j) => CoinsStatus(
-        balance: (j['balance'] as num).toInt(),
-        nivel: (j['nivel'] as num).toInt(),
-        transactions: (j['transactions'] as List)
-            .map((e) => CoinTransaction.fromJson(e as Map<String, dynamic>))
+        balance: (j['balance'] as num?)?.toInt() ?? 0,
+        nivel: (j['nivel'] as num?)?.toInt() ?? 1,
+        transactions: ((j['transactions'] as List?) ?? const [])
+            .whereType<Map>()
+            .map((e) => CoinTransaction.fromJson(Map<String, dynamic>.from(e)))
             .toList(),
       );
 

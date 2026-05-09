@@ -21,6 +21,20 @@ const WaypointInputSchema = z.object({
   districtCode: z.string().min(2).max(8).optional(),
 });
 
+const HoraPicoSchema = z.object({
+  from: z.string().regex(TIME_REGEX, "Formato HH:mm requerido"),
+  to:   z.string().regex(TIME_REGEX, "Formato HH:mm requerido"),
+});
+
+const ParametersSchema = z
+  .object({
+    frecuenciaMinutos: z.number().min(0).max(240).nullable().optional(),
+    capacidadAsientos: z.number().min(0).max(200).nullable().optional(),
+    horarioPico: z.array(HoraPicoSchema).max(8).optional(),
+    observaciones: z.string().max(500).nullable().optional(),
+  })
+  .strict();
+
 const UpdateSchema = z.object({
   code: z.string().min(1).max(20).optional(),
   name: z.string().min(2).max(200).optional(),
@@ -41,6 +55,10 @@ const UpdateSchema = z.object({
     .array(z.string().regex(TIME_REGEX, "Formato HH:mm requerido"))
     .max(48)
     .optional(),
+  // Etiquetas operativas (presets + custom). Limitamos a 16 tags por ruta
+  // para evitar payloads gigantes y forzar al operador a curar el set.
+  tags: z.array(z.string().min(1).max(40)).max(16).optional(),
+  parameters: ParametersSchema.optional(),
 });
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

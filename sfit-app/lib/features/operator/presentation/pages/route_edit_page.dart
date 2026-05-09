@@ -25,6 +25,7 @@ class RouteEditPage extends ConsumerStatefulWidget {
 class _RouteEditPageState extends ConsumerState<RouteEditPage> {
   bool _loading = true;
   bool _saving = false;
+  bool _recalculating = false;
   String? _error;
 
   // Comunes
@@ -35,11 +36,34 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
   // Urbano: paraderos
   List<_Wp> _wps = [];
 
+  /// Trazado por calles devuelto por el backend (snap-to-roads de Google
+  /// Routes v2). Vacío si la geometría aún no se calculó — el mapa pinta
+  /// líneas rectas entre waypoints como fallback.
+  List<LatLng> _streetPolyline = const [];
+
   // Interprovincial: origen, destino, horarios
   final _originCtl = TextEditingController();
   final _destinationCtl = TextEditingController();
   List<String> _departureTimes = [];
   final _newTimeCtl = TextEditingController();
+
+  // Etiquetas y parámetros operativos (compartidos por urbano e interprov)
+  List<String> _tags = [];
+  final _frecuenciaCtl = TextEditingController();
+  final _capacidadCtl = TextEditingController();
+  final _observacionesCtl = TextEditingController();
+  final _newTagCtl = TextEditingController();
+
+  // Catálogo de presets que se ofrecen como sugerencia para el operador.
+  // Más rápido que pedirle escribir cada tag desde cero. Acepta custom igual.
+  static const _tagPresets = <String>[
+    'congestionada',
+    'rapida',
+    'alternativa_lluvia',
+    'turismo',
+    'escolar',
+    'nocturna',
+  ];
 
   bool get _isUrbano =>
       _scope == 'urbano_distrital' || _scope == 'urbano_provincial';
@@ -56,6 +80,10 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
     _originCtl.dispose();
     _destinationCtl.dispose();
     _newTimeCtl.dispose();
+    _frecuenciaCtl.dispose();
+    _capacidadCtl.dispose();
+    _observacionesCtl.dispose();
+    _newTagCtl.dispose();
     for (final w in _wps) {
       w.ctl.dispose();
     }
@@ -82,6 +110,22 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
               ))
           .toList()
         ..sort((a, b) => a.order.compareTo(b.order));
+      // Etiquetas y parámetros operativos.
+      _tags = List<String>.from(r.tags);
+      final p = r.parameters;
+      _frecuenciaCtl.text = p?.frecuenciaMinutos?.toString() ?? '';
+      _capacidadCtl.text = p?.capacidadAsientos?.toString() ?? '';
+      _observacionesCtl.text = p?.observaciones ?? '';
+      // Trazado real (snap-to-roads). Si polylineGeometry es null, el
+      // getter `polylineCoords` devuelve los waypoints — para el overlay
+      // queremos sólo la versión por calles, así que filtramos por presencia.
+      final geom = r.polylineGeometry;
+      _streetPolyline = (geom != null && geom.coords.length >= 2)
+          ? geom.coords
+              .where((c) => c.length >= 2)
+              .map((c) => LatLng(c[0], c[1]))
+              .toList()
+          : const [];
       if (mounted) setState(() => _loading = false);
     } catch (e) {
       if (mounted) {
@@ -137,6 +181,24 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
         }
         payload['departureSchedules'] = _departureTimes;
       }
+
+      // Etiquetas y parámetros — siempre se envían (los dos modos los
+      // soportan). Backend valida con zod y los almacena como Route.tags +
+      // Route.parameters. Campos numéricos vacíos se envían como null para
+      // limpiar valores anteriores.
+      payload['tags'] = _tags;
+      payload['parameters'] = <String, dynamic>{
+        'frecuenciaMinutos': _frecuenciaCtl.text.trim().isEmpty
+            ? null
+            : int.tryParse(_frecuenciaCtl.text.trim()),
+        'capacidadAsientos': _capacidadCtl.text.trim().isEmpty
+            ? null
+            : int.tryParse(_capacidadCtl.text.trim()),
+        'observaciones': _observacionesCtl.text.trim().isEmpty
+            ? null
+            : _observacionesCtl.text.trim(),
+      };
+
       await service.updateRoute(widget.routeId, payload);
       if (mounted) {
         ref.invalidate(operadorRoutesProvider);
@@ -147,6 +209,33 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
       if (mounted) _snack('Error al guardar: ${_extractError(e)}');
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  /// Re-converge capturas GPS y vuelve a calcular `polylineGeometry` por
+  /// calles. Recarga la ruta tras terminar para refrescar el overlay del mapa.
+  ///
+  /// El recompute de geometría corre fire-and-forget en el backend; esperamos
+  /// ~3s antes de recargar para darle margen a la primera respuesta de Google.
+  Future<void> _recalculateStreetTrace() async {
+    setState(() => _recalculating = true);
+    try {
+      final service = ref.read(operatorApiServiceProvider);
+      await service.recalculateRoute(widget.routeId);
+      if (!mounted) return;
+      _snack('Recalculando trazado…');
+      await Future<void>.delayed(const Duration(seconds: 3));
+      if (!mounted) return;
+      await _load();
+      if (mounted && _streetPolyline.length >= 2) {
+        _snack('Trazado actualizado por calles.');
+      } else if (mounted) {
+        _snack('Geometría aún procesando — vuelve a abrir en unos segundos.');
+      }
+    } catch (e) {
+      if (mounted) _snack('No se pudo recalcular: ${_extractError(e)}');
+    } finally {
+      if (mounted) setState(() => _recalculating = false);
     }
   }
 
@@ -214,6 +303,28 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
           ),
         ),
         actions: [
+          // Recalcular: re-converge capturas GPS y vuelve a hacer
+          // snap-to-roads. Solo visible para rutas urbanas (las únicas con
+          // waypoints intermedios). Skip si la ruta no tiene capturas asociadas
+          // — el backend devolverá 400 con mensaje claro.
+          if (_isUrbano)
+            IconButton(
+              tooltip: 'Recalcular trazado por calles',
+              onPressed: _recalculating ? null : _recalculateStreetTrace,
+              icon: _recalculating
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.alt_route_outlined,
+                      color: AppColors.primary,
+                    ),
+            ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: FilledButton(
@@ -331,9 +442,115 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
           ),
           const SizedBox(height: 18),
           if (_isUrbano) ..._buildUrbano() else ..._buildInterprov(),
+          const SizedBox(height: 22),
+          ..._buildTagsAndParameters(),
         ],
       ),
     );
+  }
+
+  // ── Etiquetas y parámetros operativos ──────────────────────────
+  // Editables tanto en rutas urbanas como interprovinciales. Los presets
+  // sugieren valores comunes (congestionada, escolar...) pero acepta libres.
+  List<Widget> _buildTagsAndParameters() {
+    final allTags = <String>{..._tagPresets, ..._tags}.toList();
+    return [
+      const _SectionLabel(label: 'Etiquetas operativas'),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          for (final tag in allTags)
+            FilterChip(
+              label: Text(
+                tag,
+                style: AppTheme.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              selected: _tags.contains(tag),
+              onSelected: (selected) => setState(() {
+                if (selected) {
+                  _tags = [..._tags, tag];
+                } else {
+                  _tags = _tags.where((t) => t != tag).toList();
+                }
+              }),
+              selectedColor: AppColors.primary.withValues(alpha: 0.15),
+              checkmarkColor: AppColors.primary,
+            ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      Row(children: [
+        Expanded(
+          child: TextField(
+            controller: _newTagCtl,
+            decoration: _dec('Agregar etiqueta…').copyWith(isDense: true),
+            onSubmitted: (_) => _addCustomTag(),
+          ),
+        ),
+        const SizedBox(width: 8),
+        TextButton.icon(
+          onPressed: _addCustomTag,
+          icon: const Icon(Icons.add, size: 14),
+          label: Text(
+            'Añadir',
+            style: AppTheme.inter(fontSize: 12, fontWeight: FontWeight.w700),
+          ),
+        ),
+      ]),
+      const SizedBox(height: 18),
+      const _SectionLabel(label: 'Parámetros operativos'),
+      const SizedBox(height: 8),
+      Row(children: [
+        Expanded(
+          child: TextField(
+            controller: _frecuenciaCtl,
+            keyboardType: TextInputType.number,
+            decoration: _dec('Frecuencia (min)'),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: TextField(
+            controller: _capacidadCtl,
+            keyboardType: TextInputType.number,
+            decoration: _dec('Capacidad (asientos)'),
+          ),
+        ),
+      ]),
+      const SizedBox(height: 10),
+      TextField(
+        controller: _observacionesCtl,
+        maxLines: 2,
+        maxLength: 500,
+        decoration: _dec('Observaciones (opcional)'),
+      ),
+    ];
+  }
+
+  void _addCustomTag() {
+    final raw = _newTagCtl.text.trim().toLowerCase();
+    if (raw.isEmpty) return;
+    if (raw.length > 40) {
+      _snack('La etiqueta es muy larga (máx 40)');
+      return;
+    }
+    if (_tags.contains(raw)) {
+      _newTagCtl.clear();
+      return;
+    }
+    if (_tags.length >= 16) {
+      _snack('Máximo 16 etiquetas por ruta');
+      return;
+    }
+    setState(() {
+      _tags = [..._tags, raw];
+      _newTagCtl.clear();
+    });
   }
 
   // ── Vista urbana ────────────────────────────────────────────────
@@ -374,13 +591,26 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
                   ),
                   if (_wps.length >= 2)
                     PolylineLayer(polylines: [
+                      // Líneas rectas entre waypoints (debajo). Útil mientras
+                      // edita y como fallback cuando aún no hay snap-to-roads.
                       Polyline(
                         points: _wps
                             .map((w) => LatLng(w.lat, w.lng))
                             .toList(),
-                        strokeWidth: 3,
-                        color: AppColors.primary.withValues(alpha: 0.6),
+                        strokeWidth: 2,
+                        color: _streetPolyline.length >= 2
+                            ? AppColors.ink4.withValues(alpha: 0.45)
+                            : AppColors.primary.withValues(alpha: 0.6),
                       ),
+                      // Trazado real siguiendo calles (encima). Solo aparece
+                      // cuando el backend ya cacheó polylineGeometry. Resuelve
+                      // el reclamo "el trazado no debe pasar por las casas".
+                      if (_streetPolyline.length >= 2)
+                        Polyline(
+                          points: _streetPolyline,
+                          strokeWidth: 4,
+                          color: AppColors.primary.withValues(alpha: 0.85),
+                        ),
                     ]),
                   MarkerLayer(
                     markers: _wps
