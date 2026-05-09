@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -659,9 +660,34 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
           _lastSendAt = DateTime.now();
           // Pace para no toparse con rate limit (60/min) del backend.
           await Future<void>.delayed(_drainPace);
+        } on DioException catch (e) {
+          final status = e.response?.statusCode;
+          // 4xx (excepto 408/429) = ping rechazado de forma permanente:
+          // FleetEntry no existe (404), driver no autorizado (403),
+          // payload inválido (422). Reintentarlos siempre dejaba el banner
+          // "Subiendo ruta…" atascado para siempre. Lo descartamos y
+          // seguimos con el siguiente para que la cola pueda vaciarse.
+          // 408/429 = timeout/rate-limit → transitorio.
+          // 5xx/network/timeout = transitorio → backoff retry.
+          final isPermanent = status != null &&
+              status >= 400 &&
+              status < 500 &&
+              status != 408 &&
+              status != 429;
+          if (isPermanent) {
+            debugPrint('[LocationTracking] ping rechazado permanente '
+                '(status=$status, key=$key, entryId=${item['entryId']}): '
+                '${e.response?.data}');
+            await box.delete(key);
+            continue;
+          }
+          _consecutiveFailures++;
+          debugPrint('[LocationTracking] sendLocation transitorio '
+              '(status=$status, failures=$_consecutiveFailures, '
+              'queue=${box.length}): $e');
+          _scheduleRetry();
+          break;
         } catch (e) {
-          // Si falla un punto, paramos el drain — programa retry con backoff
-          // y se reintentará al recuperar la red o vencer el timer.
           _consecutiveFailures++;
           debugPrint('[LocationTracking] sendLocation falló '
               '(failures=$_consecutiveFailures, queue=${box.length}): $e');
