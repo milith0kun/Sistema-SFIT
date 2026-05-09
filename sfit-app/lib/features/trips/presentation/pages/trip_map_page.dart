@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/services/location_tracking_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/connectivity_banner.dart';
 import '../../data/datasources/trips_api_service.dart';
 
 /// Calculadora de distancia haversine de `latlong2`. La usamos para estimar
@@ -85,7 +86,17 @@ class _TripMapPageState extends ConsumerState<TripMapPage>
     final tracking = ref.watch(locationTrackingProvider);
 
     return SafeArea(
-      child: tracking.isTracking ? _buildActiveMap(tracking) : _buildNoTrip(),
+      child: Column(
+        children: [
+          // Banner offline global: si pierde red, indica que el mapa puede
+          // estar desactualizado y los pings se están encolando localmente.
+          const ConnectivityBanner(),
+          Expanded(
+            child:
+                tracking.isTracking ? _buildActiveMap(tracking) : _buildNoTrip(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -146,15 +157,33 @@ class _TripMapPageState extends ConsumerState<TripMapPage>
                   ),
                 ],
               ),
-            // Track GPS real del conductor
+            // Trazo histórico GPS (todo el turno desde el inicio). Color
+            // tenue para mantener legibilidad sin opacar la ruta planificada.
+            // NO se trunca: la línea inicio→fin permanece visible siempre.
             if (tracking.localTrack.length >= 2)
               PolylineLayer(
                 polylines: [
                   Polyline(
                     points: tracking.localTrack,
+                    color: (tracking.isOffRoute
+                            ? AppColors.noApto
+                            : AppColors.gold)
+                        .withValues(alpha: 0.45),
+                    strokeWidth: 3.0,
+                  ),
+                ],
+              ),
+            // Tramo reciente (últimos N puntos): mismo color pero más
+            // grueso y con alpha pleno, encima del histórico, para que
+            // el conductor distinga el progreso vivo.
+            if (tracking.recentTrack.length >= 2)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: tracking.recentTrack,
                     color:
                         tracking.isOffRoute ? AppColors.noApto : AppColors.gold,
-                    strokeWidth: 4.5,
+                    strokeWidth: 5.0,
                   ),
                 ],
               ),
@@ -258,6 +287,15 @@ class _TripMapPageState extends ConsumerState<TripMapPage>
               discarded: tracking.discardedLowAccuracy,
             ),
           ),
+
+        // Panel de diagnóstico GPS — visible siempre que haya turno activo.
+        // Le confirma al conductor que el tracking está vivo y ofrece un
+        // botón para forzar la subida si ve que la cola no baja.
+        Positioned(
+          top: 60 + (tracking.isOffRoute ? 60 : 0) + 80,
+          left: 12,
+          child: _GpsDiagnosticChip(tracking: tracking),
+        ),
 
         Positioned(
           bottom: 16,
@@ -638,8 +676,53 @@ class _Header extends StatelessWidget {
                 tabular: true,
               ),
             ),
+            // Pendientes en cola: visible solo cuando hay puntos sin sincronizar
+            // (típicamente offline o backend con lag).
+            if (tracking.queuedPoints > 0) ...[
+              const SizedBox(width: 8),
+              _QueueBadge(count: tracking.queuedPoints),
+            ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Badge compacto que muestra la cantidad de pings GPS pendientes de subir.
+/// Aparece solo cuando `queuedPoints > 0` (offline o backend lento).
+class _QueueBadge extends StatelessWidget {
+  final int count;
+  const _QueueBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.riesgoBg,
+        border: Border.all(color: AppColors.riesgoBorder),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.cloud_upload_outlined,
+            size: 11,
+            color: AppColors.riesgo,
+          ),
+          const SizedBox(width: 3),
+          Text(
+            '$count',
+            style: AppTheme.inter(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: AppColors.riesgo,
+              tabular: true,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -954,4 +1037,86 @@ class _PingSample {
   final int ms;
 
   const _PingSample({required this.at, required this.meters, required this.ms});
+}
+
+/// Pildora compacta arriba a la izquierda del mapa con el estado del GPS.
+/// Sirve de feedback al conductor de que el tracking está vivo: muestra
+/// puntos capturados y pendientes de subir. Tap → fuerza el drain.
+class _GpsDiagnosticChip extends ConsumerWidget {
+  final TrackingState tracking;
+  const _GpsDiagnosticChip({required this.tracking});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final captured = tracking.localTrack.length;
+    final queued = tracking.queuedPoints;
+    final hasIssue = queued > 5;
+    final accent = hasIssue ? AppColors.riesgo : AppColors.apto;
+    return Material(
+      color: Colors.white,
+      elevation: 4,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: () async {
+          await ref.read(locationTrackingProvider.notifier).flushQueue();
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Forzando subida de ruta...'),
+                duration: Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: accent,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'GPS · $captured pts',
+                style: AppTheme.inter(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink9,
+                  tabular: true,
+                ),
+              ),
+              if (queued > 0) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: hasIssue ? AppColors.riesgoBg : AppColors.goldBg,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '↑ $queued',
+                    style: AppTheme.inter(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      color: hasIssue ? AppColors.riesgo : AppColors.goldDark,
+                      tabular: true,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

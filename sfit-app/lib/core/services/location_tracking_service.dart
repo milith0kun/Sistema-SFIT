@@ -472,6 +472,17 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
     }
   }
 
+  /// Fuerza un drain inmediato de la cola — útil cuando el usuario ve que
+  /// los pings no se suben (por reintento programado lejano) y quiere
+  /// disparar el envío ya. Resetea el contador de fallos consecutivos para
+  /// que el primer intento no salga con backoff.
+  Future<void> flushQueue() async {
+    _drainRetryTimer?.cancel();
+    _drainRetryTimer = null;
+    _consecutiveFailures = 0;
+    await _drainQueue();
+  }
+
   void _startStreams(String entryId) {
     // Stream de posición con foreground service Android. El servicio mantiene
     // el GPS activo aunque se apague la pantalla o la app esté en background.
