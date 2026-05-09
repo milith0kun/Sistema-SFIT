@@ -180,6 +180,14 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
   /// `{ 'waypoints': [{order,lat,lng,label}, ...], 'cachedAt': epochMs }`.
   static const String _routeCacheBoxName = 'route_polyline_v1';
 
+  /// Box Hive con el histórico completo de puntos GPS por `entryId`.
+  /// Sobrevive al cierre del turno y a reinicios de la app. Es el respaldo
+  /// definitivo del trazo: si el endpoint ping-by-ping falla durante el
+  /// turno, el cliente puede subir el track completo en un bulk al cerrar
+  /// y `trip_summary_page` puede dibujar el track local mientras el bulk
+  /// procesa. Estructura: `{ entryId: [{lat,lng,ts,accuracy?,speed?}, ...] }`.
+  static const String _trackBoxName = 'location_track_v2';
+
   /// Capacidad máxima de la cola en disco. Al rebasarla descartamos los más
   /// viejos pero seguimos aceptando nuevos puntos (mejor perder histórico
   /// que romper la captura).
@@ -203,6 +211,7 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
   Box<Map<dynamic, dynamic>>? _queue;
   Box? _meta;
   Box? _routeCache;
+  Box? _trackBox;
   bool _draining = false;
 
   /// Cantidad de fallos consecutivos en el drain. Resetea a 0 al primer
@@ -483,6 +492,68 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
     await _drainQueue();
   }
 
+  /// Agrega un punto al histórico persistido del entryId. Usado por `_enqueue`
+  /// para mantener el respaldo local del trazo, independiente del envío.
+  Future<void> _appendToTrack(String entryId, Position pos, int tsMs) async {
+    final box = _trackBox;
+    if (box == null) return;
+    final raw = box.get(entryId);
+    final list = (raw is List) ? raw.toList() : <dynamic>[];
+    list.add(<String, dynamic>{
+      'lat': pos.latitude,
+      'lng': pos.longitude,
+      'ts': DateTime.fromMillisecondsSinceEpoch(tsMs).toUtc().toIso8601String(),
+      if (pos.accuracy > 0) 'accuracy': pos.accuracy,
+      if (pos.speed >= 0) 'speed': pos.speed,
+    });
+    await box.put(entryId, list);
+  }
+
+  /// Devuelve el track persistido localmente para un entryId. Útil para
+  /// `trip_summary_page` cuando el backend devuelve trackPoints vacío
+  /// (los pings nunca llegaron y la app puede mostrar al menos lo que sí
+  /// capturó). Lista vacía si el box no existe o no hay registros.
+  Future<List<LatLng>> getPersistedTrack(String entryId) async {
+    await _ensureBoxesOpen();
+    final raw = _trackBox?.get(entryId);
+    if (raw is! List) return const [];
+    return raw.whereType<Map>().map((m) {
+      final lat = (m['lat'] as num?)?.toDouble();
+      final lng = (m['lng'] as num?)?.toDouble();
+      if (lat == null || lng == null) return null;
+      return LatLng(lat, lng);
+    }).whereType<LatLng>().toList();
+  }
+
+  /// Sube el track local del entryId al endpoint bulk del backend
+  /// (`POST /flota/:id/track-bulk`). Idempotente server-side. Devuelve el
+  /// número de puntos insertados (0 si todo era duplicado o no había track).
+  /// Usado por `trip_summary_page` para reparar trazos que no llegaron por
+  /// los pings ping-by-ping.
+  Future<int> bulkUploadTrack(String entryId) async {
+    await _ensureBoxesOpen();
+    final raw = _trackBox?.get(entryId);
+    if (raw is! List || raw.isEmpty) return 0;
+    final points = raw
+        .whereType<Map>()
+        .map((m) => Map<String, dynamic>.from(m))
+        .toList();
+    try {
+      final result = await _svc.bulkUploadTrack(
+        entryId: entryId,
+        points: points,
+      );
+      final inserted = (result['inserted'] as num?)?.toInt() ?? 0;
+      debugPrint('[LocationTracking] bulk upload entryId=$entryId: '
+          'received=${result['received']}, inserted=$inserted, '
+          'duplicates=${result['duplicates']}');
+      return inserted;
+    } catch (e) {
+      debugPrint('[LocationTracking] bulk upload falló para $entryId: $e');
+      rethrow;
+    }
+  }
+
   void _startStreams(String entryId) {
     // Stream de posición con foreground service Android. El servicio mantiene
     // el GPS activo aunque se apague la pantalla o la app esté en background.
@@ -591,6 +662,9 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
     if (_routeCache == null || !_routeCache!.isOpen) {
       _routeCache = await Hive.openBox(_routeCacheBoxName);
     }
+    if (_trackBox == null || !_trackBox!.isOpen) {
+      _trackBox = await Hive.openBox(_trackBoxName);
+    }
   }
 
   int _readDroppedCount() {
@@ -623,6 +697,7 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
       await _bumpDroppedCount(1);
     }
 
+    final ts = DateTime.now().millisecondsSinceEpoch;
     await box.add(<String, dynamic>{
       'entryId': entryId,
       'lat': pos.latitude,
@@ -630,8 +705,14 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
       'accuracy': pos.accuracy,
       'speed': pos.speed >= 0 ? pos.speed : null,
       'action': action,
-      'ts': DateTime.now().millisecondsSinceEpoch,
+      'ts': ts,
     });
+
+    // Persistencia paralela del histórico autoritativo local. Este box NO se
+    // borra al enviar al backend — es el respaldo del trazo del turno por si
+    // los pings se pierden en transmisión. `trip_summary_page` lee desde
+    // aquí cuando el backend devuelve trackPoints vacío.
+    await _appendToTrack(entryId, pos, ts);
 
     state = state.copyWith(
       queuedPoints: box.length,

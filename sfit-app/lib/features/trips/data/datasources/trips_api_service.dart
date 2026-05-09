@@ -214,6 +214,34 @@ class TripsApiService {
     });
   }
 
+  /// POST /flota/:entryId/track-bulk — sube en lote el track persistido
+  /// localmente. Backend dedupa por (entryId, ts) e idempotentemente inserta
+  /// solo los puntos nuevos. Si el FleetEntry está cerrado, recalcula
+  /// distanceMeters con el set completo. Devuelve `{received, inserted, duplicates, recalculated, distanceMeters}`.
+  Future<Map<String, dynamic>> bulkUploadTrack({
+    required String entryId,
+    required List<Map<String, dynamic>> points,
+  }) async {
+    final resp = await _dio.post(
+      '/flota/$entryId/track-bulk',
+      data: {'points': points},
+    );
+    final body = resp.data as Map?;
+    final status = resp.statusCode ?? 0;
+    if (status >= 400 || body == null || body['success'] == false) {
+      final err = body?['error'] as String? ?? 'HTTP $status';
+      throw LocationSendException(err, statusCode: status);
+    }
+    final data = body['data'];
+    if (data is! Map) {
+      throw LocationSendException(
+        'Respuesta inesperada del servidor',
+        statusCode: status,
+      );
+    }
+    return Map<String, dynamic>.from(data);
+  }
+
   /// PATCH /flota/:entryId/location — envía update de GPS al backend.
   /// Retorna el body `data` parseado (incluye `visitedStops` y `newlyVisited`).
   ///

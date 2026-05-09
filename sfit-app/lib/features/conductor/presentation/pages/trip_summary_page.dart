@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,6 +39,11 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
   Map<String, dynamic>? _entry;
   bool _loading = true;
   String? _error;
+  /// Track persistido localmente (Hive) — fallback cuando el backend devuelve
+  /// trackPoints vacío. Es el respaldo definitivo del trazo.
+  List<LatLng> _persistedTrack = const [];
+  /// Indica si el bulk upload se disparó automáticamente (para evitar loops).
+  bool _bulkUploadAttempted = false;
 
   @override
   void initState() {
@@ -47,10 +54,58 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final data = await ref.read(tripsApiServiceProvider).getFleetEntryDetail(widget.entryId);
-      if (mounted) setState(() { _entry = data; _loading = false; });
+      // Cargamos en paralelo: detalle del backend + track persistido local.
+      // Sin el track local, si el backend está vacío (pings perdidos) el
+      // mapa quedaba en blanco aunque la app SÍ había capturado los pings
+      // durante el turno.
+      final tracking = ref.read(locationTrackingProvider.notifier);
+      final results = await Future.wait([
+        ref.read(tripsApiServiceProvider).getFleetEntryDetail(widget.entryId),
+        tracking.getPersistedTrack(widget.entryId),
+      ]);
+      final data = results[0] as Map<String, dynamic>;
+      final localTrack = results[1] as List<LatLng>;
+      if (!mounted) return;
+      setState(() {
+        _entry = data;
+        _persistedTrack = localTrack;
+        _loading = false;
+      });
+      // Si el backend devolvió trackPoints vacío PERO tenemos track local,
+      // el ping-by-ping falló durante el turno. Intentamos el bulk upload
+      // una sola vez: el backend dedupa, así que es seguro reintentar.
+      final backendTrack = (data['trackPoints'] as List?) ?? const [];
+      if (backendTrack.isEmpty &&
+          localTrack.isNotEmpty &&
+          !_bulkUploadAttempted) {
+        _bulkUploadAttempted = true;
+        unawaited(_repairTrack());
+      }
     } catch (e) {
       if (mounted) setState(() { _error = 'No se pudo cargar el resumen: $e'; _loading = false; });
+    }
+  }
+
+  /// Sube el track local en bulk al backend y recarga el resumen para que
+  /// las métricas (distanceMeters, endLocation, compliance) se actualicen.
+  Future<void> _repairTrack() async {
+    try {
+      final inserted = await ref
+          .read(locationTrackingProvider.notifier)
+          .bulkUploadTrack(widget.entryId);
+      if (!mounted) return;
+      if (inserted > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ruta sincronizada ($inserted puntos)'),
+            backgroundColor: AppColors.apto,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        await _load();
+      }
+    } catch (_) {
+      // El track local sigue mostrándose como fallback aunque falle el bulk.
     }
   }
 
@@ -152,13 +207,22 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
         .map((p) => LatLng((p['lat'] as num).toDouble(), (p['lng'] as num).toDouble()))
         .toList();
 
-    // Fallback al track precargado (vía go_router extra desde Mis rutas)
-    // si el backend no devolvió trackPoints. Esto cubre el caso donde el
-    // deploy del backend con el fix de trackPoints aún no propaga, pero
-    // el cliente ya tiene la data desde mis-recorridos.
+    // Cascada de fallbacks para el track del mapa:
+    //   1) Backend (LocationPing): la fuente de verdad cuando los pings se
+    //      enviaron exitosamente durante el turno.
+    //   2) Track persistido local (Hive `_trackBox`): respaldo del cliente
+    //      cuando el ping-by-ping falló (red/auth/etc.). Se carga en `_load`
+    //      junto al detalle. Si está, también disparamos un bulk upload para
+    //      que el backend se ponga al día — mientras tanto el conductor ve
+    //      su ruta dibujada.
+    //   3) preloadedTrack (vía go_router `extra` desde "Mis rutas"): cubre
+    //      el caso donde la página se abre desde el listado y el caller ya
+    //      tenía los puntos en memoria.
     final tpLatLng = fromBackend.isNotEmpty
         ? fromBackend
-        : (widget.preloadedTrack ?? const <LatLng>[]);
+        : _persistedTrack.isNotEmpty
+            ? _persistedTrack
+            : (widget.preloadedTrack ?? const <LatLng>[]);
 
     // Validación de varianza espacial — sin esto el mapa explotaría con
     // "Infinity or NaN toInt" cuando todos los GPS están colapsados en
