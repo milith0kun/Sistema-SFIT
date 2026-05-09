@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:hive/hive.dart';
@@ -420,12 +421,24 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
         await _enqueue(entryId, endPos, 'end');
       }
     }
-    // Drain final con timeout — si la red está caída, se quedan en el box
-    // y se mandarán al volver (o al próximo arranque de la app, vía
-    // _bootDrain).
+    // Drain final con timeout dinámico calculado por la cola pendiente.
+    // 5s fijo era insuficiente: con _drainPace=1.1s y 40 pings acumulados,
+    // necesitas ~44s. El timeout cortaba el drain y los pings restantes
+    // quedaban en el box; la pantalla de checkout llamaba closeFleetEntry
+    // antes de drenar y el backend leía LocationPing incompleto.
+    // Clamp [15s, 120s] para no esperar eternamente si la red está caída.
+    final pending = _queue?.length ?? 0;
+    final estimatedMs = pending * (_drainPace.inMilliseconds + 200) + 5000;
+    final drainTimeout = Duration(
+      milliseconds: estimatedMs.clamp(15000, 120000),
+    );
     try {
-      await _drainQueue().timeout(const Duration(seconds: 5));
-    } catch (_) {/* best-effort */}
+      await _drainQueue().timeout(drainTimeout);
+    } catch (e, st) {
+      debugPrint('[LocationTracking] drain final falló (pending=$pending, '
+          'timeout=${drainTimeout.inSeconds}s): $e');
+      debugPrintStack(stackTrace: st);
+    }
 
     await _stopStreamsKeepState();
     state = TrackingState(
@@ -646,10 +659,12 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
           _lastSendAt = DateTime.now();
           // Pace para no toparse con rate limit (60/min) del backend.
           await Future<void>.delayed(_drainPace);
-        } catch (_) {
+        } catch (e) {
           // Si falla un punto, paramos el drain — programa retry con backoff
           // y se reintentará al recuperar la red o vencer el timer.
           _consecutiveFailures++;
+          debugPrint('[LocationTracking] sendLocation falló '
+              '(failures=$_consecutiveFailures, queue=${box.length}): $e');
           _scheduleRetry();
           break;
         }

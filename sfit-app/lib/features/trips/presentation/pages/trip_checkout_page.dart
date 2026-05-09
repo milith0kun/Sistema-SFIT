@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -66,35 +67,30 @@ class _TripCheckoutPageState extends ConsumerState<TripCheckoutPage> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
     try {
+      // ORDEN CRÍTICO: drenar tracking ANTES del cierre para que los pings
+      // pendientes (cola Hive) y el ping `action:'end'` aterricen en
+      // LocationPing. El backend lee esa colección al cerrar para calcular
+      // distanceMeters/endLocation/compliance — sin estos pings, las
+      // métricas quedan en 0 y el resumen muestra "GPS no registrado".
+      await ref.read(locationTrackingProvider.notifier).stopTracking();
+
       final svc = ref.read(tripsApiServiceProvider);
       await svc.closeFleetEntry(
         widget.entryId,
         returnTime: DateTime.now(),
         observations: _obsCtrl.text.trim().isEmpty ? null : _obsCtrl.text.trim(),
       );
-      // Detener tracking GPS (drena la cola offline antes de cortar el stream)
-      await ref.read(locationTrackingProvider.notifier).stopTracking();
-      // Invalida la caché de turnos del conductor — sin esto, "Mis rutas"
-      // sigue mostrando el turno como en_ruta hasta que el usuario haga
-      // pull-to-refresh manual. `misRecorridosProvider` alimenta la tab
-      // que ahora consume el endpoint agrupado por ruta.
       ref.invalidate(myFleetEntriesProvider);
       ref.invalidate(myRoutesProvider);
       ref.invalidate(misRecorridosProvider);
       if (mounted) {
-        // Reemplazamos la pantalla actual por el resumen full-screen del viaje
-        // (en lugar de volver a /home con snackbar). El conductor ve métricas
-        // recién calculadas: distancia, duración, paraderos, compliance.
         context.pushReplacement('/conductor/trip-summary/${widget.entryId}');
       }
     } catch (e) {
       if (mounted) {
-        final msg = e.toString();
-        final match = RegExp(r'"error"\s*:\s*"([^"]+)"').firstMatch(msg);
-        final errorText = match?.group(1) ?? msg;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $errorText'),
+            content: Text('Error: ${_extractError(e)}'),
             behavior: SnackBarBehavior.floating,
             backgroundColor: AppColors.noApto,
           ),
@@ -103,6 +99,15 @@ class _TripCheckoutPageState extends ConsumerState<TripCheckoutPage> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  String _extractError(Object e) {
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map && data['error'] is String) return data['error'] as String;
+      if (data is Map && data['message'] is String) return data['message'] as String;
+    }
+    return 'No se pudo cerrar el turno';
   }
 
   @override

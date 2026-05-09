@@ -249,6 +249,8 @@ export async function PATCH(
     }
   }
 
+  const entryWasClosed = entry.status === "cerrado" || entry.status === "auto_cierre";
+
   await entry.save();
 
   // Histórico GPS por turno: insertamos en colección LocationPing (sin cap).
@@ -266,6 +268,27 @@ export async function PATCH(
     ...(accuracy !== undefined && { accuracy }),
     ...(speed !== undefined && { speed }),
   });
+
+  // Pings tardíos (outbox/retry tras red caída) que llegan después del
+  // cierre: recalcular distanceMeters y endLocation con el set completo de
+  // pings actualizado. Sin esto, el resumen del viaje queda con métricas
+  // basadas únicamente en los pings que alcanzaron a llegar antes del cierre.
+  if (entryWasClosed) {
+    const pings = await LocationPing.find({ entryId: entry._id })
+      .sort({ ts: 1 })
+      .select("lat lng")
+      .lean<Array<{ lat: number; lng: number }>>();
+    if (pings.length >= 2) {
+      let total = 0;
+      for (let i = 1; i < pings.length; i++) {
+        total += haversineMeters(pings[i - 1], pings[i]);
+      }
+      entry.distanceMeters = Math.round(total);
+      const last = pings[pings.length - 1];
+      entry.endLocation = { lat: last.lat, lng: last.lng };
+      await entry.save();
+    }
+  }
 
   return apiResponse({
     id: String(entry._id),
