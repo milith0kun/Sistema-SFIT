@@ -216,6 +216,12 @@ class TripsApiService {
 
   /// PATCH /flota/:entryId/location — envía update de GPS al backend.
   /// Retorna el body `data` parseado (incluye `visitedStops` y `newlyVisited`).
+  ///
+  /// El `dio_client` global tiene `validateStatus: status < 500`, así que
+  /// los 4xx llegan como respuesta normal en lugar de DioException.
+  /// Detectamos `success:false` y lanzamos `LocationSendException` con el
+  /// status para que el caller (LocationTrackingService) decida si reintentar
+  /// o descartar el ping.
   Future<Map<String, dynamic>> sendLocation({
     required String entryId,
     required double lat,
@@ -231,8 +237,20 @@ class TripsApiService {
       if (speed != null) 'speed': speed,
       if (action != null) 'action': action,
     });
-    final data = (resp.data as Map)['data'];
-    return Map<String, dynamic>.from(data as Map);
+    final body = resp.data as Map?;
+    final status = resp.statusCode ?? 0;
+    if (status >= 400 || body == null || body['success'] == false) {
+      final err = body?['error'] as String? ?? 'HTTP $status';
+      throw LocationSendException(err, statusCode: status);
+    }
+    final data = body['data'];
+    if (data is! Map) {
+      throw LocationSendException(
+        'Respuesta inesperada del servidor',
+        statusCode: status,
+      );
+    }
+    return Map<String, dynamic>.from(data);
   }
 
   /// GET /flota/:entryId/location — obtiene trayecto y paraderos visitados.
@@ -386,4 +404,16 @@ class FatigaStatus {
         estado: json['estado'] as String,
         ultimaActualizacion: json['ultimaActualizacion'] as String,
       );
+}
+
+/// Excepción explícita lanzada por `sendLocation` cuando el backend rechaza
+/// un ping (4xx con `success:false`). Lleva el status para que el drain
+/// loop del LocationTrackingService decida la política de retry.
+class LocationSendException implements Exception {
+  final String message;
+  final int statusCode;
+  const LocationSendException(this.message, {required this.statusCode});
+
+  @override
+  String toString() => 'LocationSendException($statusCode): $message';
 }

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -193,6 +192,13 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
   /// Backoff exponencial al fallar el drain. Empieza en 2s, dobla hasta 60s.
   static const Duration _backoffBase = Duration(seconds: 2);
   static const Duration _backoffMax = Duration(seconds: 60);
+
+  /// Failsafe: si un mismo ping falla este número de veces seguidas, lo
+  /// descartamos. Evita atascos eternos en pings con problemas no
+  /// recuperables (FleetEntry borrado, payload corrupto, etc.) sin
+  /// importar el código HTTP exacto. Mejor perder ese ping que detener
+  /// la cola entera.
+  static const int _maxPingAttempts = 6;
 
   Box<Map<dynamic, dynamic>>? _queue;
   Box? _meta;
@@ -660,37 +666,38 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
           _lastSendAt = DateTime.now();
           // Pace para no toparse con rate limit (60/min) del backend.
           await Future<void>.delayed(_drainPace);
-        } on DioException catch (e) {
-          final status = e.response?.statusCode;
-          // 4xx (excepto 408/429) = ping rechazado de forma permanente:
-          // FleetEntry no existe (404), driver no autorizado (403),
-          // payload inválido (422). Reintentarlos siempre dejaba el banner
-          // "Subiendo ruta…" atascado para siempre. Lo descartamos y
-          // seguimos con el siguiente para que la cola pueda vaciarse.
-          // 408/429 = timeout/rate-limit → transitorio.
-          // 5xx/network/timeout = transitorio → backoff retry.
-          final isPermanent = status != null &&
-              status >= 400 &&
-              status < 500 &&
-              status != 408 &&
-              status != 429;
-          if (isPermanent) {
-            debugPrint('[LocationTracking] ping rechazado permanente '
-                '(status=$status, key=$key, entryId=${item['entryId']}): '
-                '${e.response?.data}');
+        } catch (e) {
+          // Política de reintento por ping:
+          //   - LocationSendException 403/404/422 = permanente (entry borrado,
+          //     driver no autorizado, payload inválido). Descartar al toque.
+          //   - 401 = posible token expirado. El AuthInterceptor refresca.
+          //     Tratamos como transitorio pero contamos attempts (si refresh
+          //     falla N veces, descartamos para no atascar la cola).
+          //   - 5xx/408/429/network/timeout = transitorio.
+          //
+          // Failsafe universal: cualquier ping con attempts >= _maxPingAttempts
+          // se descarta sin importar la causa.  Mejor perder ese ping
+          // que tener la cola atascada para siempre.
+          final attempts = ((item['attempts'] as num?)?.toInt() ?? 0) + 1;
+          int? status;
+          if (e is LocationSendException) status = e.statusCode;
+          final permanentStatus = status == 403 || status == 404 || status == 422;
+
+          if (permanentStatus || attempts >= _maxPingAttempts) {
+            debugPrint('[LocationTracking] descartando ping '
+                '(status=$status, attempts=$attempts, key=$key, '
+                'entryId=${item['entryId']}): $e');
             await box.delete(key);
             continue;
           }
+
+          // Reintenable: actualizamos el contador en el box y agendamos retry.
+          item['attempts'] = attempts;
+          await box.put(key, item);
           _consecutiveFailures++;
           debugPrint('[LocationTracking] sendLocation transitorio '
-              '(status=$status, failures=$_consecutiveFailures, '
-              'queue=${box.length}): $e');
-          _scheduleRetry();
-          break;
-        } catch (e) {
-          _consecutiveFailures++;
-          debugPrint('[LocationTracking] sendLocation falló '
-              '(failures=$_consecutiveFailures, queue=${box.length}): $e');
+              '(status=$status, attempts=$attempts/$_maxPingAttempts, '
+              'failures=$_consecutiveFailures, queue=${box.length}): $e');
           _scheduleRetry();
           break;
         }
