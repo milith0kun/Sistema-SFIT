@@ -5,12 +5,12 @@
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 5055 nodes · 9991 edges · 305 communities (252 shown, 53 thin omitted)
+- 5055 nodes · 9991 edges · 305 communities (251 shown, 54 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 70 edges (avg confidence: 0.83)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `d65de937`
+- Built from commit: `978e81ad`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -323,7 +323,7 @@
   privacy-policy/index.html → sfit-app/AGENTS.md
 - `flutter_secure_storage ^9.2.4` --semantically_similar_to--> `Verificación JWT en cada endpoint`  [INFERRED] [semantically similar]
   sfit-app/pubspec.yaml → sfit-web/AGENTS.md
-- `sfit-app - Flutter 3.29 mobile app` --references--> `FCM listeners foreground/background/terminated + sfit_alerts channel`  [EXTRACTED]
+- `sfit-web - Next.js 16 admin panel + API` --implements--> `Web design system - Inter + Syne + tabular-nums + shadcn`  [EXTRACTED]
   Readme.md → IMPLEMENTATION.md
 
 ## Hyperedges (group relationships)
@@ -337,27 +337,27 @@
 - **QR inspection flow (generate, scan, sign)** — dep_qr_flutter, dep_mobile_scanner, dep_crypto [INFERRED 0.85]
 - **Multi-tenant security pattern** — concept_jwt_endpoint_check, concept_municipality_filtering, concept_compound_indexes, concept_no_sensitive_fields [EXTRACTED 1.00]
 
-## Communities (305 total, 53 thin omitted)
+## Communities (305 total, 54 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.06
-Nodes (71): ActivarSchema, ActivityItem, CreateSchema, apiResponse(), canAccessProvince(), canAccessRegion(), CompanyForRbac, scopedMunicipalityFilter() (+63 more)
+Nodes (84): ActivityItem, GET(), apiError(), apiNotFound(), apiResponse(), apiUnauthorized(), res, getSession() (+76 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.02
-Nodes (80): ALLOWED, Apelacion, ApelacionStatus, INSPECTION_DOT, STATUS_DOT, STATUS_LABEL, hasWebPermission(), pageRolesFor() (+72 more)
+Cohesion: 0.03
+Nodes (68): ALLOWED, Apelacion, ApelacionStatus, INSPECTION_DOT, STATUS_DOT, STATUS_LABEL, hasWebPermission(), pageRolesFor() (+60 more)
 
 ### Community 2 - "Community 2"
 Cohesion: 0.06
-Nodes (84): PATCH(), GET(), GET(), apiError(), apiNotFound(), apiUnauthorized(), res, POST() (+76 more)
+Nodes (65): GET(), apiForbidden(), BodySchema, POST(), getOperatorCompanyId(), CaptureStatus, GET(), VALID_STATUS (+57 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.03
-Nodes (68): listeners, useSetBreadcrumbTitle(), ALL_STATUSES, ApiResponse, CAN_EDIT, Company, Conductor, ConductorDetallePage() (+60 more)
+Cohesion: 0.07
+Nodes (54): GET(), Schema, JwtPayload, canAccessMunicipality(), canAccessProvince(), canAccessRegion(), CompanyForRbac, scopedMunicipalityFilter() (+46 more)
 
 ### Community 4 - "Community 4"
-Cohesion: 0.08
-Nodes (74): GET(), GET(), POST(), POST(), apiForbidden(), requireRole(), getOperatorCompanyId(), canAccessMunicipality() (+66 more)
+Cohesion: 0.07
+Nodes (56): POST(), POST(), CreateSchema, GET(), POST(), POST(), Schema, apiValidationError() (+48 more)
 
 ### Community 5 - "Community 5"
 Cohesion: 0.03
@@ -365,71 +365,71 @@ Nodes (78): ActaInspeccionPage, _AuthRefreshNotifier, CreateSanctionPage, Docume
 
 ### Community 6 - "Community 6"
 Cohesion: 0.04
-Nodes (47): hasPermission(), LocationValue, ALLOWED, Empresa, fieldStyle, FormState, Props, VEHICLE_STATUSES (+39 more)
+Nodes (54): listeners, useSetBreadcrumbTitle(), assignableRoles(), CAN_EDIT, Company, CompanyOption, ConductorDetallePage(), CURRENT_YEAR (+46 more)
 
 ### Community 7 - "Community 7"
+Cohesion: 0.06
+Nodes (49): ActivarSchema, PATCH(), AssignSchema, PATCH(), AssignSchema, extractIpAddress(), logAudit(), LogAuditParams (+41 more)
+
+### Community 8 - "Community 8"
 Cohesion: 0.03
 Nodes (67): ../../../auth/presentation/pages/role_preview_page.dart, ../../../auth/presentation/pages/widgets/status_screen.dart, ../../../../core/offline/outbox_banner.dart, ../../../../core/widgets/sfit_sidebar.dart, _AccountMenu, _AnimatedHeaderTitle, _Avatar, _BlankLoading (+59 more)
 
-### Community 8 - "Community 8"
-Cohesion: 0.06
-Nodes (48): Schema, AssignSchema, AssignSchema, POST(), AssignSchema, POST(), extractIpAddress(), logAudit() (+40 more)
-
 ### Community 9 - "Community 9"
 Cohesion: 0.04
-Nodes (37): ALLOWED, ALLOWED_CREATE, AuthorityLevel, AuthorizationEntry, ChecklistRow, Company, CompanyItem, Department (+29 more)
+Nodes (48): LocationValue, ALLOWED, Empresa, fieldStyle, FormState, Props, VEHICLE_STATUSES, VehicleDetail (+40 more)
 
 ### Community 10 - "Community 10"
+Cohesion: 0.04
+Nodes (38): GroupedSection(), GroupedSectionProps, GRID_AUTO, INPUT_STYLE, metadata, SECTION, SECTION_HEADING, SECTION_SUB (+30 more)
+
+### Community 11 - "Community 11"
 Cohesion: 0.03
 Nodes (57): _AISuggestionChip, AlertDialog, build, _CategoryChip, _CategoryChips, _CategorySheet, ClipRRect, ColoredBox (+49 more)
 
-### Community 11 - "Community 11"
+### Community 12 - "Community 12"
+Cohesion: 0.05
+Nodes (45): ../../../../core/network/dio_client.dart, ../../../../core/offline/outbox.dart, ../../../../core/offline/outbox_registry.dart, ApiPeruService, DniResult, RucResult, AdminApiService, CompaniesApiService (+37 more)
+
+### Community 13 - "Community 13"
 Cohesion: 0.04
 Nodes (36): CompanyInfo, OperatorDashboard(), OperatorUser, Props, SERVICE_SCOPE_LABEL, STATUS_COLOR, STATUS_LABEL, TripBrief (+28 more)
 
-### Community 12 - "Community 12"
-Cohesion: 0.06
-Nodes (40): ../../../../core/constants/api_constants.dart, ../../../../core/network/dio_client.dart, ../../../../core/offline/outbox.dart, ../../../../core/offline/outbox_registry.dart, ApiPeruService, DniResult, RucResult, AdminApiService (+32 more)
-
-### Community 13 - "Community 13"
-Cohesion: 0.07
-Nodes (41): ALLOWED, ALLOWED_VIEW, Apelacion, ApelacionDetailPage(), ApelacionStatus, assignableRoles(), BTN_PRIMARY, CAN_ACT (+33 more)
-
 ### Community 14 - "Community 14"
-Cohesion: 0.05
-Nodes (32): GroupedSection(), GroupedSectionProps, GRID_AUTO, INPUT_STYLE, metadata, SECTION, SECTION_HEADING, SECTION_SUB (+24 more)
+Cohesion: 0.04
+Nodes (33): ALLOWED, CAN_RECALC, Capture, CaptureStatus, Props, RouteSummary, STATUS_META, StoredUser (+25 more)
 
 ### Community 15 - "Community 15"
-Cohesion: 0.1
-Nodes (31): POST(), POST(), Schema, apiValidationError(), Body, POST(), logAction(), resolveDriverFromSession() (+23 more)
+Cohesion: 0.05
+Nodes (37): ALLOWED, Candidate, CandidateCard(), CandidateStatus, fmtAgo(), fmtDuration(), fmtKm(), RutasCandidatasPage() (+29 more)
 
 ### Community 16 - "Community 16"
-Cohesion: 0.04
-Nodes (47): _ActiveEntryCard, AnimatedBuilder, build, Center, Column, _complianceColor, Container, DateFormat (+39 more)
+Cohesion: 0.05
+Nodes (27): ALLOWED, ALLOWED_CREATE, AuthorityLevel, AuthorizationEntry, Company, CompanyItem, Department, DriverItem (+19 more)
 
 ### Community 17 - "Community 17"
 Cohesion: 0.04
-Nodes (43): _emit, _enqueue, init, _makeIdempotencyKey, Outbox, _scheduleRetry, sender, _appendToTrack (+35 more)
+Nodes (47): _ActiveEntryCard, AnimatedBuilder, build, Center, Column, _complianceColor, Container, DateFormat (+39 more)
 
 ### Community 18 - "Community 18"
 Cohesion: 0.04
-Nodes (46): ../../../../core/utils/geo.dart, ActionChip, AnimatedBuilder, build, _BusSkeletonRow, _CandidateRouteCard, Center, Container (+38 more)
+Nodes (43): _emit, _enqueue, init, _makeIdempotencyKey, Outbox, _scheduleRetry, sender, _appendToTrack (+35 more)
 
 ### Community 19 - "Community 19"
 Cohesion: 0.04
-Nodes (45): AnimatedContainer, _AnimatedReportItem, _AnimatedReportItemState, _ApelarReporteSheet, _ApelarReporteSheetState, AspectRatio, build, _buildBody (+37 more)
+Nodes (46): ../../../../core/utils/geo.dart, ActionChip, AnimatedBuilder, build, _BusSkeletonRow, _CandidateRouteCard, Center, Container (+38 more)
 
 ### Community 20 - "Community 20"
-Cohesion: 0.06
-Nodes (38): scopedCompanyFilter(), AuthorizationSchema, CoverageSchema, CreateCompanySchema, CreateNationalCompanySchema, DocumentSchema, RepresentanteLegalSchema, formatDateLong() (+30 more)
+Cohesion: 0.04
+Nodes (45): AnimatedContainer, _AnimatedReportItem, _AnimatedReportItemState, _ApelarReporteSheet, _ApelarReporteSheetState, AspectRatio, build, _buildBody (+37 more)
 
 ### Community 21 - "Community 21"
-Cohesion: 0.05
-Nodes (27): ALLOWED, CAN_RECALC, Capture, CaptureStatus, Props, RouteSummary, STATUS_META, StoredUser (+19 more)
+Cohesion: 0.08
+Nodes (36): ALLOWED, ALLOWED_VIEW, Apelacion, ApelacionDetailPage(), ApelacionStatus, BTN_PRIMARY, CAN_ACT, CAN_RESOLVE (+28 more)
 
 ### Community 22 - "Community 22"
-Cohesion: 0.05
-Nodes (31): ApiResponse, GlobalStats, INSP_COLORS, INSP_LABELS, InspeccionResultado, LowRepVehicle, Municipality, MunicipalKpis (+23 more)
+Cohesion: 0.06
+Nodes (38): scopedCompanyFilter(), AuthorizationSchema, CoverageSchema, CreateCompanySchema, CreateNationalCompanySchema, DocumentSchema, GET(), POST() (+30 more)
 
 ### Community 23 - "Community 23"
 Cohesion: 0.05
@@ -456,176 +456,176 @@ Cohesion: 0.1
 Nodes (30): cn(), AlertDialogAction(), AlertDialogCancel(), AlertDialogContent(), AlertDialogDescription(), AlertDialogFooter(), AlertDialogHeader(), AlertDialogMedia() (+22 more)
 
 ### Community 29 - "Community 29"
-Cohesion: 0.07
-Nodes (27): ALLOWED, Candidate, CandidateCard(), CandidateStatus, fmtAgo(), fmtDuration(), fmtKm(), RutasCandidatasPage() (+19 more)
+Cohesion: 0.06
+Nodes (28): showAppSnackBar, AppColors, build, SfitFullLogo, SfitMark, AnimatedContainer, build, _setPressed (+20 more)
 
 ### Community 30 - "Community 30"
-Cohesion: 0.09
-Nodes (28): ApiPeruError, ApiPeruErrorKind, buildError(), consultarDni(), consultarRuc(), DniData, getHeaders(), RucData (+20 more)
+Cohesion: 0.06
+Nodes (24): ApiResponse, GlobalStats, INSP_COLORS, INSP_LABELS, InspeccionResultado, LowRepVehicle, Municipality, MunicipalKpis (+16 more)
 
 ### Community 31 - "Community 31"
-Cohesion: 0.06
-Nodes (30): ../../../core/theme/app_colors.dart, build, _Chip, DepartmentFilterChip, DepartmentOption, InkWell, SingleChildScrollView, SizedBox (+22 more)
+Cohesion: 0.09
+Nodes (28): ApiPeruError, ApiPeruErrorKind, buildError(), consultarDni(), consultarRuc(), DniData, getHeaders(), RucData (+20 more)
 
 ### Community 32 - "Community 32"
 Cohesion: 0.06
 Nodes (34): ../../../../core/widgets/connectivity_banner.dart, _AccuracyBadge, build, _buildActiveMap, _buildNoTrip, Center, ConnectivityBanner, Container (+26 more)
 
 ### Community 33 - "Community 33"
-Cohesion: 0.06
-Nodes (32): _AvailableCard, AvailableTripsPage, _AvailableTripsPageState, build, Center, _claim, Container, _EmptyState (+24 more)
+Cohesion: 0.07
+Nodes (27): hasPermission(), ALL_STATUSES, Conductor, DELETE_ROLES, EDIT_ROLES, EditForm, FleetEntry, FleetStatus (+19 more)
 
 ### Community 34 - "Community 34"
 Cohesion: 0.06
-Nodes (26): showAppSnackBar, AppColors, build, SfitFullLogo, SfitMark, build, PopScope, SizedBox (+18 more)
+Nodes (32): _AvailableCard, AvailableTripsPage, _AvailableTripsPageState, build, Center, _claim, Container, _EmptyState (+24 more)
 
 ### Community 35 - "Community 35"
 Cohesion: 0.06
-Nodes (33): AnimatedBuilder, build, _buildSummaryFromList, Center, _chipColor, Container, _DailySummary, _DailySummaryStrip (+25 more)
+Nodes (29): ../../core/theme/app_theme.dart, build, Container, SfitAlert, SfitAlertCard, SizedBox, _ToneDef, build (+21 more)
 
 ### Community 36 - "Community 36"
 Cohesion: 0.06
-Nodes (32): build, _buildBody, Center, _centerOnStop, Container, _ErrorState, _fitBounds, Icon (+24 more)
+Nodes (33): AnimatedBuilder, build, _buildSummaryFromList, Center, _chipColor, Container, _DailySummary, _DailySummaryStrip (+25 more)
 
 ### Community 37 - "Community 37"
-Cohesion: 0.06
-Nodes (32): ../../../auth/domain/entities/user_entity.dart, _ActionRow, build, _cancelEdit, _CitizenCoinsSection, Column, Container, dispose (+24 more)
+Cohesion: 0.09
+Nodes (30): ComboOption, LocationFullValue, LocationLevel, LocationPicker(), LocationPickerProps, authHeaders(), fetchJson(), getToken() (+22 more)
 
 ### Community 38 - "Community 38"
-Cohesion: 0.06
-Nodes (32): build, Center, Container, _DetailRow, dispose, _EmptyState, _ErrorState, Expanded (+24 more)
+Cohesion: 0.08
+Nodes (24): POST(), awardCoins(), getBalance(), AuditLogSchema, IAuditLog, CitizenReportSchema, FraudLayerSchema, ICitizenReport (+16 more)
 
 ### Community 39 - "Community 39"
 Cohesion: 0.06
-Nodes (32): build, Center, _ChecklistItem, Column, Container, dispose, _ErrorRetry, Expanded (+24 more)
+Nodes (32): ../../../auth/domain/entities/user_entity.dart, _ActionRow, build, _cancelEdit, _CitizenCoinsSection, Column, Container, dispose (+24 more)
 
 ### Community 40 - "Community 40"
-Cohesion: 0.08
-Nodes (32): build_runner (codegen for Freezed/JSON), Feature-first clean architecture (data/domain/presentation), Dio + Retrofit + Auth/Refresh interceptors, SFIT App AGENTS.md (Flutter guidelines), Firebase Messaging integration, Flutter 3.29 / Dart 3.7 stack, Freezed + JsonSerializable models, GoRouter 15 with auth guard (+24 more)
+Cohesion: 0.06
+Nodes (32): build, _buildBody, Center, _centerOnStop, Container, _ErrorState, _fitBounds, Icon (+24 more)
 
 ### Community 41 - "Community 41"
-Cohesion: 0.07
-Nodes (28): ../../../../core/widgets/sfit_mark.dart, build, dispose, Expanded, _FieldLabel, _GoogleMark, _GooglePainter, Icon (+20 more)
+Cohesion: 0.06
+Nodes (32): build, Center, Container, _DetailRow, dispose, _EmptyState, _ErrorState, Expanded (+24 more)
 
 ### Community 42 - "Community 42"
 Cohesion: 0.06
-Nodes (26): ../../core/theme/app_theme.dart, build, Container, SfitAlert, SfitAlertCard, SizedBox, _ToneDef, build (+18 more)
+Nodes (32): build, Center, _ChecklistItem, Column, Container, dispose, _ErrorRetry, Expanded (+24 more)
 
 ### Community 43 - "Community 43"
+Cohesion: 0.07
+Nodes (28): ../../../../core/widgets/sfit_mark.dart, build, PendingPage, StatusScreen, build, RejectedPage, StatusScreen, build (+20 more)
+
+### Community 44 - "Community 44"
+Cohesion: 0.08
+Nodes (32): build_runner (codegen for Freezed/JSON), Feature-first clean architecture (data/domain/presentation), Dio + Retrofit + Auth/Refresh interceptors, SFIT App AGENTS.md (Flutter guidelines), Firebase Messaging integration, Flutter 3.29 / Dart 3.7 stack, Freezed + JsonSerializable models, GoRouter 15 with auth guard (+24 more)
+
+### Community 45 - "Community 45"
 Cohesion: 0.06
 Nodes (30): AnimatedBuilder, _AnimatedFeedItem, _AnimatedFeedItemState, build, _CategoryChip, Container, dispose, FadeTransition (+22 more)
 
-### Community 44 - "Community 44"
+### Community 46 - "Community 46"
 Cohesion: 0.07
 Nodes (26): app.dart, ../constants/api_constants.dart, core/services/fcm_background_handler.dart, ApiConstants, _AuthInterceptor, _clearAuth, DioClient, Function (+18 more)
 
-### Community 45 - "Community 45"
-Cohesion: 0.07
-Nodes (29): _AnimatedNotifItem, _AnimatedNotifItemState, build, _buildFilterBar, Center, Container, copyWith, dispose (+21 more)
-
-### Community 46 - "Community 46"
-Cohesion: 0.11
-Nodes (25): ComboOption, LocationFullValue, LocationLevel, LocationPicker(), LocationPickerProps, authHeaders(), fetchJson(), getToken() (+17 more)
-
 ### Community 47 - "Community 47"
 Cohesion: 0.07
-Nodes (26): ../../../../core/widgets/sfit_loading.dart, build, Center, _ErrorView, _formatDate, Icon, _InfoRow, initState (+18 more)
+Nodes (25): ../../../core/theme/app_colors.dart, build, PopScope, SizedBox, StatusScreen, build, _Chip, DepartmentFilterChip (+17 more)
 
 ### Community 48 - "Community 48"
 Cohesion: 0.07
-Nodes (27): ../../../../core/utils/image_url.dart, _AnimatedApoyoBar, _AnimatedApoyoBarState, build, _buildCategoryAndPlate, _buildGallery, _buildHeader, _buildMap (+19 more)
+Nodes (28): ../../../../core/navigation/navigation_key.dart, core/router/app_router.dart, ../../../../core/services/notification_service.dart, core/services/update_service.dart, build, initState, SfitApp, _UpdateWrapper (+20 more)
 
 ### Community 49 - "Community 49"
 Cohesion: 0.07
-Nodes (27): _ActionButton, AspectRatio, build, _buildBody, _buildFooter, _buildHeader, _buildImageCarousel, _CategoryChip (+19 more)
+Nodes (29): _AnimatedNotifItem, _AnimatedNotifItemState, build, _buildFilterBar, Center, Container, copyWith, dispose (+21 more)
 
 ### Community 50 - "Community 50"
 Cohesion: 0.07
-Nodes (27): ../../../../core/constants/app_constants.dart, _BadgeStyle, build, _buildMapFirstView, _BulkRetryBanner, _CaptureStatusBadge, _complianceColor, Container (+19 more)
+Nodes (26): ../../../../core/widgets/sfit_loading.dart, build, Center, _ErrorView, _formatDate, Icon, _InfoRow, initState (+18 more)
 
 ### Community 51 - "Community 51"
 Cohesion: 0.07
-Nodes (27): build, Center, Container, _DataView, Divider, _EmptyView, _ErrorView, _fatigueLabel (+19 more)
+Nodes (27): ../../../../core/utils/image_url.dart, _AnimatedApoyoBar, _AnimatedApoyoBarState, build, _buildCategoryAndPlate, _buildGallery, _buildHeader, _buildMap (+19 more)
 
 ### Community 52 - "Community 52"
 Cohesion: 0.07
-Nodes (27): build, Center, Container, _DataView, Divider, _EmptyView, _ErrorView, _fatigueLabel (+19 more)
+Nodes (27): _ActionButton, AspectRatio, build, _buildBody, _buildFooter, _buildHeader, _buildImageCarousel, _CategoryChip (+19 more)
 
 ### Community 53 - "Community 53"
-Cohesion: 0.08
-Nodes (28): build_runner ^2.4.15, cached_network_image ^3.4.1, connectivity_plus ^6.1.4, crypto ^3.0.6, file_picker ^8.0.0+1, firebase_core ^3.13.0, firebase_messaging ^15.2.4, flutter_local_notifications ^18.0.1 (+20 more)
+Cohesion: 0.07
+Nodes (27): ../../../../core/constants/app_constants.dart, _BadgeStyle, build, _buildMapFirstView, _BulkRetryBanner, _CaptureStatusBadge, _complianceColor, Container (+19 more)
 
 ### Community 54 - "Community 54"
 Cohesion: 0.07
-Nodes (26): build, Center, _DetailRow, dispose, Divider, _EmptyState, _ErrorState, _FilterChip (+18 more)
+Nodes (27): build, Center, Container, _DataView, Divider, _EmptyView, _ErrorView, _fatigueLabel (+19 more)
 
 ### Community 55 - "Community 55"
 Cohesion: 0.07
-Nodes (26): BorderSide, build, Column, Container, CreateSanctionPage, _CreateSanctionPageState, _decoration, dispose (+18 more)
+Nodes (27): build, Center, Container, _DataView, Divider, _EmptyView, _ErrorView, _fatigueLabel (+19 more)
 
 ### Community 56 - "Community 56"
-Cohesion: 0.13
-Nodes (17): emptyPayload(), GET(), startOfTodayUTC(), StatusCount, getResend(), sendEmail(), DRIVER_STATUS, VEHICLE_STATUS (+9 more)
+Cohesion: 0.08
+Nodes (28): build_runner ^2.4.15, cached_network_image ^3.4.1, connectivity_plus ^6.1.4, crypto ^3.0.6, file_picker ^8.0.0+1, firebase_core ^3.13.0, firebase_messaging ^15.2.4, flutter_local_notifications ^18.0.1 (+20 more)
 
 ### Community 57 - "Community 57"
-Cohesion: 0.08
-Nodes (27): apiperu.dev - RENIEC (DNI) + SUNAT (RUC), Factiliza - MTC license + RUC fallback, Google Cloud Vision - planned OCR upgrade, Local MTC catalog - 7160 companies + 29516 vehicles, Socket.io - realtime fleet tracking, tesseract.js - current OCR backend, Upstash Redis - optional persistent rate limiting, Clean Architecture in sfit-app: data -> domain -> presentation (+19 more)
+Cohesion: 0.07
+Nodes (26): build, Center, _DetailRow, dispose, Divider, _EmptyState, _ErrorState, _FilterChip (+18 more)
 
 ### Community 58 - "Community 58"
+Cohesion: 0.07
+Nodes (26): BorderSide, build, Column, Container, CreateSanctionPage, _CreateSanctionPageState, _decoration, dispose (+18 more)
+
+### Community 59 - "Community 59"
 Cohesion: 0.14
 Nodes (23): AuthorizedVehicleSchema, IAuthorizedVehicle, ITransportAuthorization, TransportAuthorizationSchema, asInt(), asNumber(), asString(), CACHE_DIR (+15 more)
 
-### Community 59 - "Community 59"
+### Community 60 - "Community 60"
 Cohesion: 0.08
 Nodes (24): AdminUsuariosPage, _AdminUsuariosPageState, build, Center, Container, dispose, _ErrorRetry, Icon (+16 more)
 
-### Community 60 - "Community 60"
+### Community 61 - "Community 61"
 Cohesion: 0.08
 Nodes (24): _addCustomTag, _addTime, build, Container, _dec, dispose, _extractError, _form (+16 more)
 
-### Community 61 - "Community 61"
+### Community 62 - "Community 62"
+Cohesion: 0.08
+Nodes (22): ../../../../core/constants/api_constants.dart, AuthApiService, build, Center, Container, _Content, EmpresaDetallePage, _EmpresaDetallePageState (+14 more)
+
+### Community 63 - "Community 63"
 Cohesion: 0.12
 Nodes (19): QrPayload, signingInput(), signQrPayload(), after, altSig, before, { createHmac }, p (+11 more)
 
-### Community 62 - "Community 62"
+### Community 64 - "Community 64"
 Cohesion: 0.1
 Nodes (25): Anti-fraud 5 layers: identity, GPS, daily limit, qrVerified, reputation, sfit-web/src/lib/qr/hmac.ts - HMAC sign/verify, Geographic hierarchy: nacional -> region -> provincia -> municipalidad, Apelacion model - sanction appeal, CitizenReport model - fraudScore + anti-fraud layers + GPS, Company model - RUC unique, scope, coverage, Driver model - license, fatigue, reputation, FleetEntry model - daily exits/returns + checklist (+17 more)
 
-### Community 63 - "Community 63"
-Cohesion: 0.14
-Nodes (20): useBreadcrumbTitle(), buildCrumbs(), Crumb, isIdSegment(), NAV, NAV_ITEM_MAP, NavItem, NavSection (+12 more)
-
-### Community 64 - "Community 64"
-Cohesion: 0.09
-Nodes (22): build, Container, _Divider, Drawer, _Footer, Function, _Header, Icon (+14 more)
-
 ### Community 65 - "Community 65"
-Cohesion: 0.09
-Nodes (22): build, Center, Container, _driverStatusColor, _DriverStatusDot, _driverStatusLabel, _EmptyFleet, Expanded (+14 more)
+Cohesion: 0.13
+Nodes (14): detectLearnedStops(), GET(), haversineMeters(), FleetEntrySchema, ICurrentLocation, IFleetEntry, IGpsPoint, IVisitedStop (+6 more)
 
 ### Community 66 - "Community 66"
 Cohesion: 0.09
-Nodes (15): AuthTokenModel, LoginRequest, RegisterRequest, UserModel, AppealModel, CompanyBriefModel, FleetEntryModel, PassengerModel (+7 more)
+Nodes (24): apiperu.dev - RENIEC (DNI) + SUNAT (RUC), Factiliza - MTC license + RUC fallback, Firebase Admin SDK - FCM push, Google Cloud Vision - planned OCR upgrade, Local MTC catalog - 7160 companies + 29516 vehicles, Resend - transactional email, Socket.io - realtime fleet tracking, tesseract.js - current OCR backend (+16 more)
 
 ### Community 67 - "Community 67"
-Cohesion: 0.12
-Nodes (17): awardCoins(), getBalance(), getNivel(), AuditLogSchema, IAuditLog, IRecompensa, RecompensaCategory, RecompensaSchema (+9 more)
+Cohesion: 0.09
+Nodes (22): build, Container, _Divider, Drawer, _Footer, Function, _Header, Icon (+14 more)
 
 ### Community 68 - "Community 68"
 Cohesion: 0.09
-Nodes (21): AdminEmpresasPage, _AdminEmpresasPageState, build, Container, _deco, dispose, Divider, _EmpresaTile (+13 more)
+Nodes (22): build, Center, Container, _driverStatusColor, _DriverStatusDot, _driverStatusLabel, _EmptyFleet, Expanded (+14 more)
 
 ### Community 69 - "Community 69"
+Cohesion: 0.09
+Nodes (15): AuthTokenModel, LoginRequest, RegisterRequest, UserModel, AppealModel, CompanyBriefModel, FleetEntryModel, PassengerModel (+7 more)
+
+### Community 70 - "Community 70"
 Cohesion: 0.1
 Nodes (20): ../../../auth/presentation/providers/auth_provider.dart, build, CitizenDashboardPage, _CitizenDashboardPageState, Function, initState, SafeArea, SizedBox (+12 more)
 
-### Community 70 - "Community 70"
-Cohesion: 0.09
-Nodes (20): ../../../../core/navigation/navigation_key.dart, core/router/app_router.dart, ../../../../core/services/notification_service.dart, core/services/update_service.dart, build, initState, SfitApp, _UpdateWrapper (+12 more)
-
 ### Community 71 - "Community 71"
 Cohesion: 0.09
-Nodes (21): build, Center, Container, Divider, _EmptyState, _ErrorState, Expanded, Icon (+13 more)
+Nodes (21): AdminEmpresasPage, _AdminEmpresasPageState, build, Container, _deco, dispose, Divider, _EmpresaTile (+13 more)
 
 ### Community 72 - "Community 72"
 Cohesion: 0.09
@@ -633,7 +633,7 @@ Nodes (21): build, Center, Container, Divider, _EmptyState, _ErrorState, Expande
 
 ### Community 73 - "Community 73"
 Cohesion: 0.09
-Nodes (21): _AppealCard, _AppealDetailSheet, build, Center, _EmptyAppealsState, _ErrorState, Exception, _extractError (+13 more)
+Nodes (21): build, Center, Container, Divider, _EmptyState, _ErrorState, Expanded, Icon (+13 more)
 
 ### Community 74 - "Community 74"
 Cohesion: 0.09
@@ -641,23 +641,23 @@ Nodes (21): _Analytics, build, Center, Column, _compute, Container, _DriverRow, 
 
 ### Community 75 - "Community 75"
 Cohesion: 0.09
-Nodes (21): build, Center, _EmptyState, _ErrorState, Exception, _formatDate, _formatFullDate, Icon (+13 more)
+Nodes (21): _AppealCard, _AppealDetailSheet, build, Center, _EmptyAppealsState, _ErrorState, Exception, _extractError (+13 more)
 
 ### Community 76 - "Community 76"
-Cohesion: 0.1
-Nodes (20): _ActionButton, build, CircularProgressIndicator, Container, DocumentOcrPage, _DocumentOcrPageState, _FieldMeta, _FieldRow (+12 more)
+Cohesion: 0.09
+Nodes (21): build, Center, _EmptyState, _ErrorState, Exception, _formatDate, _formatFullDate, Icon (+13 more)
 
 ### Community 77 - "Community 77"
 Cohesion: 0.1
-Nodes (20): AdminDashboardPage, _AdminDashboardPageState, build, _buildContent, _buildError, Center, Container, Expanded (+12 more)
+Nodes (20): _ActionButton, build, CircularProgressIndicator, Container, DocumentOcrPage, _DocumentOcrPageState, _FieldMeta, _FieldRow (+12 more)
 
 ### Community 78 - "Community 78"
 Cohesion: 0.1
-Nodes (10): inter, metadata, RootLayout(), Label(), Separator(), Skeleton(), SkeletonBlockProps, SkeletonVariant (+2 more)
+Nodes (20): AdminDashboardPage, _AdminDashboardPageState, build, _buildContent, _buildError, Center, Container, Expanded (+12 more)
 
 ### Community 79 - "Community 79"
-Cohesion: 0.12
-Nodes (16): Command(), CommandDialog(), CommandEmpty(), CommandGroup(), CommandInput(), CommandItem(), CommandList(), CommandSeparator() (+8 more)
+Cohesion: 0.1
+Nodes (10): inter, metadata, RootLayout(), Label(), Separator(), Skeleton(), SkeletonBlockProps, SkeletonVariant (+2 more)
 
 ### Community 80 - "Community 80"
 Cohesion: 0.16
@@ -673,31 +673,31 @@ Nodes (19): build, Container, dispose, _ErrorNote, _FieldLabel, Function, _GeoDr
 
 ### Community 83 - "Community 83"
 Cohesion: 0.1
-Nodes (19): _AccumulatedHoursCard, build, Center, Column, Container, _ErrorState, _FatigaContent, FatiguePage (+11 more)
+Nodes (19): _applyFilter, build, Center, ColoredBox, Container, _CountBadge, _EmptyState, _ErrorState (+11 more)
 
 ### Community 84 - "Community 84"
 Cohesion: 0.1
-Nodes (19): build, Center, dispose, Icon, initState, _onDetect, openAppSettings, paint (+11 more)
+Nodes (19): build, dispose, Expanded, _FieldLabel, _GoogleMark, _GooglePainter, Icon, _Kicker (+11 more)
 
 ### Community 85 - "Community 85"
 Cohesion: 0.1
-Nodes (19): _applyFilter, build, Center, ColoredBox, Container, _CountBadge, _EmptyState, _ErrorState (+11 more)
+Nodes (19): build, Center, dispose, Icon, initState, _onDetect, openAppSettings, paint (+11 more)
 
 ### Community 86 - "Community 86"
 Cohesion: 0.1
-Nodes (19): build, _buildField, _CompanyBanner, Container, dispose, _fieldDecoration, formatEditUpdate, Icon (+11 more)
+Nodes (19): ../../../ai_ocr/presentation/pages/document_ocr_page.dart, build, _buildField, _CompanyBanner, Container, dispose, _fieldDecoration, Icon (+11 more)
 
 ### Community 87 - "Community 87"
 Cohesion: 0.1
-Nodes (19): ../../../ai_ocr/presentation/pages/document_ocr_page.dart, build, _buildField, _CompanyBanner, Container, dispose, _fieldDecoration, Icon (+11 more)
+Nodes (19): build, _buildField, _CompanyBanner, Container, dispose, _fieldDecoration, formatEditUpdate, Icon (+11 more)
 
 ### Community 88 - "Community 88"
 Cohesion: 0.15
 Nodes (14): ConductoresPage(), useIsMobile(), useMobileOverlayBack(), DetailPanel(), humanize(), HUMANIZE_MAP, MONTH_ABBR, NotificacionesPage() (+6 more)
 
 ### Community 89 - "Community 89"
-Cohesion: 0.13
-Nodes (12): detectLearnedStops(), GET(), FleetEntrySchema, ICurrentLocation, IGpsPoint, IVisitedStop, ILocationPing, LocationPingSchema (+4 more)
+Cohesion: 0.18
+Nodes (16): calcPassScore(), GET(), maxGapSeconds(), samplePings(), IRouteCapture, IRouteCapturePoint, RouteCapturePointSchema, RouteCaptureSchema (+8 more)
 
 ### Community 90 - "Community 90"
 Cohesion: 0.11
@@ -712,44 +712,44 @@ Cohesion: 0.11
 Nodes (18): ../../../companies/data/datasources/companies_api_service.dart, build, Center, _CompanyTile, Container, _CurrentCompanyCard, dispose, _EmptyResults (+10 more)
 
 ### Community 93 - "Community 93"
-Cohesion: 0.11
-Nodes (17): ../constants/app_constants.dart, build, Column, Container, _Header, _isOlderThan, launchUrl, Padding (+9 more)
+Cohesion: 0.16
+Nodes (16): buildCrumbs(), Crumb, isIdSegment(), NAV, NAV_ITEM_MAP, NavItem, NavSection, PARENT_DETAIL_LABELS (+8 more)
 
 ### Community 94 - "Community 94"
 Cohesion: 0.11
-Nodes (17): _ActionButton, build, Column, _ConfidenceBar, Container, GestureDetector, Icon, PlateScannerPage (+9 more)
+Nodes (17): ../constants/app_constants.dart, build, Column, Container, _Header, _isOlderThan, launchUrl, Padding (+9 more)
 
 ### Community 95 - "Community 95"
 Cohesion: 0.11
-Nodes (17): _anonimizar, build, Center, Container, dispose, _EmptyState, Function, Icon (+9 more)
+Nodes (17): _ActionButton, build, Column, _ConfidenceBar, Container, GestureDetector, Icon, PlateScannerPage (+9 more)
 
 ### Community 96 - "Community 96"
 Cohesion: 0.11
-Nodes (17): _Body, _BodyState, build, _Divider, _ErrorState, Icon, initState, InspectionDetailPage (+9 more)
+Nodes (17): _anonimizar, build, Center, Container, dispose, _EmptyState, Function, Icon (+9 more)
 
 ### Community 97 - "Community 97"
 Cohesion: 0.11
-Nodes (17): build, _CandidateColumn, _ComparisonTable, Container, _Dot, Expanded, InkWell, _Legend (+9 more)
+Nodes (17): _Body, _BodyState, build, _Divider, _ErrorState, Icon, initState, InspectionDetailPage (+9 more)
 
 ### Community 98 - "Community 98"
 Cohesion: 0.11
-Nodes (16): LocationSmoother, reset, smooth, busMarkerSize, historicalStroke, Marker, myLocationSize, plannedStroke (+8 more)
+Nodes (17): build, _CandidateColumn, _ComparisonTable, Container, _Dot, Expanded, InkWell, _Legend (+9 more)
 
 ### Community 99 - "Community 99"
 Cohesion: 0.11
-Nodes (17): build, _buildEmpty, _buildError, ChoiceChip, Icon, initState, InkWell, ListView (+9 more)
+Nodes (16): LocationSmoother, reset, smooth, busMarkerSize, historicalStroke, Marker, myLocationSize, plannedStroke (+8 more)
 
 ### Community 100 - "Community 100"
 Cohesion: 0.11
-Nodes (17): build, Center, Container, dispose, Icon, _InfoRow, _InfoTab, initState (+9 more)
+Nodes (17): build, _buildEmpty, _buildError, ChoiceChip, Icon, initState, InkWell, ListView (+9 more)
 
 ### Community 101 - "Community 101"
 Cohesion: 0.11
-Nodes (17): _applyFilter, build, Center, ColoredBox, _ConductorCard, ConductoresTabPage, _ConductoresTabPageState, Container (+9 more)
+Nodes (17): build, Center, Container, dispose, Icon, _InfoRow, _InfoTab, initState (+9 more)
 
 ### Community 102 - "Community 102"
 Cohesion: 0.11
-Nodes (17): build, Center, Container, _Content, EmpresaDetallePage, _EmpresaDetallePageState, _ErrorState, Icon (+9 more)
+Nodes (17): _applyFilter, build, Center, ColoredBox, _ConductorCard, ConductoresTabPage, _ConductoresTabPageState, Container (+9 more)
 
 ### Community 103 - "Community 103"
 Cohesion: 0.11
@@ -776,12 +776,12 @@ Cohesion: 0.12
 Nodes (16): ../../../../core/services/location_tracking_service.dart, build, _ComplianceCard, Container, dispose, _extractError, _formatDepartureTime, _formatNow (+8 more)
 
 ### Community 109 - "Community 109"
-Cohesion: 0.12
-Nodes (14): ALLOWED, btnInk, btnOut, btnSm, DriverOpt, FAULT_TYPES, inputStyle, labelStyle (+6 more)
+Cohesion: 0.21
+Nodes (12): MobileOnlyScreen(), useBreadcrumbTitle(), DashboardStyles(), NAV_ROOTS, Topbar(), useMunicipalityName(), useNow(), clearSession() (+4 more)
 
 ### Community 110 - "Community 110"
-Cohesion: 0.18
-Nodes (14): calcPassScore(), GET(), maxGapSeconds(), samplePings(), IRouteCapture, IRouteCapturePoint, RouteCapturePointSchema, RouteCaptureSchema (+6 more)
+Cohesion: 0.14
+Nodes (12): getResend(), sendEmail(), ALLOWED_ROLES, PatchSchema, ROLES_ASSIGNABLE_BY, IRegion, RegionSchema, ISanction (+4 more)
 
 ### Community 111 - "Community 111"
 Cohesion: 0.12
@@ -797,11 +797,11 @@ Nodes (15): BorderSide, build, Center, dispose, Icon, NewAppealPage, _NewAppealP
 
 ### Community 114 - "Community 114"
 Cohesion: 0.12
-Nodes (15): build, Container, dispose, _DropdownCard, FleetDeparturePage, _FleetDeparturePageState, Function, Icon (+7 more)
+Nodes (15): build, _Chip, Column, Container, _DriverCard, DriversListPage, _DriversListPageState, _EmptyView (+7 more)
 
 ### Community 115 - "Community 115"
 Cohesion: 0.12
-Nodes (15): build, _Chip, Column, Container, _DriverCard, DriversListPage, _DriversListPageState, _EmptyView (+7 more)
+Nodes (15): build, Container, dispose, _DropdownCard, FleetDeparturePage, _FleetDeparturePageState, Function, Icon (+7 more)
 
 ### Community 116 - "Community 116"
 Cohesion: 0.12
@@ -812,48 +812,48 @@ Cohesion: 0.12
 Nodes (15): build, Center, _EmptyState, _ErrorState, _formatDate, Icon, initState, InkWell (+7 more)
 
 ### Community 118 - "Community 118"
-Cohesion: 0.12
-Nodes (9): DropdownMenuCheckboxItem(), DropdownMenuContent(), DropdownMenuItem(), DropdownMenuLabel(), DropdownMenuRadioItem(), DropdownMenuSeparator(), DropdownMenuShortcut(), DropdownMenuSubContent() (+1 more)
+Cohesion: 0.17
+Nodes (11): CommandDialog(), CommandGroup(), CommandSeparator(), CommandShortcut(), Dialog(), DialogContent(), DialogDescription(), DialogFooter() (+3 more)
 
 ### Community 119 - "Community 119"
 Cohesion: 0.12
-Nodes (5): Department, District, Province, StateFilter, StoredUser
+Nodes (9): DropdownMenuCheckboxItem(), DropdownMenuContent(), DropdownMenuItem(), DropdownMenuLabel(), DropdownMenuRadioItem(), DropdownMenuSeparator(), DropdownMenuShortcut(), DropdownMenuSubContent() (+1 more)
 
 ### Community 120 - "Community 120"
+Cohesion: 0.12
+Nodes (5): Department, District, Province, StateFilter, StoredUser
+
+### Community 121 - "Community 121"
 Cohesion: 0.14
 Nodes (9): ActionMode, DetailPanel(), formatDateAbs(), MONTH_ABBR, PendingUser, RequestCard(), ROLE_LABELS, ROLE_OPTIONS (+1 more)
 
-### Community 121 - "Community 121"
+### Community 122 - "Community 122"
 Cohesion: 0.12
 Nodes (16): Google OAuth - sign-in web + mobile, Approval flow: ciudadano auto-active; others pending until admin_municipal, bcryptjs hashing - 12 rounds, sfit-web/src/lib/auth/jwt.ts - JWT helpers, Hive + flutter_secure_storage - local cache + tokens, JWT auth: access 2h + refresh 7d, HS256, User model - accounts + denormalized regionId/provinceId/municipalityId, RF-01 Auth and registration (+8 more)
 
-### Community 122 - "Community 122"
+### Community 123 - "Community 123"
 Cohesion: 0.13
 Nodes (14): ../../../../core/services/apiperu_service.dart, build, Container, dispose, _KV, OnboardingProfilePage, _OnboardingProfilePageState, _onDniChanged (+6 more)
 
-### Community 123 - "Community 123"
+### Community 124 - "Community 124"
 Cohesion: 0.13
 Nodes (14): build, _buildKicker, ClipRRect, Container, dispose, _DotPatternPainter, initState, paint (+6 more)
 
-### Community 124 - "Community 124"
+### Community 125 - "Community 125"
 Cohesion: 0.13
 Nodes (14): build, Container, dispose, _form, initState, RouteEditPage, _RouteEditPageState, Scaffold (+6 more)
 
-### Community 125 - "Community 125"
+### Community 126 - "Community 126"
 Cohesion: 0.2
 Nodes (13): getUserId(), loose, main(), MUNIC_ID, upsert(), daysAgo(), EXTRA_MUNICIPALITIES, EXTRA_PROVINCES (+5 more)
 
-### Community 126 - "Community 126"
+### Community 127 - "Community 127"
 Cohesion: 0.13
 Nodes (3): PathType, ROLES_OPERATIVO, Step
 
-### Community 127 - "Community 127"
+### Community 128 - "Community 128"
 Cohesion: 0.14
 Nodes (11): ALLOWED, btnOutline, btnPrimary, CAN_CREATE, CAN_EDIT, StateBadge(), STATUS_META(), TYPE_LABELS (+3 more)
-
-### Community 128 - "Community 128"
-Cohesion: 0.18
-Nodes (10): durationMinutes(), fmtDateTime(), fmtDuration(), fmtTime(), SCOPES_REQUIRING_LIST, Trip, TripStatus, ViajeDetallePage() (+2 more)
 
 ### Community 129 - "Community 129"
 Cohesion: 0.13
@@ -861,11 +861,11 @@ Nodes (15): 1. Levantar backend, 2a. App en emulador Android, 2b. App en disposi
 
 ### Community 130 - "Community 130"
 Cohesion: 0.14
-Nodes (13): _alertSubtitle, build, Column, _DashboardContent, _DashboardError, _DashboardSkeleton, Function, OperatorDashboardPage (+5 more)
+Nodes (13): build, Column, dispose, EditarPerfilConductorPage, _EditarPerfilConductorPageState, _extractError, _field, initState (+5 more)
 
 ### Community 131 - "Community 131"
 Cohesion: 0.14
-Nodes (13): build, Column, dispose, EditarPerfilConductorPage, _EditarPerfilConductorPageState, _extractError, _field, initState (+5 more)
+Nodes (13): _alertSubtitle, build, Column, _DashboardContent, _DashboardError, _DashboardSkeleton, Function, OperatorDashboardPage (+5 more)
 
 ### Community 132 - "Community 132"
 Cohesion: 0.14
@@ -877,11 +877,11 @@ Nodes (13): build, Center, _Chip, Container, Icon, initState, RefreshIndicator, 
 
 ### Community 134 - "Community 134"
 Cohesion: 0.15
-Nodes (12): build, dispose, _nextPage, OnboardingPage, _OnboardingPageState, Padding, Scaffold, SizedBox (+4 more)
+Nodes (12): build, ConductorDashboardPage, _ConductorDashboardPageState, _fatigaColor, _fatigaLabel, Function, Icon, initState (+4 more)
 
 ### Community 135 - "Community 135"
 Cohesion: 0.15
-Nodes (12): build, ConductorDashboardPage, _ConductorDashboardPageState, _fatigaColor, _fatigaLabel, Function, Icon, initState (+4 more)
+Nodes (12): build, dispose, _nextPage, OnboardingPage, _OnboardingPageState, Padding, Scaffold, SizedBox (+4 more)
 
 ### Community 136 - "Community 136"
 Cohesion: 0.15
@@ -900,128 +900,128 @@ Cohesion: 0.21
 Nodes (10): InputGroup(), InputGroupAddon(), inputGroupAddonVariants, InputGroupButton(), inputGroupButtonVariants, InputGroupInput(), InputGroupText(), InputGroupTextarea() (+2 more)
 
 ### Community 140 - "Community 140"
-Cohesion: 0.26
-Nodes (12): Bbox, bboxArea(), bboxOf(), bboxOverlapRatio(), CapturePoint, createOrMergeCapture(), formatHHmm(), parseTime() (+4 more)
-
-### Community 141 - "Community 141"
-Cohesion: 0.26
-Nodes (12): centroid(), convergeCaptures(), ConvergeInput, ConvergeOptions, ConvergeResult, DEFAULTS, dispersionMeters(), GpsPoint (+4 more)
-
-### Community 142 - "Community 142"
-Cohesion: 0.15
-Nodes (13): 13. Variables de entorno, 5. Roles y permisos, 8. Arquitectura web (`sfit-web`), API REST (`/api/*`) — ~148 endpoints, App Router — rutas dashboard, code:bash (flutter run --dart-define=SFIT_DEV_HOST=10.0.2.2  # emulador), code:block6 (Registro (Google o correo) → indica rol solicitado), code:bash (cd sfit-web && npm run docs:rbac) (+5 more)
-
-### Community 143 - "Community 143"
 Cohesion: 0.17
 Nodes (10): AppBreakpoints, isDesktop, isDesktopUp, isMobile, isTablet, isTabletUp, isWide, isXl (+2 more)
 
-### Community 144 - "Community 144"
+### Community 141 - "Community 141"
 Cohesion: 0.17
 Nodes (11): ActaInspeccionPage, _ActaSection, build, Container, Divider, _resultLabel, Scaffold, SizedBox (+3 more)
 
-### Community 145 - "Community 145"
+### Community 142 - "Community 142"
 Cohesion: 0.23
 Nodes (11): ASEGURADORAS, DocType, extractDniFields(), extractFields(), extractLicenciaFields(), extractSoatFields(), extractTarjetaFields(), FieldResult (+3 more)
 
-### Community 146 - "Community 146"
-Cohesion: 0.27
-Nodes (8): MobileOnlyScreen(), DashboardStyles(), Sidebar(), clearSession(), getClientUser(), getServerUser(), StoredUser, subscribeUser()
+### Community 143 - "Community 143"
+Cohesion: 0.29
+Nodes (11): Bbox, bboxArea(), bboxOf(), bboxOverlapRatio(), CapturePoint, createOrMergeCapture(), formatHHmm(), parseTime() (+3 more)
 
-### Community 147 - "Community 147"
-Cohesion: 0.26
-Nodes (8): haversineMeters(), distancePointToPolyline(), distancePointToSegment(), metersPerDegLng(), Pt, toLocalMeters(), samplePolyline(), WaypointLite
+### Community 144 - "Community 144"
+Cohesion: 0.29
+Nodes (11): centroid(), convergeCaptures(), ConvergeInput, ConvergeOptions, ConvergeResult, DEFAULTS, dispersionMeters(), haversineMeters() (+3 more)
 
-### Community 148 - "Community 148"
+### Community 145 - "Community 145"
 Cohesion: 0.18
 Nodes (10): _initLocalNotifications, _navigateFromPayload, NotificationService, _onNotificationTap, _registerFcmListeners, _requestPermissions, _routeForType, setRouter (+2 more)
 
-### Community 149 - "Community 149"
+### Community 146 - "Community 146"
 Cohesion: 0.18
 Nodes (10): build, _CategoryPill, Column, Material, Padding, SfitCategorizedFeatures, _SfitCategorizedFeaturesState, SfitFeatureCategory (+2 more)
 
-### Community 150 - "Community 150"
-Cohesion: 0.18
-Nodes (10): DriverPreferenceRoute, DriverPreferences, DriverPreferenceVehicle, Exception, FatigaStatus, LocationSendException, toString, TrackHistory (+2 more)
-
-### Community 151 - "Community 151"
+### Community 147 - "Community 147"
 Cohesion: 0.2
 Nodes (10): ANDROID_SIZES, APP_ANDROID, loadSource(), main(), ROOT, SRC_PNG, SRC_SVG, WEB_APP (+2 more)
 
-### Community 152 - "Community 152"
-Cohesion: 0.24
-Nodes (9): signAccessToken(), decoded, payload, refreshToken, token, verifyRefreshToken(), POST(), RefreshSchema (+1 more)
-
-### Community 153 - "Community 153"
+### Community 148 - "Community 148"
 Cohesion: 0.18
 Nodes (6): SheetContent(), SheetDescription(), SheetFooter(), SheetHeader(), SheetOverlay(), SheetTitle()
 
-### Community 154 - "Community 154"
+### Community 149 - "Community 149"
+Cohesion: 0.2
+Nodes (10): ALLOWED, btnInk, btnOut, btnSm, fmtAgo(), FraudLayer, Report, ReportesPage() (+2 more)
+
+### Community 150 - "Community 150"
 Cohesion: 0.18
 Nodes (10): code:block1 (Sistema Sfit/), code:block2 (super_admin → admin_regional → admin_provincial → admin_muni), Descripción del sistema, Jerarquía de roles (8 roles), Módulos (RF-01 → RF-19), Monorepo, Multi-tenancy, Responder siempre en español (+2 more)
 
-### Community 155 - "Community 155"
+### Community 151 - "Community 151"
 Cohesion: 0.18
 Nodes (10): code:block1 (lib/), code:dart (@freezed), Estructura, GoRouter, Modelos (Freezed), Offline / QR, Riverpod 2, SFIT App — Flutter 3.29 / Dart 3.7 (+2 more)
 
-### Community 156 - "Community 156"
+### Community 152 - "Community 152"
+Cohesion: 0.18
+Nodes (11): Clean Architecture in sfit-app: data -> domain -> presentation, Flutter design system - AppTheme Material 3 + Sfit widgets, Web design system - Inter + Syne + tabular-nums + shadcn, sfit-web/src/lib/notifications - WS + FCM + email helper, FCM listeners foreground/background/terminated + sfit_alerts channel, GoRouter global redirect by AuthStatus, MongoDB Atlas - shared multi-tenant database, Google Play Store - Android Closed Testing (+3 more)
+
+### Community 153 - "Community 153"
 Cohesion: 0.2
 Nodes (9): AnimatedContainer, build, _Content, Icon, OutboxBanner, Row, SizedBox, outbox_registry.dart (+1 more)
 
-### Community 157 - "Community 157"
+### Community 154 - "Community 154"
 Cohesion: 0.2
 Nodes (9): build, BuscarVehiculoPage, _BuscarVehiculoPageState, dispose, Expanded, Scaffold, SizedBox, _submit (+1 more)
 
-### Community 158 - "Community 158"
+### Community 155 - "Community 155"
 Cohesion: 0.2
 Nodes (6): callArg, createCall, mockSanction, notifs, token(), validBody
 
-### Community 159 - "Community 159"
+### Community 156 - "Community 156"
 Cohesion: 0.2
 Nodes (9): UserStatus, ApiErrorResponse, ApiResponse, ApiSuccessResponse, ApiValidationErrorResponse, PaginatedResponse, PaginationParams, TenantContext (+1 more)
 
-### Community 160 - "Community 160"
+### Community 157 - "Community 157"
 Cohesion: 0.2
 Nodes (8): ShadTable(), ShadTableBody(), ShadTableCell(), ShadTableHead(), ShadTableHeader(), ShadTableRow(), TableColumn, TableProps
 
+### Community 158 - "Community 158"
+Cohesion: 0.2
+Nodes (7): ALLOWED, btnInk, btnOut, Inspection, InspectionResult, Stats, Sugerencia
+
+### Community 159 - "Community 159"
+Cohesion: 0.2
+Nodes (9): GpsPoint, accuracies, AnyDoc, closedEntries, distanceMeters, loose, pings, points (+1 more)
+
+### Community 160 - "Community 160"
+Cohesion: 0.2
+Nodes (10): 5. Roles y permisos, 8. Arquitectura web (`sfit-web`), API REST (`/api/*`) — ~148 endpoints, App Router — rutas dashboard, code:block6 (Registro (Google o correo) → indica rol solicitado), code:bash (cd sfit-web && npm run docs:rbac), code:block8 (/dashboard                  KPIs por rol), Flujo de aprobación (+2 more)
+
 ### Community 161 - "Community 161"
-Cohesion: 0.22
-Nodes (8): build, Center, dispose, initState, SfitLoading, _SfitLoadingState, SizedBox, ../theme/app_colors.dart
+Cohesion: 0.24
+Nodes (10): 13. Variables de entorno, 14. Cómo levantar el proyecto, App móvil (sfit-app), Backend + web (sfit-web), code:bash (flutter run --dart-define=SFIT_DEV_HOST=10.0.2.2  # emulador), code:bash (cd sfit-web), code:bash (cd sfit-app), code:bash (# sfit-web) (+2 more)
 
 ### Community 162 - "Community 162"
 Cohesion: 0.22
-Nodes (8): build, paint, Scaffold, SfitFullLogo, shouldRepaint, SizedBox, _SplashDotPainter, SplashPage
+Nodes (8): build, Center, dispose, initState, SfitLoading, _SfitLoadingState, SizedBox, ../theme/app_theme.dart
 
 ### Community 163 - "Community 163"
 Cohesion: 0.31
 Nodes (8): Departamento, Distrito, dropLegacyIndex(), fetchJson(), loose, main(), parseDeptoFilter(), Provincia
 
 ### Community 164 - "Community 164"
+Cohesion: 0.25
+Nodes (7): decoded, payload, refreshToken, token, verifyRefreshToken(), POST(), RefreshSchema
+
+### Community 165 - "Community 165"
 Cohesion: 0.22
 Nodes (6): IndicadorColor, INDICATOR_CONFIG, INSPECTION_LABELS, STATUS_LABELS, VEHICLE_TYPE_LABELS, VehicleResult
 
-### Community 165 - "Community 165"
+### Community 166 - "Community 166"
 Cohesion: 0.31
 Nodes (5): capitalize(), greetingFor(), GreetingHeader(), GreetingHeaderProps, useClientDate()
 
-### Community 166 - "Community 166"
-Cohesion: 0.22
-Nodes (8): accuracies, AnyDoc, closedEntries, distanceMeters, loose, pings, points, qualityScore
-
 ### Community 167 - "Community 167"
-Cohesion: 0.25
-Nodes (7): copyWith, FeedFilters, FeedNotifier, FeedState, _fetch, ../../data/models/feed_report_model.dart, ../../../../reports/data/datasources/reports_api_service.dart
+Cohesion: 0.22
+Nodes (5): BTN_PRIMARY, FIELD, LABEL, Profile, ROLE_LABELS
 
 ### Community 168 - "Community 168"
 Cohesion: 0.25
-Nodes (7): ActiveBusLite, ActiveRouteData, BusData, BusEtaStop, BusWaypoint, LearnedStop, NearestStop
+Nodes (7): copyWith, FeedFilters, FeedNotifier, FeedState, _fetch, ../../data/models/feed_report_model.dart, ../../../../reports/data/datasources/reports_api_service.dart
 
 ### Community 169 - "Community 169"
-Cohesion: 0.29
-Nodes (7): checkRateLimit(), config, middleware(), PUBLIC_API, PUBLIC_ROUTES, RATE_LIMIT_RULES, rateLimitMap
+Cohesion: 0.25
+Nodes (7): ActiveBusLite, ActiveRouteData, BusData, BusEtaStop, BusWaypoint, LearnedStop, NearestStop
 
 ### Community 170 - "Community 170"
-Cohesion: 0.25
-Nodes (6): fiscalPayload, muniPayload, result, session, superToken, token
+Cohesion: 0.29
+Nodes (7): checkRateLimit(), config, middleware(), PUBLIC_API, PUBLIC_ROUTES, RATE_LIMIT_RULES, rateLimitMap
 
 ### Community 171 - "Community 171"
 Cohesion: 0.25
@@ -1029,75 +1029,75 @@ Nodes (4): callArg, mockInspection, token(), validBody
 
 ### Community 172 - "Community 172"
 Cohesion: 0.25
-Nodes (5): callArg, createCall, mockReport, token(), validBody
+Nodes (6): fiscalPayload, muniPayload, result, session, superToken, token
 
 ### Community 173 - "Community 173"
-Cohesion: 0.25
-Nodes (5): callArg, mockRuta, mockZona, token(), validBody
+Cohesion: 0.29
+Nodes (5): signAccessToken(), token(), callArg, mockTrip, token()
 
 ### Community 174 - "Community 174"
 Cohesion: 0.25
-Nodes (6): DniLookup, FIELD, LABEL, MuniContext, RucLookup, StoredUser
+Nodes (5): callArg, mockRuta, mockZona, token(), validBody
 
 ### Community 175 - "Community 175"
 Cohesion: 0.25
-Nodes (8): Firebase Admin SDK - FCM push, Resend - transactional email, sfit-web/src/lib/audit/log.ts - AuditLog helper, sfit-web/src/lib/notifications - WS + FCM + email helper, FCM listeners foreground/background/terminated + sfit_alerts channel, AuditLog model - critical actions, Notification model - inbox + categories, RF-18 Notifications (in-app + push FCM + email)
+Nodes (5): callArg, createCall, mockReport, token(), validBody
 
 ### Community 176 - "Community 176"
 Cohesion: 0.25
-Nodes (8): Arquitectura, code:block1 (src/), Convenciones de código, Mongoose / MongoDB, Reglas Next.js, SFIT Web — Next.js 16 (App Router), Stack, Tailwind v4
+Nodes (6): DniLookup, FIELD, LABEL, MuniContext, RucLookup, StoredUser
 
 ### Community 177 - "Community 177"
-Cohesion: 0.29
-Nodes (6): build, Container, Icon, Row, SfitQuickActionCard, SizedBox
+Cohesion: 0.25
+Nodes (8): Arquitectura, code:block1 (src/), Convenciones de código, Mongoose / MongoDB, Reglas Next.js, SFIT Web — Next.js 16 (App Router), Stack, Tailwind v4
 
 ### Community 178 - "Community 178"
 Cohesion: 0.29
-Nodes (6): DashboardAlerts, DriverStatusCounts, FleetTodayMetrics, OperatorCompanyBrief, OperatorDashboardSummary, VehicleStatusCounts
+Nodes (6): build, Column, Divider, Icon, SfitSectionHeader, SizedBox
 
 ### Community 179 - "Community 179"
 Cohesion: 0.29
-Nodes (5): AnyDoc, DRIVERS, loose, ROUTES, VEHICLES
+Nodes (6): DashboardAlerts, DriverStatusCounts, FleetTodayMetrics, OperatorCompanyBrief, OperatorDashboardSummary, VehicleStatusCounts
 
 ### Community 180 - "Community 180"
+Cohesion: 0.29
+Nodes (5): AnyDoc, DRIVERS, loose, ROUTES, VEHICLES
+
+### Community 181 - "Community 181"
 Cohesion: 0.43
 Nodes (6): log(), loose, main(), parseArgs(), RECOMPENSAS, upsert()
 
-### Community 182 - "Community 182"
+### Community 183 - "Community 183"
 Cohesion: 0.29
 Nodes (5): EndpointDef, ENDPOINTS, metadata, METHOD_COLORS, TAGS
 
-### Community 183 - "Community 183"
+### Community 184 - "Community 184"
 Cohesion: 0.29
 Nodes (5): GoogleAutocomplete, GoogleMapsPlacesLib, GooglePlace, PlaceResult, Props
 
-### Community 184 - "Community 184"
+### Community 185 - "Community 185"
 Cohesion: 0.29
 Nodes (5): INITIAL, InternalState, UseFieldValidationOptions, ValidationResult, ValidationState
 
-### Community 185 - "Community 185"
+### Community 186 - "Community 186"
 Cohesion: 0.57
 Nodes (6): accountApprovedEmailHtml(), accountRejectedEmailHtml(), appealResolvedEmailHtml(), badgeStyle(), sanctionEmailHtml(), wrapTemplate()
 
-### Community 186 - "Community 186"
+### Community 187 - "Community 187"
 Cohesion: 0.29
 Nodes (6): Convenciones, Leyenda, Matriz RBAC de SFIT, Permisos por recurso, Roles especiales, Superficie por rol
 
-### Community 187 - "Community 187"
+### Community 188 - "Community 188"
 Cohesion: 0.29
 Nodes (6): app_colors.dart, AppTheme, inter, syne, ThemeData, package:google_fonts/google_fonts.dart
 
-### Community 188 - "Community 188"
+### Community 189 - "Community 189"
 Cohesion: 0.29
 Nodes (7): 4. Frontend web — páginas, Admin global / supervisión, Análisis, Auth y onboarding, Configuración municipal, Operacional, Públicas (sin auth)
 
-### Community 189 - "Community 189"
+### Community 190 - "Community 190"
 Cohesion: 0.29
 Nodes (7): 2. Estructura del monorepo, code:block1 (Sistema Sfit/), code:block2 (sfit-app (Flutter)  ──HTTP/JWT──►  sfit-web/api/  ──►  Mongo), code:block3 (src/), code:block4 (lib/), Mapa de `sfit-app/`, Mapa de `sfit-web/`
-
-### Community 190 - "Community 190"
-Cohesion: 0.38
-Nodes (7): 14. Cómo levantar el proyecto, App móvil (sfit-app), Backend + web (sfit-web), code:bash (cd sfit-web), code:bash (cd sfit-app), code:bash (# sfit-web), Comprobaciones
 
 ### Community 191 - "Community 191"
 Cohesion: 0.38
@@ -1141,35 +1141,35 @@ Nodes (3): FEATURES, ROLES, STATS
 
 ### Community 202 - "Community 202"
 Cohesion: 0.33
-Nodes (3): callArg, mockTrip, token()
+Nodes (3): mockDriver, token(), validBody
 
 ### Community 203 - "Community 203"
 Cohesion: 0.33
-Nodes (3): mockDriver, token(), validBody
+Nodes (3): linkStyle, metadata, ulStyle
 
 ### Community 204 - "Community 204"
 Cohesion: 0.33
 Nodes (3): linkStyle, metadata, ulStyle
 
 ### Community 205 - "Community 205"
-Cohesion: 0.33
-Nodes (3): linkStyle, metadata, ulStyle
-
-### Community 206 - "Community 206"
 Cohesion: 0.4
 Nodes (5): Tabs(), TabsContent(), TabsList(), tabsListVariants, TabsTrigger()
 
-### Community 207 - "Community 207"
+### Community 206 - "Community 206"
 Cohesion: 0.33
 Nodes (4): Accent, AccentPalette, PALETTE, StatCardProps
 
-### Community 208 - "Community 208"
+### Community 207 - "Community 207"
 Cohesion: 0.33
 Nodes (4): StatusDef, StatusPillProps, StatusVariant, VARIANTS
 
-### Community 209 - "Community 209"
+### Community 208 - "Community 208"
 Cohesion: 0.33
 Nodes (5): EmergencyContactSchema, IEmergencyContact, IPassenger, PassengerDocumentType, PassengerSchema
+
+### Community 209 - "Community 209"
+Cohesion: 0.53
+Nodes (5): distancePointToPolyline(), distancePointToSegment(), metersPerDegLng(), Pt, toLocalMeters()
 
 ### Community 210 - "Community 210"
 Cohesion: 0.33
@@ -1220,42 +1220,38 @@ Cohesion: 0.5
 Nodes (4): graphifyDemoCompute(), graphifyDemoFormat(), GraphifyDemoInput, GraphifyDemoSchema
 
 ### Community 223 - "Community 223"
-Cohesion: 0.6
-Nodes (4): buildEmail(), POST(), Schema, sendResetEmail()
-
-### Community 224 - "Community 224"
 Cohesion: 0.4
 Nodes (5): 9. Arquitectura móvil (`sfit-app`), Capacidades nativas, Pantallas por rol, Plataformas, Routing
 
-### Community 225 - "Community 225"
+### Community 224 - "Community 224"
 Cohesion: 0.5
 Nodes (3): FleetDriver, FleetEntryModel, FleetVehicle
 
-### Community 226 - "Community 226"
+### Community 225 - "Community 225"
 Cohesion: 0.5
 Nodes (3): ChecklistItem, InspectionModel, InspectionVehicle
 
-### Community 227 - "Community 227"
+### Community 226 - "Community 226"
 Cohesion: 0.5
 Nodes (3): PublicDriver, PublicVehicle, PublicVehicleModel
 
-### Community 228 - "Community 228"
+### Community 227 - "Community 227"
 Cohesion: 0.5
 Nodes (3): TripModel, TripRoute, TripVehicle
 
-### Community 238 - "Community 238"
+### Community 237 - "Community 237"
 Cohesion: 0.5
 Nodes (3): IWebhook, VALID_EVENTS, WebhookSchema
 
-### Community 239 - "Community 239"
+### Community 238 - "Community 238"
 Cohesion: 0.5
 Nodes (3): CitTokenTransactionSchema, CitTokenTransactionType, ICitTokenTransaction
 
-### Community 240 - "Community 240"
+### Community 239 - "Community 239"
 Cohesion: 0.5
 Nodes (3): PublicDriver, PublicVehicle, PublicVehicleModel
 
-### Community 241 - "Community 241"
+### Community 240 - "Community 240"
 Cohesion: 0.67
 Nodes (4): sfit-web/src/lib/auth/guard.ts - requireRole + scoped filter, sfit-web/src/lib/auth/rbac.ts - RBAC + scoped filter, Multi-tenancy rule: municipalityId mandatory in all queries, RBAC + scopedMunicipalityFilterAsync geographic scope
 
@@ -1278,18 +1274,18 @@ Nodes (3): Route Handlers en src/app/api/[recurso]/route.ts, dio ^5.8.0+1, retro
 ## Knowledge Gaps
 - **3261 isolated node(s):** `MainActivity`, `SfitApp`, `_UpdateWrapper`, `_UpdateWrapperState`, `build` (+3256 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **53 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **54 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **What is the exact relationship between `GPS Location Data (in-use only)` and `GoRouter 15 with auth guard`?**
   _Edge tagged AMBIGUOUS (relation: semantically_similar_to) - confidence is low._
-- **Why does `package:flutter_riverpod/flutter_riverpod.dart` connect `Community 12` to `Community 5`, `Community 7`, `Community 10`, `Community 16`, `Community 17`, `Community 18`, `Community 19`, `Community 23`, `Community 24`, `Community 25`, `Community 26`, `Community 27`, `Community 32`, `Community 33`, `Community 35`, `Community 36`, `Community 37`, `Community 38`, `Community 39`, `Community 41`, `Community 43`, `Community 44`, `Community 45`, `Community 47`, `Community 48`, `Community 50`, `Community 51`, `Community 52`, `Community 54`, `Community 55`, `Community 59`, `Community 60`, `Community 64`, `Community 65`, `Community 68`, `Community 69`, `Community 70`, `Community 71`, `Community 72`, `Community 73`, `Community 74`, `Community 75`, `Community 76`, `Community 77`, `Community 82`, `Community 83`, `Community 85`, `Community 86`, `Community 87`, `Community 90`, `Community 91`, `Community 92`, `Community 94`, `Community 95`, `Community 96`, `Community 97`, `Community 99`, `Community 100`, `Community 101`, `Community 103`, `Community 106`, `Community 107`, `Community 108`, `Community 113`, `Community 114`, `Community 115`, `Community 116`, `Community 117`, `Community 122`, `Community 124`, `Community 130`, `Community 131`, `Community 132`, `Community 133`, `Community 135`, `Community 150`, `Community 156`, `Community 167`?**
+- **Why does `package:flutter_riverpod/flutter_riverpod.dart` connect `Community 12` to `Community 5`, `Community 8`, `Community 11`, `Community 17`, `Community 18`, `Community 19`, `Community 20`, `Community 23`, `Community 24`, `Community 25`, `Community 26`, `Community 27`, `Community 32`, `Community 34`, `Community 36`, `Community 39`, `Community 40`, `Community 41`, `Community 42`, `Community 43`, `Community 45`, `Community 46`, `Community 48`, `Community 49`, `Community 50`, `Community 51`, `Community 53`, `Community 54`, `Community 55`, `Community 57`, `Community 58`, `Community 60`, `Community 61`, `Community 67`, `Community 68`, `Community 70`, `Community 71`, `Community 72`, `Community 73`, `Community 74`, `Community 75`, `Community 76`, `Community 77`, `Community 78`, `Community 82`, `Community 83`, `Community 84`, `Community 86`, `Community 87`, `Community 90`, `Community 91`, `Community 92`, `Community 95`, `Community 96`, `Community 97`, `Community 98`, `Community 100`, `Community 101`, `Community 102`, `Community 103`, `Community 106`, `Community 107`, `Community 108`, `Community 113`, `Community 114`, `Community 115`, `Community 116`, `Community 117`, `Community 123`, `Community 125`, `Community 130`, `Community 131`, `Community 132`, `Community 133`, `Community 134`, `Community 153`, `Community 168`?**
   _High betweenness centrality (0.071) - this node is a cross-community bridge._
-- **Why does `package:flutter/material.dart` connect `Community 34` to `Community 7`, `Community 10`, `Community 16`, `Community 17`, `Community 18`, `Community 19`, `Community 23`, `Community 24`, `Community 26`, `Community 27`, `Community 31`, `Community 32`, `Community 33`, `Community 35`, `Community 36`, `Community 37`, `Community 38`, `Community 39`, `Community 41`, `Community 42`, `Community 43`, `Community 44`, `Community 45`, `Community 47`, `Community 48`, `Community 49`, `Community 50`, `Community 51`, `Community 52`, `Community 54`, `Community 55`, `Community 59`, `Community 60`, `Community 64`, `Community 65`, `Community 68`, `Community 69`, `Community 70`, `Community 71`, `Community 72`, `Community 73`, `Community 74`, `Community 75`, `Community 76`, `Community 77`, `Community 82`, `Community 83`, `Community 84`, `Community 85`, `Community 86`, `Community 87`, `Community 90`, `Community 91`, `Community 92`, `Community 93`, `Community 94`, `Community 95`, `Community 96`, `Community 97`, `Community 98`, `Community 99`, `Community 100`, `Community 101`, `Community 102`, `Community 103`, `Community 106`, `Community 107`, `Community 108`, `Community 113`, `Community 114`, `Community 115`, `Community 116`, `Community 117`, `Community 122`, `Community 123`, `Community 124`, `Community 130`, `Community 131`, `Community 132`, `Community 133`, `Community 134`, `Community 135`, `Community 137`, `Community 144`, `Community 149`, `Community 156`, `Community 157`, `Community 161`, `Community 162`, `Community 177`, `Community 187`?**
+- **Why does `package:flutter/material.dart` connect `Community 29` to `Community 8`, `Community 11`, `Community 17`, `Community 18`, `Community 19`, `Community 20`, `Community 23`, `Community 24`, `Community 26`, `Community 27`, `Community 32`, `Community 34`, `Community 35`, `Community 36`, `Community 39`, `Community 40`, `Community 41`, `Community 42`, `Community 43`, `Community 45`, `Community 46`, `Community 47`, `Community 48`, `Community 49`, `Community 50`, `Community 51`, `Community 52`, `Community 53`, `Community 54`, `Community 55`, `Community 57`, `Community 58`, `Community 60`, `Community 61`, `Community 62`, `Community 67`, `Community 68`, `Community 70`, `Community 71`, `Community 72`, `Community 73`, `Community 74`, `Community 75`, `Community 76`, `Community 77`, `Community 78`, `Community 82`, `Community 83`, `Community 84`, `Community 85`, `Community 86`, `Community 87`, `Community 90`, `Community 91`, `Community 92`, `Community 94`, `Community 95`, `Community 96`, `Community 97`, `Community 98`, `Community 99`, `Community 100`, `Community 101`, `Community 102`, `Community 103`, `Community 106`, `Community 107`, `Community 108`, `Community 113`, `Community 114`, `Community 115`, `Community 116`, `Community 117`, `Community 123`, `Community 124`, `Community 125`, `Community 130`, `Community 131`, `Community 132`, `Community 133`, `Community 134`, `Community 135`, `Community 137`, `Community 141`, `Community 146`, `Community 153`, `Community 154`, `Community 162`, `Community 178`, `Community 188`?**
   _High betweenness centrality (0.065) - this node is a cross-community bridge._
-- **Why does `../../../core/theme/app_colors.dart` connect `Community 31` to `Community 7`, `Community 10`, `Community 16`, `Community 18`, `Community 19`, `Community 23`, `Community 24`, `Community 26`, `Community 27`, `Community 32`, `Community 33`, `Community 34`, `Community 35`, `Community 36`, `Community 37`, `Community 38`, `Community 39`, `Community 41`, `Community 42`, `Community 43`, `Community 45`, `Community 47`, `Community 48`, `Community 49`, `Community 50`, `Community 51`, `Community 52`, `Community 54`, `Community 55`, `Community 59`, `Community 60`, `Community 65`, `Community 68`, `Community 69`, `Community 70`, `Community 71`, `Community 72`, `Community 73`, `Community 74`, `Community 75`, `Community 76`, `Community 77`, `Community 82`, `Community 83`, `Community 84`, `Community 85`, `Community 86`, `Community 87`, `Community 90`, `Community 91`, `Community 92`, `Community 94`, `Community 95`, `Community 96`, `Community 97`, `Community 98`, `Community 99`, `Community 100`, `Community 101`, `Community 102`, `Community 103`, `Community 106`, `Community 107`, `Community 108`, `Community 113`, `Community 114`, `Community 115`, `Community 116`, `Community 117`, `Community 123`, `Community 124`, `Community 130`, `Community 131`, `Community 132`, `Community 133`, `Community 134`, `Community 135`, `Community 137`, `Community 144`, `Community 149`, `Community 157`, `Community 162`, `Community 177`?**
+- **Why does `../../../core/theme/app_colors.dart` connect `Community 47` to `Community 8`, `Community 11`, `Community 17`, `Community 19`, `Community 20`, `Community 23`, `Community 24`, `Community 26`, `Community 27`, `Community 29`, `Community 32`, `Community 34`, `Community 35`, `Community 36`, `Community 39`, `Community 40`, `Community 41`, `Community 42`, `Community 43`, `Community 45`, `Community 48`, `Community 49`, `Community 50`, `Community 51`, `Community 52`, `Community 53`, `Community 54`, `Community 55`, `Community 57`, `Community 58`, `Community 60`, `Community 61`, `Community 62`, `Community 68`, `Community 70`, `Community 71`, `Community 72`, `Community 73`, `Community 74`, `Community 75`, `Community 76`, `Community 77`, `Community 78`, `Community 82`, `Community 83`, `Community 84`, `Community 85`, `Community 86`, `Community 87`, `Community 90`, `Community 91`, `Community 92`, `Community 95`, `Community 96`, `Community 97`, `Community 98`, `Community 99`, `Community 100`, `Community 101`, `Community 102`, `Community 103`, `Community 106`, `Community 107`, `Community 108`, `Community 113`, `Community 114`, `Community 115`, `Community 116`, `Community 117`, `Community 124`, `Community 125`, `Community 130`, `Community 131`, `Community 132`, `Community 133`, `Community 134`, `Community 135`, `Community 137`, `Community 141`, `Community 146`, `Community 154`, `Community 178`?**
   _High betweenness centrality (0.049) - this node is a cross-community bridge._
 - **Are the 3 inferred relationships involving `requireRole()` (e.g. with `GET()` and `GET()`) actually correct?**
   _`requireRole()` has 3 INFERRED edges - model-reasoned connections that need verification._
