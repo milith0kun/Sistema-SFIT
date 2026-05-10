@@ -349,28 +349,64 @@ class _OnboardingProfilePageState extends ConsumerState<OnboardingProfilePage> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 24),
-                if (_errorEnvio != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      _errorEnvio!,
-                      style: TextStyle(color: Colors.red.shade700),
-                    ),
-                  ),
-                FilledButton(
-                  onPressed: _enviando ? null : _guardar,
-                  child: _enviando
-                      ? const SizedBox(
-                          width: 18, height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white,
-                          ),
-                        )
-                      : const Text('Guardar y continuar'),
-                ),
+                // Espacio extra para que el último campo no quede pegado al
+                // botón sticky de abajo cuando el teclado está cerrado.
+                const SizedBox(height: 80),
               ],
             ),
+          ),
+        ),
+      ),
+      // Botón sticky inferior — siempre visible, no scrollea con el form.
+      // Se eleva sobre el teclado gracias a `resizeToAvoidBottomInset` (default
+      // del Scaffold) y respeta el inset del SafeArea del navegador inferior.
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            border: Border(
+              top: BorderSide(color: Colors.black.withValues(alpha: 0.06)),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_errorEnvio != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    _errorEnvio!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+                  ),
+                ),
+              // Centro horizontal con ancho contenido (no full-width).
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 360,
+                    minWidth: 220,
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: FilledButton(
+                      onPressed: _enviando ? null : _guardar,
+                      child: _enviando
+                          ? const SizedBox(
+                              width: 18, height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white,
+                              ),
+                            )
+                          : const Text('Guardar y continuar'),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

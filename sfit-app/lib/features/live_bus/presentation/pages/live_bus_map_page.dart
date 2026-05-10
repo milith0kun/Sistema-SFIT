@@ -9,7 +9,9 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/location_smoother.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/geo.dart';
 import '../../../../shared/widgets/map/sfit_map_markers.dart';
+import '../../../../shared/widgets/map/sfit_map_tiles.dart';
 import 'live_bus_data.dart';
 
 /// Pantalla "Buses en vivo" para el ciudadano.
@@ -621,11 +623,7 @@ class _MapViewState extends State<_MapView> {
         },
       ),
       children: [
-        TileLayer(
-          urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-          subdomains: const ['a', 'b', 'c', 'd'],
-          userAgentPackageName: 'com.sfit.sfit_app',
-        ),
+        sfitCartoVoyagerTile(),
         // ── Polylines de TODAS las rutas como fondo ──
         // Cuando NO hay filtro: todas en gris tenue para mostrar el mapa
         // completo de rutas del municipio aunque no haya buses transmitiendo.
@@ -731,6 +729,21 @@ class _MapViewState extends State<_MapView> {
                 ),
               ),
             ]),
+        // Tramo "TU UBICACIÓN → tu paradero" en azul punteado: ruta de
+        // aproximación a pie (línea recta como heurística — para precisión
+        // siguiendo calles haría falta una API de walking directions).
+        if (highlight != null && userPos != null)
+          PolylineLayer(polylines: [
+            Polyline(
+              points: [
+                LatLng(userPos.latitude, userPos.longitude),
+                LatLng(highlight.stop.lat, highlight.stop.lng),
+              ],
+              strokeWidth: SfitMapStyle.plannedStroke(zoom) + 0.6,
+              color: const Color(0xFF2563EB).withValues(alpha: 0.75),
+              pattern: const StrokePattern.dotted(),
+            ),
+          ]),
         // Tramo "bus → tu paradero" en dorado, resaltando lo que falta para
         // que el bus llegue a donde está el ciudadano. Halo blanco + dorado
         // encima para asegurar contraste sobre cualquier zona del mapa.
@@ -759,32 +772,70 @@ class _MapViewState extends State<_MapView> {
                     ),
             ],
           ),
-          // Marker del paradero más cercano al ciudadano (halo dorado)
+          // Marker del paradero más cercano al ciudadano (halo dorado).
+          // Cuando hay GPS y zoom suficiente, mostramos al lado un pill con
+          // "X min 👟" para que el ciudadano sepa de un vistazo cuánto camina.
           MarkerLayer(markers: [
             Marker(
               point: LatLng(highlight.stop.lat, highlight.stop.lng),
-              width: stopSize * 1.35,
+              width: SfitMapStyle.showStopLabels(zoom) ? stopSize * 3.2 : stopSize * 1.35,
               height: stopSize * 1.35,
               alignment: Alignment.center,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.gold,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.gold.withValues(alpha: 0.45),
-                      blurRadius: 10,
-                      spreadRadius: 1,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: stopSize * 1.35,
+                    height: stopSize * 1.35,
+                    decoration: BoxDecoration(
+                      color: AppColors.gold,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.gold.withValues(alpha: 0.45),
+                          blurRadius: 10,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(
+                      Icons.place,
+                      size: stopSize * 0.6,
+                      color: Colors.white,
+                    ),
+                  ),
+                  if (SfitMapStyle.showStopLabels(zoom) && userPos != null) ...[
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2563EB),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.18),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          '${formatWalkDuration(walkSecondsBetween(LatLng(userPos.latitude, userPos.longitude), LatLng(highlight.stop.lat, highlight.stop.lng)))} 👟',
+                          style: AppTheme.inter(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ),
                   ],
-                ),
-                alignment: Alignment.center,
-                child: Icon(
-                  Icons.place,
-                  size: stopSize * 0.6,
-                  color: Colors.white,
-                ),
+                ],
               ),
             ),
           ]),
@@ -1526,12 +1577,7 @@ class _CandidateRouteCard extends StatelessWidget {
                             flags: InteractiveFlag.none),
                       ),
                       children: [
-                        TileLayer(
-                          urlTemplate:
-                              'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-                          subdomains: const ['a', 'b', 'c', 'd'],
-                          userAgentPackageName: 'com.sfit.sfit_app',
-                        ),
+                        sfitCartoVoyagerTile(),
                         PolylineLayer(polylines: [
                           Polyline(
                             points: pts,

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBindingObserver, WidgetsBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:hive/hive.dart';
@@ -132,7 +133,8 @@ enum LocationPermissionResult {
   deniedForever,
 }
 
-class LocationTrackingNotifier extends StateNotifier<TrackingState> {
+class LocationTrackingNotifier extends StateNotifier<TrackingState>
+    with WidgetsBindingObserver {
   final TripsApiService _svc;
 
   StreamSubscription<Position>? _positionSub;
@@ -145,6 +147,18 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
   /// emisiones del stream con distanceFilter > 0).
   Position? _lastPosition;
   DateTime _lastSendAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// Último ping encolado — para deduplicar emisiones cercanas en tiempo y
+  /// espacio. Si llegan dos puntos casi idénticos en < 100 ms y < 1 m,
+  /// descartamos el segundo (heartbeat duplicado, race en check-in, etc.).
+  int _lastEnqueuedTs = 0;
+  double _lastEnqueuedLat = 0;
+  double _lastEnqueuedLng = 0;
+
+  /// TTL para pings antiguos en la cola. Pings con `ts` más viejo que esto
+  /// (probablemente residuos de turnos abortados o boots fallidos) se
+  /// descartan en el drain antes de intentar enviarlos al backend.
+  static const Duration _queuePingTtl = Duration(hours: 24);
 
   /// Periodo del heartbeat: si no enviamos un punto en este tiempo, mandamos
   /// la última posición conocida. Mantiene al bus visible para ciudadanos
@@ -224,6 +238,28 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
     // turno nuevo. El backend acepta pings de turnos cerrados (busca por
     // _id; sólo verifica que driverId coincida con el conductor autenticado).
     unawaited(_bootDrain());
+    // Listener del ciclo de vida de la app: cuando el conductor pasa a
+    // background (WhatsApp, llamada, etc.) Android puede pausar Timers Dart.
+    // Disparamos drain explícito en `paused`/`hidden` para vaciar la cola
+    // antes de la pausa, y nuevamente en `resumed` para procesar lo que
+    // quedó atrás. El foreground service nativo sigue capturando GPS sin
+    // problema; lo único frágil son los Timers Dart del retry/heartbeat.
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState s) {
+    if (!state.isTracking) return;
+    if (s == AppLifecycleState.paused ||
+        s == AppLifecycleState.hidden ||
+        s == AppLifecycleState.resumed) {
+      // Cancelar el retry agendado para reintentar ya — la situación de red
+      // pudo cambiar mientras la app estaba pausada.
+      _drainRetryTimer?.cancel();
+      _drainRetryTimer = null;
+      _consecutiveFailures = 0;
+      unawaited(_drainQueue());
+    }
   }
 
   Future<void> _bootDrain() async {
@@ -246,6 +282,7 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _positionSub?.cancel();
     _connSub?.cancel();
     _heartbeat?.cancel();
@@ -690,6 +727,21 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
     final box = _queue;
     if (box == null) return;
 
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    // Dedup: si el ping anterior fue hace menos de 100 ms y a menos de 1 m,
+    // probablemente sea un duplicado (heartbeat racing con _onPosition,
+    // start/stop apretado, etc.). No tiene sentido encolarlo dos veces — el
+    // backend lo rechazaría como duplicate. Las acciones explícitas
+    // (`start`/`end`) se dejan pasar siempre porque marcan el ciclo del
+    // turno y pueden coincidir en tiempo con el primer/último punto.
+    if (action == null && ts - _lastEnqueuedTs < 100) {
+      final dLat = (pos.latitude - _lastEnqueuedLat).abs();
+      final dLng = (pos.longitude - _lastEnqueuedLng).abs();
+      // ~1e-5 grados ≈ 1.1 m. Comparación crudo en lugar de haversine para
+      // evitar el costo en un check tan caliente.
+      if (dLat < 1e-5 && dLng < 1e-5) return;
+    }
+
     if (box.length >= _maxQueueSize) {
       // Eliminar el más viejo (FIFO) y registrar el descarte en disco.
       final firstKey = box.keys.isNotEmpty ? box.keys.first : null;
@@ -697,7 +749,6 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
       await _bumpDroppedCount(1);
     }
 
-    final ts = DateTime.now().millisecondsSinceEpoch;
     await box.add(<String, dynamic>{
       'entryId': entryId,
       'lat': pos.latitude,
@@ -707,6 +758,9 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
       'action': action,
       'ts': ts,
     });
+    _lastEnqueuedTs = ts;
+    _lastEnqueuedLat = pos.latitude;
+    _lastEnqueuedLng = pos.longitude;
 
     // Persistencia paralela del histórico autoritativo local. Este box NO se
     // borra al enviar al backend — es el respaldo del trazo del turno por si
@@ -739,10 +793,23 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState> {
     _draining = true;
     try {
       final keys = box.keys.toList();
+      final ttlCutoff = DateTime.now().millisecondsSinceEpoch -
+          _queuePingTtl.inMilliseconds;
       for (final key in keys) {
         final raw = box.get(key);
         if (raw == null) continue;
         final item = Map<String, dynamic>.from(raw);
+        // TTL: pings con más de 24 h en cola muy probablemente son residuos
+        // de un turno abortado / boot anterior. El backend los rechazaría
+        // (FleetEntry cerrada / out-of-range). Mejor descartarlos para no
+        // ocupar slots útiles ni atascar el drain.
+        final ts = (item['ts'] as num?)?.toInt() ?? 0;
+        if (ts > 0 && ts < ttlCutoff) {
+          debugPrint('[LocationTracking] descartando ping >24h '
+              '(ts=$ts, key=$key, entryId=${item['entryId']})');
+          await box.delete(key);
+          continue;
+        }
         try {
           await _svc.sendLocation(
             entryId: item['entryId'] as String,

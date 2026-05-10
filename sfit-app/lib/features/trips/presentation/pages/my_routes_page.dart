@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import '../../../../shared/widgets/map/sfit_map_tiles.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -548,12 +549,7 @@ class _ActiveEntryCard extends StatelessWidget {
                           flags: InteractiveFlag.none),
                     ),
                     children: [
-                      TileLayer(
-                        urlTemplate:
-                            'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-                        subdomains: const ['a', 'b', 'c', 'd'],
-                        userAgentPackageName: 'com.sfit.sfit_app',
-                      ),
+                      sfitCartoVoyagerTile(),
                       PolylineLayer(polylines: [
                         Polyline(
                           points: track,
@@ -786,11 +782,7 @@ class _PassRow extends StatelessWidget {
                           interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
                         ),
                         children: [
-                          TileLayer(
-                            urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-                            subdomains: const ['a', 'b', 'c', 'd'],
-                            userAgentPackageName: 'com.sfit.sfit_app',
-                          ),
+                          sfitCartoLightTile(),
                           PolylineLayer(polylines: [
                             Polyline(
                               points: track,

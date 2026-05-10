@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import '../../../../shared/widgets/map/sfit_map_tiles.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
@@ -633,13 +634,8 @@ class _RouteMapState extends State<_RouteMap> {
             ),
           ),
           children: [
-            // Tiles OSM estándar — mejor detalle de calles y edificios
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.sfit.sfit_app',
-              maxZoom: 19,
-              tileProvider: NetworkTileProvider(),
-            ),
+            // Tiles OSM estándar (cacheados localmente vía CachedTileProvider).
+            sfitOsmTile(),
             // Polyline en doble capa: halo blanco + dorado encima (mejor contraste sobre el mapa)
             if (points.length >= 2) ...[
               PolylineLayer(polylines: [

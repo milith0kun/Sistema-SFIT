@@ -10,6 +10,7 @@ import '../../../../core/services/location_tracking_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/map/sfit_map_markers.dart';
+import '../../../../shared/widgets/map/sfit_map_tiles.dart';
 import '../../../trips/data/datasources/trips_api_service.dart';
 
 /// Pantalla de resumen al cerrar un FleetEntry. Llamada con
@@ -47,6 +48,29 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
   List<LatLng> _persistedTrack = const [];
   /// Indica si el bulk upload se disparó automáticamente (para evitar loops).
   bool _bulkUploadAttempted = false;
+  /// Estado del retry automático del bulk: para mostrar progreso en UI y
+  /// permitir reintento manual cuando se agotan los intentos automáticos.
+  int _bulkAttempt = 0;
+  bool _bulkInFlight = false;
+  bool _bulkExhausted = false;
+  String? _bulkLastError;
+  Timer? _bulkRetryTimer;
+
+  /// Backoff: 2s → 5s → 15s → 30s → 60s. Total ≈ 112 s antes de pasar a
+  /// modo manual.
+  static const List<Duration> _bulkBackoff = [
+    Duration(seconds: 2),
+    Duration(seconds: 5),
+    Duration(seconds: 15),
+    Duration(seconds: 30),
+    Duration(seconds: 60),
+  ];
+
+  @override
+  void dispose() {
+    _bulkRetryTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -89,14 +113,27 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
     }
   }
 
-  /// Sube el track local en bulk al backend y recarga el resumen para que
-  /// las métricas (distanceMeters, endLocation, compliance) se actualicen.
-  Future<void> _repairTrack() async {
+  /// Sube el track local en bulk al backend con backoff exponencial.
+  /// Recarga el resumen tras éxito para que las métricas (distanceMeters,
+  /// endLocation, compliance) se actualicen. Si los 5 intentos automáticos
+  /// fallan, expone botón manual de reintento (la red puede haber vuelto).
+  Future<void> _repairTrack({int attempt = 0}) async {
+    if (_bulkInFlight) return;
+    setState(() {
+      _bulkInFlight = true;
+      _bulkAttempt = attempt + 1;
+      _bulkLastError = null;
+    });
     try {
       final inserted = await ref
           .read(locationTrackingProvider.notifier)
           .bulkUploadTrack(widget.entryId);
       if (!mounted) return;
+      setState(() {
+        _bulkInFlight = false;
+        _bulkExhausted = false;
+        _bulkLastError = null;
+      });
       if (inserted > 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -107,8 +144,28 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
         );
         await _load();
       }
-    } catch (_) {
-      // El track local sigue mostrándose como fallback aunque falle el bulk.
+    } catch (e) {
+      if (!mounted) return;
+      final next = attempt + 1;
+      if (next >= _bulkBackoff.length) {
+        // Agotamos los intentos automáticos. Dejamos el track local como
+        // fallback visual; el usuario puede reintentar manualmente.
+        setState(() {
+          _bulkInFlight = false;
+          _bulkExhausted = true;
+          _bulkLastError = e.toString();
+        });
+        return;
+      }
+      setState(() {
+        _bulkInFlight = false;
+        _bulkLastError = e.toString();
+      });
+      _bulkRetryTimer?.cancel();
+      _bulkRetryTimer = Timer(_bulkBackoff[next], () {
+        if (!mounted) return;
+        unawaited(_repairTrack(attempt: next));
+      });
     }
   }
 
@@ -316,12 +373,7 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
           child: FlutterMap(
             options: mapOptions,
             children: [
-              TileLayer(
-                urlTemplate:
-                    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-                subdomains: const ['a', 'b', 'c', 'd'],
-                userAgentPackageName: 'com.sfit.sfit_app',
-              ),
+              sfitCartoVoyagerTile(),
               // Trazado real del conductor en dorado (grosor adaptable al zoom).
               if (hasValidTrack)
                 PolylineLayer(polylines: [
@@ -447,6 +499,30 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
             right: 16,
             top: 88,
             child: _PendingSyncBanner(count: pendingPings),
+          ),
+        // ── Banner de retry del bulk upload ─────────────────────
+        // Visible mientras hay reintentos automáticos en curso o cuando
+        // se agotaron los 5 intentos y el usuario puede reintentar manual.
+        if (pendingPings == 0 && (_bulkInFlight || _bulkExhausted))
+          Positioned(
+            left: 16,
+            right: 16,
+            top: 88,
+            child: _BulkRetryBanner(
+              attempt: _bulkAttempt,
+              total: _bulkBackoff.length,
+              inFlight: _bulkInFlight,
+              exhausted: _bulkExhausted,
+              lastError: _bulkLastError,
+              onRetry: () {
+                _bulkRetryTimer?.cancel();
+                setState(() {
+                  _bulkExhausted = false;
+                  _bulkAttempt = 0;
+                });
+                unawaited(_repairTrack());
+              },
+            ),
           ),
         // ── Banner cuando no hay GPS registrado ──────────────────
         if (!hasValidTrack && pendingPings == 0)
@@ -946,6 +1022,108 @@ class _PendingSyncBanner extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Banner del retry automático del bulk upload del track. Aparece cuando
+/// `_repairTrack` detectó backend vacío + track local presente y la red
+/// puede estar inestable. Mientras corren los reintentos automáticos
+/// muestra `inFlight=true` con un spinner; tras agotarlos expone botón
+/// manual de reintento.
+class _BulkRetryBanner extends StatelessWidget {
+  final int attempt;
+  final int total;
+  final bool inFlight;
+  final bool exhausted;
+  final String? lastError;
+  final VoidCallback onRetry;
+  const _BulkRetryBanner({
+    required this.attempt,
+    required this.total,
+    required this.inFlight,
+    required this.exhausted,
+    required this.lastError,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isError = exhausted;
+    final color = isError ? const Color(0xFFB45309) : AppColors.gold;
+    final bg = isError ? const Color(0xFFFFF4E5) : Colors.white;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isError ? color.withValues(alpha: 0.35) : AppColors.goldBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          if (inFlight)
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2.2, color: color),
+            )
+          else
+            Icon(
+              isError ? Icons.cloud_off_rounded : Icons.cloud_upload_outlined,
+              size: 20,
+              color: color,
+            ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isError ? 'No se pudo subir el recorrido' : 'Subiendo recorrido…',
+                  style: AppTheme.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink9,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isError
+                      ? 'Vuelve a intentarlo cuando tengas mejor señal.'
+                      : 'Intento $attempt de $total. Las métricas se actualizarán al terminar.',
+                  style: AppTheme.inter(
+                    fontSize: 11.5,
+                    color: AppColors.ink6,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (isError) ...[
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: onRetry,
+              style: TextButton.styleFrom(
+                foregroundColor: color,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              ),
+              child: Text(
+                'Reintentar',
+                style: AppTheme.inter(fontSize: 12.5, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
         ],
       ),
     );

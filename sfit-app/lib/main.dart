@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:firebase_core/firebase_core.dart';
@@ -11,62 +12,120 @@ import 'app.dart';
 import 'core/services/fcm_background_handler.dart';
 import 'core/services/notification_service.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+/// Reemplaza el `ErrorWidget.builder` default (banner rojo grande de
+/// FlutterErrorWidget) por una vista compacta que no asusta al usuario en
+/// release. En debug seguimos mostrando el detalle para depurar.
+Widget _buildErrorWidget(FlutterErrorDetails details) {
+  if (kDebugMode) return ErrorWidget(details.exception);
+  return Container(
+    color: const Color(0xFFFFFAFA),
+    alignment: Alignment.center,
+    padding: const EdgeInsets.all(20),
+    child: const Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.error_outline_rounded, size: 36, color: Color(0xFFB45309)),
+        SizedBox(height: 10),
+        Text(
+          'Algo no salió bien al cargar esta sección.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF18181B),
+          ),
+        ),
+        SizedBox(height: 6),
+        Text(
+          'Inténtalo nuevamente o vuelve más tarde.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12, color: Color(0xFF71717A)),
+        ),
+      ],
+    ),
+  );
+}
 
-  // Reportar errores de Flutter (incluido en builds release) al logcat con
-  // tag 'SFIT_ERROR' para poder diagnosticar pantallas rojas en campo via
-  // `adb logcat -s flutter:V SFIT_ERROR:V`. Sin esto, los CastError /
-  // TypeError se atrapan silenciosamente y solo el FlutterErrorWidget rojo
-  // queda visible.
-  FlutterError.onError = (FlutterErrorDetails details) {
-    FlutterError.presentError(details);
-    developer.log(
-      'FLUTTER ERROR: ${details.exceptionAsString()}',
-      name: 'SFIT_ERROR',
-      error: details.exception,
-      stackTrace: details.stack,
+void main() {
+  // Envolvente runZonedGuarded para capturar errores asíncronos que escapen
+  // de zonas Riverpod / Future.then sin onError. Con esto cualquier crash
+  // catastrófico se loguea (SFIT_ERROR) y la app no se cae a pantalla negra
+  // sin pista del error.
+  runZonedGuarded<void>(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+
+    // Reemplazar la pantalla roja default de Flutter por una vista compacta
+    // (release) o el widget original (debug).
+    ErrorWidget.builder = _buildErrorWidget;
+
+    // Reportar errores de Flutter (incluido en builds release) al logcat con
+    // tag 'SFIT_ERROR' para poder diagnosticar pantallas rojas en campo via
+    // `adb logcat -s flutter:V SFIT_ERROR:V`.
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.presentError(details);
+      developer.log(
+        'FLUTTER ERROR: ${details.exceptionAsString()}',
+        name: 'SFIT_ERROR',
+        error: details.exception,
+        stackTrace: details.stack,
+      );
+    };
+    PlatformDispatcher.instance.onError = (error, stack) {
+      developer.log(
+        'PLATFORM ERROR: $error',
+        name: 'SFIT_ERROR',
+        error: error,
+        stackTrace: stack,
+      );
+      return true;
+    };
+
+    // Cada paso de inicialización en su propio try/catch. Si uno falla,
+    // arrancamos igual sin esa funcionalidad — preferimos app degradada a
+    // pantalla negra de boot.
+
+    // Símbolos de fecha en español para `DateFormat`. Si falla, queda el
+    // locale por defecto del sistema.
+    try {
+      await initializeDateFormatting('es', null);
+    } catch (e, st) {
+      developer.log('init es locale failed', name: 'SFIT_ERROR', error: e, stackTrace: st);
+    }
+
+    // Hive para storage local (cola GPS, cache, perfil offline). Si falla,
+    // la app sigue pero sin persistencia local.
+    try {
+      await Hive.initFlutter();
+    } catch (e, st) {
+      developer.log('Hive init failed', name: 'SFIT_ERROR', error: e, stackTrace: st);
+    }
+
+    runApp(
+      const ProviderScope(
+        child: SfitApp(),
+      ),
     );
-  };
-  PlatformDispatcher.instance.onError = (error, stack) {
+
+    // Firebase + FCM en post-frame para no bloquear el primer frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await Firebase.initializeApp();
+        FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+        await NotificationService.initialize();
+      } catch (e, st) {
+        // Si falta google-services.json o el dispositivo no tiene Play
+        // Services, no bloquear el arranque. Los handlers FCM no se
+        // registran y las notificaciones push simplemente no llegan.
+        developer.log('FCM init failed (non-fatal)', name: 'SFIT_ERROR', error: e, stackTrace: st);
+      }
+    });
+  }, (error, stack) {
+    // Catch-all final para errores en zonas async que escaparon del resto.
     developer.log(
-      'PLATFORM ERROR: $error',
+      'ZONE ERROR: $error',
       name: 'SFIT_ERROR',
       error: error,
       stackTrace: stack,
     );
-    return true;
-  };
-
-  // Inicializa los símbolos de fecha en español para que `DateFormat`
-  // pueda formatear fechas con locale 'es' (ej. "1 de mayo, 14:23").
-  // Es rápido (~10ms) y se necesita antes del primer build.
-  await initializeDateFormatting('es', null);
-
-  // Hive para storage local: cola offline de puntos GPS del conductor cuando
-  // se cae la red. El box se abre lazy desde LocationTrackingService.
-  await Hive.initFlutter();
-
-  // Arrancamos la UI de inmediato. Firebase + FCM se inicializan en el
-  // primer post-frame callback para no bloquear el primer frame
-  // (ahorra ~500-800ms de startup en dispositivos lentos).
-  runApp(
-    const ProviderScope(
-      child: SfitApp(),
-    ),
-  );
-
-  WidgetsBinding.instance.addPostFrameCallback((_) async {
-    try {
-      await Firebase.initializeApp();
-      // RF-18: Registrar el handler de background. Debe ser una función
-      // top-level — ver fcm_background_handler.dart.
-      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-      // RF-18: Inicializar canal Android + listeners FCM (foreground, tap).
-      await NotificationService.initialize();
-    } catch (_) {
-      // Si falta google-services.json en el build, no bloquear el arranque.
-      // Los handlers de FCM simplemente no se registran.
-    }
   });
 }

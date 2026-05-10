@@ -10,6 +10,7 @@ import '../../../../core/services/location_smoother.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/map/sfit_map_markers.dart';
+import '../../../../shared/widgets/map/sfit_map_tiles.dart';
 import 'live_bus_data.dart';
 
 /// Pantalla completa de detalle de un bus en vivo.
@@ -342,11 +343,7 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
                 },
               ),
               children: [
-                TileLayer(
-                  urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-                  subdomains: const ['a', 'b', 'c', 'd'],
-                  userAgentPackageName: 'com.sfit.sfit_app',
-                ),
+                sfitCartoVoyagerTile(),
                 // Planificada YA PASADA: solo si no hay liveTrack (sino sería ruido).
                 if (!hasLiveTrack && plannedSplit.traveled.length >= 2)
                   PolylineLayer(polylines: [

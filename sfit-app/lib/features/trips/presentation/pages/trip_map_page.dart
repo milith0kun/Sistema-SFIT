@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import '../../../../shared/widgets/map/sfit_map_tiles.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
@@ -153,10 +154,7 @@ class _TripMapPageState extends ConsumerState<TripMapPage>
             },
           ),
           children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.sfit.sfit_app',
-            ),
+            sfitOsmTile(),
             // Ruta planeada (línea azul punteada que une los paraderos)
             if (waypoints.length >= 2)
               PolylineLayer(

@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
+import '../../../../shared/widgets/map/sfit_map_tiles.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
@@ -451,11 +452,7 @@ class _FeedDetailPageState extends ConsumerState<FeedDetailPage> {
                   ),
                 ),
                 children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.sfit.sfit_app',
-                  ),
+                  sfitOsmTile(),
                   MarkerLayer(
                     markers: [
                       Marker(

@@ -5,6 +5,7 @@ import 'package:dio/dio.dart'
     show DioException, DioExceptionType, FormData, MultipartFile;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import '../../../../shared/widgets/map/sfit_map_tiles.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
@@ -1101,14 +1102,9 @@ class _LocationSectionState extends State<_LocationSection> {
                   ),
                   children: [
                     // Tiles CartoDB Voyager — más limpios que OSM crudo,
-                    // sin clutter de POIs y con paleta sobria.
-                    TileLayer(
-                      urlTemplate:
-                          'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-                      subdomains: const ['a', 'b', 'c', 'd'],
-                      userAgentPackageName: 'com.sfit.app',
-                      maxZoom: 19,
-                    ),
+                    // sin clutter de POIs y con paleta sobria. Cacheados
+                    // localmente vía CachedTileProvider.
+                    sfitCartoVoyagerTile(),
                     MarkerLayer(
                       markers: [
                         Marker(
