@@ -20,10 +20,10 @@ import type { JwtPayload } from "./jwt";
  */
 export async function resolveDriverFromSession(
   session: JwtPayload,
-): Promise<{ _id: unknown; municipalityId: unknown } | null> {
+): Promise<{ _id: unknown; municipalityId: unknown; companyId?: unknown } | null> {
   let driver = await Driver.findOne({ userId: session.userId })
-    .select("_id municipalityId")
-    .lean<{ _id: unknown; municipalityId: unknown } | null>();
+    .select("_id municipalityId companyId")
+    .lean<{ _id: unknown; municipalityId: unknown; companyId?: unknown } | null>();
 
   if (!driver && session.municipalityId) {
     const user = await User.findById(session.userId)
@@ -34,8 +34,8 @@ export async function resolveDriverFromSession(
         dni: user.dni,
         municipalityId: session.municipalityId,
       })
-        .select("_id municipalityId")
-        .lean<{ _id: unknown; municipalityId: unknown } | null>();
+        .select("_id municipalityId companyId")
+        .lean<{ _id: unknown; municipalityId: unknown; companyId?: unknown } | null>();
     }
   }
 
