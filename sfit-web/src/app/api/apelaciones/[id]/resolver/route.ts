@@ -9,6 +9,7 @@ import { ROLES } from "@/lib/constants";
 import { sendPushToUser } from "@/lib/notifications/fcm";
 import { logAction } from "@/lib/audit/logAction";
 import { rolesFor } from "@/lib/auth/roleMatrix";
+import { canAccessMunicipality } from "@/lib/auth/rbac";
 
 const ResolveSchema = z.object({
   status: z.enum(["aprobada", "rechazada"]),
@@ -45,9 +46,11 @@ export async function PATCH(
     const apelacion = await Apelacion.findById(id);
     if (!apelacion) return apiNotFound("Apelación no encontrada");
 
-    // Scope: admin_municipal y fiscal solo resuelven de su municipio
-    if (auth.session.role === ROLES.ADMIN_MUNICIPAL || auth.session.role === ROLES.FISCAL) {
-      if (String(apelacion.municipalityId) !== String(auth.session.municipalityId)) return apiForbidden();
+    // Scope geográfico: super_admin pasa siempre; admin_regional, admin_provincial,
+    // admin_municipal y fiscal solo resuelven apelaciones dentro de su scope.
+    if (auth.session.role !== ROLES.SUPER_ADMIN) {
+      const ok = await canAccessMunicipality(auth.session, String(apelacion.municipalityId));
+      if (!ok) return apiForbidden();
     }
 
     if (apelacion.status !== "pendiente") {

@@ -16,19 +16,49 @@ import { ROLES } from "@/lib/constants";
  * activos y empresas por modalidad. Los distritos individuales se omiten;
  * se cargan vía /api/municipalidades?provinceId= cuando se expande la provincia.
  *
- * Solo super_admin.
+ * Acceso: super_admin (todo), admin_regional (su región), admin_provincial
+ * (provincias de su región), admin_municipal (provincia que contiene su muni).
+ * El filtrado por scope se hace por `departmentCode` resolviendo el region/
+ * provincia/muni de la sesión.
  */
 export async function GET(request: NextRequest) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN]);
+  const auth = requireRole(request, [
+    ROLES.SUPER_ADMIN,
+    ROLES.ADMIN_REGIONAL,
+    ROLES.ADMIN_PROVINCIAL,
+    ROLES.ADMIN_MUNICIPAL,
+  ]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }
 
+  const { session } = auth;
+
   try {
     await connectDB();
 
+    // Resolver scope geográfico para filtrar provincias.
+    const provinceFilter: Record<string, unknown> = {
+      ubigeoCode: { $exists: true, $ne: null },
+    };
+
+    if (session.role === ROLES.ADMIN_REGIONAL) {
+      if (!session.regionId) return apiResponse({ departments: [], totals: { departments: 0, provinces: 0, municipalities: 0, activeMunicipalities: 0, coveredDepartments: 0 } });
+      provinceFilter.regionId = session.regionId;
+    } else if (session.role === ROLES.ADMIN_PROVINCIAL) {
+      if (!session.provinceId) return apiResponse({ departments: [], totals: { departments: 0, provinces: 0, municipalities: 0, activeMunicipalities: 0, coveredDepartments: 0 } });
+      provinceFilter._id = session.provinceId;
+    } else if (session.role === ROLES.ADMIN_MUNICIPAL) {
+      if (!session.municipalityId) return apiResponse({ departments: [], totals: { departments: 0, provinces: 0, municipalities: 0, activeMunicipalities: 0, coveredDepartments: 0 } });
+      const muni = await Municipality.findById(session.municipalityId)
+        .select("provinceId")
+        .lean<{ provinceId?: unknown } | null>();
+      if (!muni?.provinceId) return apiResponse({ departments: [], totals: { departments: 0, provinces: 0, municipalities: 0, activeMunicipalities: 0, coveredDepartments: 0 } });
+      provinceFilter._id = muni.provinceId;
+    }
+
     const [provinces, muniByProvAgg, companiesAgg] = await Promise.all([
-      Province.find({ ubigeoCode: { $exists: true, $ne: null } })
+      Province.find(provinceFilter)
         .select("name ubigeoCode departmentCode departmentName active")
         .sort({ departmentCode: 1, name: 1 })
         .lean<Array<{

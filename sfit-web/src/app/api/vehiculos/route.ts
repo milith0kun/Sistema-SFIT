@@ -7,7 +7,7 @@ import { Company } from "@/models/Company";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES, VEHICLE_STATUS } from "@/lib/constants";
-import { canAccessMunicipality } from "@/lib/auth/rbac";
+import { canAccessMunicipality, scopedCompanyFilter } from "@/lib/auth/rbac";
 import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
 import { rolesFor } from "@/lib/auth/roleMatrix";
 
@@ -129,8 +129,16 @@ export async function POST(request: NextRequest) {
       return apiValidationError(errors);
     }
 
+    // Resolver municipalityId según rol:
+    //   - admin_municipal/fiscal/operador: usa el del JWT.
+    //   - super_admin/admin_regional/admin_provincial: viene del body y se
+    //     valida con canAccessMunicipality (cubre scope geográfico).
     let municipalityId = parsed.data.municipalityId;
-    if (auth.session.role !== ROLES.SUPER_ADMIN) {
+    if (
+      auth.session.role === ROLES.ADMIN_MUNICIPAL ||
+      auth.session.role === ROLES.FISCAL ||
+      auth.session.role === ROLES.OPERADOR
+    ) {
       if (!auth.session.municipalityId) return apiForbidden();
       municipalityId = auth.session.municipalityId;
     }
@@ -139,8 +147,10 @@ export async function POST(request: NextRequest) {
     await connectDB();
     if (!(await canAccessMunicipality(auth.session, municipalityId))) return apiForbidden();
 
-    // Operador: forzar companyId a la empresa propia y validar que la
-    // empresa pertenezca a su misma muni (defensa multi-tenant).
+    // companyId:
+    //   - operador: forzar a su empresa propia (ignora body) y validar muni.
+    //   - admins (SA/AR/AP/AM): si viene en body, validar que pertenezca al
+    //     scope geográfico vía scopedCompanyFilter.
     let effectiveCompanyId = parsed.data.companyId;
     if (auth.session.role === ROLES.OPERADOR) {
       const myCompanyId = await getOperatorCompanyId(auth.session.userId);
@@ -150,6 +160,12 @@ export async function POST(request: NextRequest) {
         return apiForbidden();
       }
       effectiveCompanyId = myCompanyId;
+    } else if (effectiveCompanyId) {
+      const filter = await scopedCompanyFilter(auth.session);
+      const match = await Company.findOne({ _id: effectiveCompanyId, ...filter })
+        .select("_id")
+        .lean();
+      if (!match) return apiForbidden();
     }
 
     const duplicate = await Vehicle.findOne({ municipalityId, plate: parsed.data.plate.toUpperCase() });

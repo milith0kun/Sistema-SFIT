@@ -36,6 +36,7 @@ const PASSWORD = "Sfit2026!";
 
 type Role =
   | "super_admin"
+  | "admin_regional"
   | "admin_provincial"
   | "admin_municipal"
   | "fiscal"
@@ -47,7 +48,7 @@ interface SeedUser {
   email: string;
   name: string;
   role: Role;
-  scope: "global" | "province" | "municipality";
+  scope: "global" | "region" | "province" | "municipality";
 }
 
 const USERS: SeedUser[] = [
@@ -56,6 +57,12 @@ const USERS: SeedUser[] = [
     name: "Super Administrador SFIT",
     role: "super_admin",
     scope: "global",
+  },
+  {
+    email: "regional@sfit.test",
+    name: "Administrador Regional SFIT",
+    role: "admin_regional",
+    scope: "region",
   },
   {
     email: "provincial@sfit.test",
@@ -219,6 +226,9 @@ async function main() {
       updatedAt: new Date(),
     };
 
+    if (u.scope === "region" || u.scope === "province" || u.scope === "municipality") {
+      set.regionId = provinceDoc.regionId;
+    }
     if (u.scope === "province" || u.scope === "municipality") {
       set.provinceId = provinceId;
     }

@@ -6,12 +6,38 @@ import { ROLES, type Role } from "@/lib/constants";
 
 vi.mock("@/lib/db/mongoose", () => ({ connectDB: vi.fn() }));
 vi.mock("@/lib/auth/rbac", () => ({ canAccessMunicipality: vi.fn().mockResolvedValue(true) }));
+vi.mock("@/lib/auth/operatorCompany", () => ({
+  getOperatorCompanyId: vi.fn().mockResolvedValue("664f0000000000000000004d"),
+}));
 vi.mock("@/models/Trip", () => ({
   Trip: {
     find: vi.fn(),
     countDocuments: vi.fn(),
     create: vi.fn(),
     updateMany: vi.fn(),
+  },
+}));
+vi.mock("@/models/Vehicle", () => ({
+  Vehicle: {
+    findById: vi.fn(() => ({
+      select: vi.fn(() => ({
+        lean: vi.fn().mockResolvedValue({ companyId: "664f0000000000000000004d" }),
+      })),
+    })),
+  },
+}));
+vi.mock("@/models/Driver", () => ({
+  Driver: {
+    findOne: vi.fn(() => ({
+      select: vi.fn(() => ({ lean: vi.fn().mockResolvedValue(null) })),
+    })),
+  },
+}));
+vi.mock("@/models/User", () => ({
+  User: {
+    findById: vi.fn(() => ({
+      select: vi.fn(() => ({ lean: vi.fn().mockResolvedValue(null) })),
+    })),
   },
 }));
 

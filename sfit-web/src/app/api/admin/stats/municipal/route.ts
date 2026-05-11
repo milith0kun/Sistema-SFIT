@@ -13,6 +13,7 @@ import {
   apiUnauthorized,
 } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
+import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { ROLES } from "@/lib/constants";
 
 /**
@@ -28,21 +29,31 @@ import { ROLES } from "@/lib/constants";
  *  - ultimasSanciones: últimas 5 sanciones emitidas en la municipalidad.
  */
 export async function GET(request: NextRequest) {
-  const auth = requireRole(request, [ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL, ROLES.SUPER_ADMIN]);
+  const auth = requireRole(request, [
+    ROLES.SUPER_ADMIN,
+    ROLES.ADMIN_REGIONAL,
+    ROLES.ADMIN_PROVINCIAL,
+    ROLES.ADMIN_MUNICIPAL,
+    ROLES.FISCAL,
+  ]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }
 
   const { session } = auth;
 
-  // Para super_admin puede pasar municipalityId como query param.
-  // Para admin_municipal/fiscal se usa el del JWT.
+  // admin_municipal y fiscal usan el municipalityId del JWT (su propia muni).
+  // super_admin, admin_regional y admin_provincial pasan municipalityId como
+  // query param y se valida con canAccessMunicipality (scope geográfico).
   let municipalityId: string | undefined;
-  if (session.role === ROLES.SUPER_ADMIN) {
+  if (
+    session.role === ROLES.ADMIN_MUNICIPAL ||
+    session.role === ROLES.FISCAL
+  ) {
+    municipalityId = session.municipalityId;
+  } else {
     municipalityId =
       new URL(request.url).searchParams.get("municipalityId") ?? undefined;
-  } else {
-    municipalityId = session.municipalityId;
   }
 
   if (!municipalityId) {
@@ -50,6 +61,12 @@ export async function GET(request: NextRequest) {
       "municipalityId requerido (incluido en el token o como query param)",
       400,
     );
+  }
+
+  // Validar scope geográfico para admins jerárquicos.
+  if (session.role !== ROLES.SUPER_ADMIN) {
+    const ok = await canAccessMunicipality(session, municipalityId);
+    if (!ok) return apiForbidden();
   }
 
   let munOid: mongoose.Types.ObjectId;

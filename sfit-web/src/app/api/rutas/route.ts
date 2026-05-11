@@ -6,7 +6,7 @@ import { Route } from "@/models/Route";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
-import { canAccessMunicipality } from "@/lib/auth/rbac";
+import { canAccessMunicipality, scopedCompanyFilter } from "@/lib/auth/rbac";
 import { Company, SERVICE_SCOPES } from "@/models/Company";
 import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
 import { rolesFor } from "@/lib/auth/roleMatrix";
@@ -226,8 +226,15 @@ export async function POST(request: NextRequest) {
       return apiValidationError(errors);
     }
 
+    // municipalityId según rol:
+    //   - admin_municipal/fiscal/operador: usa el del JWT.
+    //   - super_admin/admin_regional/admin_provincial: viene del body.
     let municipalityId = parsed.data.municipalityId;
-    if (auth.session.role !== ROLES.SUPER_ADMIN) {
+    if (
+      auth.session.role === ROLES.ADMIN_MUNICIPAL ||
+      auth.session.role === ROLES.FISCAL ||
+      auth.session.role === ROLES.OPERADOR
+    ) {
       if (!auth.session.municipalityId) return apiForbidden();
       municipalityId = auth.session.municipalityId;
     }
@@ -243,9 +250,12 @@ export async function POST(request: NextRequest) {
     if (scopeErrors) return apiValidationError(scopeErrors);
 
     await connectDB();
+    if (!(await canAccessMunicipality(auth.session, municipalityId))) return apiForbidden();
 
-    // Operador: forzar companyId a la empresa propia (ignora lo que venga
-    // en el body) y validar que la empresa pertenezca a su misma muni.
+    // companyId:
+    //   - operador: forzar a su empresa propia (ignora body) y validar muni.
+    //   - admins (SA/AR/AP/AM): si viene en body, validar que pertenezca al
+    //     scope geográfico vía scopedCompanyFilter.
     const dataForCreate: Record<string, unknown> = { ...parsed.data };
     if (auth.session.role === ROLES.OPERADOR) {
       const myCompanyId = await getOperatorCompanyId(auth.session.userId);
@@ -255,6 +265,12 @@ export async function POST(request: NextRequest) {
         return apiForbidden();
       }
       dataForCreate.companyId = myCompanyId;
+    } else if (parsed.data.companyId) {
+      const filter = await scopedCompanyFilter(auth.session);
+      const match = await Company.findOne({ _id: parsed.data.companyId, ...filter })
+        .select("_id")
+        .lean();
+      if (!match) return apiForbidden();
     }
 
     const duplicate = await Route.findOne({ municipalityId, code: parsed.data.code });

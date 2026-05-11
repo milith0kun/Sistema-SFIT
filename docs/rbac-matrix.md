@@ -1,6 +1,6 @@
 # Matriz RBAC de SFIT
 
-> ⚠️ **Auto-generado** desde `src/lib/auth/roleMatrix.ts` el 2026-05-08T22:26:02.248Z.
+> ⚠️ **Auto-generado** desde `src/lib/auth/roleMatrix.ts` el 2026-05-11T00:04:28.348Z.
 > No editar a mano. Re-genera con `cd sfit-web && npx tsx scripts/gen-rbac-matrix.ts`.
 
 ## Leyenda
@@ -15,17 +15,17 @@
 
 | Recurso | Super Admin | Admin Regional | Admin Provincial | Admin Municipal | Fiscal | Operador | Conductor | Ciudadano |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **conductores** | VCED | V | VCE | VCED | VE | VCE | — | — |
-| **vehiculos** | VCED | V | V | VCED | V | VCE | V | — |
-| **flota** | VCED | V | V | VCED | V | VCE | VCE | — |
-| **viajes** | VCED | V | V | VCED | V | VCE | VE | — |
-| **rutas** | VCED | V | V | VCED | V | VCE | V | — |
-| **empresas** | VCED | V | V | VCE | V | VE | — | — |
-| **inspecciones** | VCED | V | V | VCED | VCE | V | — | — |
-| **sanciones** | VCED | V | V | VCED | VCE | V | V | — |
-| **apelaciones** | VED | V | V | VE | VE | C | VC | — |
+| **conductores** | VCED | VCED | VCED | VCED | VE | VCE | — | — |
+| **vehiculos** | VCED | VCED | VCED | VCED | V | VCE | V | — |
+| **flota** | VCED | VCED | VCED | VCED | V | VCE | VCE | — |
+| **viajes** | VCED | VCED | VCED | VCED | V | VCE | VE | — |
+| **rutas** | VCED | VCED | VCED | VCED | V | VCE | V | — |
+| **empresas** | VCED | VCE | VCE | VCE | V | VE | — | — |
+| **inspecciones** | VD | V | V | VD | VCE | V | — | — |
+| **sanciones** | VD | V | V | VD | VCE | V | V | — |
+| **apelaciones** | VED | VE | VE | VE | VE | C | VC | — |
 | **reportes** | VED | V | V | VE | VE | V | — | VC |
-| **recompensas** | VCED | — | — | VCE | — | — | — | V |
+| **recompensas** | VCED | V | V | VCE | — | — | — | V |
 | **usuarios** | VCED | VCE | VCE | VCE | — | — | — | — |
 | **municipalidades** | VCED | VCE | VCE | V | — | — | — | — |
 | **provincias** | VCED | VCE | V | — | — | — | — | — |
@@ -40,8 +40,8 @@
 | Admin Regional | ✅ | ✅ |
 | Admin Provincial | ✅ | ✅ |
 | Admin Municipal | ✅ | ✅ |
-| Fiscal | ✅ | ✅ |
-| Operador | ✅ | ✅ |
+| Fiscal | — | ✅ (exclusivo) |
+| Operador | — | ✅ (exclusivo) |
 | Conductor | — | ✅ (exclusivo) |
 | Ciudadano | — | ✅ (exclusivo) |
 

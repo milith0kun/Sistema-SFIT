@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Municipality } from "@/models/Municipality";
 import { Province } from "@/models/Province";
 import { ROLES } from "@/lib/constants";
@@ -203,6 +204,34 @@ export async function canEditCompany(
 ): Promise<boolean> {
   if (session.role === ROLES.SUPER_ADMIN) return true;
 
+  if (session.role === ROLES.ADMIN_REGIONAL) {
+    if (!session.regionId) return false;
+    // Caso 1: la empresa está sediada en una muni cuya provincia pertenece
+    // a la región del admin.
+    if (company.municipalityId) {
+      const muni = await Municipality.findById(company.municipalityId)
+        .select("provinceId")
+        .lean<{ provinceId?: unknown } | null>();
+      if (muni?.provinceId) {
+        const prov = await Province.findById(String(muni.provinceId))
+          .select("regionId")
+          .lean<{ regionId?: unknown } | null>();
+        if (prov?.regionId && String(prov.regionId) === String(session.regionId)) {
+          return true;
+        }
+      }
+    }
+    // Caso 2: la cobertura de la empresa incluye el departmentCode de la región.
+    const regionDoc = await Municipality.db
+      .collection("regions")
+      .findOne({ _id: session.regionId as unknown as object }, { projection: { ubigeoCode: 1 } });
+    const regionCode = (regionDoc as { ubigeoCode?: string } | null)?.ubigeoCode;
+    if (regionCode && company.coverage?.departmentCodes?.includes(regionCode)) {
+      return true;
+    }
+    return false;
+  }
+
   if (session.role === ROLES.ADMIN_PROVINCIAL) {
     if (!session.provinceId) return false;
     // Caso 1: la empresa está sediada en su provincia.
@@ -258,6 +287,38 @@ export async function scopedCompanyFilter(
   session: JwtPayload,
 ): Promise<Record<string, unknown>> {
   if (session.role === ROLES.SUPER_ADMIN) return {};
+
+  if (session.role === ROLES.ADMIN_REGIONAL) {
+    if (!session.regionId) return { _id: null };
+    // Resolver todas las provincias de la región y luego sus munis.
+    const provs = await Province.find({ regionId: session.regionId })
+      .select("_id")
+      .lean<Array<{ _id: unknown }>>();
+    if (provs.length === 0) {
+      // Sin provincias resueltas, intentar match por departmentCode de coverage.
+      const regionDoc = await Municipality.db
+        .collection("regions")
+        .findOne({ _id: session.regionId as unknown as object }, { projection: { ubigeoCode: 1 } });
+      const regionCode = (regionDoc as { ubigeoCode?: string } | null)?.ubigeoCode;
+      if (regionCode) return { "coverage.departmentCodes": regionCode };
+      return { _id: null };
+    }
+    const provIds = provs.map((p) => p._id as mongoose.Types.ObjectId);
+    const munis = await Municipality.find({ provinceId: { $in: provIds } })
+      .select("_id")
+      .lean<Array<{ _id: unknown }>>();
+    const muniIds = munis.map((m) => m._id);
+    const regionDoc = await Municipality.db
+      .collection("regions")
+      .findOne({ _id: session.regionId as unknown as object }, { projection: { ubigeoCode: 1 } });
+    const regionCode = (regionDoc as { ubigeoCode?: string } | null)?.ubigeoCode;
+
+    const orClauses: Record<string, unknown>[] = [];
+    if (muniIds.length > 0) orClauses.push({ municipalityId: { $in: muniIds } });
+    if (regionCode) orClauses.push({ "coverage.departmentCodes": regionCode });
+    if (orClauses.length === 0) return { _id: null };
+    return { $or: orClauses };
+  }
 
   if (session.role === ROLES.ADMIN_PROVINCIAL) {
     if (!session.provinceId) return { _id: null };

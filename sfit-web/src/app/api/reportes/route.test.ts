@@ -102,9 +102,11 @@ describe("GET /api/reportes", () => {
     expect(res.status).toBe(401);
   });
 
-  it("retorna 403 para operadores", async () => {
+  it("retorna 200 para operadores (ven reportes filtrados por su flota)", async () => {
+    // Operador en la matriz: view permitido; el filtrado por companyId se
+    // aplica en el handler (scopedCompanyFilter).
     const res = await GET(req("GET", token(ROLES.OPERADOR)));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
   });
 
   it("retorna 200 con reportes y statusCounts", async () => {

@@ -134,8 +134,16 @@ export async function POST(request: NextRequest) {
       return apiValidationError(errors);
     }
 
+    // municipalityId según rol:
+    //   - admin_municipal/fiscal/operador/conductor: usa el del JWT.
+    //   - super_admin/admin_regional/admin_provincial: viene del body.
     let municipalityId = parsed.data.municipalityId;
-    if (auth.session.role !== ROLES.SUPER_ADMIN) {
+    if (
+      auth.session.role === ROLES.ADMIN_MUNICIPAL ||
+      auth.session.role === ROLES.FISCAL ||
+      auth.session.role === ROLES.OPERADOR ||
+      auth.session.role === ROLES.CONDUCTOR
+    ) {
       if (!auth.session.municipalityId) return apiForbidden();
       municipalityId = auth.session.municipalityId;
     }
@@ -152,6 +160,7 @@ export async function POST(request: NextRequest) {
     }
 
     await connectDB();
+    if (!(await canAccessMunicipality(auth.session, municipalityId))) return apiForbidden();
 
     // Operador: bloquear sin empresa y validar que el vehicleId pertenezca
     // a su empresa. Sin esto un operador sin companyId podría inyectar

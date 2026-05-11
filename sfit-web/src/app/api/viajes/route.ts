@@ -157,14 +157,22 @@ export async function POST(request: NextRequest) {
       return apiValidationError(errors);
     }
 
+    // municipalityId según rol:
+    //   - admin_municipal/fiscal/operador: usa el del JWT.
+    //   - super_admin/admin_regional/admin_provincial: viene del body.
     let municipalityId = parsed.data.municipalityId;
-    if (auth.session.role !== ROLES.SUPER_ADMIN) {
+    if (
+      auth.session.role === ROLES.ADMIN_MUNICIPAL ||
+      auth.session.role === ROLES.FISCAL ||
+      auth.session.role === ROLES.OPERADOR
+    ) {
       if (!auth.session.municipalityId) return apiForbidden();
       municipalityId = auth.session.municipalityId;
     }
     if (!municipalityId) return apiError("municipalityId requerido", 400);
 
     await connectDB();
+    if (!(await canAccessMunicipality(auth.session, municipalityId))) return apiForbidden();
 
     // Operador: bloquear creación si no tiene empresa, y validar que el
     // vehicleId pertenezca a SU empresa (no permitir crear viajes con buses
