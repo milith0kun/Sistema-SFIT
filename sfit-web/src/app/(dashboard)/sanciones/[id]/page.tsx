@@ -206,7 +206,10 @@ export default function SancionDetallePage({ params }: Props) {
     finally { setUpdating(false); }
   }
 
-  const canEdit = ["fiscal", "admin_municipal", "super_admin"].includes(userRole);
+  // Editar sanciones es exclusivo de la app móvil del fiscal. En web los
+  // admins solo ven (read-only); para anular se usa el flujo de anulación
+  // (SANCION_ANULAR_ROLES) que cubre super_admin y admin_municipal.
+  const canEdit = false;
   const canAnular = canEdit && sanction
     && sanction.status !== "anulada"
     && sanction.status !== "confirmada";

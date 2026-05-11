@@ -128,8 +128,8 @@ export default function EstadisticasPage() {
 
   useEffect(() => {
     if (!user) return;
-    if (user.role === "super_admin" || user.role === "admin_provincial" || user.role === "admin_regional") void load(user);
-    else if (user.role === "admin_municipal" || user.role === "fiscal") void loadMunicipal();
+    if (user.role === "super_admin" || user.role === "admin_regional" || user.role === "admin_provincial") void load(user);
+    else if (user.role === "admin_municipal") void loadMunicipal();
     else setLoading(false);
   }, [user, load, loadMunicipal]);
 

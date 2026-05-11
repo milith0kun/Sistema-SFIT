@@ -91,7 +91,8 @@ function getToken() {
 }
 
 function assignableRoles(actorRole: string): string[] {
-  if (actorRole === "super_admin")      return ["super_admin", "admin_provincial", "admin_municipal", "fiscal", "operador", "conductor", "ciudadano"];
+  if (actorRole === "super_admin")      return ["super_admin", "admin_regional", "admin_provincial", "admin_municipal", "fiscal", "operador", "conductor", "ciudadano"];
+  if (actorRole === "admin_regional")   return ["admin_provincial", "admin_municipal", "fiscal", "operador", "conductor", "ciudadano"];
   if (actorRole === "admin_provincial") return ["admin_municipal", "fiscal", "operador", "conductor", "ciudadano"];
   if (actorRole === "admin_municipal")  return ["fiscal", "operador", "conductor", "ciudadano"];
   return [];

@@ -232,7 +232,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user) return;
-    if (["super_admin", "admin_provincial", "admin_municipal"].includes(user.role)) {
+    if (["super_admin", "admin_regional", "admin_provincial", "admin_municipal"].includes(user.role)) {
       void loadSuperAdmin(); void loadActividad();
       if (user.role === "admin_municipal") { void loadFiscal(); void loadFleetLocations(); }
     } else if (user.role === "operador") {
@@ -272,7 +272,7 @@ export default function DashboardPage() {
   const heroPills = buildHeroPills(role, stats, operadorStats, fiscalStats, conductorStats);
   const kpiItems = buildKpiItemsFor(role, stats, operadorStats, fiscalStats, conductorStats, loading);
   const quickAction = buildQuickActionFor(role);
-  const showActivity = ["super_admin", "admin_provincial", "admin_municipal", "fiscal"].includes(role);
+  const showActivity = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"].includes(role);
 
   return (
     <div className="flex flex-col gap-4 animate-fade-in h-full">
