@@ -14,13 +14,20 @@ import '../../../../shared/widgets/map/sfit_map_markers.dart';
 import '../../../../shared/widgets/map/sfit_map_tiles.dart';
 import 'live_bus_data.dart';
 
-/// Pantalla "Buses en vivo" para el ciudadano.
+/// Pantalla "Buses en vivo".
 ///
-/// Pide GPS al entrar para ordenar los buses por proximidad. Soporta dos
-/// vistas (Mapa y Lista), filtro por ruta y, al tocar un bus, abre un
-/// BottomSheet con el detalle (paraderos pendientes con ETA progresivo).
+/// Modo ciudadano (sin `companyId`): pide GPS al entrar para ordenar los buses
+/// por proximidad y muestra TODA la flota dentro del bounding box.
+///
+/// Modo operador (`companyId` no-null): filtra `/public/flota/activas` por
+/// empresa para mostrar SOLO la flota propia del operador en el mapa.
 class LiveBusMapPage extends ConsumerStatefulWidget {
-  const LiveBusMapPage({super.key});
+  /// Si se provee, filtra los buses por empresa. Usado por el dashboard del
+  /// operador para ver "su" flota en vivo.
+  final String? companyId;
+
+  const LiveBusMapPage({super.key, this.companyId});
+
   @override
   ConsumerState<LiveBusMapPage> createState() => _LiveBusMapPageState();
 }
@@ -129,6 +136,9 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
       if (_userPos != null) {
         qp['lat'] = _userPos!.latitude;
         qp['lng'] = _userPos!.longitude;
+      }
+      if (widget.companyId != null) {
+        qp['companyId'] = widget.companyId;
       }
       // Para `/public/rutas`: pedimos que incluya candidatas (RouteCapture
       // sin validar generadas al cerrar turno sin ruta). Las mostramos en

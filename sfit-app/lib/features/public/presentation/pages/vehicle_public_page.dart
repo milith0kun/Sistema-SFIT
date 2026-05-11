@@ -1,7 +1,9 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -52,7 +54,9 @@ class _VehiclePublicPageState extends ConsumerState<VehiclePublicPage> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
-    final isCiudadano = authState.user?.role == 'ciudadano';
+    final role = authState.user?.role;
+    final isCiudadano = role == 'ciudadano';
+    final isFiscal = role == 'fiscal';
 
     return Scaffold(
       backgroundColor: AppColors.paper,
@@ -72,6 +76,7 @@ class _VehiclePublicPageState extends ConsumerState<VehiclePublicPage> {
                       data: _data!,
                       offlineVerified: widget.offlineVerified,
                       isCiudadano: isCiudadano,
+                      isFiscal: isFiscal,
                     ),
     );
   }
@@ -81,11 +86,13 @@ class _DataView extends StatelessWidget {
   final PublicVehicleModel data;
   final bool? offlineVerified;
   final bool isCiudadano;
+  final bool isFiscal;
 
   const _DataView({
     required this.data,
     this.offlineVerified,
     this.isCiudadano = false,
+    this.isFiscal = false,
   });
 
   @override
@@ -163,6 +170,11 @@ class _DataView extends StatelessWidget {
           if (isCiudadano) ...[
             const SizedBox(height: 20),
             _ReportarButton(vehicle: v),
+          ],
+          // ── Botón Suspender (solo fiscal) ─────────────────────
+          if (isFiscal && v.status != 'fuera_de_servicio') ...[
+            const SizedBox(height: 20),
+            _SuspendButton(vehicleId: v.id, plate: v.plate),
           ],
           const SizedBox(height: 12),
         ],
@@ -342,6 +354,116 @@ class _ReportarButton extends StatelessWidget {
         minimumSize: const Size(double.infinity, 48),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         textStyle: AppTheme.inter(fontSize: 14.5, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+/// Botón para suspender un vehículo (fiscal). Abre un diálogo que pide motivo
+/// y llama `PATCH /api/vehiculos/[id]/suspender`. Gate backend: SUSPEND_ROLES.
+class _SuspendButton extends ConsumerWidget {
+  final String vehicleId;
+  final String plate;
+  const _SuspendButton({required this.vehicleId, required this.plate});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return OutlinedButton.icon(
+      onPressed: () => _openDialog(context, ref),
+      icon: const Icon(Icons.block_outlined, size: 18),
+      label: const Text('Suspender vehículo'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.noApto,
+        side: const BorderSide(color: AppColors.noAptoBorder, width: 1.5),
+        backgroundColor: AppColors.noAptoBg,
+        minimumSize: const Size(double.infinity, 48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        textStyle: AppTheme.inter(fontSize: 14.5, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Future<void> _openDialog(BuildContext context, WidgetRef ref) async {
+    final reasonCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool submitting = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: Text('Suspender $plate'),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: reasonCtrl,
+              minLines: 3,
+              maxLines: 5,
+              maxLength: 500,
+              decoration: const InputDecoration(
+                labelText: 'Motivo (mínimo 5 caracteres)',
+                border: OutlineInputBorder(),
+              ),
+              validator: (v) {
+                final trimmed = v?.trim() ?? '';
+                if (trimmed.length < 5) return 'Mínimo 5 caracteres';
+                return null;
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: submitting ? null : () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: submitting
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setState(() => submitting = true);
+                      try {
+                        final dio = ref.read(dioClientProvider).dio;
+                        final resp = await dio.patch(
+                          '/vehiculos/$vehicleId/suspender',
+                          data: {'reason': reasonCtrl.text.trim()},
+                        );
+                        final ok = (resp.data as Map?)?['success'] == true;
+                        if (!ctx.mounted) return;
+                        Navigator.of(ctx).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              ok
+                                  ? 'Vehículo $plate suspendido.'
+                                  : 'No se pudo suspender.',
+                            ),
+                          ),
+                        );
+                      } on DioException catch (e) {
+                        if (!ctx.mounted) return;
+                        final msg = (e.response?.data as Map?)?['error']
+                                ?.toString() ??
+                            'Error de red';
+                        setState(() => submitting = false);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(msg)),
+                        );
+                      }
+                    },
+              child: submitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Confirmar'),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -366,20 +366,6 @@ class _HomePageState extends ConsumerState<HomePage> {
             page: ReportsReviewPage(),
           ),
           const _Tab(
-            slug: 'vehiculos-consulta',
-            label: 'Vehículos',
-            icon: Icons.directions_car_outlined,
-            iconFilled: Icons.directions_car,
-            page: _QrLaunchTab(forInspection: true),
-          ),
-          const _Tab(
-            slug: 'conductores-consulta',
-            label: 'Conductores',
-            icon: Icons.groups_2_outlined,
-            iconFilled: Icons.groups_2,
-            page: _QrLaunchTab(forInspection: true),
-          ),
-          const _Tab(
             slug: 'perfil',
             label: 'Perfil',
             icon: Icons.person_outline,

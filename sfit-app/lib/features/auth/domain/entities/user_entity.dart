@@ -1,10 +1,9 @@
 /// Entidad de usuario para la capa de dominio (RF-01).
 ///
 /// `status` usa los valores del backend: `activo`, `pendiente`, `rechazado`, `suspendido`.
-/// `role` usa los snake_case del backend: `super_admin`, `admin_provincial`,
-/// `admin_municipal`, `fiscal`, `operador`, `conductor`, `ciudadano`.
-/// `admin_regional` está deprecado a nivel sistema; el helper se conserva
-/// solo por compatibilidad hasta migrar usuarios legados.
+/// `role` usa los snake_case del backend. Jerarquía web:
+///   super_admin → admin_regional → admin_provincial → admin_municipal.
+/// Roles móviles: fiscal, operador, conductor, ciudadano.
 class UserEntity {
   final String id;
   final String name;
@@ -50,7 +49,6 @@ class UserEntity {
   // Roles administrativos (web-only):
   bool get isAdminMunicipal   => role == 'admin_municipal';
   bool get isAdminProvincial  => role == 'admin_provincial';
-  /// @deprecated rol fantasma. Migrar a admin_provincial.
   bool get isAdminRegional    => role == 'admin_regional';
   bool get isSuperAdmin       => role == 'super_admin';
 

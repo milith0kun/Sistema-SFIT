@@ -74,6 +74,7 @@ class _InspectionDetailPageState
                   : _Body(
                       inspection: _inspection!,
                       isOperador: user?.isOperador ?? false,
+                      isFiscal: user?.isFiscal ?? false,
                     ),
     );
   }
@@ -84,8 +85,13 @@ class _InspectionDetailPageState
 class _Body extends StatefulWidget {
   final InspectionModel inspection;
   final bool isOperador;
+  final bool isFiscal;
 
-  const _Body({required this.inspection, required this.isOperador});
+  const _Body({
+    required this.inspection,
+    required this.isOperador,
+    required this.isFiscal,
+  });
 
   @override
   State<_Body> createState() => _BodyState();
@@ -97,6 +103,8 @@ class _BodyState extends State<_Body> {
     final insp = widget.inspection;
     final (color, bg, border) = _resultColors(insp.result);
     final canAppeal = widget.isOperador &&
+        (insp.result == 'rechazada' || insp.result == 'observada');
+    final canFine = widget.isFiscal &&
         (insp.result == 'rechazada' || insp.result == 'observada');
 
     return SingleChildScrollView(
@@ -256,6 +264,34 @@ class _BodyState extends State<_Body> {
               ),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.riesgo,
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+          // ── Botón emitir sanción (fiscal) ─────────────────────
+          if (canFine) ...[
+            const SizedBox(height: 4),
+            FilledButton.icon(
+              onPressed: () => context.push(
+                '/fiscal/nueva-sancion',
+                extra: {
+                  'vehicleId': insp.vehicle?.id,
+                  'plate': insp.vehicle?.plate,
+                },
+              ),
+              icon: const Icon(Icons.balance, size: 18),
+              label: Text(
+                'Emitir sanción',
+                style: AppTheme.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.noApto,
                 minimumSize: const Size(double.infinity, 48),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),

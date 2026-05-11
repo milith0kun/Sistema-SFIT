@@ -58,6 +58,26 @@ class OperatorDashboardPage extends ConsumerWidget {
                         onTap: () => onSelectTab('flota'),
                       ),
                       SfitFeatureCard(
+                        icon: Icons.map_outlined,
+                        title: 'Flota en vivo',
+                        subtitle: 'GPS de tus buses',
+                        onTap: () {
+                          final companyId = dashboard.maybeWhen(
+                            data: (s) => s.company?.id,
+                            orElse: () => null,
+                          );
+                          if (companyId == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Sin empresa asignada.'),
+                              ),
+                            );
+                            return;
+                          }
+                          context.push('/flota-en-vivo', extra: companyId);
+                        },
+                      ),
+                      SfitFeatureCard(
                         icon: Icons.route_outlined,
                         title: 'Rutas',
                         subtitle: 'Control de recorridos',

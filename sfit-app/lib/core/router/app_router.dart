@@ -63,6 +63,7 @@ import '../../features/live_bus/presentation/pages/bus_detail_page.dart';
 import '../../features/fiscal/presentation/pages/resolve_appeal_page.dart';
 import '../../features/fiscal/presentation/pages/my_appeals_page.dart';
 import '../../features/fiscal/presentation/pages/create_sanction_page.dart';
+import '../../features/fiscal/presentation/pages/fatiga_conductor_page.dart';
 
 part 'app_router.g.dart';
 
@@ -108,6 +109,14 @@ GoRouter router(Ref ref) {
           }
           if (isAuth || isSplash || isOnboarding || isProfileOnboarding) {
             return '/home';
+          }
+          // RoleGuard: bloquea deep-links cross-role (operador entrando a
+          // /fiscal/*, etc.). Redirige a /home en lugar de /login para evitar
+          // kick-out de usuarios autenticados legítimos.
+          if (user != null) {
+            if (path.startsWith('/operador/') && !user.isOperador) return '/home';
+            if (path.startsWith('/fiscal/')   && !user.isFiscal)   return '/home';
+            if (path.startsWith('/conductor/') && !user.isConductor) return '/home';
           }
           return null;
 
@@ -411,6 +420,14 @@ GoRouter router(Ref ref) {
         builder: (_, state) => BusDetailPage(busId: state.pathParameters['id']!),
       ),
 
+      // ── Flota en vivo filtrada por empresa (operador) ─────────
+      GoRoute(
+        path: '/flota-en-vivo',
+        builder: (_, state) => LiveBusMapPage(
+          companyId: state.extra as String?,
+        ),
+      ),
+
       // ── Fiscal: apelaciones, mis resueltas y emisión de sanciones ──
       GoRoute(
         path: '/fiscal/apelaciones',
@@ -419,6 +436,10 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: '/fiscal/mis-apelaciones',
         builder: (_, __) => const MyAppealsPage(),
+      ),
+      GoRoute(
+        path: '/fiscal/fatiga-conductor',
+        builder: (_, __) => const FatigaConductorPage(),
       ),
       GoRoute(
         path: '/fiscal/nueva-sancion',
