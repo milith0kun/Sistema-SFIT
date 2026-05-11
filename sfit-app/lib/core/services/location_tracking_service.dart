@@ -350,11 +350,47 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
         queuedPoints: _queue?.length ?? 0,
         droppedByOverflow: _readDroppedCount(),
       );
-      if ((_queue?.isNotEmpty ?? false)) {
-        // No await: el drain corre en background mientras el constructor
-        // termina. Si falla, programa retry con backoff.
-        unawaited(_drainQueue());
+      final box = _queue;
+      if (box == null || box.isEmpty) return;
+
+      // Fast-path bulk: si al arrancar quedaron >50 pings residuales de un
+      // único entryId que también está en `_trackBox`, intentar bulk antes
+      // del drain single. Caso real: el conductor cerró el turno con red
+      // intermitente, la app cierra y deja una cola grande pendiente. Antes
+      // tardaba horas en drenarse al reabrir (1 PATCH cada 1.1s); con bulk
+      // sube en 1-2 requests al mismo endpoint que ya usa el cierre.
+      const bulkBootThreshold = 50;
+      if (box.length >= bulkBootThreshold) {
+        final entryIds = <String>{};
+        for (final key in box.keys) {
+          final raw = box.get(key);
+          if (raw == null) continue;
+          final eid = raw['entryId'] as String?;
+          if (eid != null) entryIds.add(eid);
+          if (entryIds.length > 1) break; // No vale la pena, salir del scan.
+        }
+        if (entryIds.length == 1) {
+          final entryId = entryIds.first;
+          final trackRaw = _trackBox?.get(entryId);
+          if (trackRaw is List && trackRaw.isNotEmpty) {
+            // Bulk en background — no bloqueamos el arranque del notifier.
+            // Si falla los 3 intentos, el método retorna false y caemos
+            // al drain single tradicional.
+            unawaited(() async {
+              final ok = await _drainBulkAtCheckout(entryId);
+              if (!ok && (_queue?.isNotEmpty ?? false)) {
+                unawaited(_drainQueue());
+              }
+            }());
+            return;
+          }
+        }
       }
+
+      // Caso por defecto: drenar la cola con el flujo single tradicional.
+      // No await: corre en background mientras el constructor termina.
+      // Si falla, programa retry con backoff.
+      unawaited(_drainQueue());
     } catch (_) {
       // No bloquear el arranque por errores de Hive.
     }
@@ -592,23 +628,33 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_kActiveEntryIdKey);
     } catch (_) {/* no bloqueante */}
-    // Drain final con timeout dinámico calculado por la cola pendiente.
-    // 5s fijo era insuficiente: con _drainPace=1.1s y 40 pings acumulados,
-    // necesitas ~44s. El timeout cortaba el drain y los pings restantes
-    // quedaban en el box; la pantalla de checkout llamaba closeFleetEntry
-    // antes de drenar y el backend leía LocationPing incompleto.
-    // Clamp [15s, 120s] para no esperar eternamente si la red está caída.
-    final pending = _queue?.length ?? 0;
-    final estimatedMs = pending * (_drainPace.inMilliseconds + 200) + 5000;
-    final drainTimeout = Duration(
-      milliseconds: estimatedMs.clamp(15000, 120000),
-    );
-    try {
-      await _drainQueue().timeout(drainTimeout);
-    } catch (e, st) {
-      debugPrint('[LocationTracking] drain final falló (pending=$pending, '
-          'timeout=${drainTimeout.inSeconds}s): $e');
-      debugPrintStack(stackTrace: st);
+    // Drain final del turno. Estrategia bulk-first:
+    //   1) `_drainBulkAtCheckout` sube TODO el track del entryId en 1-2
+    //      requests al endpoint `/track-bulk`. Para 300 pts esto baja de
+    //      >5 min (el viejo `_drainQueue` PATCH-by-PATCH con 1.1s de pace)
+    //      a ~2 s. El backend deduplica por (entryId, ts) así que puntos
+    //      ya subidos en vivo durante el turno se ignoran sin duplicar.
+    //   2) Si el bulk falla los 3 intentos (red caída persistente, error
+    //      5xx, etc.) caemos al `_drainQueue` tradicional como red de
+    //      seguridad. Mismo timeout dinámico que antes para acotar la
+    //      espera del usuario.
+    final bulkOk = entryId != null
+        ? await _drainBulkAtCheckout(entryId)
+        : false;
+
+    if (!bulkOk) {
+      final pending = _queue?.length ?? 0;
+      final estimatedMs = pending * (_drainPace.inMilliseconds + 200) + 5000;
+      final drainTimeout = Duration(
+        milliseconds: estimatedMs.clamp(15000, 120000),
+      );
+      try {
+        await _drainQueue().timeout(drainTimeout);
+      } catch (e, st) {
+        debugPrint('[LocationTracking] fallback drain falló (pending=$pending,'
+            ' timeout=${drainTimeout.inSeconds}s): $e');
+        debugPrintStack(stackTrace: st);
+      }
     }
 
     await _stopStreamsKeepState();
@@ -738,6 +784,75 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
       }
     }
     return totalInserted;
+  }
+
+  /// Drain bulk al cerrar turno. Sube TODO el track del `entryId` en chunks
+  /// (4500 pts/request) en lugar de drenar la cola un punto a la vez. Antes:
+  /// 300 pts × 1.1s de `_drainPace` = >5 min de espera mínima, más en
+  /// la práctica con latencia/retries (reportes reales de 8h+).
+  ///
+  /// Aprovecha que `_trackBox` ya guarda el histórico autoritativo
+  /// (`_appendToTrack` corre en cada `_enqueue`) y que el backend deduplica
+  /// por `(entryId, ts)`: puntos ya subidos por PATCH `/location` durante el
+  /// turno son ignorados como duplicados, no se insertan dos veces.
+  ///
+  /// 3 intentos con backoff corto (0s, 2s, 5s) — el conductor está esperando
+  /// en pantalla, no queremos backoff exponencial largo aquí. Si falla los
+  /// 3, devuelve `false` para que `stopTracking` caiga al `_drainQueue()`
+  /// tradicional como red de seguridad.
+  ///
+  /// Tras éxito, purga del `_queue` todas las entradas cuyo `entryId`
+  /// coincida — su contenido ya está garantizado en el backend vía bulk.
+  Future<bool> _drainBulkAtCheckout(String entryId) async {
+    const attempts = <Duration>[
+      Duration.zero,
+      Duration(seconds: 2),
+      Duration(seconds: 5),
+    ];
+    for (var i = 0; i < attempts.length; i++) {
+      if (attempts[i] > Duration.zero) {
+        await Future<void>.delayed(attempts[i]);
+      }
+      try {
+        final inserted = await bulkUploadTrack(entryId);
+        // Éxito sin throws: el track del entryId está completo en el backend.
+        // `inserted == 0` es válido cuando todo el track ya se había subido
+        // vía PATCH single durante el turno (todo duplicado server-side).
+        await _purgeQueueForEntry(entryId);
+        debugPrint('[LocationTracking] bulk checkout OK entryId=$entryId '
+            'inserted=$inserted (attempt ${i + 1})');
+        return true;
+      } catch (e) {
+        debugPrint('[LocationTracking] bulk checkout falló attempt '
+            '${i + 1}/${attempts.length} entryId=$entryId: $e');
+        // Próximo intento aplicará su delay; al agotar attempts caemos al
+        // fallback single.
+      }
+    }
+    return false;
+  }
+
+  /// Elimina del `_queue` todas las entradas cuyo `entryId` coincida con el
+  /// dado. Usado tras un bulk exitoso para no reenviar los mismos puntos
+  /// uno-por-uno al final del cierre. Conserva entradas de otros entryIds
+  /// (raro pero posible: turno abortado por kill, drain colado durante un
+  /// turno nuevo, etc.).
+  Future<void> _purgeQueueForEntry(String entryId) async {
+    final box = _queue;
+    if (box == null || box.isEmpty) return;
+    final keysToDelete = <dynamic>[];
+    for (final key in box.keys) {
+      final raw = box.get(key);
+      if (raw == null) continue;
+      if ((raw['entryId'] as String?) == entryId) keysToDelete.add(key);
+    }
+    if (keysToDelete.isEmpty) return;
+    await box.deleteAll(keysToDelete);
+    _consecutiveFailures = 0;
+    state = state.copyWith(
+      queuedPoints: box.length,
+      consecutiveFailures: 0,
+    );
   }
 
   void _startStreams(String entryId) {
