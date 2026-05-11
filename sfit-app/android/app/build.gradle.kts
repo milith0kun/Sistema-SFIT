@@ -39,12 +39,12 @@ android {
 
     defaultConfig {
         applicationId = "com.sfit.sfit_app"
-        // minSdk explícito en 23 (Android 6.0 Marshmallow) — cubre ~99% de
+        // minSdk fijado a 23 (Android 6.0 Marshmallow) — cubre ~99% de
         // dispositivos en uso y es el mínimo que requieren plugins críticos
-        // (geolocator, firebase_messaging, mobile_scanner). Por debajo de
-        // esto no podemos garantizar tracking GPS estable ni notificaciones.
-        // Subimos desde el default de Flutter (21) para evitar runtime crashes
-        // en APIs que esos plugins usan vía reflexión.
+        // (geolocator 14.x, firebase_messaging 15.x, mobile_scanner 7.x).
+        // No usar `flutter.minSdkVersion` porque su default histórico es 21
+        // y los plugins crashean al boot en Android 5.x al cargar APIs por
+        // reflexión que no existen.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

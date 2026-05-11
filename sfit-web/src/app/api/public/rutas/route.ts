@@ -15,14 +15,16 @@ const BBOX_DELTA_DEG = 0.3; // ~33 km — radio típico de un bus urbano
 type WaypointLite = { order: number; lat: number; lng: number; label?: string };
 
 /**
- * GET /api/public/rutas?lat=&lng=&municipalityId=&limit=
+ * GET /api/public/rutas?lat=&lng=&municipalityId=&limit=&bbox=<on|off>&vehicleType=<key>
  *
  * Endpoint público (sin auth) que lista rutas activas para que el ciudadano
  * vea TODO lo cercano sin importar el municipio que las administra.
  *
- * - Si vienen `lat`/`lng`: aplica bounding box ±0.3° (~33 km) usando el
- *   primer waypoint de cada ruta como referencia, y ordena por cercanía.
- * - Si NO vienen: devuelve todas las rutas activas (con `limit`).
+ * - Si vienen `lat`/`lng` Y `bbox` no es "off": aplica bounding box ±0.3°
+ *   (~33 km) usando los waypoints. Si hay GPS, ordena por cercanía.
+ * - `bbox=off` desactiva el bounding box y devuelve TODAS las rutas activas
+ *   (sigue ordenando por cercanía si hay GPS).
+ * - `vehicleType` (repetible): filtra por `Route.vehicleTypeKey`.
  * - `municipalityId` es opcional. Si viene, restringe al tenant; si no,
  *   incluye todos los tenants. Mantenido por compat con el cliente viejo.
  *
@@ -35,8 +37,13 @@ export async function GET(request: NextRequest) {
   const municipalityId = url.searchParams.get("municipalityId");
   const userLatStr = url.searchParams.get("lat");
   const userLngStr = url.searchParams.get("lng");
-  const limit = Math.min(150, Math.max(1, Number(url.searchParams.get("limit") ?? 60)));
+  const limit = Math.min(500, Math.max(1, Number(url.searchParams.get("limit") ?? 60)));
   const includeCandidates = url.searchParams.get("includeCandidates") === "true";
+  const bboxParam = (url.searchParams.get("bbox") ?? "on").toLowerCase();
+  const bboxEnabled = bboxParam !== "off" && bboxParam !== "0" && bboxParam !== "false";
+  const vehicleTypes = url.searchParams.getAll("vehicleType")
+    .map((v) => v.trim().toLowerCase())
+    .filter((v) => v.length > 0);
 
   const userLat = userLatStr != null && userLatStr !== "" ? Number(userLatStr) : null;
   const userLng = userLngStr != null && userLngStr !== "" ? Number(userLngStr) : null;
@@ -56,14 +63,18 @@ export async function GET(request: NextRequest) {
   // Bounding box geográfico cuando hay GPS — buscamos rutas que tengan al
   // menos un waypoint dentro de ±0.3° del usuario. No es perfecto (rutas
   // largas con un waypoint cercano y otro lejano caben), pero alcanza para
-  // filtrar a escala de país y mantener el response chico.
-  if (hasUserCoords) {
+  // filtrar a escala de país y mantener el response chico. Se desactiva
+  // con `bbox=off` para que el ciudadano vea "toda la red".
+  if (hasUserCoords && bboxEnabled) {
     baseFilter["waypoints"] = {
       $elemMatch: {
         lat: { $gte: userLat - BBOX_DELTA_DEG, $lte: userLat + BBOX_DELTA_DEG },
         lng: { $gte: userLng - BBOX_DELTA_DEG, $lte: userLng + BBOX_DELTA_DEG },
       },
     };
+  }
+  if (vehicleTypes.length > 0) {
+    baseFilter.vehicleTypeKey = { $in: vehicleTypes };
   }
 
   const routes = await Route.find(baseFilter)

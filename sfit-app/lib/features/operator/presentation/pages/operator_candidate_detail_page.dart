@@ -168,6 +168,58 @@ class _OperatorCandidateDetailPageState
     }
   }
 
+  /// Borra la captura definitivamente (DELETE /rutas/candidatas/[id]).
+  /// Distinto de "descartar" (que solo marca status=rejected y la deja en
+  /// la base por auditoría). Aquí se elimina el documento por completo.
+  Future<void> _onDeleteForever() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar captura'),
+        content: const Text(
+          'Esta acción borra la captura y todo su trazo GPS de la base. '
+          'No se puede deshacer. ¿Continuar?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.noApto),
+            child: const Text('Sí, eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final service = ref.read(operatorApiServiceProvider);
+      await service.deleteRouteCandidate(widget.candidateId);
+      if (!mounted) return;
+      ref.invalidate(routeCandidatesProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Captura eliminada definitivamente.'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.ink9,
+        ),
+      );
+      Navigator.of(context).maybePop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo eliminar: ${_extractError(e)}'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.noApto,
+        ),
+      );
+    }
+  }
+
   Future<void> _onDiscard() async {
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
@@ -563,6 +615,15 @@ class _OperatorCandidateDetailPageState
                               'La captura no se utilizará para crear rutas.',
                           color: AppColors.noApto,
                           onTap: meta == null ? null : _onDiscard,
+                        ),
+                        const SizedBox(height: 10),
+                        _ctaButton(
+                          icon: Icons.delete_forever_outlined,
+                          label: 'Eliminar definitivamente',
+                          subtitle:
+                              'Borra la captura y su trazo GPS. No se puede deshacer.',
+                          color: AppColors.noApto,
+                          onTap: meta == null ? null : _onDeleteForever,
                         ),
                         const SizedBox(height: 24),
                       ],

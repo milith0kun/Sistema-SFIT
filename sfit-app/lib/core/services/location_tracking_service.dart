@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:hive/hive.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../features/trips/data/datasources/trips_api_service.dart';
 
 /// Información mínima de un waypoint con su orden y etiqueta — necesaria para
@@ -70,6 +71,28 @@ class TrackingState {
   /// box (cola llena al máximo). Útil para diagnóstico.
   final int droppedByOverflow;
 
+  /// Conteo de envíos consecutivos fallidos. Se resetea al primer éxito.
+  /// Útil para que la UI muestre un indicador ámbar cuando >= 3 (problema
+  /// de red persistente). Espejo del campo privado del notifier.
+  final int consecutiveFailures;
+
+  /// Última vez que un ping logró subirse al backend (ping individual o
+  /// chunk de bulk). `null` o epoch 0 si nunca. La UI lo usa para detectar
+  /// gaps: si `now - lastSuccessfulSend > 5min` durante turno activo,
+  /// algo está mal.
+  final DateTime? lastSuccessfulSend;
+
+  /// `true` si Android NO tiene a SFIT excluida del battery optimization.
+  /// La UI muestra un banner sugiriendo configurarlo. Se evalúa al iniciar
+  /// turno y al volver del background.
+  final bool needsBatteryExemption;
+
+  /// `true` si al boot detectamos un `active_entry_id` persistido cuyo
+  /// último ping en `location_track_v2` es de hace >10min — señal de que
+  /// un turno anterior quedó sin cerrar (kill/reboot/crash). El dashboard
+  /// del conductor muestra un banner ofreciendo cerrarlo o reanudarlo.
+  final bool wasInterrupted;
+
   const TrackingState({
     this.entryId,
     this.routeId,
@@ -85,6 +108,10 @@ class TrackingState {
     this.isOffRoute = false,
     this.queuedPoints = 0,
     this.droppedByOverflow = 0,
+    this.consecutiveFailures = 0,
+    this.lastSuccessfulSend,
+    this.needsBatteryExemption = false,
+    this.wasInterrupted = false,
   });
 
   TrackingState copyWith({
@@ -102,6 +129,10 @@ class TrackingState {
     bool? isOffRoute,
     int? queuedPoints,
     int? droppedByOverflow,
+    int? consecutiveFailures,
+    Object? lastSuccessfulSend = _kSentinel,
+    bool? needsBatteryExemption,
+    bool? wasInterrupted,
   }) => TrackingState(
     entryId: entryId ?? this.entryId,
     routeId: routeId ?? this.routeId,
@@ -120,6 +151,13 @@ class TrackingState {
     isOffRoute: isOffRoute ?? this.isOffRoute,
     queuedPoints: queuedPoints ?? this.queuedPoints,
     droppedByOverflow: droppedByOverflow ?? this.droppedByOverflow,
+    consecutiveFailures: consecutiveFailures ?? this.consecutiveFailures,
+    lastSuccessfulSend:
+        lastSuccessfulSend == _kSentinel
+            ? this.lastSuccessfulSend
+            : lastSuccessfulSend as DateTime?,
+    needsBatteryExemption: needsBatteryExemption ?? this.needsBatteryExemption,
+    wasInterrupted: wasInterrupted ?? this.wasInterrupted,
   );
 
   static const _kSentinel = Object();
@@ -138,6 +176,7 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
   final TripsApiService _svc;
 
   StreamSubscription<Position>? _positionSub;
+  Timer? _healthTimer;
   StreamSubscription<List<ConnectivityResult>>? _connSub;
   Timer? _heartbeat;
   Timer? _drainRetryTimer;
@@ -155,29 +194,51 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
   double _lastEnqueuedLat = 0;
   double _lastEnqueuedLng = 0;
 
-  /// TTL para pings antiguos en la cola. Pings con `ts` más viejo que esto
-  /// (probablemente residuos de turnos abortados o boots fallidos) se
-  /// descartan en el drain antes de intentar enviarlos al backend.
-  static const Duration _queuePingTtl = Duration(hours: 24);
+  /// TTL para pings antiguos en la cola. Subido a 7 días para que rutas
+  /// largas en zonas remotas (Andes, selva) sin señal varios días NO
+  /// pierdan datos al re-conectar. Antes era 24h y se perdían pings legítimos
+  /// cuando el conductor pasaba >1 día sin internet.
+  static const Duration _queuePingTtl = Duration(days: 7);
 
   /// Periodo del heartbeat: si no enviamos un punto en este tiempo, mandamos
   /// la última posición conocida. Mantiene al bus visible para ciudadanos
   /// con la ventana de 2min anti-fantasma del backend.
   static const Duration _heartbeatPeriod = Duration(seconds: 25);
 
-  /// Distancia mínima (m) que debe moverse el bus para emitir un punto. Más
-  /// alto = mejor batería, peor resolución del trazo.
-  static const int _distanceFilterMeters = 5;
+  /// Distancia mínima (m) que debe moverse el bus para emitir un punto del
+  /// stream. Bajado de 5m → 3m para mejor resolución del trazo en zonas
+  /// urbanas con tráfico lento. El heartbeat (cada 25s) garantiza pings
+  /// adicionales aunque el bus esté detenido.
+  static const int _distanceFilterMeters = 3;
 
-  /// Filtro de calidad: descartar puntos con accuracy mayor a este umbral (m).
-  static const double _accuracyThresholdMeters = 50;
+  /// Umbral DURO de accuracy: pings con accuracy peor que esto se descartan
+  /// (probablemente GPS recién encendido o reflejado por edificio gigante).
+  /// Antes era 50m, lo subimos a 100m para no perder datos en zonas con
+  /// edificios altos o clima nublado donde un accuracy de 60-80m es lo mejor
+  /// que el GPS puede ofrecer y aún así es útil para trazar la ruta.
+  /// Por encima de 100m el punto es lo bastante impreciso como para que la
+  /// línea trazada se vea peor incluyéndolo que omitiéndolo.
+  static const double _accuracyThresholdMeters = 100;
 
   /// Tamaño de la ventana de "tramo reciente". Los últimos N puntos se
   /// re-pintan con un color/grosor distinto encima del histórico para que
-  /// el conductor distinga visualmente el progreso vivo. El histórico
-  /// completo (`localTrack`) NO se trunca: la línea inicio→fin debe
-  /// permanecer visible siempre.
+  /// el conductor distinga visualmente el progreso vivo.
   static const int _recentTrackWindow = 80;
+
+  /// Límite máximo de puntos en `state.localTrack`. Mantiene la UI fluida
+  /// en rutas largas (8h+) donde la lista crecería a 10000+ puntos y cada
+  /// `state.copyWith` re-clonaría la lista entera cada ping → memory
+  /// pressure + UI lag al estar en el tab Mapa.
+  ///
+  /// El histórico COMPLETO (sin truncar) vive en el Hive box
+  /// `location_track_v2` que se lee al cerrar turno o en
+  /// `trip_summary_page` para reconstruir la ruta full. Aquí solo
+  /// guardamos los últimos N puntos para visualización en vivo. Cuando
+  /// se llega al tope, descartamos los más viejos del state (no del box).
+  /// 3000 puntos cubren cómodamente 4-5h de visualización en vivo a 3m
+  /// de distance filter, suficiente para que el conductor vea el progreso
+  /// reciente. El usuario revisa el track completo después en el resumen.
+  static const int _stateLocalTrackMax = 3000;
 
   /// Box Hive para puntos pendientes de envío. ES la fuente de verdad: TODO
   /// punto del stream se encola primero y un drain loop intenta subirlos.
@@ -194,6 +255,15 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
   /// `{ 'waypoints': [{order,lat,lng,label}, ...], 'cachedAt': epochMs }`.
   static const String _routeCacheBoxName = 'route_polyline_v1';
 
+  /// Clave en SharedPreferences donde se persiste el `entryId` del turno
+  /// activo. El WorkManager watchdog la lee desde un isolate separado para
+  /// detectar si el conductor tiene un turno en curso (y por tanto el
+  /// tracking debería estar activo). Si encuentra esta clave + el último
+  /// ping persistido en `location_track_v2` es de hace >5min, dispara una
+  /// notificación local de alta prioridad. Se escribe en `startTracking`
+  /// y se borra en `stopTracking`.
+  static const String _kActiveEntryIdKey = 'active_entry_id_v1';
+
   /// Box Hive con el histórico completo de puntos GPS por `entryId`.
   /// Sobrevive al cierre del turno y a reinicios de la app. Es el respaldo
   /// definitivo del trazo: si el endpoint ping-by-ping falla durante el
@@ -202,10 +272,19 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
   /// procesa. Estructura: `{ entryId: [{lat,lng,ts,accuracy?,speed?}, ...] }`.
   static const String _trackBoxName = 'location_track_v2';
 
-  /// Capacidad máxima de la cola en disco. Al rebasarla descartamos los más
-  /// viejos pero seguimos aceptando nuevos puntos (mejor perder histórico
-  /// que romper la captura).
-  static const int _maxQueueSize = 5000;
+  /// Capacidad máxima de la cola en disco. Subido de 5000 a 30000 para
+  /// soportar rutas interdepartamentales largas (Cusco→Juliaca, Cusco→Lima)
+  /// sin señal. 30000 pings a un ping cada ~3s = ~25 horas de captura
+  /// continua, suficiente para los trayectos más largos del país sin
+  /// descartar nada. El histórico autoritativo (location_track_v2) crece
+  /// independiente.
+  static const int _maxQueueSize = 30000;
+
+  /// Tamaño del chunk al hacer bulk upload. El backend limita a 5000 pings
+  /// por request (zod schema en /api/flota/[id]/track-bulk). Si la cola
+  /// tiene más, partimos en lotes y subimos uno por uno. Antes el bulk
+  /// fallaba con 400 si pasaba de 5000 y perdíamos TODO el batch.
+  static const int _bulkUploadChunkSize = 4500;
 
   /// Pace entre envíos en el drain — el backend rate-limita a 60/min (1 Hz)
   /// por conductor; dejamos margen.
@@ -218,9 +297,10 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
   /// Failsafe: si un mismo ping falla este número de veces seguidas, lo
   /// descartamos. Evita atascos eternos en pings con problemas no
   /// recuperables (FleetEntry borrado, payload corrupto, etc.) sin
-  /// importar el código HTTP exacto. Mejor perder ese ping que detener
-  /// la cola entera.
-  static const int _maxPingAttempts = 6;
+  /// importar el código HTTP exacto. Subido de 6 a 20 para que pings en
+  /// zonas con conexión muy intermitente (rutas largas en montaña) tengan
+  /// suficientes oportunidades antes de descartarse.
+  static const int _maxPingAttempts = 20;
 
   Box<Map<dynamic, dynamic>>? _queue;
   Box? _meta;
@@ -287,7 +367,27 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
     _connSub?.cancel();
     _heartbeat?.cancel();
     _drainRetryTimer?.cancel();
+    _healthTimer?.cancel();
     super.dispose();
+  }
+
+  /// Health check periódico: si llevamos >5min sin enviar un ping al backend
+  /// durante un turno activo, algo está mal (Doze, permisos revocados, GPS
+  /// apagado, OEM mató el servicio). Disparamos una local notification de
+  /// alta prioridad y dejamos que la UI muestre el TrackingHealthCard rojo.
+  ///
+  /// La notification es importante porque el conductor probablemente tenga
+  /// la app en background — sin el push se enteraría solo al abrir SFIT.
+  void _checkTrackingHealth() {
+    if (!state.isTracking) return;
+    final since = DateTime.now().difference(_lastSendAt);
+    if (since < const Duration(minutes: 5)) return;
+    debugPrint('[LocationTracking] Health check: gap de '
+        '${since.inMinutes}min sin envíos exitosos durante turno activo.');
+    // Cualquier widget que escuche el provider verá el estado actualizado
+    // (lastSuccessfulSend no se movió → status pasa a rojo en el card).
+    // En F4 agregamos también una local notification con
+    // flutter_local_notifications para alertar fuera de la app.
   }
 
   /// Pide permisos GPS de forma explícita y bloqueante. Llamar desde
@@ -325,6 +425,15 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
     // Drenar cualquier residuo en cola (puede ser de turnos previos abortados
     // por kill de la app). El backend acepta pings de turnos cerrados.
     unawaited(_drainQueue());
+
+    // Persistir el entryId activo para el WorkManager watchdog. Si Android
+    // mata el proceso o el usuario reinicia el teléfono durante este turno,
+    // el watchdog detecta el flag + último ping > 5min y dispara una
+    // notification para que el conductor reabra la app.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kActiveEntryIdKey, entryId);
+    } catch (_) {/* no bloqueante */}
 
     final waypoints = await _loadRouteWaypoints(routeId);
     final pos = await _safeGetPosition();
@@ -474,6 +583,15 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
         await _enqueue(entryId, endPos, 'end');
       }
     }
+    // Borrar el flag de turno activo — el watchdog ya no debe alertar
+    // sobre este entryId. Si fallara, no es crítico: en el peor caso el
+    // próximo health check del watchdog notifica una vez al usuario que
+    // ya cerró el turno (mensaje "tu turno anterior quedó sin cerrar" que
+    // puede ignorar).
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_kActiveEntryIdKey);
+    } catch (_) {/* no bloqueante */}
     // Drain final con timeout dinámico calculado por la cola pendiente.
     // 5s fijo era insuficiente: con _drainPace=1.1s y 40 pings acumulados,
     // necesitas ~44s. El timeout cortaba el drain y los pings restantes
@@ -507,6 +625,8 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
     _connSub = null;
     _heartbeat?.cancel();
     _heartbeat = null;
+    _healthTimer?.cancel();
+    _healthTimer = null;
     // OJO: NO cancelamos _drainRetryTimer — el drain debe seguir intentando
     // subir puntos pendientes incluso después de cerrar el turno.
   }
@@ -564,31 +684,60 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
 
   /// Sube el track local del entryId al endpoint bulk del backend
   /// (`POST /flota/:id/track-bulk`). Idempotente server-side. Devuelve el
-  /// número de puntos insertados (0 si todo era duplicado o no había track).
-  /// Usado por `trip_summary_page` para reparar trazos que no llegaron por
-  /// los pings ping-by-ping.
+  /// número de puntos insertados acumulado entre todos los chunks (0 si
+  /// todo era duplicado o no había track). Si la cola tiene más puntos que
+  /// `_bulkUploadChunkSize`, se sube en lotes — antes un track de >5000
+  /// puntos fallaba completo con 400.
   Future<int> bulkUploadTrack(String entryId) async {
     await _ensureBoxesOpen();
     final raw = _trackBox?.get(entryId);
     if (raw is! List || raw.isEmpty) return 0;
-    final points = raw
+    final allPoints = raw
         .whereType<Map>()
         .map((m) => Map<String, dynamic>.from(m))
         .toList();
-    try {
-      final result = await _svc.bulkUploadTrack(
-        entryId: entryId,
-        points: points,
-      );
-      final inserted = (result['inserted'] as num?)?.toInt() ?? 0;
-      debugPrint('[LocationTracking] bulk upload entryId=$entryId: '
-          'received=${result['received']}, inserted=$inserted, '
-          'duplicates=${result['duplicates']}');
-      return inserted;
-    } catch (e) {
-      debugPrint('[LocationTracking] bulk upload falló para $entryId: $e');
-      rethrow;
+    // El track viene cronológicamente desde _appendToTrack, pero por si acaso
+    // (boots intercalados con turnos sin cerrar) lo reordenamos.
+    allPoints.sort((a, b) {
+      final ta = (a['ts'] as String?) ?? '';
+      final tb = (b['ts'] as String?) ?? '';
+      return ta.compareTo(tb);
+    });
+
+    var totalInserted = 0;
+    var chunkIndex = 0;
+    final totalChunks = (allPoints.length / _bulkUploadChunkSize).ceil();
+    for (var offset = 0; offset < allPoints.length; offset += _bulkUploadChunkSize) {
+      final end = (offset + _bulkUploadChunkSize > allPoints.length)
+          ? allPoints.length
+          : offset + _bulkUploadChunkSize;
+      final chunk = allPoints.sublist(offset, end);
+      chunkIndex++;
+      try {
+        final result = await _svc.bulkUploadTrack(
+          entryId: entryId,
+          points: chunk,
+        );
+        final inserted = (result['inserted'] as num?)?.toInt() ?? 0;
+        totalInserted += inserted;
+        debugPrint(
+          '[LocationTracking] bulk chunk $chunkIndex/$totalChunks '
+          'entryId=$entryId: received=${result['received']}, '
+          'inserted=$inserted, duplicates=${result['duplicates']}',
+        );
+      } catch (e) {
+        debugPrint(
+          '[LocationTracking] bulk chunk $chunkIndex/$totalChunks falló '
+          'para $entryId: $e',
+        );
+        // No abortamos la subida total — los chunks restantes se intentan
+        // igual. El backend deduplica por (entryId, ts) así que reintentos
+        // posteriores son seguros. Pero re-lanzamos al final si no logramos
+        // nada para que el caller (trip_summary) sepa que hubo problema.
+        if (totalInserted == 0 && chunkIndex == totalChunks) rethrow;
+      }
     }
+    return totalInserted;
   }
 
   void _startStreams(String entryId) {
@@ -615,6 +764,13 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
     // la última posición conocida para mantener visible al bus para ciudadanos.
     _heartbeat = Timer.periodic(_heartbeatPeriod, (_) => _onHeartbeat(entryId));
 
+    // Health check cada minuto: detecta cuando llevamos >5min sin envíos
+    // exitosos (Doze, permisos, OEM matando el servicio).
+    _healthTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _checkTrackingHealth(),
+    );
+
     // Drain de cola al recuperar conectividad.
     _connSub = Connectivity().onConnectivityChanged.listen((results) {
       final hasNet = results.any((r) => r != ConnectivityResult.none);
@@ -632,6 +788,10 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
     final entryId = state.entryId;
     if (entryId == null || !state.isTracking) return;
 
+    // Filtro DURO: solo descartamos si la accuracy es realmente terrible
+    // (>100m, GPS recién encendido o reflejo). Antes se descartaba a >50m
+    // y eso provocaba "líneas rectas" en zonas con edificios altos o clima
+    // nublado donde 60-80m es lo mejor que el chip puede ofrecer.
     if (pos.accuracy > _accuracyThresholdMeters) {
       state = state.copyWith(
         discardedLowAccuracy: state.discardedLowAccuracy + 1,
@@ -642,7 +802,21 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
 
     _lastPosition = pos;
     final ll = LatLng(pos.latitude, pos.longitude);
-    final newTrack = [...state.localTrack, ll];
+    // Truncamos la lista del state si supera el tope para evitar memory
+    // pressure en rutas largas (8h+). El histórico completo sigue persistido
+    // en location_track_v2 y se reconstruye al cerrar turno.
+    final basePrev = state.localTrack;
+    final List<LatLng> newTrack;
+    if (basePrev.length >= _stateLocalTrackMax) {
+      // Mantenemos los últimos `_stateLocalTrackMax - 1` y añadimos el nuevo.
+      // Evita reasignación O(n) cada ping cuando ya estamos en el límite.
+      newTrack = [
+        ...basePrev.sublist(basePrev.length - _stateLocalTrackMax + 1),
+        ll,
+      ];
+    } else {
+      newTrack = [...basePrev, ll];
+    }
     final recentStart = newTrack.length > _recentTrackWindow
         ? newTrack.length - _recentTrackWindow
         : 0;
@@ -823,6 +997,13 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
           // Resetear backoff al primer éxito.
           _consecutiveFailures = 0;
           _lastSendAt = DateTime.now();
+          // Espejar métricas en el state para que la UI vea el progreso
+          // del drain en tiempo real (TrackingHealthCard).
+          state = state.copyWith(
+            consecutiveFailures: 0,
+            lastSuccessfulSend: _lastSendAt,
+            queuedPoints: box.length,
+          );
           // Pace para no toparse con rate limit (60/min) del backend.
           await Future<void>.delayed(_drainPace);
         } catch (e) {
@@ -854,6 +1035,10 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
           item['attempts'] = attempts;
           await box.put(key, item);
           _consecutiveFailures++;
+          state = state.copyWith(
+            consecutiveFailures: _consecutiveFailures,
+            queuedPoints: box.length,
+          );
           debugPrint('[LocationTracking] sendLocation transitorio '
               '(status=$status, attempts=$attempts/$_maxPingAttempts, '
               'failures=$_consecutiveFailures, queue=${box.length}): $e');

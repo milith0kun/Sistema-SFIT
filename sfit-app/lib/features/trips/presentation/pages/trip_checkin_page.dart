@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/battery_optimization_service.dart';
 import '../../../../core/services/location_tracking_service.dart';
 import '../../data/datasources/trips_api_service.dart';
 import '../../../fleet/data/datasources/fleet_api_service.dart';
@@ -191,11 +192,96 @@ class _TripCheckinPageState extends ConsumerState<TripCheckinPage> {
       return;
     }
 
+    // Pedir exclusión de battery optimization si nunca se ha pedido. Es
+    // crítico para rutas largas: sin esto, Android Doze pausa el GPS y
+    // se pierden puntos. No bloquea el inicio del turno aunque el usuario
+    // rechace — la app sigue funcionando, pero con riesgo de gaps.
+    await _maybePromptBatteryExemption();
+
     _pageController.nextPage(
       duration: const Duration(milliseconds: 280),
       curve: Curves.easeInOut,
     );
     setState(() => _step = 1);
+  }
+
+  Future<void> _maybePromptBatteryExemption() async {
+    final svc = BatteryOptimizationService.instance;
+    final asked = await svc.hasBeenAsked();
+    if (asked) return;
+    final exempt = await svc.isExempt();
+    if (exempt) {
+      // Ya está excluida (puede haber sido por una versión anterior). Marca
+      // como pedido para no repetir.
+      await svc.markAsAsked();
+      return;
+    }
+    if (!mounted) return;
+    final accepted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Mantén el GPS activo'),
+        content: const Text(
+          'Para rutas largas, SFIT necesita que Android no pause la app cuando '
+          'se apaga la pantalla. Sin esto, se pierden puntos del recorrido '
+          'durante turnos largos o cuando hay poca señal.\n\n'
+          'Te llevaremos al ajuste del sistema. Selecciona "Permitir" o '
+          '"No optimizar".',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Más tarde'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Configurar'),
+          ),
+        ],
+      ),
+    );
+    if (accepted == true) {
+      await svc.requestExemption();
+      // Para OEMs hostiles (Xiaomi/Huawei/Oppo), un segundo diálogo apunta
+      // al panel "Apps protegidas". Lo abrimos solo si el primero dejó la
+      // app aún sin excluir tras 1s — señal probable de que el OEM tiene
+      // su propia capa de gestión.
+      await Future<void>.delayed(const Duration(seconds: 1));
+      final stillNotExempt = !(await svc.isExempt());
+      if (!mounted) return;
+      if (stillNotExempt) {
+        final goManu = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Configuración del fabricante'),
+            content: const Text(
+              'Tu teléfono parece tener una capa adicional de gestión de '
+              'apps. Te llevaremos al panel "Apps protegidas" o '
+              '"Auto-arranque" para que SFIT siga activa.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Saltar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Abrir'),
+              ),
+            ],
+          ),
+        );
+        if (goManu == true) {
+          await svc.openManufacturerSettings();
+        }
+      }
+    } else {
+      // El usuario eligió "Más tarde": marcamos como preguntado igualmente
+      // para no spamear cada turno. Tendrá que entrar a la pantalla de
+      // diagnóstico de tracking si quiere reconfigurarlo.
+      await svc.markAsAsked();
+    }
   }
 
   Future<void> _showPermissionBlockedDialog(

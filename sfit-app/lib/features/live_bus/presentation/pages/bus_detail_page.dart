@@ -368,11 +368,16 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
                   ]),
                 // Recorrido REAL del bus en el turno (liveTrack): es la
                 // "línea trazada" principal que el ciudadano espera ver
-                // completa desde el inicio del recorrido.
+                // completa desde el inicio del recorrido. Cortamos en
+                // `displayPos` para que la línea no aparente sobresalir
+                // adelante del marker (el smoothing del marker queda un
+                // poco atrás del último ping crudo).
                 if (hasLiveTrack)
                   PolylineLayer(polylines: [
                     Polyline(
-                      points: liveTrackLatLng,
+                      points: hasValidPos
+                          ? splitPolylineAtPosition(liveTrackLatLng, displayPos).traveled
+                          : liveTrackLatLng,
                       color: color.withValues(alpha: 0.85),
                       strokeWidth: SfitMapStyle.recentStroke(zoom),
                     ),
@@ -474,6 +479,10 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
                       point: displayPos,
                       zoom: zoom,
                       statusColor: color,
+                      isOffRoute: bus.isOffRoute,
+                      // Heading promedio sobre los últimos 4 puntos del trazo
+                      // suaviza jitter del GPS y evita giros bruscos del bus.
+                      rotation: headingFromTrack(liveTrackLatLng),
                     ),
                   ]),
               ],

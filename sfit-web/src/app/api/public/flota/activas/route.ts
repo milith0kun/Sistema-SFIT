@@ -79,20 +79,29 @@ const STALE_LOCATION_THRESHOLD_MS = 2 * 60_000; // 2 minutos
 
 // Bounding box de búsqueda cuando hay GPS del ciudadano. ±0.3° ≈ 33 km a la
 // latitud de Cusco. Cubre toda la ciudad y los distritos vecinos.
+// Se desactiva con `bbox=off` para permitir al ciudadano ver TODA la flota
+// (útil cuando quiere ver buses lejanos antes de viajar a otra ciudad).
 const BBOX_DELTA_DEG = 0.3;
 
 /**
- * GET /api/public/flota/activas?lat=<n>&lng=<n>&municipalityId=<id>&limit=<n>
+ * GET /api/public/flota/activas?lat=<n>&lng=<n>&municipalityId=<id>&limit=<n>&bbox=<on|off>&vehicleType=<key>
  *
  * Endpoint público (sin auth) para ciudadanos: lista los buses con turno
  * activo (en_ruta) con su posición GPS, ruta y ETA por cada paradero.
  * No expone datos del conductor (anonimizado).
  *
  * Filtros:
- *   - `lat`/`lng` del ciudadano (opcional): aplica bounding box ±0.3° (~33km)
- *     y ordena por cercanía. Cada item trae `distanceFromUserMeters`.
+ *   - `lat`/`lng` del ciudadano (opcional): si hay GPS Y `bbox` no es "off",
+ *     aplica bounding box ±0.3° (~33km). Siempre que haya GPS se ordena por
+ *     cercanía y se devuelve `distanceFromUserMeters` por item.
+ *   - `bbox` (opcional, default "on"): pasa `off`/`0`/`false` para desactivar
+ *     el bounding box y obtener TODA la flota nacional. El sort por cercanía
+ *     sigue activo si hay GPS, así los buses lejanos quedan al final.
  *   - `municipalityId` (opcional, mantenido por compat): si viene restringe
  *     al tenant; si no, devuelve buses de cualquier municipio.
+ *   - `vehicleType` (opcional, repetible): clave de tipo de vehículo
+ *     (`transporte_publico`, `limpieza_residuos`, `emergencia`,
+ *     `maquinaria`, `municipal_general`). Filtra la respuesta a esos tipos.
  *
  * Cada item trae `municipalityName` para que la app muestre la jurisdicción.
  *
@@ -106,7 +115,15 @@ export async function GET(request: NextRequest) {
   const companyId = url.searchParams.get("companyId");
   const userLatStr = url.searchParams.get("lat");
   const userLngStr = url.searchParams.get("lng");
-  const limit = Math.min(150, Math.max(1, Number(url.searchParams.get("limit") ?? 60)));
+  const limit = Math.min(500, Math.max(1, Number(url.searchParams.get("limit") ?? 60)));
+  // `bbox` toggle. Valores que apagan el filtro espacial: "off"/"0"/"false".
+  // Cualquier otra cosa lo deja en "on" (compat con clientes viejos).
+  const bboxParam = (url.searchParams.get("bbox") ?? "on").toLowerCase();
+  const bboxEnabled = bboxParam !== "off" && bboxParam !== "0" && bboxParam !== "false";
+  // Filtro por tipo de vehículo — multi-valor (?vehicleType=omnibus&vehicleType=microbus).
+  const vehicleTypes = url.searchParams.getAll("vehicleType")
+    .map((v) => v.trim().toLowerCase())
+    .filter((v) => v.length > 0);
 
   const userLat = userLatStr != null && userLatStr !== "" ? Number(userLatStr) : null;
   const userLng = userLngStr != null && userLngStr !== "" ? Number(userLngStr) : null;
@@ -137,10 +154,11 @@ export async function GET(request: NextRequest) {
       .lean<Array<{ _id: unknown }>>();
     filter.vehicleId = { $in: vehiclesOfCompany.map((v) => v._id) };
   }
-  if (hasUserCoords) {
+  if (hasUserCoords && bboxEnabled) {
     // Bounding box rápido contra la posición actual del bus. No es perfecto
     // (rutas largas siempre estarán cerca aunque el bus esté lejos), pero
-    // mantiene el response chico cuando crece la flota nacional.
+    // mantiene el response chico cuando crece la flota nacional. Se desactiva
+    // con `bbox=off` cuando el ciudadano pide ver "toda la red".
     filter["currentLocation.lat"] = {
       $gte: userLat - BBOX_DELTA_DEG,
       $lte: userLat + BBOX_DELTA_DEG,
@@ -149,6 +167,25 @@ export async function GET(request: NextRequest) {
       $gte: userLng - BBOX_DELTA_DEG,
       $lte: userLng + BBOX_DELTA_DEG,
     };
+  }
+
+  // Pre-filtro por tipo de vehículo: resolvemos los `_id` de Vehicle que
+  // matchean los tipos pedidos y los intersectamos con `filter.vehicleId`.
+  // Hacerlo acá evita procesar (Google Routes, etc.) entries que vamos a
+  // descartar después.
+  if (vehicleTypes.length > 0) {
+    const vehiclesOfType = await Vehicle.find({ vehicleTypeKey: { $in: vehicleTypes } })
+      .select("_id")
+      .lean<Array<{ _id: unknown }>>();
+    const typeIds = vehiclesOfType.map((v) => v._id);
+    const prevVehicleFilter = filter.vehicleId as { $in?: unknown[] } | undefined;
+    if (prevVehicleFilter?.$in) {
+      // Ya hay filtro por empresa: intersección de ambos sets.
+      const prevSet = new Set(prevVehicleFilter.$in.map(String));
+      filter.vehicleId = { $in: typeIds.filter((id) => prevSet.has(String(id))) };
+    } else {
+      filter.vehicleId = { $in: typeIds };
+    }
   }
 
   const entries = await FleetEntry.find(filter)

@@ -11,6 +11,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'app.dart';
 import 'core/services/fcm_background_handler.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/tracking_watchdog.dart';
 
 /// Reemplaza el `ErrorWidget.builder` default (banner rojo grande de
 /// FlutterErrorWidget) por una vista compacta que no asusta al usuario en
@@ -98,6 +99,17 @@ void main() {
       await Hive.initFlutter();
     } catch (e, st) {
       developer.log('Hive init failed', name: 'SFIT_ERROR', error: e, stackTrace: st);
+    }
+
+    // WorkManager watchdog: tarea periódica de 15min que detecta cuando el
+    // tracking GPS lleva >5min sin reportar durante un turno activo (Doze,
+    // proceso muerto, OEM que mató el servicio) y notifica al usuario. NO
+    // re-arranca el GPS — solo alerta para que el conductor reabra la app.
+    try {
+      await registerTrackingWatchdog();
+    } catch (e, st) {
+      developer.log('WorkManager watchdog init failed',
+          name: 'SFIT_ERROR', error: e, stackTrace: st);
     }
 
     runApp(

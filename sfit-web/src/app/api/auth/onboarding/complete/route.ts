@@ -59,12 +59,28 @@ const Schema = z.object({
     departmentCode: z.string().regex(/^\d{2}$/).optional(),
     provinceCode:   z.string().regex(/^\d{4}$/).optional(),
     districtCode:   z.string().regex(/^\d{6}$/).optional(),
+    // Tipo de servicio que opera la empresa. Determina si las rutas creadas
+    // exigen paraderos (urbano_*) o solo origen/destino UBIGEO
+    // (interprovincial/interregional). El cliente debe enviarlo siempre que
+    // el operador llegue al onboarding desde una versión actualizada del app.
+    // Si no llega, cae al default histórico "urbano_provincial" más abajo.
+    serviceScope: z.enum([
+      "urbano_distrital",
+      "urbano_provincial",
+      "interprovincial_regional",
+      "interregional_nacional",
+    ]).optional(),
   }).optional(),
   // Datos de conductor — sólo se aplican si el rol del usuario es conductor.
   // Crea/actualiza el documento Driver vinculado por dni del propio usuario.
+  //
+  // Todos los campos son opcionales para que el conductor pueda enviar SOLO
+  // companyId desde el onboarding (la captura de licencia se hace después en
+  // "Editar perfil"). El handler decide qué upsert hacer según los campos
+  // que lleguen — al menos uno debe estar presente para crear el Driver.
   driver: z.object({
-    licenseNumber:   z.string().min(4).max(20).trim(),
-    licenseCategory: z.string().min(2).max(10).trim(),
+    licenseNumber:   z.string().min(4).max(20).trim().optional(),
+    licenseCategory: z.string().min(2).max(10).trim().optional(),
     companyId:       z.string().optional(),
   }).optional(),
 });
@@ -182,7 +198,10 @@ export async function POST(request: NextRequest) {
           documents: [],
           active: true,
           reputationScore: 100,
-          serviceScope: "urbano_provincial",
+          // El operador elige el tipo de servicio en el onboarding (urbano vs
+          // interprovincial). Si el cliente es viejo y no lo manda, caemos al
+          // default histórico — el admin puede corregirlo después.
+          serviceScope: company.serviceScope ?? "urbano_provincial",
           coverage: {
             departmentCodes: company.departmentCode ? [company.departmentCode] : [],
             provinceCodes:   company.provinceCode   ? [company.provinceCode]   : [],
@@ -203,39 +222,54 @@ export async function POST(request: NextRequest) {
     // Si es conductor y vino bloque `driver`, creamos o actualizamos el
     // documento Driver vinculado por DNI. El conductor puede entrar sin
     // companyId (lo asociará después en pantalla "Mi empresa") o con uno
-    // ya elegido del listado público.
+    // ya elegido del listado público durante el onboarding. La licencia
+    // puede capturarse después en "Editar perfil" — no es obligatoria aquí.
     if (user.role === ROLES.CONDUCTOR && driver) {
-      if (!user.municipalityId) {
-        return apiError(
-          "El conductor requiere municipalidad asociada antes de completar perfil",
-          422,
-        );
-      }
-      if (driver.companyId && !isValidObjectId(driver.companyId)) {
+      const hasLicense = !!(driver.licenseNumber && driver.licenseCategory);
+      const hasCompany = !!driver.companyId;
+      if (hasCompany && !isValidObjectId(driver.companyId!)) {
         return apiError("companyId inválido", 400);
       }
-      const dupLicense = await Driver.findOne({
-        licenseNumber: driver.licenseNumber,
-        dni: { $ne: dni },
-      });
-      if (dupLicense) {
-        return apiError("La licencia ya está registrada con otro DNI", 409);
+      // Verificar licencia duplicada solo si llega.
+      if (hasLicense) {
+        const dupLicense = await Driver.findOne({
+          licenseNumber: driver.licenseNumber,
+          dni: { $ne: dni },
+        });
+        if (dupLicense) {
+          return apiError("La licencia ya está registrada con otro DNI", 409);
+        }
       }
-      await Driver.findOneAndUpdate(
-        { dni },
-        {
-          $set: {
-            municipalityId: user.municipalityId,
-            name: user.name,
-            dni,
-            phone,
-            licenseNumber:   driver.licenseNumber,
-            licenseCategory: driver.licenseCategory,
-            ...(driver.companyId ? { companyId: driver.companyId } : {}),
+      // Solo creamos/actualizamos el Driver si al menos uno de los campos
+      // útiles (licencia o empresa) está presente. Sin ambos, el bloque
+      // queda como no-op — el conductor podrá completar después.
+      if (hasLicense || hasCompany) {
+        if (!user.municipalityId) {
+          return apiError(
+            "El conductor requiere municipalidad asociada antes de completar perfil",
+            422,
+          );
+        }
+        await Driver.findOneAndUpdate(
+          { dni },
+          {
+            $set: {
+              municipalityId: user.municipalityId,
+              name: user.name,
+              dni,
+              phone,
+              ...(hasLicense
+                ? {
+                    licenseNumber: driver.licenseNumber,
+                    licenseCategory: driver.licenseCategory,
+                  }
+                : {}),
+              ...(hasCompany ? { companyId: driver.companyId } : {}),
+            },
           },
-        },
-        { upsert: true, new: true, runValidators: true },
-      );
+          { upsert: true, new: true, runValidators: true },
+        );
+      }
     }
 
     return apiResponse({

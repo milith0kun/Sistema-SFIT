@@ -75,7 +75,7 @@ class _TripCheckoutPageState extends ConsumerState<TripCheckoutPage> {
       await ref.read(locationTrackingProvider.notifier).stopTracking();
 
       final svc = ref.read(tripsApiServiceProvider);
-      await svc.closeFleetEntry(
+      final closedNow = await svc.closeFleetEntry(
         widget.entryId,
         returnTime: DateTime.now(),
         observations: _obsCtrl.text.trim().isEmpty ? null : _obsCtrl.text.trim(),
@@ -84,6 +84,16 @@ class _TripCheckoutPageState extends ConsumerState<TripCheckoutPage> {
       ref.invalidate(myRoutesProvider);
       ref.invalidate(misRecorridosProvider);
       if (mounted) {
+        if (!closedNow) {
+          // El backend devolvió alreadyClosed: true — el turno ya estaba
+          // cerrado desde otro device. Avisar y navegar igual al summary.
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Este turno ya estaba cerrado.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
         context.pushReplacement('/conductor/trip-summary/${widget.entryId}');
       }
     } catch (e) {

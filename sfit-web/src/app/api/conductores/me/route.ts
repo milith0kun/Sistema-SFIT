@@ -40,28 +40,25 @@ export async function GET(request: NextRequest) {
   const user = await User.findById(auth.session.userId).lean();
   if (!user) return apiUnauthorized();
 
-  // 1. Buscar por DNI exacto (campo dni del usuario, si existe)
-  let driver = null;
-
-  if (user.dni) {
-    driver = await Driver.findOne({ dni: user.dni, active: true })
-      .populate("companyId", "razonSocial")
-      .lean();
+  // Resolver Driver con el mismo orden de prioridad que el PATCH: userId →
+  // dni → nombre. Si encuentra via fallback (no userId), escribimos
+  // `userId` para que requests futuros sean directos y GET/PATCH lleguen
+  // SIEMPRE al mismo doc — antes el GET podía traer Driver A pero el
+  // PATCH actualizar Driver B porque usaban estrategias distintas.
+  const driverDoc = await resolveAndLinkDriver(
+    auth.session.userId,
+    user.dni as string | undefined,
+    user.name as string | undefined,
+  );
+  if (!driverDoc) {
+    return apiNotFound("No se encontró un registro de conductor asociado a su cuenta");
   }
 
-  // 2. Fallback: buscar por nombre aproximado (regex case-insensitive)
-  if (!driver && user.name) {
-    const nameParts = user.name.trim().split(/\s+/).filter(Boolean);
-    // Usar las primeras dos palabras del nombre para mayor precisión
-    const searchTerm = nameParts.slice(0, 2).join(" ");
-    driver = await Driver.findOne({
-      name: { $regex: searchTerm, $options: "i" },
-      active: true,
-    })
-      .populate("companyId", "razonSocial")
-      .lean();
-  }
-
+  // Re-leemos populated. Sin esto la respuesta tendría el ObjectId crudo
+  // en `companyId` y la app no podría mostrar razonSocial/serviceScope.
+  const driver = await Driver.findById(driverDoc._id)
+    .populate("companyId", "razonSocial ruc serviceScope")
+    .lean();
   if (!driver) {
     return apiNotFound("No se encontró un registro de conductor asociado a su cuenta");
   }
@@ -71,6 +68,9 @@ export async function GET(request: NextRequest) {
     municipalityId: String(driver.municipalityId),
     companyId: driver.companyId ? String((driver.companyId as { _id: unknown })._id ?? driver.companyId) : undefined,
     companyName: (driver.companyId as { razonSocial?: string } | null)?.razonSocial,
+    companyRuc: (driver.companyId as { ruc?: string } | null)?.ruc,
+    companyServiceScope:
+        (driver.companyId as { serviceScope?: string } | null)?.serviceScope,
     name: driver.name,
     dni: driver.dni,
     licenseNumber: driver.licenseNumber,
@@ -132,8 +132,19 @@ export async function PATCH(request: NextRequest) {
 
   await connectDB();
 
-  // Resolvemos el Driver por userId (vínculo directo) para no depender del DNI.
-  const driver = await Driver.findOne({ userId: auth.session.userId, active: true });
+  // Resolver el Driver con la misma estrategia que el GET. Devuelve el doc
+  // (no lean) listo para mutar, con `userId` ya escrito si vino via
+  // fallback. Garantiza que GET y PATCH operen siempre sobre el MISMO
+  // Driver — antes podían divergir y la app veía "ya seleccioné empresa"
+  // pero el siguiente GET traía otro Driver sin companyId.
+  const userDoc = await User.findById(auth.session.userId)
+    .select("dni name")
+    .lean<{ dni?: string; name?: string } | null>();
+  const driver = await resolveAndLinkDriver(
+    auth.session.userId,
+    userDoc?.dni,
+    userDoc?.name,
+  );
   if (!driver) {
     return apiNotFound("No se encontró un registro de conductor asociado a su cuenta");
   }
@@ -181,10 +192,10 @@ export async function PATCH(request: NextRequest) {
   }
 
   const populated = await Driver.findById(driver._id)
-    .populate("companyId", "razonSocial ruc")
+    .populate("companyId", "razonSocial ruc serviceScope")
     .lean();
   const company = (populated?.companyId ?? null) as
-    | { _id?: unknown; razonSocial?: string; ruc?: string }
+    | { _id?: unknown; razonSocial?: string; ruc?: string; serviceScope?: string }
     | null;
 
   return apiResponse({
@@ -192,10 +203,69 @@ export async function PATCH(request: NextRequest) {
     companyId: company?._id ? String(company._id) : null,
     companyName: company?.razonSocial ?? null,
     companyRuc: company?.ruc ?? null,
+    companyServiceScope: company?.serviceScope ?? null,
     name: driver.name,
     dni: driver.dni,
     licenseNumber: driver.licenseNumber,
     licenseCategory: driver.licenseCategory,
     phone: driver.phone,
   });
+}
+
+/**
+ * Resuelve el `Driver` que corresponde al `userId` actual. Implementa la
+ * estrategia que GET y PATCH comparten:
+ *
+ *   1. Busca por `userId` directo (preferido — link bidireccional).
+ *   2. Si no existe, busca por `dni` del User (caso de conductores
+ *      seedeados sin link).
+ *   3. Como último recurso, busca por nombre (regex de las dos primeras
+ *      palabras).
+ *
+ * Cuando encuentra via fallback (2 o 3), ESCRIBE `userId` en el Driver
+ * para que los próximos requests sean directos y GET/PATCH lleguen
+ * siempre al mismo doc. La escritura es best-effort: si falla, devuelve
+ * el doc igual.
+ *
+ * Devuelve el Document de Mongoose (NO lean) listo para mutar por el
+ * caller. El caller decide si hacer `.save()` o `.populate().lean()`.
+ */
+async function resolveAndLinkDriver(
+  userId: string,
+  userDni: string | undefined,
+  userName: string | undefined,
+): Promise<InstanceType<typeof Driver> | null> {
+  // 1. Path rápido: userId directo.
+  let driver = await Driver.findOne({ userId, active: true });
+  if (driver) return driver;
+
+  // 2. Fallback por DNI.
+  if (userDni) {
+    driver = await Driver.findOne({ dni: userDni, active: true });
+  }
+
+  // 3. Fallback por nombre aproximado.
+  if (!driver && userName) {
+    const nameParts = userName.trim().split(/\s+/).filter(Boolean);
+    const searchTerm = nameParts.slice(0, 2).join(" ");
+    if (searchTerm.length >= 3) {
+      driver = await Driver.findOne({
+        name: { $regex: searchTerm, $options: "i" },
+        active: true,
+      });
+    }
+  }
+
+  if (!driver) return null;
+
+  // Auto-link: escribir userId si vino via fallback.
+  if (!driver.userId || String(driver.userId) !== userId) {
+    driver.userId = userId as never;
+    try {
+      await driver.save();
+    } catch (e) {
+      console.warn("[conductores/me] failed to auto-link userId on driver", e);
+    }
+  }
+  return driver;
 }

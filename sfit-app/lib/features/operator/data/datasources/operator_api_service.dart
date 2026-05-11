@@ -218,6 +218,15 @@ class OperatorApiService {
     await _dio.post('/rutas/candidatas/$id/descartar', data: {'reason': reason});
   }
 
+  /// DELETE /rutas/candidatas/:id — borra DEFINITIVAMENTE la captura.
+  ///
+  /// Distinto de `dismissRouteCandidate` (que solo marca status=rejected):
+  /// éste elimina el documento de la base. No puede borrarse si la captura
+  /// ya fue promovida a una Route oficial — el backend devuelve 409.
+  Future<void> deleteRouteCandidate(String id) async {
+    await _dio.delete('/rutas/candidatas/$id');
+  }
+
   /// POST /rutas/candidatas/:id/validar — convierte la candidata en RouteModel.
   /// `extra` contiene campos opcionales (code, type, municipalityId, etc.).
   Future<RouteModel> validateRouteCandidate(
@@ -241,6 +250,17 @@ class OperatorApiService {
 
   Future<RouteModel> updateRoute(String id, Map<String, dynamic> patch) async {
     final resp = await _dio.patch('/rutas/$id', data: patch);
+    final data = (resp.data as Map)['data'] as Map<String, dynamic>;
+    return RouteModel.fromJson(normalizeBackendJson(data));
+  }
+
+  /// POST /rutas — crea una nueva ruta para la empresa del operador
+  /// (el backend infiere companyId del JWT). El payload debe incluir
+  /// `name`, `code`, `serviceScope` y los campos específicos según scope:
+  ///   - urbano_*: `waypoints[]` con al menos 2 elementos
+  ///   - interprovincial_*: `originDistrictCode` + `destinationDistrictCode`
+  Future<RouteModel> createRoute(Map<String, dynamic> payload) async {
+    final resp = await _dio.post('/rutas', data: payload);
     final data = (resp.data as Map)['data'] as Map<String, dynamic>;
     return RouteModel.fromJson(normalizeBackendJson(data));
   }

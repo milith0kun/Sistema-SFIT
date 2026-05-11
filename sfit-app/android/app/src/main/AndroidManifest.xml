@@ -36,6 +36,19 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"
         tools:node="remove" />
 
+    <!-- ── Exclusión de optimización de batería ──────────────────────── -->
+    <!-- Permite a la app pedir al usuario que SFIT no sea suspendida por Doze
+         mode durante turnos largos. Justificación regulatoria: fiscalización
+         de transporte público requiere tracking GPS continuo (SLA hasta 12h)
+         según normativa peruana. Se declara en Play Console Permissions
+         Declaration Form. Sin esto, el foreground service queda pausado tras
+         minutos sin movimiento y se pierden puntos del recorrido. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+        tools:ignore="BatteryLife" />
+    <!-- Requerido por WorkManager para tareas periódicas exactas (watchdog
+         que detecta cuando el sistema mató la app durante un turno). -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
     <!-- Eliminar ID de publicidad inyectado por dependencias ────────── -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID"
         tools:node="remove" />
@@ -43,7 +56,11 @@
     <application
         android:label="SFIT"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:largeHeap="true"
+        android:hardwareAccelerated="true"
+        android:allowBackup="false"
+        android:supportsRtl="true">
 
         <activity
             android:name=".MainActivity"

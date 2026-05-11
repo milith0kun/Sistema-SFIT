@@ -288,6 +288,40 @@ class Auth extends _$Auth {
     return 'No se pudo iniciar sesión. Inténtalo de nuevo.';
   }
 
+  // ── Aplicar respuesta del onboarding ──────────────────────────
+  /// Sincroniza el `UserEntity` local con la respuesta del endpoint
+  /// `/auth/onboarding/complete` SIN hacer una segunda llamada a `/perfil`.
+  ///
+  /// El segundo fetch era frágil — si fallaba (red intermitente, 401 por
+  /// rate limit, etc.) el flag `profileCompleted` quedaba en `false` local y
+  /// el router redirigía de vuelta al onboarding eternamente. La response
+  /// del onboarding ya trae los campos actualizados; los usamos directo.
+  ///
+  /// Si `data` viene `null` o sin campos clave, cae a `refreshUserFromServer`
+  /// como fallback.
+  Future<void> applyOnboardingResponse(Map? data) async {
+    if (data == null) {
+      await refreshUserFromServer();
+      return;
+    }
+    final current = state.user;
+    final next = UserEntity(
+      id:             (data['id'] ?? current?.id ?? '').toString(),
+      name:           (data['name'] ?? current?.name ?? '').toString(),
+      email:          (data['email'] ?? current?.email ?? '').toString(),
+      role:           (data['role'] ?? current?.role ?? 'ciudadano').toString(),
+      status:         (data['status'] ?? current?.status ?? 'activo').toString(),
+      image:          data['image'] as String? ?? current?.image,
+      municipalityId: data['municipalityId'] as String? ?? current?.municipalityId,
+      provinceId:     data['provinceId'] as String? ?? current?.provinceId,
+      regionId:       current?.regionId,
+      phone:          data['phone'] as String? ?? current?.phone,
+      dni:            data['dni'] as String? ?? current?.dni,
+      profileCompleted: data['profileCompleted'] as bool? ?? true,
+    );
+    state = AuthState(status: _statusFor(next), user: next);
+  }
+
   // ── Refrescar usuario desde el servidor ───────────────────────
   /// Vuelve a leer `/auth/perfil` para sincronizar el `UserEntity` local
   /// (rol, profileCompleted, datos territoriales) con la BD. Útil tras

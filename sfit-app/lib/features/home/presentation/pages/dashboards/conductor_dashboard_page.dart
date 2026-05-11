@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_theme.dart';
+import '../../../../../core/widgets/tracking_health_card.dart';
 import '../../../../../shared/widgets/widgets.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../drivers/data/datasources/driver_api_service.dart';
@@ -102,6 +103,20 @@ class _ConductorDashboardPageState extends ConsumerState<ConductorDashboardPage>
               ),
               const SizedBox(height: 16),
 
+              // ── CTA principal: Mis rutas (siempre visible, no oculto tras
+              // una pill). Es la pantalla central del rol conductor.
+              SfitQuickActionCard(
+                icon: Icons.route_outlined,
+                title: 'Mis rutas',
+                subtitle: 'Inicia turno, revisa pasadas y recorridos asignados.',
+                onTap: () => widget.onSelectTab('rutas'),
+              ),
+
+              // Card semafórico de salud del tracking GPS. Se auto-oculta si
+              // todo va bien (silencioso); aparece ámbar cuando hay pings
+              // pendientes y rojo si el tracking lleva minutos sin reportar.
+              const TrackingHealthCard(),
+
               // ── Módulos por categoría — pills + grid ──────────────
               SfitCategorizedFeatures(
                 categories: [
@@ -109,12 +124,6 @@ class _ConductorDashboardPageState extends ConsumerState<ConductorDashboardPage>
                     label: 'MI TURNO',
                     icon: Icons.play_circle_outline,
                     modules: [
-                      SfitFeatureCard(
-                        icon: Icons.route_outlined,
-                        title: 'Mis rutas',
-                        subtitle: 'Asignadas hoy',
-                        onTap: () => widget.onSelectTab('rutas'),
-                      ),
                       SfitFeatureCard(
                         icon: Icons.map_outlined,
                         title: 'Mapa',
@@ -126,6 +135,18 @@ class _ConductorDashboardPageState extends ConsumerState<ConductorDashboardPage>
                         title: 'Fatiga',
                         subtitle: 'Control preventivo',
                         onTap: () => widget.onSelectTab('fatiga'),
+                      ),
+                      // Acceso directo a "Mi empresa" desde la pill activa
+                      // por default. Antes solo estaba en la categoría CUENTA
+                      // que requería 1 tap extra y muchos conductores no
+                      // descubrían cómo buscar/elegir empresa.
+                      SfitFeatureCard(
+                        icon: Icons.apartment_outlined,
+                        title: 'Mi empresa',
+                        subtitle: company ?? 'Buscar y asociarse',
+                        onTap: () => context
+                            .push('/conductor/empresa')
+                            .then((_) => ref.invalidate(myDriverProfileProvider)),
                       ),
                     ],
                   ),

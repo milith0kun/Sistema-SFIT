@@ -127,21 +127,12 @@ class _OperatorRoutesPageState extends ConsumerState<OperatorRoutesPage>
         animation: _tabs,
         builder: (_, __) => _tabs.index == 0
             ? FloatingActionButton.extended(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text(
-                        'Crea la ruta desde el panel web. Aquí podrás editarla.',
-                      ),
-                      behavior: SnackBarBehavior.floating,
-                      backgroundColor: AppColors.ink9,
-                      action: SnackBarAction(
-                        label: 'OK',
-                        textColor: Colors.white,
-                        onPressed: () {},
-                      ),
-                    ),
-                  );
+                onPressed: () async {
+                  final created = await context.push<bool>('/operador/rutas/nueva');
+                  if (created == true && mounted) {
+                    // Refrescar la lista al volver tras crear con éxito.
+                    setState(() {});
+                  }
                 },
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,

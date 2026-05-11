@@ -118,3 +118,68 @@ export async function GET(
     updatedAt: cap.updatedAt,
   });
 }
+
+/**
+ * DELETE /api/rutas/candidatas/[id]
+ *
+ * Borra DEFINITIVAMENTE una captura de ruta. Distinto al endpoint
+ * `/descartar` que solo cambia el `status` a "rejected" — éste borra el
+ * documento de Mongo y libera la asociación.
+ *
+ * No se puede borrar si la captura ya fue promovida a una Route oficial
+ * (`promotedToRouteId != null`): primero hay que desvincular o eliminar la
+ * Route. Permisos idénticos al GET (admin/operador con scope geográfico y
+ * de empresa).
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const auth = requireRole(request, [
+    ROLES.SUPER_ADMIN,
+    ROLES.ADMIN_REGIONAL,
+    ROLES.ADMIN_PROVINCIAL,
+    ROLES.ADMIN_MUNICIPAL,
+    ROLES.OPERADOR,
+  ]);
+  if ("error" in auth) {
+    return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
+  }
+
+  const { id } = await params;
+  if (!isValidObjectId(id)) return apiError("ID inválido", 400);
+
+  await connectDB();
+  const cap = await RouteCapture.findById(id);
+  if (!cap) return apiNotFound("Captura no encontrada");
+
+  if (!(await canAccessMunicipality(auth.session, String(cap.municipalityId)))) {
+    return apiForbidden();
+  }
+
+  // Operador: scope por empresa (mismo cálculo que GET).
+  if (auth.session.role === ROLES.OPERADOR) {
+    const companyId = await getOperatorCompanyId(auth.session.userId);
+    if (!companyId) return apiForbidden();
+    const driverDoc = cap.driverId
+      ? await Driver.findById(cap.driverId).select("companyId").lean()
+      : null;
+    const vehicleDoc = cap.vehicleId
+      ? await Vehicle.findById(cap.vehicleId).select("companyId").lean()
+      : null;
+    const matches =
+      (driverDoc?.companyId && String(driverDoc.companyId) === companyId) ||
+      (vehicleDoc?.companyId && String(vehicleDoc.companyId) === companyId);
+    if (!matches) return apiForbidden();
+  }
+
+  if (cap.promotedToRouteId) {
+    return apiError(
+      "Esta captura ya fue promovida a una ruta oficial. Elimina o desvincula la ruta primero.",
+      409,
+    );
+  }
+
+  await cap.deleteOne();
+  return apiResponse({ deleted: true, id: String(cap._id) });
+}

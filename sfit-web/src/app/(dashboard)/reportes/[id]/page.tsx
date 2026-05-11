@@ -51,7 +51,9 @@ const STATUS_META: Record<ReportStatus, { label: string; color: string; bg: stri
   validado:  { label: "Validado",    color: GRN,  bg: GRNBG, bd: GRNBD },
   rechazado: { label: "Rechazado",   color: RED,  bg: REDBG, bd: REDBD },
 };
-const CAN_ACT = ["fiscal", "admin_municipal", "super_admin"];
+// Los 4 admins jerárquicos validan/cierran reportes ciudadanos desde web;
+// fiscal lo hace desde la app móvil.
+const CAN_ACT = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"];
 
 const LABEL_S: React.CSSProperties = {
   display: "block", fontSize: "0.6875rem", fontWeight: 700,

@@ -5,7 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/apiperu_service.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../companies/data/datasources/companies_api_service.dart';
+import '../../../companies/presentation/widgets/scope_badge.dart';
 
 /// Onboarding obligatorio tras el primer login.
 ///
@@ -52,17 +55,65 @@ class _OnboardingProfilePageState extends ConsumerState<OnboardingProfilePage> {
   Timer? _dniDebounce;
   Timer? _rucDebounce;
 
+  // ── Conductor: selección de empresa (opcional) ──────────────────
+  final _empresaCtrl = TextEditingController();
+  Timer? _empresaDebounce;
+  bool _searchingEmpresas = false;
+  List<Map<String, dynamic>> _empresasResults = [];
+  Map<String, dynamic>? _selectedCompany;
+
+  // ── Operador: selección de tipo de servicio ─────────────────────
+  String? _serviceScope;
+
   bool get _isOperador =>
       (ref.read(authProvider).user?.role ?? '') == 'operador';
+  bool get _isConductor =>
+      (ref.read(authProvider).user?.role ?? '') == 'conductor';
 
   @override
   void dispose() {
     _dniDebounce?.cancel();
     _rucDebounce?.cancel();
+    _empresaDebounce?.cancel();
     _dniCtrl.dispose();
     _rucCtrl.dispose();
     _phoneCtrl.dispose();
+    _empresaCtrl.dispose();
     super.dispose();
+  }
+
+  // ── Buscador de empresa (solo conductor) ────────────────────────
+  void _onEmpresaChanged(String value) {
+    _empresaDebounce?.cancel();
+    final q = value.trim();
+    if (q.length < 2) {
+      setState(() {
+        _empresasResults = [];
+        _searchingEmpresas = false;
+      });
+      return;
+    }
+    _empresaDebounce = Timer(const Duration(milliseconds: 350), () => _buscarEmpresas(q));
+  }
+
+  Future<void> _buscarEmpresas(String q) async {
+    setState(() => _searchingEmpresas = true);
+    try {
+      final items = await ref
+          .read(companiesApiServiceProvider)
+          .searchPublic(q: q, limit: 20);
+      if (!mounted) return;
+      setState(() {
+        _empresasResults = items;
+        _searchingEmpresas = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _empresasResults = [];
+        _searchingEmpresas = false;
+      });
+    }
   }
 
   /// Auto-consulta cuando el DNI alcanza 8 dígitos. Debounce 400ms para
@@ -150,13 +201,23 @@ class _OnboardingProfilePageState extends ConsumerState<OnboardingProfilePage> {
 
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
-    // Validaciones extra: si el rol es operador, exigir RUC consultado OK.
+    // Si el rol es operador, exigir RUC consultado OK — sin empresa el
+    // operador no puede operar nada en la app.
     if (_isOperador && _rucData == null) {
       setState(() => _errorRuc = 'Consulta el RUC de tu empresa antes de continuar');
       return;
     }
-    if (_dniData == null) {
-      setState(() => _errorDni = 'Espera a que se consulte el DNI');
+    // Operador también debe elegir tipo de servicio: define si las rutas
+    // que cree exigirán paraderos o solo origen/destino.
+    if (_isOperador && _serviceScope == null) {
+      setState(() => _errorRuc = 'Elige el tipo de servicio de tu empresa');
+      return;
+    }
+    // Si la consulta RENIEC sigue en curso, esperamos a que termine antes de
+    // enviar — pero NO bloqueamos por `_dniData == null` definitivo: RENIEC
+    // puede estar offline y el backend acepta el DNI sin enriquecimiento.
+    if (_consultandoDni) {
+      setState(() => _errorDni = 'Espera a que termine la consulta');
       return;
     }
 
@@ -185,13 +246,30 @@ class _OnboardingProfilePageState extends ConsumerState<OnboardingProfilePage> {
           if (ub.dept != null) 'departmentCode': ub.dept,
           if (ub.prov != null) 'provinceCode': ub.prov,
           if (ub.dist != null) 'districtCode': ub.dist,
+          if (_serviceScope != null) 'serviceScope': _serviceScope,
+        };
+      }
+      // Conductor que eligió empresa durante el onboarding — el backend hace
+      // upsert del Driver con companyId aunque no llegue la licencia (que se
+      // captura después en "Editar perfil").
+      if (_isConductor && _selectedCompany != null) {
+        body['driver'] = {
+          'companyId': _selectedCompany!['id'],
         };
       }
 
       final resp = await dio.post('/auth/onboarding/complete', data: body);
       final respBody = resp.data;
       if (respBody is Map && respBody['success'] == true) {
-        await ref.read(authProvider.notifier).refreshUserFromServer();
+        // Aplicar el user actualizado DIRECTAMENTE desde la respuesta del
+        // onboarding. Antes dependíamos de un GET /auth/perfil adicional
+        // (refreshUserFromServer); si esa segunda llamada fallaba en silencio
+        // (red intermitente, etc.) el `profileCompleted` quedaba en false y
+        // el router te devolvía al onboarding eternamente — el bug que el
+        // usuario reportó como "cada vez me pide el DNI".
+        await ref
+            .read(authProvider.notifier)
+            .applyOnboardingResponse(respBody['data'] as Map?);
         if (!mounted) return;
         context.go('/home');
       } else {
@@ -203,6 +281,31 @@ class _OnboardingProfilePageState extends ConsumerState<OnboardingProfilePage> {
       if (mounted) setState(() => _errorEnvio = 'Error de conexión: $e');
     } finally {
       if (mounted) setState(() => _enviando = false);
+    }
+  }
+
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Cerrar sesión?'),
+        content: const Text(
+          'Tendrás que volver a iniciar sesión. Los datos que escribiste se perderán.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Cerrar sesión'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(authProvider.notifier).logout();
     }
   }
 
@@ -221,6 +324,16 @@ class _OnboardingProfilePageState extends ConsumerState<OnboardingProfilePage> {
       appBar: AppBar(
         title: const Text('Completar perfil'),
         automaticallyImplyLeading: false,
+        actions: [
+          // Escape obligatorio: si el usuario no puede avanzar (RENIEC caído,
+          // API offline, datos rechazados) debe poder cerrar sesión y reintentar
+          // con otra cuenta o más tarde. Antes esta pantalla atrapaba al user.
+          TextButton.icon(
+            icon: const Icon(Icons.logout_rounded, size: 18),
+            label: const Text('Salir'),
+            onPressed: _enviando ? null : _logout,
+          ),
+        ],
       ),
       body: SafeArea(
         child: Padding(
@@ -328,6 +441,120 @@ class _OnboardingProfilePageState extends ConsumerState<OnboardingProfilePage> {
                         ),
                       ),
                     ),
+                  const SizedBox(height: 18),
+                  // ── Selector de tipo de servicio (operador) ───────
+                  // El operador define si su empresa opera rutas urbanas
+                  // (con paraderos fijos) o interprovinciales (origen+destino
+                  // sin paraderos). Esto se persiste en Company.serviceScope
+                  // y condiciona la validación al crear rutas más adelante.
+                  Text(
+                    'Tipo de servicio *',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Define si tus rutas tendrán paraderos fijos o solo origen y destino.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.ink6,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  _ScopeSelector(
+                    value: _serviceScope,
+                    onChanged: (v) => setState(() {
+                      _serviceScope = v;
+                      _errorRuc = null;
+                    }),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // ── Empresa (solo conductor, opcional) ────────────────
+                // El conductor puede asociarse a su empresa durante el
+                // onboarding o saltar el paso y hacerlo después en "Mi
+                // empresa". El home muestra un banner si quedó sin asociar.
+                if (_isConductor) ...[
+                  Text(
+                    'Tu empresa (opcional)',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Búscala por razón social o RUC. Podrás asociarte después en Mi empresa.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.ink6,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_selectedCompany != null)
+                    _SelectedCompanyCard(
+                      company: _selectedCompany!,
+                      onClear: () => setState(() {
+                        _selectedCompany = null;
+                        _empresaCtrl.clear();
+                        _empresasResults = [];
+                      }),
+                    )
+                  else ...[
+                    TextField(
+                      controller: _empresaCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Buscar empresa',
+                        hintText: 'Mín. 2 caracteres',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searchingEmpresas
+                            ? const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: SizedBox(
+                                  width: 16, height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              )
+                            : null,
+                        border: const OutlineInputBorder(),
+                      ),
+                      onChanged: _onEmpresaChanged,
+                    ),
+                    if (_empresasResults.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(top: 8),
+                        constraints: const BoxConstraints(maxHeight: 260),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.ink2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: _empresasResults.length,
+                          separatorBuilder: (_, __) =>
+                              const Divider(height: 1),
+                          itemBuilder: (_, i) => _CompanyTileForOnboarding(
+                            company: _empresasResults[i],
+                            onTap: () => setState(() {
+                              _selectedCompany = _empresasResults[i];
+                              _empresasResults = [];
+                            }),
+                          ),
+                        ),
+                      )
+                    else if (_empresaCtrl.text.trim().length >= 2 &&
+                        !_searchingEmpresas)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Sin resultados. Si tu empresa no está aquí, puedes asociarte después.',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: AppColors.ink6,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                  ],
                   const SizedBox(height: 16),
                 ],
 
@@ -536,6 +763,242 @@ class _KV extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             TextSpan(text: value),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Selector visual de `Company.serviceScope` para el onboarding del operador.
+///
+/// Las 4 opciones del enum se agrupan en 2 columnas para visualizar la
+/// diferencia: izquierda urbano (con paraderos), derecha interprovincial
+/// (sin paraderos). El usuario marca una y se persiste en `Company.serviceScope`.
+class _ScopeSelector extends StatelessWidget {
+  final String? value;
+  final ValueChanged<String> onChanged;
+
+  const _ScopeSelector({required this.value, required this.onChanged});
+
+  static const _options = <({String value, String title, String subtitle, IconData icon, bool isUrban})>[
+    (
+      value: 'urbano_distrital',
+      title: 'Urbano distrital',
+      subtitle: 'Paraderos dentro de un distrito',
+      icon: Icons.directions_bus_filled_rounded,
+      isUrban: true,
+    ),
+    (
+      value: 'urbano_provincial',
+      title: 'Urbano provincial',
+      subtitle: 'Paraderos en varios distritos',
+      icon: Icons.directions_bus_filled_rounded,
+      isUrban: true,
+    ),
+    (
+      value: 'interprovincial_regional',
+      title: 'Interprovincial',
+      subtitle: 'Sin paraderos, varias provincias',
+      icon: Icons.alt_route_rounded,
+      isUrban: false,
+    ),
+    (
+      value: 'interregional_nacional',
+      title: 'Interregional',
+      subtitle: 'Sin paraderos, varias regiones',
+      icon: Icons.alt_route_rounded,
+      isUrban: false,
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: _options.map((opt) {
+        final selected = value == opt.value;
+        final accent = opt.isUrban
+            ? AppColors.info
+            : const Color(0xFF7C3AED);
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: InkWell(
+            onTap: () => onChanged(opt.value),
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: selected ? accent.withValues(alpha: 0.06) : Colors.white,
+                border: Border.all(
+                  color: selected ? accent : AppColors.ink2,
+                  width: selected ? 2 : 1,
+                ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(opt.icon, color: accent, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          opt.title,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13.5,
+                            color: AppColors.ink9,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          opt.subtitle,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: AppColors.ink6,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    selected
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    color: selected ? accent : AppColors.ink4,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+/// Card que muestra la empresa que el conductor ya eligió durante el
+/// onboarding, con botón para cambiar.
+class _SelectedCompanyCard extends StatelessWidget {
+  final Map<String, dynamic> company;
+  final VoidCallback onClear;
+
+  const _SelectedCompanyCard({required this.company, required this.onClear});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.aptoBg,
+        border: Border.all(color: AppColors.aptoBorder),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.check_circle, color: AppColors.apto, size: 18),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  company['razonSocial']?.toString() ?? '—',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                tooltip: 'Cambiar',
+                onPressed: onClear,
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'RUC ${company['ruc'] ?? '—'}',
+                style: TextStyle(fontSize: 12, color: AppColors.ink6),
+              ),
+              if (company['municipalityName'] != null)
+                Text(
+                  '· ${company['municipalityName']}',
+                  style: TextStyle(fontSize: 12, color: AppColors.ink6),
+                ),
+              ScopeBadge(
+                scope: company['serviceScope'] as String?,
+                compact: true,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Fila de empresa en el listado del buscador del onboarding.
+class _CompanyTileForOnboarding extends StatelessWidget {
+  final Map<String, dynamic> company;
+  final VoidCallback onTap;
+
+  const _CompanyTileForOnboarding({
+    required this.company,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              company['razonSocial']?.toString() ?? '—',
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13.5,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  'RUC ${company['ruc'] ?? '—'}',
+                  style: TextStyle(fontSize: 11.5, color: AppColors.ink6),
+                ),
+                if (company['municipalityName'] != null)
+                  Text(
+                    '· ${company['municipalityName']}',
+                    style: TextStyle(fontSize: 11.5, color: AppColors.ink6),
+                  ),
+                ScopeBadge(
+                  scope: company['serviceScope'] as String?,
+                  compact: true,
+                ),
+              ],
+            ),
           ],
         ),
       ),

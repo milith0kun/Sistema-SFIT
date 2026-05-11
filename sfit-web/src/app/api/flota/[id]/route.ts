@@ -113,6 +113,24 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   const wasOpen = entry.status === "en_ruta" || entry.status === "disponible";
+
+  // Idempotencia explícita: si el cliente envía status='cerrado' sobre un
+  // turno que YA está cerrado (por ejemplo desde otro device), respondemos
+  // OK con `alreadyClosed: true` para que el cliente no vuelva a invalidar
+  // caché ni muestre "cerrando…". Evita el bug de "al volver a otro celular
+  // me pide cerrar el turno otra vez": el cliente puede saltarse ese flujo
+  // si recibe esta señal.
+  if (
+    !wasOpen &&
+    (parsed.data.status === "cerrado" || parsed.data.status === "auto_cierre")
+  ) {
+    return apiResponse({
+      id: String(entry._id),
+      ...entry.toObject(),
+      alreadyClosed: true,
+    });
+  }
+
   Object.assign(entry, parsed.data);
 
   // Si el turno está pasando a 'cerrado', calculamos las métricas finales.

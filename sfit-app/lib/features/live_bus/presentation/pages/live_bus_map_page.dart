@@ -43,7 +43,15 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
 
   // Filtro por route.id (multiselect). Vacío = sin filtro.
   final Set<String> _filterRouteIds = {};
+  // Filtro por tipo de vehículo (ej. {'omnibus','microbus'}). Vacío = todos.
+  // El backend acepta `?vehicleType=` repetido, así se filtra server-side.
+  final Set<String> _filterVehicleTypes = {};
   _ViewMode _view = _ViewMode.routes; // arranca en "Rutas" — más útil al ciudadano
+
+  /// Cuando es `true`, el endpoint devuelve TODA la red sin aplicar el
+  /// bounding box ±33km. Útil para que el ciudadano vea buses de otras
+  /// ciudades antes de viajar. Se acompaña de un `limit` más generoso.
+  bool _showAllNetwork = false;
 
   // GPS del ciudadano
   Position? _userPos;
@@ -127,15 +135,27 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
 
   Future<void> _fetch() async {
     // Ya NO filtramos por el municipio del ciudadano — mostramos todos los
-    // buses y rutas dentro del bounding box del backend (~33 km del usuario).
-    // El campo `municipalityName` del response permite identificar de qué
-    // jurisdicción es cada bus/ruta.
+    // buses y rutas dentro del bounding box del backend (~33 km del usuario),
+    // o de toda la red si el ciudadano activó "Toda la red". El campo
+    // `municipalityName` del response permite identificar de qué jurisdicción
+    // es cada bus/ruta.
     try {
       final dio = ref.read(dioClientProvider).dio;
-      final qp = <String, dynamic>{'limit': 80};
+      // Límite más generoso cuando se pide TODA la red, para que no se corte
+      // el response a 80 cuando hay flota nacional > 80 buses.
+      final qp = <String, dynamic>{'limit': _showAllNetwork ? 300 : 80};
       if (_userPos != null) {
         qp['lat'] = _userPos!.latitude;
         qp['lng'] = _userPos!.longitude;
+      }
+      if (_showAllNetwork) {
+        qp['bbox'] = 'off';
+      }
+      // Filtro por tipo de vehículo: el backend acepta el query repetido
+      // (?vehicleType=omnibus&vehicleType=microbus). Dio lo serializa con
+      // `ListFormat.multi` por defecto.
+      if (_filterVehicleTypes.isNotEmpty) {
+        qp['vehicleType'] = _filterVehicleTypes.toList();
       }
       if (widget.companyId != null) {
         qp['companyId'] = widget.companyId;
@@ -253,6 +273,18 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
       ..sort((a, b) => a.label.compareTo(b.label));
   }
 
+  /// Tipos de vehículo posibles (canónicos del sistema). Lista fija porque el
+  /// usuario debe poder filtrar incluso cuando no hay ningún bus de ese tipo
+  /// transmitiendo ahora — y porque la inferencia desde el response no sirve
+  /// cuando el filtro server-side ya ocultó los demás.
+  static const _vehicleTypeChoices = <({String key, String label, IconData icon})>[
+    (key: 'transporte_publico', label: 'Transporte público', icon: Icons.directions_bus_rounded),
+    (key: 'limpieza_residuos',  label: 'Limpieza',           icon: Icons.delete_sweep_rounded),
+    (key: 'emergencia',         label: 'Emergencia',         icon: Icons.local_hospital_rounded),
+    (key: 'maquinaria',         label: 'Maquinaria',         icon: Icons.construction_rounded),
+    (key: 'municipal_general',  label: 'Municipal',          icon: Icons.account_balance_rounded),
+  ];
+
   Color _statusColor(String s) => switch (s) {
         'apto' => AppColors.apto,
         'riesgo' => AppColors.riesgo,
@@ -320,6 +352,19 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
           ),
         ]),
         actions: [
+          // Toggle "Cerca de mí" ⇄ "Toda la red". Solo aplica al ciudadano
+          // (modo operador siempre filtra por su empresa via companyId).
+          if (widget.companyId == null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: _NetworkScopeChip(
+                showAll: _showAllNetwork,
+                onToggle: () {
+                  setState(() => _showAllNetwork = !_showAllNetwork);
+                  _fetch();
+                },
+              ),
+            ),
           if (_userPos == null)
             IconButton(
               tooltip: 'Activar ubicación',
@@ -336,6 +381,52 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
           child: _ViewToggle(
             value: _view,
             onChanged: (v) => setState(() => _view = v),
+          ),
+        ),
+        // Chips de tipo de vehículo. Se ven siempre porque el filtro afecta
+        // tanto a la lista de Rutas como a la de Buses como al Mapa.
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(0, 4, 0, 0),
+          child: SizedBox(
+            height: 36,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              scrollDirection: Axis.horizontal,
+              itemCount: _vehicleTypeChoices.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 6),
+              itemBuilder: (_, i) {
+                final t = _vehicleTypeChoices[i];
+                final selected = _filterVehicleTypes.contains(t.key);
+                return FilterChip(
+                  avatar: Icon(t.icon,
+                      size: 14,
+                      color: selected ? AppColors.goldDark : AppColors.ink6),
+                  label: Text(t.label,
+                      style: AppTheme.inter(
+                          fontSize: 11.5, fontWeight: FontWeight.w600)),
+                  selected: selected,
+                  onSelected: (v) {
+                    setState(() {
+                      if (v) {
+                        _filterVehicleTypes.add(t.key);
+                      } else {
+                        _filterVehicleTypes.remove(t.key);
+                      }
+                    });
+                    _fetch();
+                  },
+                  selectedColor: AppColors.goldBg,
+                  checkmarkColor: AppColors.goldDark,
+                  showCheckmark: false,
+                  side: BorderSide(
+                      color: selected ? AppColors.goldBorder : AppColors.ink2),
+                  backgroundColor: Colors.white,
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                );
+              },
+            ),
           ),
         ),
         // Chips de filtro por ruta — solo en Mapa/Buses (no en Rutas)
@@ -516,6 +607,57 @@ class _ViewToggle extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Toggle alcance: Cerca de mí ⇄ Toda la red ─────────────────────────
+/// Chip de header que alterna entre "Cerca" (default, bbox ±33km del GPS) y
+/// "Toda la red" (sin bbox — útil para ver buses de otras ciudades antes de
+/// viajar, o cuando el ciudadano no está donde quiere consultar la flota).
+class _NetworkScopeChip extends StatelessWidget {
+  final bool showAll;
+  final VoidCallback onToggle;
+  const _NetworkScopeChip({required this.showAll, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = showAll ? AppColors.goldBg : Colors.white;
+    final border = showAll ? AppColors.goldBorder : AppColors.ink2;
+    final fg = showAll ? AppColors.goldDark : AppColors.ink7;
+    final icon = showAll ? Icons.public_rounded : Icons.near_me_rounded;
+    final label = showAll ? 'Toda la red' : 'Cerca';
+    return Tooltip(
+      message: showAll
+          ? 'Mostrando buses de TODA la red. Tap para volver a "Cerca de mí".'
+          : 'Mostrando buses dentro de ~33 km. Tap para ver toda la red.',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onToggle,
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: border),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(icon, size: 14, color: fg),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: AppTheme.inter(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: fg,
+                ),
+              ),
+            ]),
           ),
         ),
       ),
@@ -728,17 +870,23 @@ class _MapViewState extends State<_MapView> {
         // desde el inicio del recorrido.
         for (final b in buses)
           if (b.liveTrack.length >= 2)
-            PolylineLayer(polylines: [
-              Polyline(
-                points: b.liveTrack
-                    .map((c) => LatLng(c[0], c[1]))
-                    .toList(),
-                strokeWidth: SfitMapStyle.recentStroke(zoom),
-                color: statusColor(b.vehicleStatus).withValues(
-                  alpha: highlight != null ? 0.55 : 0.85,
+            Builder(builder: (_) {
+              final track = b.liveTrack.map((c) => LatLng(c[0], c[1])).toList();
+              // Cortamos el liveTrack en la posición actual del bus para que
+              // la línea no aparente "sobresalir" adelante del marker (el
+              // smoothing del marker queda un poco atrás del último ping).
+              final cut = splitPolylineAtPosition(track, displayPos(b)).traveled;
+              if (cut.length < 2) return const SizedBox.shrink();
+              return PolylineLayer(polylines: [
+                Polyline(
+                  points: cut,
+                  strokeWidth: SfitMapStyle.recentStroke(zoom),
+                  color: statusColor(b.vehicleStatus).withValues(
+                    alpha: highlight != null ? 0.55 : 0.85,
+                  ),
                 ),
-              ),
-            ]),
+              ]);
+            }),
         // Tramo "TU UBICACIÓN → tu paradero" en azul punteado: ruta de
         // aproximación a pie (línea recta como heurística — para precisión
         // siguiendo calles haría falta una API de walking directions).
@@ -851,6 +999,9 @@ class _MapViewState extends State<_MapView> {
           ]),
         ],
         // Marcadores de buses: ícono completo (no círculo), escala con zoom.
+        // El heading se calcula a partir de los últimos puntos del liveTrack
+        // para que el bus apunte en la dirección de avance — sin esto siempre
+        // queda mirando al norte aunque el bus vaya al este o sur.
         MarkerLayer(
           markers: [
             for (final b in buses)
@@ -859,6 +1010,9 @@ class _MapViewState extends State<_MapView> {
                 zoom: zoom,
                 statusColor: statusColor(b.vehicleStatus),
                 isOffRoute: b.isOffRoute,
+                rotation: headingFromTrack(
+                  b.liveTrack.map((c) => LatLng(c[0], c[1])).toList(),
+                ),
                 onTap: () => onTapBus(b),
               ),
           ],

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db/mongoose";
 import { Trip } from "@/models/Trip";
+import { Vehicle } from "@/models/Vehicle";
 import {
   apiResponse, apiError, apiForbidden, apiUnauthorized,
 } from "@/lib/api/response";
@@ -18,9 +19,10 @@ import { ROLES } from "@/lib/constants";
  * Los viajes que aparecen aquí los puede reclamar con
  * `POST /api/viajes/[id]/tomar`.
  *
- * Si el operador filtra por empresa al crear el viaje (vehicleId/routeId
- * vinculan a una empresa), aquí se podría filtrar por la empresa del
- * conductor — TODO cuando exista campo `Driver.companyId`.
+ * Si el `Driver.companyId` está asignado, se filtra adicionalmente para que
+ * el conductor SOLO vea viajes de vehículos de su empresa. Sin companyId
+ * (conductor que no se asoció a empresa todavía) cae al filtro por
+ * municipalidad para no romper el flujo legacy.
  */
 export async function GET(request: NextRequest) {
   const auth = requireRole(request, [ROLES.CONDUCTOR]);
@@ -39,6 +41,21 @@ export async function GET(request: NextRequest) {
       status: "pendiente_aceptacion",
       driverId: { $exists: false },
     };
+
+    // Filtro por empresa: Trip no tiene `companyId` directo, pero sí tiene
+    // vehicleId required. Resolvemos los vehículos de la empresa del
+    // conductor y limitamos los Trips a ellos. Si el conductor todavía no
+    // está asociado a empresa, mantenemos el filtro por municipalidad como
+    // antes — fallback de compat.
+    if (driver.companyId) {
+      const vehicleIds = await Vehicle.find({ companyId: driver.companyId })
+        .select("_id")
+        .lean<Array<{ _id: unknown }>>();
+      if (vehicleIds.length === 0) {
+        return apiResponse({ items: [], total: 0 });
+      }
+      filter.vehicleId = { $in: vehicleIds.map((v) => v._id) };
+    }
 
     const [items, total] = await Promise.all([
       Trip.find(filter)

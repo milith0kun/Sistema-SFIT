@@ -8,6 +8,7 @@ import '../../../../core/services/location_tracking_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/connectivity_banner.dart';
+import '../../../../core/widgets/tracking_health_card.dart';
 import '../../../../shared/widgets/map/sfit_map_markers.dart';
 import '../../data/datasources/trips_api_service.dart';
 
@@ -184,12 +185,17 @@ class _TripMapPageState extends ConsumerState<TripMapPage>
               ),
             // Tramo reciente (últimos N puntos): mismo color pero más
             // grueso y con alpha pleno, encima del histórico, para que
-            // el conductor distinga el progreso vivo.
+            // el conductor distinga el progreso vivo. Cortamos en
+            // `currentPos` para que la línea no aparente "sobresalir"
+            // adelante del bus mientras los pings se acumulan.
             if (tracking.recentTrack.length >= 2)
               PolylineLayer(
                 polylines: [
                   Polyline(
-                    points: tracking.recentTrack,
+                    points: currentPos != null
+                        ? splitPolylineAtPosition(
+                            tracking.recentTrack, currentPos).traveled
+                        : tracking.recentTrack,
                     color:
                         tracking.isOffRoute ? AppColors.noApto : AppColors.gold,
                     strokeWidth: SfitMapStyle.recentStroke(_currentZoom),
@@ -201,7 +207,9 @@ class _TripMapPageState extends ConsumerState<TripMapPage>
               MarkerLayer(markers: _buildStopMarkers(waypoints, visited)),
             if (currentPos != null)
               // Capa que se redibuja a 60fps con la posición interpolada.
-              // El marker escala con el zoom del mapa vía SfitMapStyle.
+              // El marker escala con el zoom del mapa vía SfitMapStyle y
+              // rota según el heading del trazo reciente para que la cabeza
+              // del bus apunte en la dirección de avance.
               AnimatedBuilder(
                 animation: _busAnim,
                 builder: (context, _) {
@@ -212,6 +220,7 @@ class _TripMapPageState extends ConsumerState<TripMapPage>
                         point: animated,
                         zoom: _currentZoom,
                         isOffRoute: tracking.isOffRoute,
+                        rotation: headingFromTrack(tracking.recentTrack),
                       ),
                     ],
                   );
@@ -229,6 +238,15 @@ class _TripMapPageState extends ConsumerState<TripMapPage>
             right: 8,
             child: _OffRouteBanner(),
           ),
+
+        // Card de salud del tracking — flota arriba del mapa pero se
+        // auto-oculta si todo va bien. Solo aparece si hay cola o gap.
+        const Positioned(
+          left: 8,
+          right: 8,
+          bottom: 24,
+          child: TrackingHealthCard(),
+        ),
 
         Positioned(
           top: tracking.isOffRoute ? 120 : 60,

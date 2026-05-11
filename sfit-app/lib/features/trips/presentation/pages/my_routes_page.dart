@@ -21,14 +21,67 @@ import '../../data/datasources/trips_api_service.dart';
 ///
 /// Datos: GET /conductor/mis-recorridos (devuelve `routes[]` + `activeEntry`).
 class MyRoutesPage extends ConsumerStatefulWidget {
-  const MyRoutesPage({super.key});
+  /// Callback opcional para saltar al tab "Mapa" desde el botón "Ver mapa"
+  /// del turno EN CURSO. Cuando `HomePage` arma el tab para el conductor lo
+  /// inyecta apuntando a su `setState` interno, así evitamos depender del
+  /// deep-link `?tab=mapa` (que con go_router no re-procesa si la URL no
+  /// cambió). Para roles que no tengan tab Mapa (operador), se deja `null`.
+  final VoidCallback? onOpenMapTab;
+
+  const MyRoutesPage({super.key, this.onOpenMapTab});
 
   @override
   ConsumerState<MyRoutesPage> createState() => _MyRoutesPageState();
 }
 
-class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
+class _MyRoutesPageState extends ConsumerState<MyRoutesPage>
+    with WidgetsBindingObserver {
+  /// Última vez que se refrescó el provider. Sirve para throttle del refresh
+  /// automático: si el usuario reentra al tab a los 2 segundos, no spammeamos
+  /// la API; pero si volvió tras varios minutos (otro device pudo cerrar el
+  /// turno mientras tanto) sí pedimos data fresca.
+  DateTime _lastRefresh = DateTime.fromMillisecondsSinceEpoch(0);
+  static const _refreshCooldown = Duration(seconds: 10);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Si la app vuelve del background (cambio de device, otro app pausó la
+    // nuestra…), forzar un refetch del estado del turno. Soluciona el bug
+    // "cerré el turno desde otro celular y este sigue mostrando 'cerrar'".
+    if (state == AppLifecycleState.resumed) {
+      _autoRefreshIfStale();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Tras navegar de vuelta a esta pantalla (push/pop) refrescar si pasó
+    // suficiente tiempo. Evita spam cuando el usuario tap-ea pills.
+    _autoRefreshIfStale();
+  }
+
+  void _autoRefreshIfStale() {
+    final now = DateTime.now();
+    if (now.difference(_lastRefresh) < _refreshCooldown) return;
+    _lastRefresh = now;
+    ref.invalidate(misRecorridosProvider);
+  }
+
   Future<void> _refresh() async {
+    _lastRefresh = DateTime.now();
     ref.invalidate(misRecorridosProvider);
     await ref.read(misRecorridosProvider.future);
   }
@@ -168,8 +221,16 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
                         _ActiveEntryCard(
                           entry: data.activeEntry!,
                           onClose: () => _closeActiveShift(data.activeEntry!),
+                          // Prioriza el callback inyectado (cambia el tab
+                          // local del HomePage vía setState). Si no se
+                          // provee, cae al deep-link como fallback.
                           onSeeMap: () {
-                            context.push('/buses-en-vivo/${data.activeEntry!.id}');
+                            final cb = widget.onOpenMapTab;
+                            if (cb != null) {
+                              cb();
+                            } else {
+                              context.go('/home?tab=mapa');
+                            }
                           },
                         ),
                         const SizedBox(height: 18),
@@ -198,9 +259,16 @@ class _MyRoutesPageState extends ConsumerState<MyRoutesPage> {
                                     '/conductor/trip-summary/${allPasses[i].id}',
                                     extra: allPasses[i].track,
                                   ),
-                                  onLongPress: allPasses[i].status == 'en_ruta'
-                                      ? null
-                                      : () => _confirmDeletePass(allPasses[i]),
+                                  // Delete habilitado solo para turnos cerrados
+                                  // que NO sean la pasada recomendada (isBest).
+                                  // La mejor se preserva porque otros módulos
+                                  // pueden estarla referenciando como ruta de
+                                  // convergencia. El usuario debe ELEGIR otra
+                                  // pasada como mejor antes de borrar ésta.
+                                  onDelete: (allPasses[i].status != 'en_ruta' &&
+                                          !allPasses[i].isBest)
+                                      ? () => _confirmDeletePass(allPasses[i])
+                                      : null,
                                 ),
                                 if (i < allPasses.length - 1)
                                   Container(
@@ -710,11 +778,14 @@ class _ActiveEntryCard extends StatelessWidget {
 class _PassRow extends StatelessWidget {
   final PassData pass;
   final VoidCallback onTap;
-  final VoidCallback? onLongPress;
+  /// Si no es `null`, se renderiza un IconButton basurero a la derecha y
+  /// se habilita el long-press como atajo. Si es `null`, la pasada NO se
+  /// puede borrar (turno en curso o pasada marcada como "MEJOR").
+  final VoidCallback? onDelete;
   const _PassRow({
     required this.pass,
     required this.onTap,
-    this.onLongPress,
+    this.onDelete,
   });
 
   String _fmtDate(DateTime? d) {
@@ -762,7 +833,7 @@ class _PassRow extends StatelessWidget {
           : Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        onLongPress: onLongPress,
+        onLongPress: onDelete,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           child: Row(
@@ -900,28 +971,43 @@ class _PassRow extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 3),
-                    Row(children: [
-                      const Icon(Icons.access_time,
-                          size: 11, color: AppColors.ink5),
-                      const SizedBox(width: 3),
-                      Text(
-                        '${_fmtTime(pass.departureTime)}'
-                        '${pass.returnTime != null ? " → ${_fmtTime(pass.returnTime)}" : ""}',
-                        style: AppTheme.inter(
-                            fontSize: 11.5,
-                            color: AppColors.ink6,
-                            tabular: true),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.timelapse,
-                          size: 11, color: AppColors.ink5),
-                      const SizedBox(width: 3),
-                      Text(dur,
-                          style: AppTheme.inter(
-                              fontSize: 11.5,
-                              color: AppColors.ink6,
-                              tabular: true)),
-                    ]),
+                    // Wrap en lugar de Row: horarios largos (turnos
+                    // que cruzan medianoche, ej. "00:21 → 22:44") sumados
+                    // a una duración larga ("22h 23m") overflowean el
+                    // ancho disponible cuando hay mini-mapa a la izquierda
+                    // (56px) en pantallas estrechas. Con Wrap los chips de
+                    // horario y duración bajan a la segunda línea si no
+                    // caben, sin romper el layout.
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 2,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.access_time,
+                              size: 11, color: AppColors.ink5),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${_fmtTime(pass.departureTime)}'
+                            '${pass.returnTime != null ? " → ${_fmtTime(pass.returnTime)}" : ""}',
+                            style: AppTheme.inter(
+                                fontSize: 11.5,
+                                color: AppColors.ink6,
+                                tabular: true),
+                          ),
+                        ]),
+                        Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.timelapse,
+                              size: 11, color: AppColors.ink5),
+                          const SizedBox(width: 3),
+                          Text(dur,
+                              style: AppTheme.inter(
+                                  fontSize: 11.5,
+                                  color: AppColors.ink6,
+                                  tabular: true)),
+                        ]),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -955,8 +1041,25 @@ class _PassRow extends StatelessWidget {
                 ],
               ),
               const SizedBox(width: 4),
-              const Icon(Icons.chevron_right,
-                  size: 18, color: AppColors.ink4),
+              // Botón eliminar visible (no oculto bajo long-press). Solo se
+              // renderiza si `onDelete != null` — el caller decide cuándo
+              // habilitarlo (turno cerrado y NO la pasada recomendada).
+              if (onDelete != null)
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded,
+                      size: 18, color: AppColors.noApto),
+                  tooltip: 'Eliminar recorrido',
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                  onPressed: onDelete,
+                )
+              else
+                const Icon(Icons.chevron_right,
+                    size: 18, color: AppColors.ink4),
             ],
           ),
         ),

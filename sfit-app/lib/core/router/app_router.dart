@@ -50,6 +50,8 @@ import '../../features/operator/presentation/pages/operator_trip_detail_page.dar
 import '../../features/operator/presentation/pages/passenger_list_page.dart';
 import '../../features/operator/presentation/pages/upload_manifest_photo_page.dart';
 import '../../features/operator/presentation/pages/route_edit_page.dart' as op_route_edit;
+import '../../features/operator/presentation/pages/nueva_ruta_page.dart';
+import '../../features/trips/presentation/pages/tracking_diagnostics_page.dart';
 import '../../features/public/presentation/pages/vehicle_public_page.dart';
 import '../../features/trips/presentation/pages/route_detail_page.dart';
 import '../../features/trips/presentation/pages/route_edit_page.dart';
@@ -268,6 +270,10 @@ GoRouter router(Ref ref) {
         builder: (_, __) => const EditarPerfilConductorPage(),
       ),
       GoRoute(
+        path: '/conductor/diagnostico-tracking',
+        builder: (_, __) => const TrackingDiagnosticsPage(),
+      ),
+      GoRoute(
         path: '/conductor/sanciones',
         builder: (_, __) => const MisSancionesPage(),
       ),
@@ -314,6 +320,10 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: '/operador/rutas',
         builder: (_, __) => const OperatorRoutesPage(),
+      ),
+      GoRoute(
+        path: '/operador/rutas/nueva',
+        builder: (_, __) => const NuevaRutaPage(),
       ),
       GoRoute(
         path: '/operador/rutas/:id/editar',

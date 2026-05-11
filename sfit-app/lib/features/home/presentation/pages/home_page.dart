@@ -432,12 +432,13 @@ class _HomePageState extends ConsumerState<HomePage> {
             iconFilled: Icons.home,
             page: ConductorDashboardPage(onSelectTab: onSelectTab),
           ),
-          const _Tab(
+          _Tab(
             slug: 'rutas',
             label: 'Mis rutas',
             icon: Icons.route_outlined,
             iconFilled: Icons.route,
-            page: MyRoutesPage(),
+            // "Ver mapa" en el card EN CURSO salta al tab Mapa local.
+            page: MyRoutesPage(onOpenMapTab: () => onSelectTab('mapa')),
           ),
           const _Tab(
             slug: 'mapa',

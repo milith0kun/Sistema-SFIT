@@ -206,19 +206,35 @@ class TripsApiService {
   /// El kilometraje real lo calcula el backend desde los `LocationPing`
   /// (campo `distanceMeters` vía haversine). El conductor sólo registra
   /// hora de regreso y observaciones opcionales.
-  Future<void> closeFleetEntry(
+  ///
+  /// Devuelve `true` si el cierre se ejecutó ahora; `false` si el turno ya
+  /// estaba cerrado server-side (idempotencia). El caller puede usar este
+  /// flag para evitar re-disparar invalidaciones de caché o mostrar "ya
+  /// cerrado" en lugar de "cerrado".
+  ///
+  /// Lanza `Exception` si el body responde `success: false` — antes el
+  /// cliente asumía éxito por código 200 y dejaba el turno abierto en el
+  /// servidor sin avisar al usuario.
+  Future<bool> closeFleetEntry(
     String entryId, {
     DateTime? returnTime,
     String? observations,
   }) async {
     final rt = returnTime ?? DateTime.now();
     final hhmm = '${rt.hour.toString().padLeft(2, '0')}:${rt.minute.toString().padLeft(2, '0')}';
-    await _dio.patch('/flota/$entryId', data: {
+    final resp = await _dio.patch('/flota/$entryId', data: {
       'status': 'cerrado',
       'returnTime': hhmm,
       if (observations != null && observations.isNotEmpty)
         'observations': observations,
     });
+    final body = resp.data as Map?;
+    if (body == null || body['success'] == false) {
+      final err = body?['error']?.toString() ?? 'Respuesta inválida del servidor';
+      throw Exception(err);
+    }
+    final data = body['data'] as Map?;
+    return data?['alreadyClosed'] != true;
   }
 
   /// POST /flota/:entryId/track-bulk — sube en lote el track persistido

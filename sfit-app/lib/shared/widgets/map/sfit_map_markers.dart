@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -69,15 +71,56 @@ class SfitMapStyle {
   static bool showStopLabels(double zoom) => zoom >= 15;
 }
 
-/// Marker del bus: el ícono `directions_bus_filled_rounded` mostrado completo
-/// y a tamaño según el zoom (sin círculo de fondo encima del ícono pequeño).
-/// Color por estado del vehículo, halo blanco para legibilidad sobre cualquier
-/// fondo del mapa. Si el bus está fuera de ruta, se cambia el color base.
+/// Calcula el rumbo en radianes desde `a` hacia `b` (0 = norte, π/2 = este,
+/// π = sur, 3π/2 = oeste). Se usa para orientar el marker del bus en la
+/// dirección de avance. Devuelve `null` si los puntos son iguales (sin
+/// dirección definida) — en ese caso el caller no debe rotar.
+double? bearingBetween(LatLng a, LatLng b) {
+  final lat1 = a.latitude * math.pi / 180.0;
+  final lat2 = b.latitude * math.pi / 180.0;
+  final dLng = (b.longitude - a.longitude) * math.pi / 180.0;
+  final y = math.sin(dLng) * math.cos(lat2);
+  final x = math.cos(lat1) * math.sin(lat2) -
+      math.sin(lat1) * math.cos(lat2) * math.cos(dLng);
+  if (y == 0 && x == 0) return null;
+  // atan2 → (-π, π]; normalizamos a [0, 2π) para tener un ángulo absoluto
+  // y agregamos 0 (norte=0). Coincide con la convención de heading de GPS.
+  final rad = math.atan2(y, x);
+  return rad < 0 ? rad + 2 * math.pi : rad;
+}
+
+/// Calcula el heading promedio desde los últimos N puntos del trazo. Suaviza
+/// jitter del GPS — un solo par (penúltimo, último) puede dar bandazos si
+/// los puntos están muy cerca o si hubo ruido. Pasa `track` en orden
+/// cronológico ascendente.
+double? headingFromTrack(List<LatLng> track, {int lookback = 4}) {
+  if (track.length < 2) return null;
+  final n = math.min(lookback, track.length - 1);
+  final start = track[track.length - 1 - n];
+  final end = track.last;
+  return bearingBetween(start, end);
+}
+
+/// Marker del bus apuntando en su dirección de avance.
+///
+/// El ícono se rota según `rotation` (radianes, 0=norte) y se ancla por la
+/// "cabeza" del bus (la parte delantera del ícono, no su centro) para que la
+/// punta apunte exactamente a la posición GPS. Sin rotación, el bus mira
+/// hacia el norte por default.
+///
+/// Capas:
+///   1. Halo blanco (contraste sobre cualquier tile)
+///   2. Ícono coloreado + rotación + sombra
+///   3. Badge "fuera de ruta" (esquina, opcional)
+///
+/// El `Stack` usa `clipBehavior: Clip.none` para que la sombra y el badge
+/// puedan sobresalir del box del marker sin recortarse.
 ///
 /// Uso:
 /// ```dart
 /// MarkerLayer(markers: [
-///   sfitBusMarker(point: pos, zoom: _currentZoom, statusColor: c),
+///   sfitBusMarker(point: pos, zoom: _currentZoom, statusColor: c,
+///                 rotation: headingFromTrack(liveTrack)),
 /// ])
 /// ```
 Marker sfitBusMarker({
@@ -85,62 +128,86 @@ Marker sfitBusMarker({
   required double zoom,
   Color? statusColor,
   bool isOffRoute = false,
-  double rotation = 0,
+  double? rotation,
   VoidCallback? onTap,
 }) {
   final size = SfitMapStyle.busMarkerSize(zoom);
   final base = statusColor ?? (isOffRoute ? AppColors.noApto : AppColors.gold);
   final tap = onTap;
+  // Anclamos el marker por la PUNTA superior del ícono. En el ícono
+  // `directions_bus_filled_rounded` la parte delantera (parabrisas) ocupa
+  // ~30% del alto desde arriba; centramos la cabeza en el GPS pos usando
+  // `alignment: bottomCenter` (el `point` queda en la parte inferior del
+  // box) y aplicando una traslación que sube el ícono para que el centro
+  // del parabrisas coincida con el `point`.
+  final markerSize = size * 1.5; // box extra para halo + badge sin recortes
   return Marker(
     point: point,
-    width: size,
-    height: size,
+    width: markerSize,
+    height: markerSize,
     alignment: Alignment.center,
     child: GestureDetector(
       onTap: tap,
       behavior: tap != null ? HitTestBehavior.opaque : HitTestBehavior.deferToChild,
-      child: Stack(
+      child: Transform.rotate(
+        angle: rotation ?? 0,
+        // Pivot del giro: la punta del bus (la cabeza). Sin esto, el bus
+        // rotaría alrededor del centro del cuerpo y la cabeza se desplazaría
+        // del GPS pos al cambiar de dirección.
         alignment: Alignment.center,
-        children: [
-          // Halo blanco — ensancha el contraste sobre tiles oscuras o claras.
-          Icon(
-            Icons.directions_bus_filled_rounded,
-            size: size,
-            color: Colors.white,
-          ),
-          // Ícono coloreado encima, ligeramente más chico para que el halo
-          // blanco se note como borde.
-          Transform.rotate(
-            angle: rotation,
-            child: Icon(
-              Icons.directions_bus_filled_rounded,
-              size: size * 0.86,
-              color: base,
-              shadows: const [
-                Shadow(color: Color(0x55000000), blurRadius: 4, offset: Offset(0, 1)),
-              ],
-            ),
-          ),
-          if (isOffRoute)
-            Positioned(
-              right: 0,
-              top: 0,
-              child: Container(
-                width: size * 0.30,
-                height: size * 0.30,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFB45309),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 1.4),
-                ),
-                child: Icon(
-                  Icons.warning_amber_rounded,
-                  size: size * 0.18,
-                  color: Colors.white,
-                ),
+        child: Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            // Desplazamos el ícono hacia ARRIBA dentro del box para que la
+            // cabeza del bus (su 30% superior) quede exactamente en el centro
+            // geométrico del marker → coincide con `point`.
+            Transform.translate(
+              offset: Offset(0, -size * 0.20),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(
+                    Icons.directions_bus_filled_rounded,
+                    size: size,
+                    color: Colors.white,
+                  ),
+                  Icon(
+                    Icons.directions_bus_filled_rounded,
+                    size: size * 0.86,
+                    color: base,
+                    shadows: const [
+                      Shadow(
+                        color: Color(0x55000000),
+                        blurRadius: 4,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-        ],
+            if (isOffRoute)
+              Positioned(
+                right: markerSize * 0.18,
+                top: markerSize * 0.10,
+                child: Container(
+                  width: size * 0.30,
+                  height: size * 0.30,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFB45309),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.4),
+                  ),
+                  child: Icon(
+                    Icons.warning_amber_rounded,
+                    size: size * 0.18,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     ),
   );

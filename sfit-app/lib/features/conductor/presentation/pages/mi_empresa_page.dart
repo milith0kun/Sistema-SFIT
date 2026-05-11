@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../companies/data/datasources/companies_api_service.dart';
+import '../../../companies/presentation/widgets/scope_badge.dart';
 import '../../../drivers/data/datasources/driver_api_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -59,6 +60,8 @@ class _MiEmpresaPageState extends ConsumerState<MiEmpresaPage> {
           _currentCompany = {
             'id': data['companyId'],
             'razonSocial': data['companyName'],
+            'ruc': data['companyRuc'],
+            'serviceScope': data['companyServiceScope'],
           };
         }
         _loadingProfile = false;
@@ -99,24 +102,32 @@ class _MiEmpresaPageState extends ConsumerState<MiEmpresaPage> {
           'id': data['companyId'],
           'razonSocial': data['companyName'],
           'ruc': data['companyRuc'],
+          'serviceScope': data['companyServiceScope'],
         };
         _saving = false;
       });
-      ref.invalidate(myDriverProfileProvider);
+      // Refresh sincrónico (await): nos aseguramos que cuando el usuario
+      // haga back, el dashboard ya tenga el nuevo profile cacheado en el
+      // provider. Antes usábamos `invalidate` (async) y el dashboard
+      // ocasionalmente renderizaba con la versión vieja durante 1-2
+      // frames antes del refetch — daba la sensación de "no se guardó".
+      try {
+        await ref.refresh(myDriverProfileProvider.future);
+      } catch (_) {/* no bloqueante */}
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Te asociaste a ${data['companyName']}'),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.apto,
+          duration: const Duration(seconds: 3),
         ),
       );
-      // Si vinimos del onboarding (sin empresa previa), volvemos al home.
-      await Future.delayed(const Duration(milliseconds: 600));
-      if (mounted && context.canPop()) {
-        context.pop();
-      } else if (mounted) {
-        context.go('/home');
-      }
+      // NO hacemos pop automático: el usuario debe ver la card de
+      // "Empresa asociada" actualizada con el badge correcto para
+      // confirmar visualmente que el cambio se aplicó. Si quiere volver,
+      // usa el back arrow del AppBar. Antes el pop instantáneo daba la
+      // sensación de "no pasó nada" porque la pantalla anterior aún no
+      // había refrescado el provider.
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
@@ -165,10 +176,31 @@ class _MiEmpresaPageState extends ConsumerState<MiEmpresaPage> {
                 child: hasCompany
                     ? _CurrentCompanyCard(
                         company: _currentCompany!,
-                        onChange: () => setState(() => _currentCompany = null),
+                        onChange: () => _confirmChangeCompany(),
                       )
                     : _OnboardingCard(),
               ),
+              // El buscador y la lista solo se muestran si:
+              //   a) el conductor aún no se asoció a ninguna empresa, o
+              //   b) tocó "Cambiar" en la card actual (que ahora pasa por
+              //      un dialog de confirmación que limpia _currentCompany).
+              // Antes el buscador estaba siempre visible incluso con empresa
+              // asociada → el conductor podía seleccionar otra por accidente.
+              if (hasCompany) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                  child: Text(
+                    'Estás asociado correctamente. Si necesitas cambiar de '
+                    'empresa, toca "Cambiar" arriba.',
+                    style: AppTheme.inter(
+                      fontSize: 12.5,
+                      color: AppColors.ink6,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+              ] else ...[
               // ── Buscador ─────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
@@ -235,8 +267,38 @@ class _MiEmpresaPageState extends ConsumerState<MiEmpresaPage> {
                         },
                       ),
               ),
+              ], // ← cierra el bloque "else hasCompany" (sin empresa)
             ]),
     );
+  }
+
+  /// Pregunta al conductor si realmente quiere cambiar de empresa antes de
+  /// ocultar el card actual y volver a mostrar el buscador. Sin esta
+  /// confirmación, un tap accidental en "Cambiar" disparaba el flujo de
+  /// re-selección y el usuario podía asociarse por error a otra empresa.
+  Future<void> _confirmChangeCompany() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cambiar de empresa'),
+        content: const Text(
+          'Vas a desasociarte de tu empresa actual y buscar otra. ¿Continuar?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sí, cambiar'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true && mounted) {
+      setState(() => _currentCompany = null);
+    }
   }
 }
 
@@ -248,6 +310,7 @@ class _CurrentCompanyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scope = company['serviceScope'] as String?;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -255,48 +318,72 @@ class _CurrentCompanyCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.aptoBorder),
       ),
-      child: Row(children: [
-        Container(
-          width: 40, height: 40,
-          decoration: BoxDecoration(
-            color: AppColors.apto.withValues(alpha: 0.15),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.check_circle, color: AppColors.apto, size: 22),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Empresa asociada',
-                style: AppTheme.inter(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.apto,
-                  letterSpacing: 0.8,
-                ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [
+            Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.apto.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(height: 2),
-              Text(
-                (company['razonSocial'] ?? '—').toString(),
-                style: AppTheme.inter(
-                  fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.ink9),
-                maxLines: 2, overflow: TextOverflow.ellipsis,
+              child: const Icon(Icons.check_circle, color: AppColors.apto, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Empresa asociada',
+                    style: AppTheme.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.apto,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    (company['razonSocial'] ?? '—').toString(),
+                    style: AppTheme.inter(
+                      fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.ink9),
+                    maxLines: 2, overflow: TextOverflow.ellipsis,
+                  ),
+                  if (company['ruc'] != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'RUC ${company['ruc']}',
+                      style: AppTheme.inter(
+                        fontSize: 11.5, color: AppColors.ink6, tabular: true),
+                    ),
+                  ],
+                ],
               ),
-            ],
-          ),
-        ),
-        TextButton(
-          onPressed: onChange,
-          child: Text(
-            'Cambiar',
+            ),
+            TextButton(
+              onPressed: onChange,
+              child: Text(
+                'Cambiar',
+                style: AppTheme.inter(
+                  fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.goldDark),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 10),
+          // Tipo de servicio: el badge ya dice si la empresa opera con o sin
+          // paraderos. El texto debajo explica las implicancias prácticas
+          // para que el conductor sepa qué esperar al iniciar turno.
+          Row(children: [ScopeBadge(scope: scope)]),
+          const SizedBox(height: 6),
+          Text(
+            scopeExplanation(scope),
             style: AppTheme.inter(
-              fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.goldDark),
+              fontSize: 12, color: AppColors.ink7, height: 1.4),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }
@@ -407,6 +494,14 @@ class _CompanyTile extends StatelessWidget {
                     ),
                   ],
                 ]),
+                // Badge SIEMPRE visible — si la empresa no tiene scope
+                // (legacy) muestra "Sin clasificar" para que el usuario
+                // sepa que es un dato pendiente de completar.
+                const SizedBox(height: 5),
+                ScopeBadge(
+                  scope: company['serviceScope'] as String?,
+                  compact: true,
+                ),
               ],
             ),
           ),
