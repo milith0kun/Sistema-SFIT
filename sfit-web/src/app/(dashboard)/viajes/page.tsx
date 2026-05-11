@@ -60,7 +60,7 @@ const PERIODS: { key: string; label: string }[] = [
   { key: "mes", label: "Este mes" },
   { key: "todos", label: "Histórico" },
 ];
-const CAN_CREATE = ["operador", "admin_municipal", "super_admin"];
+const CAN_CREATE = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"];
 
 export default function ViajesPage() {
   const router = useRouter();

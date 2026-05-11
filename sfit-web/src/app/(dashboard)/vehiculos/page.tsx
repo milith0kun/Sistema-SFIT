@@ -70,8 +70,8 @@ const TYPE_LABELS: Record<string, string> = {
   limpieza_residuos: "Limpieza", emergencia: "Emergencia",
   maquinaria: "Maquinaria", municipal_general: "Municipal",
 };
-const CAN_EDIT = ["admin_municipal", "super_admin", "operador"];
-const CAN_CREATE = ["super_admin", "admin_municipal", "operador"];
+const CAN_EDIT = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"];
+const CAN_CREATE = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"];
 
 const btnPrimary: React.CSSProperties = {
   display: "inline-flex", alignItems: "center", gap: 6,

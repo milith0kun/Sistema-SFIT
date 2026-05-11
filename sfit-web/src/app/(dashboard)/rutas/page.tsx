@@ -25,9 +25,10 @@ const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
 const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 const APTO = "#15803d"; const APTO_BD = "#86EFAC";
 const NO = "#DC2626"; const NO_BG = "#FFF5F5"; const NO_BD = "#FCA5A5";
-// Operador edita y crea rutas de su empresa además de los admins.
-const CAN_CREATE = ["admin_municipal", "super_admin", "operador"];
-const CAN_EDIT = ["admin_municipal", "super_admin", "operador"];
+// Los 4 admins jerárquicos editan y crean rutas dentro de su scope geográfico.
+// El operador gestiona las rutas de su empresa desde la app móvil.
+const CAN_CREATE = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"];
+const CAN_EDIT = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"];
 
 function StatusBadge({ active }: { active: boolean }) {
   return (

@@ -316,19 +316,8 @@ export default function ReporteDetallePage({ params }: Props) {
         subtitle={`Ciudadano nivel ${report.citizenReputationLevel} · ${fmtDate(report.createdAt)}`}
         action={
           <div style={{ display: "flex", gap: 8 }}>
-            {vehicleId && (
-              <Link href={`/sanciones/nueva?vehicleId=${vehicleId}&reportId=${id}`}>
-                <button style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  height: 36, padding: "0 14px", borderRadius: 9,
-                  border: "none", background: INK9, color: "#fff",
-                  fontSize: "0.875rem", fontWeight: 600,
-                  cursor: "pointer", fontFamily: "inherit",
-                }}>
-                  <ShieldAlert size={14} />Generar sanción
-                </button>
-              </Link>
-            )}
+            {/* Las sanciones se emiten desde la app móvil del fiscal; el CTA
+                "Generar sanción" se retiró de la web. */}
             {backBtn}
           </div>
         }

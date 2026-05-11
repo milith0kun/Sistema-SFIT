@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { GoogleMapView, type MapPolyline } from "@/components/ui/GoogleMapView";
-import { hasPermission } from "@/lib/auth/roleMatrix";
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
 
 /* Paleta sobria */
@@ -102,7 +102,7 @@ export default function FlotaMapaPage() {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) { router.replace("/login"); return; }
     const u = JSON.parse(raw) as { role: Role };
-    if (!hasPermission(u.role, "flota", "view")) { router.replace("/dashboard"); return; }
+    if (!hasWebPermission(u.role, "flota", "view")) { router.replace("/dashboard"); return; }
     setUser(u);
   }, [router]);
 

@@ -335,7 +335,9 @@ export default function SancionesPage() {
   const notifIcon = (ch: string) => ch === "email" ? <Mail size={14} /> : ch === "whatsapp" ? <Phone size={14} /> : <Bell size={14} />;
   const notifLabel = (ch: string) => ch === "email" ? "Correo a empresa" : ch === "whatsapp" ? "WhatsApp al operador" : "Push al conductor";
 
-  const canCreate = ["admin_municipal", "fiscal", "super_admin"].includes(user.role);
+  // Las sanciones se emiten exclusivamente desde la app móvil del fiscal.
+  // En web son read-only para todos los admins; ocultamos el CTA de creación.
+  const canCreate = false;
 
   return (
     <div className="flex flex-col gap-3 animate-fade-in">

@@ -10,7 +10,7 @@ import {
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
-import { hasPermission, FATIGUE_ROLES } from "@/lib/auth/roleMatrix";
+import { hasWebPermission, FATIGUE_ROLES } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
 import {
   INK1, INK2, INK5, INK6, INK9,
@@ -128,9 +128,9 @@ export default function ConductorDetallePage({ params }: Props) {
     if (!raw || !tk) { router.replace("/login"); return; }
     let user: { role?: Role } = {};
     try { user = JSON.parse(raw); } catch { router.replace("/login"); return; }
-    if (!hasPermission(user.role, "conductores", "view")) { router.replace("/conductores"); return; }
+    if (!hasWebPermission(user.role, "conductores", "view")) { router.replace("/conductores"); return; }
     setAuthorized(true);
-    setCanEdit(hasPermission(user.role, "conductores", "edit"));
+    setCanEdit(hasWebPermission(user.role, "conductores", "edit"));
     setCanMarkFatigue(user.role ? FATIGUE_ROLES.includes(user.role) : false);
     setToken(tk);
   }, [router]);

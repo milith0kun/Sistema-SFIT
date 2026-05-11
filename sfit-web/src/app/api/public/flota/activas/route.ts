@@ -4,7 +4,7 @@ import { connectDB } from "@/lib/db/mongoose";
 import { FleetEntry } from "@/models/FleetEntry";
 import { LocationPing } from "@/models/LocationPing";
 import { Route } from "@/models/Route";
-import "@/models/Vehicle";
+import { Vehicle } from "@/models/Vehicle";
 import "@/models/Municipality";
 import { apiResponse } from "@/lib/api/response";
 import { haversineMeters } from "@/lib/geo/haversine";
@@ -103,6 +103,7 @@ const BBOX_DELTA_DEG = 0.3;
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const municipalityId = url.searchParams.get("municipalityId");
+  const companyId = url.searchParams.get("companyId");
   const userLatStr = url.searchParams.get("lat");
   const userLngStr = url.searchParams.get("lng");
   const limit = Math.min(150, Math.max(1, Number(url.searchParams.get("limit") ?? 60)));
@@ -125,6 +126,16 @@ export async function GET(request: NextRequest) {
   };
   if (municipalityId && isValidObjectId(municipalityId)) {
     filter.municipalityId = municipalityId;
+  }
+  // Filtro por empresa: el operador consume este endpoint pasando su
+  // `companyId` para ver SOLO la flota de su empresa en el mapa en vivo.
+  // FleetEntry no tiene companyId directo, así que resolvemos los vehículos
+  // de la empresa y filtramos por `vehicleId ∈ {...}`.
+  if (companyId && isValidObjectId(companyId)) {
+    const vehiclesOfCompany = await Vehicle.find({ companyId })
+      .select("_id")
+      .lean<Array<{ _id: unknown }>>();
+    filter.vehicleId = { $in: vehiclesOfCompany.map((v) => v._id) };
   }
   if (hasUserCoords) {
     // Bounding box rápido contra la posición actual del bus. No es perfecto

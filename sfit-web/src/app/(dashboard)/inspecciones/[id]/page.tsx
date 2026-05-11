@@ -46,7 +46,7 @@ const RED  = "#DC2626"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
 const GRN  = "#15803d"; const GRNBG = "#F0FDF4"; const GRNBD = "#86EFAC";
 const AMB  = "#b45309"; const AMBBG = "#FFFBEB"; const AMBBD = "#FCD34D";
 
-const ALLOWED_VIEW = ["fiscal", "admin_municipal", "admin_provincial", "super_admin"];
+const ALLOWED_VIEW = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"];
 
 const RESULT_META: Record<InspectionResult, { label: string; color: string; bg: string; bd: string }> = {
   aprobada:  { label: "Aprobada",  color: GRN, bg: GRNBG, bd: GRNBD },
@@ -226,20 +226,9 @@ export default function InspeccionDetallePage({ params }: { params: Promise<{ id
         subtitle="Vista de solo lectura. Las inspecciones son inmutables una vez registradas."
         action={
           <div style={{ display: "flex", gap: 8 }}>
-            {needsSancion && (
-              <button
-                onClick={() => router.push(`/sanciones/nueva?vehicleId=${insp.vehicleId}&inspectionId=${insp.id}`)}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  height: 36, padding: "0 14px", borderRadius: 9,
-                  border: "none", background: INK9, color: "#fff",
-                  fontSize: "0.875rem", fontWeight: 600,
-                  cursor: "pointer", fontFamily: "inherit",
-                }}
-              >
-                <Gavel size={14} />Generar sanción
-              </button>
-            )}
+            {/* Las sanciones se emiten desde la app móvil del fiscal; el CTA
+                "Generar sanción" se retiró de la web. La advertencia visual
+                cuando la inspección requiere sanción sigue mostrándose. */}
             {backBtn}
           </div>
         }

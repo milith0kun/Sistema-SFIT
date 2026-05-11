@@ -9,6 +9,7 @@ import { DashboardStyles } from "@/components/layout/DashboardStyles";
 import { Toaster } from "@/components/ui/Toaster";
 import { MobileOnlyScreen } from "@/components/auth/MobileOnlyScreen";
 import { MOBILE_ONLY_ROLES } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 import {
   clearSession,
   getClientUser,
@@ -117,10 +118,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (!user) return null;
 
-  // Conductor y ciudadano operan desde la app móvil. Sólo permitimos /perfil
-  // en web para que puedan ajustar sus datos básicos.
+  // Fiscal, operador, conductor y ciudadano operan desde la app móvil. Sólo
+  // permitimos /perfil en web para que puedan ajustar sus datos básicos.
   if ((MOBILE_ONLY_ROLES as readonly string[]).includes(user.role) && pathname !== "/perfil") {
-    return <MobileOnlyScreen />;
+    return <MobileOnlyScreen role={user.role as Role} />;
   }
 
   return (

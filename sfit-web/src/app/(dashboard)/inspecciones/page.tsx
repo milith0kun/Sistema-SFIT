@@ -208,7 +208,7 @@ export default function InspeccionesPage() {
             <button style={btnOut} onClick={exportCSV} disabled={items.length === 0}>
               <Download size={16} />Exportar CSV
             </button>
-            {user?.role === "fiscal" && (<Link href="/inspecciones/nueva"><button style={btnInk}><Plus size={16} />Nueva inspección</button></Link>)}
+            {/* Las inspecciones se levantan exclusivamente desde la app móvil del fiscal; el CTA de creación se retiró de la web. */}
           </div>
         } />
 

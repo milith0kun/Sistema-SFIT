@@ -472,14 +472,19 @@ function CompanyCard({ company, loading }: { company: CompanyInfo | null; loadin
         padding: "10px 16px", borderTop: `1px solid ${INK1}`, background: INK1,
         display: "flex", gap: 6,
       }}>
-        <Link href="/mi-empresa" style={{
-          flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-          height: 32, padding: "0 12px", borderRadius: 7,
-          border: `1px solid ${INK2}`, background: "#fff", color: INK9,
-          fontSize: "0.75rem", fontWeight: 700, textDecoration: "none",
-        }}>
-          <Building2 size={12} />Ver empresa
-        </Link>
+        {/* /mi-empresa fue removida (operador opera 100% desde app móvil).
+            Mantenemos el botón apuntando al detalle de empresa global cuando
+            existe companyId; si no, ocultamos el CTA. */}
+        {company?.id && (
+          <Link href={`/empresas/${company.id}`} style={{
+            flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+            height: 32, padding: "0 12px", borderRadius: 7,
+            border: `1px solid ${INK2}`, background: "#fff", color: INK9,
+            fontSize: "0.75rem", fontWeight: 700, textDecoration: "none",
+          }}>
+            <Building2 size={12} />Ver empresa
+          </Link>
+        )}
         <Link href="/flota" style={{
           flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
           height: 32, padding: "0 12px", borderRadius: 7,

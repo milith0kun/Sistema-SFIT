@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
 
-import { hasPermission, hasWebPermission } from "@/lib/auth/roleMatrix";
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
 type FleetStatus =
   | "disponible"
@@ -151,8 +151,8 @@ export default function FlotaDetallePage({ params }: Props) {
     }
 
     setAuthorized(true);
-    setCanEdit(hasPermission(user.role as Role, "flota", "edit"));
-    setCanDelete(hasPermission(user.role as Role ?? "", "flota", "delete"));
+    setCanEdit(hasWebPermission(user.role as Role, "flota", "edit"));
+    setCanDelete(hasWebPermission(user.role as Role ?? "", "flota", "delete"));
     setToken(tk);
   }, [router]);
 

@@ -10,7 +10,7 @@ import {
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
-import { hasPermission, SUSPEND_ROLES } from "@/lib/auth/roleMatrix";
+import { hasWebPermission, SUSPEND_ROLES } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
 
 type PlacaLookup =
@@ -147,8 +147,8 @@ export default function VehiculoDetallePage({ params }: Props) {
     if (!raw) return router.replace("/login");
     let user: { role?: Role } = {};
     try { user = JSON.parse(raw); } catch { router.replace("/login"); return; }
-    if (!hasPermission(user.role, "vehiculos", "view")) { router.replace("/dashboard"); return; }
-    setCanEdit(hasPermission(user.role, "vehiculos", "edit"));
+    if (!hasWebPermission(user.role, "vehiculos", "view")) { router.replace("/dashboard"); return; }
+    setCanEdit(hasWebPermission(user.role, "vehiculos", "edit"));
     setCanSuspend(user.role ? SUSPEND_ROLES.includes(user.role) : false);
     void loadVehicle();
     void loadDropdowns();

@@ -63,8 +63,8 @@ function Avatar({ name, size = 34 }: { name: string; size?: number }) {
     }}>{ini || "?"}</div>
   );
 }
-const CAN_EDIT = ["admin_municipal", "super_admin"];
-const CAN_CREATE = ["super_admin", "admin_municipal", "operador"];
+const CAN_EDIT = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"];
+const CAN_CREATE = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"];
 
 const btnPrimary: React.CSSProperties = {
   display: "inline-flex", alignItems: "center", gap: 6,

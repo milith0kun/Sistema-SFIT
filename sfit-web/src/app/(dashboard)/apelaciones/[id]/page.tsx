@@ -40,8 +40,10 @@ type Apelacion = {
    del módulo central design-tokens; el ámbar AMB está sólo aquí. */
 const AMB  = "#b45309"; const AMBBG = "#FFFBEB"; const AMBBD = "#FCD34D";
 
-const ALLOWED_VIEW = ["admin_municipal", "fiscal", "admin_provincial", "super_admin", "operador"];
-const CAN_RESOLVE  = ["admin_municipal", "super_admin"];
+// Los 4 admins jerárquicos resuelven desde web; el scope geográfico se
+// valida en el handler PATCH /api/apelaciones/[id]/resolver.
+const ALLOWED_VIEW = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"];
+const CAN_RESOLVE  = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"];
 
 const STATUS_META: Record<ApelacionStatus, { label: string; color: string; bg: string; bd: string }> = {
   pendiente: { label: "Pendiente", color: AMB, bg: AMBBG, bd: AMBBD },

@@ -7,11 +7,8 @@ import { CheckCircle, AlertTriangle, Loader2, Search } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
-import { hasPermission } from "@/lib/auth/roleMatrix";
+import { hasWebPermission, FIXED_COMPANY_ROLES } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
-// Solo el operador tiene su empresa fija; admin_municipal y super_admin
-// eligen libremente del dropdown.
-const FIXED_COMPANY_ROLES = ["operador"];
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -101,7 +98,7 @@ export default function NuevoVehiculoPage() {
       return;
     }
 
-    if (!user.role || !hasPermission(user.role as Role, "vehiculos", "create")) {
+    if (!user.role || !hasWebPermission(user.role as Role, "vehiculos", "create")) {
       router.replace("/vehiculos");
       return;
     }
@@ -115,7 +112,7 @@ export default function NuevoVehiculoPage() {
     if (!authorized || !token || !role) return;
 
     const headers = { Authorization: `Bearer ${token}` };
-    const isOperador = FIXED_COMPANY_ROLES.includes(role);
+    const isOperador = FIXED_COMPANY_ROLES.includes(role as Role);
 
     // Operador: empresa fija desde /api/operador/mi-empresa (defensa en
     // profundidad contra IDOR — el backend también valida pero no exponemos
@@ -295,7 +292,7 @@ export default function NuevoVehiculoPage() {
     };
     // Defensa en profundidad: el operador siempre envía SU companyId,
     // ignorando lo que pueda haber en form (no exponemos selector).
-    const isOperador = role ? FIXED_COMPANY_ROLES.includes(role) : false;
+    const isOperador = role ? FIXED_COMPANY_ROLES.includes(role as Role) : false;
     const companyIdToSend = isOperador ? miEmpresa?.id : form.companyId;
     if (companyIdToSend) payload.companyId = companyIdToSend;
     if (form.status) payload.status = form.status;
@@ -614,7 +611,7 @@ export default function NuevoVehiculoPage() {
               <label htmlFor="companyId" style={{ display: "block", marginBottom: 8 }}>
                 Empresa de transporte
               </label>
-              {role && FIXED_COMPANY_ROLES.includes(role) ? (
+              {role && FIXED_COMPANY_ROLES.includes(role as Role) ? (
                 miEmpresaMissing ? (
                   <div
                     style={{

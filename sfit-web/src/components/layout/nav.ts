@@ -22,44 +22,50 @@ export type NavItem = {
   section: NavSection;
 };
 
+// Navegación del sidebar web. Solo los 4 admins jerárquicos
+// (super_admin → admin_regional → admin_provincial → admin_municipal)
+// acceden a la web; fiscal, operador, conductor y ciudadano son redirigidos
+// a MobileOnlyScreen por (dashboard)/layout.tsx.
 export const NAV: NavItem[] = [
-  // PANEL — todos los roles con acceso web
-  { href: "/dashboard",       label: "Dashboard",           icon: House,                 section: "PANEL",          roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal","operador"] },
-  { href: "/notificaciones",  label: "Notificaciones",      icon: Bell,                  section: "PANEL",          roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal","operador"] },
+  // PANEL — todos los admins web
+  { href: "/dashboard",       label: "Dashboard",           icon: House,                 section: "PANEL",          roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
+  { href: "/notificaciones",  label: "Notificaciones",      icon: Bell,                  section: "PANEL",          roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
 
   // GESTIÓN — administración de cuentas
   { href: "/usuarios",        label: "Usuarios",            icon: Users,                 section: "GESTIÓN",        roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
   { href: "/admin/users",     label: "Aprobaciones",        icon: UserCheck,             section: "GESTIÓN",        roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
 
-  // RED NACIONAL — vista cross-tenant del super_admin
-  { href: "/admin/red-nacional", label: "Red nacional",     icon: MapPin,                section: "RED NACIONAL",   roles: ["super_admin"] },
-  { href: "/admin/regiones",  label: "Regiones",            icon: MapPin,                section: "RED NACIONAL",   roles: ["super_admin"] },
-  { href: "/municipalidades", label: "Municipalidades",     icon: Building2,             section: "RED NACIONAL",   roles: ["super_admin","admin_regional","admin_provincial"] },
-  { href: "/admin/empresas",  label: "Empresas nacionales", icon: Building2,             section: "RED NACIONAL",   roles: ["super_admin","admin_regional","admin_provincial"] },
+  // RED NACIONAL — jerarquía geográfica (regiones / provincias / municipalidades)
+  { href: "/admin/red-nacional", label: "Red nacional",     icon: MapPin,                section: "RED NACIONAL",   roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
+  { href: "/admin/regiones",  label: "Regiones",            icon: MapPin,                section: "RED NACIONAL",   roles: ["super_admin","admin_regional"] },
+  { href: "/municipalidades", label: "Municipalidades",     icon: Building2,             section: "RED NACIONAL",   roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
+  { href: "/admin/empresas",  label: "Empresas nacionales", icon: Building2,             section: "RED NACIONAL",   roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
 
-  // OPERACIÓN — gestión de la flota municipal
+  // OPERACIÓN — gestión cross-empresa dentro del scope geográfico del admin
   { href: "/empresas",        label: "Empresas",            icon: Building2,             section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
-  { href: "/conductores",     label: "Conductores",         icon: Users,                 section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","operador","fiscal"] },
-  { href: "/vehiculos",       label: "Vehículos / QR",      icon: Car,                   section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","operador","fiscal"] },
-  { href: "/flota",           label: "Flota del día",       icon: ClipboardList,         section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","operador","fiscal"] },
-  { href: "/rutas",           label: "Rutas y zonas",       icon: Route,                 section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","operador","fiscal"] },
-  { href: "/viajes",          label: "Viajes",              icon: CalendarDays,          section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","operador","fiscal"] },
-  { href: "/inspecciones",    label: "Inspecciones",        icon: Shield,                section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal","operador"] },
-  { href: "/apelaciones",     label: "Apelaciones",         icon: MessageSquareWarning,  section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal","operador"] },
+  { href: "/conductores",     label: "Conductores",         icon: Users,                 section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
+  { href: "/vehiculos",       label: "Vehículos / QR",      icon: Car,                   section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
+  { href: "/flota",           label: "Flota del día",       icon: ClipboardList,         section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
+  { href: "/rutas",           label: "Rutas y zonas",       icon: Route,                 section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
+  { href: "/viajes",          label: "Viajes",              icon: CalendarDays,          section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
+  // Inspecciones y apelaciones: read-only para los admins; emisión queda en
+  // la app móvil del fiscal. Resolución de apelaciones se hace desde la web.
+  { href: "/inspecciones",    label: "Inspecciones",        icon: Shield,                section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
+  { href: "/apelaciones",     label: "Apelaciones",         icon: MessageSquareWarning,  section: "OPERACIÓN",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
 
-  // CIUDADANÍA — reportes y recompensas
-  // Operador ve reportes/sanciones que afectan a su flota (filtrado por
-  // scopedCompanyFilter en el backend); recompensas siguen sin tocarlo.
-  { href: "/reportes",        label: "Reportes ciudadanos", icon: Flag,                  section: "CIUDADANÍA",     roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal","operador"] },
-  { href: "/sanciones",       label: "Sanciones",           icon: TriangleAlert,         section: "CIUDADANÍA",     roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal","operador"] },
-  { href: "/recompensas",     label: "Recompensas",         icon: Gift,                  section: "CIUDADANÍA",     roles: ["admin_municipal"] },
+  // CIUDADANÍA — reportes ciudadanos, sanciones (read-only) y recompensas
+  { href: "/reportes",        label: "Reportes ciudadanos", icon: Flag,                  section: "CIUDADANÍA",     roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
+  { href: "/sanciones",       label: "Sanciones",           icon: TriangleAlert,         section: "CIUDADANÍA",     roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
+  { href: "/recompensas",     label: "Recompensas",         icon: Gift,                  section: "CIUDADANÍA",     roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
 
-  // ANÁLISIS — estadísticas e inteligencia (operador ve KPIs de su empresa)
-  { href: "/estadisticas",    label: "Estadísticas",        icon: ChartColumn,           section: "ANÁLISIS",       roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal","operador"] },
+  // ANÁLISIS — estadísticas e inteligencia
+  { href: "/estadisticas",    label: "Estadísticas",        icon: ChartColumn,           section: "ANÁLISIS",       roles: ["super_admin","admin_regional","admin_provincial","admin_municipal"] },
 
-  // MI CUENTA — datos personales del usuario autenticado
-  { href: "/perfil",          label: "Mi perfil",           icon: CircleUserRound,       section: "MI CUENTA",      roles: ["super_admin","admin_provincial","admin_municipal","fiscal","operador","conductor","ciudadano"] },
-  { href: "/mi-empresa",      label: "Mi empresa",          icon: Building2,             section: "MI CUENTA",      roles: ["operador"] },
+  // MI CUENTA — datos personales del usuario autenticado.
+  // `/perfil` también es accesible para roles móviles (fiscal, operador,
+  // conductor, ciudadano) como excepción en (dashboard)/layout.tsx, para
+  // que puedan ajustar su perfil sin caer en MobileOnlyScreen.
+  { href: "/perfil",          label: "Mi perfil",           icon: CircleUserRound,       section: "MI CUENTA",      roles: ["super_admin","admin_regional","admin_provincial","admin_municipal","fiscal","operador","conductor","ciudadano"] },
 ];
 
 export const SECTION_ORDER: NavSection[] = [

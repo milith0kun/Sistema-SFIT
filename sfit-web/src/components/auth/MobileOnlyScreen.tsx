@@ -3,11 +3,41 @@
 import Link from "next/link";
 import { Smartphone, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { Role } from "@/lib/constants";
 
 const PLAY_STORE_URL =
   "https://play.google.com/store/apps/details?id=com.sfit.sfit_app";
 
-export function MobileOnlyScreen() {
+const ROLE_COPY: Record<string, { title: string; body: string }> = {
+  fiscal: {
+    title: "El módulo fiscal vive en la app SFIT",
+    body: "Levanta actas de inspección, aplica sanciones y resuelve apelaciones desde la app móvil — diseñada para trabajar en campo.",
+  },
+  operador: {
+    title: "El módulo operador vive en la app SFIT",
+    body: "Gestiona tu flota, conductores, vehículos y rutas desde la app móvil. Supervisa salidas y viajes en tiempo real.",
+  },
+  conductor: {
+    title: "La app del conductor está en tu celular",
+    body: "Consulta tus rutas asignadas, registra viajes y revisa tu estado de fatiga desde la app SFIT.",
+  },
+  ciudadano: {
+    title: "SFIT funciona en tu celular",
+    body: "Reporta incidentes, sigue buses en vivo y canjea recompensas desde la app móvil.",
+  },
+};
+
+const DEFAULT_COPY = {
+  title: "SFIT funciona en tu celular",
+  body: "Tu cuenta opera desde la app móvil. Inicia sesión ahí para ver tu dashboard, viajes y notificaciones.",
+};
+
+export interface MobileOnlyScreenProps {
+  role?: Role | null;
+}
+
+export function MobileOnlyScreen({ role }: MobileOnlyScreenProps = {}) {
+  const copy = (role && ROLE_COPY[role]) || DEFAULT_COPY;
   return (
     <div
       style={{
@@ -61,7 +91,7 @@ export function MobileOnlyScreen() {
             color: "var(--color-ink-9, #18181b)",
           }}
         >
-          SFIT funciona en tu celular
+          {copy.title}
         </h1>
 
         <p
@@ -72,8 +102,7 @@ export function MobileOnlyScreen() {
             color: "var(--color-ink-6, #52525b)",
           }}
         >
-          Tu cuenta opera desde la app móvil. Inicia sesión ahí para ver tu
-          dashboard, viajes y notificaciones.
+          {copy.body}
         </p>
 
         <div
