@@ -29,6 +29,8 @@ import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
+import { resolveDriverFromSession } from "@/lib/auth/driverFromSession";
+import { extractFleetEntryAsWaypoints } from "@/lib/routes/extractFleetEntry";
 
 const Body = z.object({
   captureId: z.string().refine(isValidObjectId, "captureId inválido"),
@@ -38,7 +40,11 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // Conductor también puede marcar su propia grabación como preferida
+  // (validación de pertenencia más abajo). Operador, admin municipal y
+  // super_admin pueden marcar cualquier captura de su jurisdicción/empresa.
   const auth = requireRole(request, [
+    ROLES.CONDUCTOR,
     ROLES.OPERADOR,
     ROLES.SUPER_ADMIN,
     ROLES.ADMIN_MUNICIPAL,
@@ -82,8 +88,13 @@ export async function POST(
   // misma empresa que la ruta. Sin esta validación un operador podría
   // marcar capturas ajenas como "preferidas".
   const capture = await FleetEntry.findById(parsed.data.captureId)
-    .select("vehicleId routeId")
-    .lean<{ _id: Types.ObjectId; vehicleId: Types.ObjectId; routeId?: Types.ObjectId }>();
+    .select("vehicleId driverId routeId")
+    .lean<{
+      _id: Types.ObjectId;
+      vehicleId: Types.ObjectId;
+      driverId: Types.ObjectId;
+      routeId?: Types.ObjectId;
+    }>();
   if (!capture) return apiNotFound("Pasada no encontrada");
 
   const vehicle = await Vehicle.findById(capture.vehicleId)
@@ -91,6 +102,18 @@ export async function POST(
     .lean<{ companyId?: Types.ObjectId } | null>();
   if (!vehicle || !route.companyId || String(vehicle.companyId) !== String(route.companyId)) {
     return apiForbidden("La pasada no pertenece a esta empresa");
+  }
+
+  // Conductor: solo puede marcar como preferida una FleetEntry propia.
+  // Resolvemos el Driver desde la sesión (User → Driver vía userId o
+  // fallback DNI) y comparamos con `capture.driverId`.
+  if (auth.session.role === ROLES.CONDUCTOR) {
+    const driver = await resolveDriverFromSession(auth.session);
+    if (!driver || String(driver._id) !== String(capture.driverId)) {
+      return apiForbidden(
+        "Solo puedes marcar como recomendada una grabación tuya",
+      );
+    }
   }
 
   // Recomendación: la captura debe ser de la misma ruta. No bloqueamos
@@ -101,7 +124,56 @@ export async function POST(
   route.preferredCaptureId = capture._id;
   route.preferredAt = new Date();
   route.preferredBy = new Types.ObjectId(auth.session.userId);
+
+  // Peso 100% a la preferida: reescribimos `route.waypoints` con los
+  // puntos GPS de esta FleetEntry (filtrados por accuracy, simplificados
+  // con RDP y resampleados). Antes solo guardábamos el ID y el conductor
+  // seguía viendo el promedio convergente o los waypoints originales.
+  // Ahora el siguiente turno arranca con la ruta elegida.
+  const extracted = await extractFleetEntryAsWaypoints(capture._id);
+  let waypointsReplaced = false;
+  if (extracted.waypoints.length >= 2) {
+    route.waypoints = extracted.waypoints.map((p, i) => ({
+      order: i,
+      lat: p.lat,
+      lng: p.lng,
+    })) as typeof route.waypoints;
+    waypointsReplaced = true;
+  }
+
   await route.save();
+
+  // Recompute geometry real (Google Routes snap-to-roads) tras reescribir
+  // waypoints. Fire-and-forget para no bloquear la respuesta — el mapa cae
+  // al fallback de líneas rectas si Google está caído. Mismo patrón que en
+  // `/api/rutas/[id]/recalcular`.
+  if (waypointsReplaced && route.waypoints.length >= 2) {
+    void (async () => {
+      try {
+        const { routeAlongWaypoints } = await import(
+          "@/lib/routing/routingService"
+        );
+        const geom = await routeAlongWaypoints(
+          route.waypoints.map((w) => ({ lat: w.lat, lng: w.lng })),
+        );
+        await Route.findByIdAndUpdate(route._id, {
+          polylineGeometry: geom
+            ? {
+                coords: geom.coords,
+                distanceMeters: geom.distanceMeters,
+                durationSecondsBaseline: geom.durationSeconds,
+                computedAt: new Date(),
+              }
+            : null,
+        });
+      } catch (err) {
+        console.warn(
+          "[rutas/[id]/marcar-preferida] recompute geometry failed",
+          err,
+        );
+      }
+    })();
+  }
 
   try {
     const { logAuditRaw } = await import("@/lib/audit/log");
@@ -117,7 +189,12 @@ export async function POST(
         action: "route.preferred_capture.set",
         resourceType: "route",
         resourceId: String(route._id),
-        metadata: { captureId: String(capture._id), sameRoute },
+        metadata: {
+          captureId: String(capture._id),
+          sameRoute,
+          waypointsReplaced,
+          waypointCount: extracted.waypoints.length,
+        },
       },
     );
   } catch { /* audit no debe bloquear */ }
@@ -127,6 +204,10 @@ export async function POST(
     preferredCaptureId: String(capture._id),
     preferredAt: route.preferredAt,
     sameRoute,
+    waypointsReplaced,
+    waypointCount: extracted.waypoints.length,
+    totalPings: extracted.totalPings,
+    filteredByAccuracy: extracted.filteredByAccuracy,
   });
 }
 

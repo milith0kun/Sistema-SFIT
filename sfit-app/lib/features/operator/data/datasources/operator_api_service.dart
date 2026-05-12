@@ -144,6 +144,50 @@ class OperatorApiService {
     await _dio.post('/operador/conductores/$driverId/asociar');
   }
 
+  /// DELETE /operador/conductores/:id/asociar — desasocia al conductor de
+  /// MI empresa (pone Driver.companyId = null). El conductor sigue activo
+  /// en la municipalidad y otra empresa puede tomarlo.
+  Future<void> desasociarConductor(String driverId) async {
+    await _dio.delete('/operador/conductores/$driverId/asociar');
+  }
+
+  /// GET /conductores/:id — detalle del conductor. El backend valida
+  /// canAccessMunicipality y para rol OPERADOR ya filtra por su empresa
+  /// implícitamente (los conductores que no son de su empresa no aparecen
+  /// en el listado de origen).
+  Future<Map<String, dynamic>> getConductorDetail(String driverId) async {
+    final resp = await _dio.get('/conductores/$driverId');
+    return Map<String, dynamic>.from((resp.data as Map)['data'] as Map);
+  }
+
+  /// PATCH /conductores/:id — actualiza datos administrativos del conductor.
+  /// El operador puede cambiar nombre, dni, licencia, teléfono. NO puede
+  /// cambiar `status` (gate FATIGUE_ROLES en el backend).
+  Future<Map<String, dynamic>> updateConductor(
+    String driverId, {
+    String? name,
+    String? dni,
+    String? licenseNumber,
+    String? licenseCategory,
+    String? phone,
+  }) async {
+    final body = <String, dynamic>{
+      if (name != null) 'name': name,
+      if (dni != null) 'dni': dni,
+      if (licenseNumber != null) 'licenseNumber': licenseNumber,
+      if (licenseCategory != null) 'licenseCategory': licenseCategory,
+      if (phone != null) 'phone': phone,
+    };
+    final resp = await _dio.patch('/conductores/$driverId', data: body);
+    return Map<String, dynamic>.from((resp.data as Map)['data'] as Map);
+  }
+
+  /// DELETE /conductores/:id — marca conductor como inactivo (`active=false`).
+  /// El conductor desaparece del listado pero sus históricos quedan.
+  Future<void> deactivateConductor(String driverId) async {
+    await _dio.delete('/conductores/$driverId');
+  }
+
   // Mi empresa ──────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> getMiEmpresa() async {
@@ -172,7 +216,48 @@ class OperatorApiService {
     });
     final data = (resp.data as Map)['data'] as Map;
     final items = (data['items'] as List).cast<Map<String, dynamic>>();
-    return items.map((j) => FleetEntryModel.fromJson(normalizeBackendJson(j))).toList();
+    return items
+        .map((j) => FleetEntryModel.fromJson(_flattenFleetEntry(j)))
+        .toList();
+  }
+
+  /// Aplana la forma anidada del backend (`vehicle: {plate, _id}`, `driver:
+  /// {name, status}`, `route: {name}`, `km: number`) al esquema plano que
+  /// espera `FleetEntryModel.fromJson` (`vehiclePlate`, `driverName`,
+  /// `driverStatus`, `routeName`, `distanceMeters`).
+  Map<String, dynamic> _flattenFleetEntry(Map<String, dynamic> j) {
+    final base = normalizeBackendJson(j);
+    final vehicle = base['vehicle'];
+    final driver = base['driver'];
+    final route = base['route'];
+    final km = (base['km'] as num?)?.toDouble();
+    return {
+      ...base,
+      if (vehicle is Map) ...{
+        'vehicleId': vehicle['_id'] ?? vehicle['id'] ?? base['vehicleId'],
+        'vehiclePlate': vehicle['plate'] ?? base['vehiclePlate'],
+      },
+      if (driver is Map) ...{
+        'driverId': driver['_id'] ?? driver['id'] ?? base['driverId'],
+        'driverName': driver['name'] ?? base['driverName'],
+        'driverStatus': driver['status'] ?? base['driverStatus'],
+      },
+      if (route is Map) ...{
+        'routeId': route['_id'] ?? route['id'] ?? base['routeId'],
+        'routeName': route['name'] ?? base['routeName'],
+      },
+      if (km != null && base['distanceMeters'] == null)
+        'distanceMeters': km * 1000.0,
+    };
+  }
+
+  /// GET /flota/:id — detalle de una entrada de flota con `trackPoints[]`
+  /// (LocationPings de la sesión), `capture` (estado de la RouteCapture
+  /// asociada) y los campos del vehículo/conductor/ruta populados.
+  Future<FleetEntryModel> getFleetEntryDetail(String id) async {
+    final resp = await _dio.get('/flota/$id');
+    final data = (resp.data as Map)['data'] as Map<String, dynamic>;
+    return FleetEntryModel.fromJson(_flattenFleetEntry(data));
   }
 
   // Rutas y candidatas ──────────────────────────────────────────────────────
@@ -330,6 +415,25 @@ class OperatorApiService {
 
   Future<TripModel> getTripDetail(String id) async {
     final resp = await _dio.get('/viajes/$id');
+    final data = (resp.data as Map)['data'] as Map<String, dynamic>;
+    return TripModel.fromJson(data);
+  }
+
+  /// POST /viajes — crea un viaje (Trip) "en_curso" para la empresa del
+  /// operador. El backend valida que `vehicleId` pertenezca a su empresa
+  /// e infiere `municipalityId` del JWT.
+  Future<TripModel> createTrip({
+    required String vehicleId,
+    required String driverId,
+    String? routeId,
+    DateTime? startTime,
+  }) async {
+    final resp = await _dio.post('/viajes', data: {
+      'vehicleId': vehicleId,
+      'driverId': driverId,
+      if (routeId != null && routeId.isNotEmpty) 'routeId': routeId,
+      if (startTime != null) 'startTime': startTime.toIso8601String(),
+    });
     final data = (resp.data as Map)['data'] as Map<String, dynamic>;
     return TripModel.fromJson(data);
   }

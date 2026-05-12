@@ -21,8 +21,14 @@ typedef Candidate = RouteCandidateModel;
 /// - **Oficiales**: rutas formales con paraderos y horarios.
 /// - **Candidatas**: capturas GPS pendientes de validar (cuando un conductor
 ///   cierra turno sin asociar una ruta oficial, queda como candidata).
+///
+/// Cuando `embedded = true` la página se renderiza sin Scaffold/AppBar
+/// propios — pensado para incrustarla como tab dentro de `HomePage`, que
+/// ya provee el header del shell.
 class OperatorRoutesPage extends ConsumerStatefulWidget {
-  const OperatorRoutesPage({super.key});
+  final bool embedded;
+
+  const OperatorRoutesPage({super.key, this.embedded = false});
 
   @override
   ConsumerState<OperatorRoutesPage> createState() =>
@@ -52,6 +58,102 @@ class _OperatorRoutesPageState extends ConsumerState<OperatorRoutesPage>
     final candidatesCount =
         candidatesAsync.maybeWhen(data: (it) => it.length, orElse: () => 0);
 
+    final tabBar = TabBar(
+      controller: _tabs,
+      labelColor: AppColors.primary,
+      unselectedLabelColor: AppColors.ink5,
+      indicatorColor: AppColors.primary,
+      labelStyle:
+          AppTheme.inter(fontSize: 12.5, fontWeight: FontWeight.w700),
+      unselectedLabelStyle:
+          AppTheme.inter(fontSize: 12.5, fontWeight: FontWeight.w500),
+      tabs: [
+        const Tab(text: 'Oficiales'),
+        Tab(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Candidatas'),
+              if (candidatesCount > 0) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '$candidatesCount',
+                    style: AppTheme.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      tabular: true,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+
+    final tabBarView = TabBarView(
+      controller: _tabs,
+      children: [
+        _OfficialTab(
+          routesAsync: routesAsync,
+          onRefresh: () => ref.refresh(operadorRoutesProvider.future),
+        ),
+        _CandidatesTab(
+          candidatesAsync: candidatesAsync,
+          onRefresh: () => ref.refresh(routeCandidatesProvider.future),
+        ),
+      ],
+    );
+
+    final fab = AnimatedBuilder(
+      animation: _tabs,
+      builder: (_, __) => _tabs.index == 0
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                final created = await context.push<bool>('/operador/rutas/nueva');
+                if (created == true && mounted) {
+                  setState(() {});
+                }
+              },
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add, size: 18),
+              label: Text(
+                'Nueva ruta',
+                style: AppTheme.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            )
+          : const SizedBox.shrink(),
+    );
+
+    if (widget.embedded) {
+      // Sin Scaffold/AppBar — HomePage ya provee el shell.
+      return Stack(children: [
+        Column(children: [
+          Material(
+            color: Colors.white,
+            child: tabBar,
+          ),
+          Expanded(child: tabBarView),
+        ]),
+        Positioned(right: 16, bottom: 16, child: fab),
+      ]);
+    }
+
     return Scaffold(
       backgroundColor: AppColors.paper,
       appBar: AppBar(
@@ -66,87 +168,10 @@ class _OperatorRoutesPageState extends ConsumerState<OperatorRoutesPage>
             color: AppColors.ink9,
           ),
         ),
-        bottom: TabBar(
-          controller: _tabs,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.ink5,
-          indicatorColor: AppColors.primary,
-          labelStyle:
-              AppTheme.inter(fontSize: 12.5, fontWeight: FontWeight.w700),
-          unselectedLabelStyle:
-              AppTheme.inter(fontSize: 12.5, fontWeight: FontWeight.w500),
-          tabs: [
-            const Tab(text: 'Oficiales'),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Candidatas'),
-                  if (candidatesCount > 0) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        '$candidatesCount',
-                        style: AppTheme.inter(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          tabular: true,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
+        bottom: tabBar,
       ),
-      body: TabBarView(
-        controller: _tabs,
-        children: [
-          _OfficialTab(
-            routesAsync: routesAsync,
-            onRefresh: () => ref.refresh(operadorRoutesProvider.future),
-          ),
-          _CandidatesTab(
-            candidatesAsync: candidatesAsync,
-            onRefresh: () => ref.refresh(routeCandidatesProvider.future),
-          ),
-        ],
-      ),
-      floatingActionButton: AnimatedBuilder(
-        animation: _tabs,
-        builder: (_, __) => _tabs.index == 0
-            ? FloatingActionButton.extended(
-                onPressed: () async {
-                  final created = await context.push<bool>('/operador/rutas/nueva');
-                  if (created == true && mounted) {
-                    // Refrescar la lista al volver tras crear con éxito.
-                    setState(() {});
-                  }
-                },
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                icon: const Icon(Icons.add, size: 18),
-                label: Text(
-                  'Nueva ruta',
-                  style: AppTheme.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              )
-            : const SizedBox.shrink(),
-      ),
+      body: tabBarView,
+      floatingActionButton: fab,
     );
   }
 }
@@ -802,6 +827,22 @@ class _RouteCard extends StatelessWidget {
                   ),
                 ]),
               ],
+            ),
+          ),
+          // Acceso directo a "Pasadas" de la ruta (donde se marca recomendada).
+          // El tap general del card sigue yendo a editar — este botón con
+          // su propio gesto navega aparte sin propagar al InkWell padre.
+          IconButton(
+            tooltip: 'Pasadas',
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            iconSize: 18,
+            color: AppColors.ink6,
+            icon: const Icon(Icons.star_border),
+            onPressed: () => context.push(
+              '/operador/rutas/${route.id}/pasadas',
+              extra: route.name,
             ),
           ),
           const Icon(

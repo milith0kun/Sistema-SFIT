@@ -15,6 +15,7 @@ import '../../../fleet/presentation/pages/fleet_page.dart';
 import '../../../inspection/presentation/pages/inspections_list_page.dart';
 import '../../../operator/presentation/pages/conductores_tab_page.dart';
 import '../../../operator/presentation/pages/fleet_analytics_page.dart';
+import '../../../operator/presentation/pages/operator_routes_page.dart';
 import '../../../operator/presentation/pages/vehiculos_tab_page.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 import '../../../feed/presentation/pages/feed_page.dart';
@@ -414,7 +415,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             label: 'Rutas',
             icon: Icons.route_outlined,
             iconFilled: Icons.route,
-            page: MyRoutesPage(),
+            page: OperatorRoutesPage(embedded: true),
           ),
           const _Tab(
             slug: 'perfil',

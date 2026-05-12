@@ -56,6 +56,7 @@ _Analytics _compute(List<FleetEntryModel> entries) {
   final Map<String, double>  kmByDriver     = {};
   final Map<String, double>  hoursByDriver  = {};
   final Map<String, String>  nameByDriver   = {};
+  final Map<String, String>  statusByDriver = {};
   final Map<String, int>     tripsByDriver  = {};
 
   for (final e in entries) {
@@ -70,6 +71,18 @@ _Analytics _compute(List<FleetEntryModel> entries) {
     if (did.isNotEmpty) {
       kmByDriver[did]    = (kmByDriver[did] ?? 0) + km;
       nameByDriver[did]  = e.driverName ?? did;
+      // El último status visto gana — si el conductor fluctuó "riesgo" durante
+      // el mes, ese es el dato accionable para el operador.
+      final s = e.driverStatus;
+      if (s != null && s.isNotEmpty) {
+        final prev = statusByDriver[did];
+        // Prioridad: no_apto > riesgo > apto. Solo sube de severidad.
+        if (prev == null ||
+            (s == 'no_apto') ||
+            (s == 'riesgo' && prev == 'apto')) {
+          statusByDriver[did] = s;
+        }
+      }
       tripsByDriver[did]  = (tripsByDriver[did] ?? 0) + 1;
 
       if (e.departureTime != null && e.returnTime != null) {
@@ -97,7 +110,7 @@ _Analytics _compute(List<FleetEntryModel> entries) {
   final drivers = kmByDriver.entries.map((e) => _DriverStats(
     driverId:      e.key,
     driverName:    nameByDriver[e.key] ?? e.key,
-    currentStatus: 'apto',
+    currentStatus: statusByDriver[e.key] ?? 'apto',
     totalKm:       e.value,
     totalHours:    hoursByDriver[e.key] ?? 0,
     trips:         tripsByDriver[e.key] ?? 0,

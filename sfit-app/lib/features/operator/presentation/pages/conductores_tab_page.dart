@@ -81,8 +81,11 @@ class _ConductoresTabPageState extends ConsumerState<ConductoresTabPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // ── Header ─────────────────────────────────────────
+                // Tipografía canónica: headlineSmall (18 / w700 /
+                // letterSpacing -0.01). El count badge entra a la
+                // derecha del título para refuerzo numérico.
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
                   child: Row(
                     children: [
                       Text(
@@ -91,7 +94,7 @@ class _ConductoresTabPageState extends ConsumerState<ConductoresTabPage> {
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                           color: AppColors.ink9,
-                          letterSpacing: -0.015,
+                          letterSpacing: -0.01,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -154,8 +157,29 @@ class _ConductoresTabPageState extends ConsumerState<ConductoresTabPage> {
                                     itemCount: _filtered.length,
                                     separatorBuilder: (_, __) =>
                                         const SizedBox(height: 8),
-                                    itemBuilder: (_, i) =>
-                                        _ConductorCard(item: _filtered[i]),
+                                    itemBuilder: (_, i) {
+                                      final item = _filtered[i];
+                                      return _ConductorCard(
+                                        item: item,
+                                        onTap: () async {
+                                          // Navegamos al detalle pasando el
+                                          // modelo como seed para mostrar
+                                          // datos inmediatamente mientras
+                                          // recarga el detalle completo. Si
+                                          // el detalle reportó un cambio
+                                          // (desasociar, desactivar, editar)
+                                          // refrescamos la lista al volver.
+                                          final changed =
+                                              await context.push<bool>(
+                                            '/operador/conductores/${item.id}',
+                                            extra: item,
+                                          );
+                                          if (changed == true && mounted) {
+                                            _load();
+                                          }
+                                        },
+                                      );
+                                    },
                                   ),
                                 ),
                 ),
@@ -219,7 +243,8 @@ class _ConductoresTabPageState extends ConsumerState<ConductoresTabPage> {
 
 class _ConductorCard extends StatelessWidget {
   final ConductorModel item;
-  const _ConductorCard({required this.item});
+  final VoidCallback? onTap;
+  const _ConductorCard({required this.item, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -233,23 +258,31 @@ class _ConductorCard extends StatelessWidget {
     final initial =
         item.name.isNotEmpty ? item.name[0].toUpperCase() : '?';
 
-    return Container(
+    final card = Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: AppColors.ink2),
-        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.ink2, width: 1.5),
+        borderRadius: BorderRadius.circular(12),
       ),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
       child: Row(
         children: [
-          // Avatar circular con inicial
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: avatarBg,
+          // Avatar cuadrado con borde — mismo patrón que el header del
+          // detalle (operator_driver_detail_page._Header). Más sólido
+          // que CircleAvatar y consistente con tiles del operador.
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: avatarBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: badgeBorder, width: 1.5),
+            ),
+            alignment: Alignment.center,
             child: Text(
               initial,
               style: AppTheme.inter(
-                fontSize: 16,
+                fontSize: 18,
                 fontWeight: FontWeight.w700,
                 color: badgeColor,
               ),
@@ -268,14 +301,20 @@ class _ConductorCard extends StatelessWidget {
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: AppColors.ink9,
+                    letterSpacing: -0.005,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 if (item.licenseCategory != null) ...[
                   const SizedBox(height: 2),
                   Text(
                     'Licencia ${item.licenseCategory}',
                     style: AppTheme.inter(
-                        fontSize: 12, color: AppColors.ink5),
+                      fontSize: 12,
+                      color: AppColors.ink5,
+                      letterSpacing: -0.005,
+                    ),
                   ),
                 ],
                 if (item.continuousHours != null) ...[
@@ -293,7 +332,7 @@ class _ConductorCard extends StatelessWidget {
             ),
           ),
 
-          // Badge estado
+          // Badge estado — letterSpacing 1.2 (kicker-ligero)
           Container(
             padding:
                 const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -305,14 +344,32 @@ class _ConductorCard extends StatelessWidget {
             child: Text(
               badgeLabel,
               style: AppTheme.inter(
-                fontSize: 10.5,
+                fontSize: 10,
                 fontWeight: FontWeight.w700,
                 color: badgeColor,
-                letterSpacing: 0.5,
+                letterSpacing: 1.2,
               ),
             ),
           ),
+          if (onTap != null) ...[
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right,
+                size: 18, color: AppColors.ink4),
+          ],
         ],
+      ),
+    );
+
+    if (onTap == null) return card;
+    // Envolvemos en Material+InkWell para conservar el efecto ripple
+    // sobre el Container con bordes redondeados. Detrás del Container
+    // hay un Material transparente que recibe el splash.
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: card,
       ),
     );
   }
@@ -360,22 +417,41 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.people_outline, size: 52, color: AppColors.ink3),
-            const SizedBox(height: 12),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: AppColors.ink1,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.ink2, width: 1.5),
+              ),
+              child:
+                  const Icon(Icons.people_outline, size: 28, color: AppColors.ink5),
+            ),
+            const SizedBox(height: 14),
             Text(
               msg,
               textAlign: TextAlign.center,
               style: AppTheme.inter(
-                fontSize: 15,
+                fontSize: 14.5,
                 fontWeight: FontWeight.w700,
-                color: AppColors.ink7,
+                color: AppColors.ink9,
+                letterSpacing: -0.005,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
-              'Ajusta el filtro o actualiza la lista',
+              filter == 'todos'
+                  ? 'Usa "Asociar existente" para vincular conductores '
+                      'a tu empresa, o "+" para crear uno nuevo.'
+                  : 'Cambia el filtro o actualiza la lista.',
               textAlign: TextAlign.center,
-              style: AppTheme.inter(fontSize: 13, color: AppColors.ink5),
+              style: AppTheme.inter(
+                fontSize: 12.5,
+                color: AppColors.ink5,
+                height: 1.4,
+                letterSpacing: -0.005,
+              ),
             ),
           ],
         ),
@@ -397,13 +473,27 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline,
-                size: 40, color: AppColors.noApto),
-            const SizedBox(height: 10),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: AppColors.noAptoBg,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.noAptoBorder, width: 1.5),
+              ),
+              child: const Icon(Icons.error_outline,
+                  size: 28, color: AppColors.noApto),
+            ),
+            const SizedBox(height: 14),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: AppTheme.inter(fontSize: 13, color: AppColors.ink6),
+              style: AppTheme.inter(
+                fontSize: 13,
+                color: AppColors.ink6,
+                height: 1.4,
+                letterSpacing: -0.005,
+              ),
             ),
             const SizedBox(height: 14),
             TextButton(onPressed: onRetry, child: const Text('Reintentar')),

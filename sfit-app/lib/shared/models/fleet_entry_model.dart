@@ -21,6 +21,7 @@ abstract class FleetEntryModel with _$FleetEntryModel {
     String? routeName,
     String? driverId,
     String? driverName,
+    String? driverStatus, // apto | riesgo | no_apto
     String? departureTime,
     String? returnTime,
     double? distanceMeters,

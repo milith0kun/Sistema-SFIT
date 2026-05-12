@@ -108,3 +108,77 @@ export async function POST(
     companyName: company.razonSocial ?? null,
   });
 }
+
+/**
+ * DELETE /api/operador/conductores/[id]/asociar
+ *
+ * Operación inversa: el operador desasocia un conductor de su empresa
+ * (companyId pasa a undefined). El conductor queda activo y disponible
+ * para que otra empresa de la misma muni lo asocie, o para que él mismo
+ * elija una nueva desde MiEmpresaPage.
+ *
+ * Reglas:
+ *   - El conductor DEBE pertenecer actualmente a la empresa del operador.
+ *     Sin esto un operador podría liberar conductores de la competencia.
+ *   - No tocamos `active` — solo cortamos el vínculo de empresa.
+ *   - El conductor sigue en la misma municipalidad.
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const auth = requireRole(request, [ROLES.OPERADOR]);
+  if ("error" in auth) {
+    return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
+  }
+
+  const { id } = await params;
+  if (!isValidObjectId(id)) return apiError("ID de conductor inválido", 400);
+
+  await connectDB();
+
+  const myCompanyIdStr = await getOperatorCompanyId(auth.session.userId);
+  if (!myCompanyIdStr) {
+    return apiError(
+      "El operador no tiene empresa asignada. Contacta al administrador.",
+      400,
+    );
+  }
+
+  const driver = await Driver.findById(id);
+  if (!driver) return apiNotFound("Conductor no encontrado");
+
+  if (!driver.companyId || String(driver.companyId) !== myCompanyIdStr) {
+    return apiForbidden(
+      "Solo puedes desasociar conductores que pertenezcan a tu empresa.",
+    );
+  }
+
+  driver.companyId = undefined;
+  await driver.save();
+
+  try {
+    const { logAuditRaw } = await import("@/lib/audit/log");
+    await logAuditRaw(
+      request,
+      {
+        actorId: auth.session.userId,
+        actorRole: auth.session.role,
+        municipalityId: auth.session.municipalityId,
+        provinceId: auth.session.provinceId,
+      },
+      {
+        action: "driver.company.unlinked",
+        resourceType: "driver",
+        resourceId: String(driver._id),
+        metadata: { previousCompanyId: myCompanyIdStr },
+      },
+    );
+  } catch { /* audit no debe bloquear */ }
+
+  return apiResponse({
+    id: String(driver._id),
+    name: driver.name,
+    companyId: null,
+  });
+}

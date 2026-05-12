@@ -10,6 +10,7 @@ import '../../features/auth/presentation/pages/rejected_page.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/fleet/presentation/pages/fleet_departure_page.dart';
+import '../../features/fleet/presentation/pages/fleet_entry_detail_page.dart';
 import '../../features/inspection/presentation/pages/acta_inspeccion_page.dart';
 import '../../features/inspection/presentation/pages/inspection_detail_page.dart';
 import '../../features/inspection/data/models/inspection_model.dart';
@@ -41,6 +42,9 @@ import '../../features/operator/presentation/pages/vehicle_qr_page.dart';
 import '../../features/operator/presentation/pages/nuevo_conductor_page.dart';
 import '../../features/operator/presentation/pages/nuevo_vehiculo_page.dart';
 import '../../features/operator/presentation/pages/operator_routes_page.dart';
+import '../../features/operator/presentation/pages/operator_route_passes_page.dart';
+import '../../features/operator/presentation/pages/operator_driver_detail_page.dart';
+import '../../shared/models/conductor_model.dart';
 import '../../features/operator/presentation/pages/operator_candidate_detail_page.dart';
 import '../../features/operator/presentation/pages/operator_candidates_compare_page.dart';
 import '../../shared/models/route_candidate_model.dart';
@@ -51,6 +55,7 @@ import '../../features/operator/presentation/pages/passenger_list_page.dart';
 import '../../features/operator/presentation/pages/upload_manifest_photo_page.dart';
 import '../../features/operator/presentation/pages/route_edit_page.dart' as op_route_edit;
 import '../../features/operator/presentation/pages/nueva_ruta_page.dart';
+import '../../features/operator/presentation/pages/nuevo_viaje_page.dart';
 import '../../features/trips/presentation/pages/tracking_diagnostics_page.dart';
 import '../../features/public/presentation/pages/vehicle_public_page.dart';
 import '../../features/trips/presentation/pages/route_detail_page.dart';
@@ -331,6 +336,33 @@ GoRouter router(Ref ref) {
           routeId: st.pathParameters['id']!,
         ),
       ),
+      // Pasadas (FleetEntry cerradas) de una ruta — el operador elige cuál
+      // promover a "recomendada". El nombre opcional (`name` en extra) se
+      // muestra mientras carga el endpoint /pasadas que también lo devuelve.
+      GoRoute(
+        path: '/operador/rutas/:id/pasadas',
+        builder: (_, st) {
+          final extra = st.extra;
+          final routeName = extra is String ? extra : null;
+          return OperatorRoutePassesPage(
+            routeId: st.pathParameters['id']!,
+            routeName: routeName,
+          );
+        },
+      ),
+      // Detalle del conductor — gestión administrativa por el operador:
+      // editar datos, quitar de su empresa, desactivar.
+      GoRoute(
+        path: '/operador/conductores/:id',
+        builder: (_, st) {
+          final extra = st.extra;
+          final seed = extra is ConductorModel ? extra : null;
+          return OperatorDriverDetailPage(
+            driverId: st.pathParameters['id']!,
+            seed: seed,
+          );
+        },
+      ),
 
       // ── RF-09 (mobile) — Capturas GPS candidatas del operador ────
       GoRoute(
@@ -363,6 +395,10 @@ GoRouter router(Ref ref) {
         builder: (_, __) => const OperatorTripsPage(),
       ),
       GoRoute(
+        path: '/operador/viajes/nuevo',
+        builder: (_, __) => const NuevoViajePage(),
+      ),
+      GoRoute(
         path: '/operador/viajes/:id',
         builder: (_, st) => OperatorTripDetailPage(
           tripId: st.pathParameters['id']!,
@@ -383,6 +419,14 @@ GoRouter router(Ref ref) {
 
       // ── Salida de flota (operador) ────────────────────────────
       GoRoute(path: '/flota-salida', builder: (_, __) => const FleetDeparturePage()),
+
+      // ── Detalle de entrada de flota (tap en card "Flota del día") ───
+      GoRoute(
+        path: '/flota/:id',
+        builder: (_, st) => FleetEntryDetailPage(
+          entryId: st.pathParameters['id']!,
+        ),
+      ),
 
       // ── Acta de inspección (fiscal) ──────────────────────────
       // El InspectionModel se pasa como `extra` (objeto en memoria,

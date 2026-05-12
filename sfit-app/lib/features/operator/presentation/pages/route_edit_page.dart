@@ -554,98 +554,92 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
     });
   }
 
-  // ── Vista urbana ────────────────────────────────────────────────
-  List<Widget> _buildUrbano() {
-    return [
-      const _SectionLabel(label: 'Recorrido'),
-      const SizedBox(height: 8),
-      // Mini-mapa con paraderos
-      Container(
-        height: 180,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: AppColors.ink2),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: _wps.isEmpty
-            ? Center(
-                child: Text(
-                  'Sin paraderos aún',
-                  style: AppTheme.inter(fontSize: 12, color: AppColors.ink5),
+  // ── Mini-mapa con paraderos (compartido urbano / interprov) ─────
+  Widget _buildMapPreview({String emptyLabel = 'Sin paraderos aún'}) {
+    return Container(
+      height: 180,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.ink2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: _wps.isEmpty
+          ? Center(
+              child: Text(
+                emptyLabel,
+                style: AppTheme.inter(fontSize: 12, color: AppColors.ink5),
+              ),
+            )
+          : FlutterMap(
+              options: MapOptions(
+                initialCenter: LatLng(_wps.first.lat, _wps.first.lng),
+                initialZoom: 13,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
                 ),
-              )
-            : FlutterMap(
-                options: MapOptions(
-                  initialCenter: LatLng(_wps.first.lat, _wps.first.lng),
-                  initialZoom: 13,
-                  interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
-                  ),
-                ),
-                children: [
-                  sfitCartoVoyagerTile(),
-                  if (_wps.length >= 2)
-                    PolylineLayer(polylines: [
-                      // Líneas rectas entre waypoints (debajo). Útil mientras
-                      // edita y como fallback cuando aún no hay snap-to-roads.
+              ),
+              children: [
+                sfitCartoVoyagerTile(),
+                if (_wps.length >= 2)
+                  PolylineLayer(polylines: [
+                    Polyline(
+                      points:
+                          _wps.map((w) => LatLng(w.lat, w.lng)).toList(),
+                      strokeWidth: 2,
+                      color: _streetPolyline.length >= 2
+                          ? AppColors.ink4.withValues(alpha: 0.45)
+                          : AppColors.primary.withValues(alpha: 0.6),
+                    ),
+                    if (_streetPolyline.length >= 2)
                       Polyline(
-                        points: _wps
-                            .map((w) => LatLng(w.lat, w.lng))
-                            .toList(),
-                        strokeWidth: 2,
-                        color: _streetPolyline.length >= 2
-                            ? AppColors.ink4.withValues(alpha: 0.45)
-                            : AppColors.primary.withValues(alpha: 0.6),
+                        points: _streetPolyline,
+                        strokeWidth: 4,
+                        color: AppColors.primary.withValues(alpha: 0.85),
                       ),
-                      // Trazado real siguiendo calles (encima). Solo aparece
-                      // cuando el backend ya cacheó polylineGeometry. Resuelve
-                      // el reclamo "el trazado no debe pasar por las casas".
-                      if (_streetPolyline.length >= 2)
-                        Polyline(
-                          points: _streetPolyline,
-                          strokeWidth: 4,
-                          color: AppColors.primary.withValues(alpha: 0.85),
-                        ),
-                    ]),
-                  MarkerLayer(
-                    markers: _wps
-                        .asMap()
-                        .entries
-                        .map((e) => Marker(
-                              point: LatLng(e.value.lat, e.value.lng),
-                              width: 26,
-                              height: 26,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 2,
-                                  ),
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  '${e.key + 1}',
-                                  style: AppTheme.inter(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                    tabular: true,
-                                  ),
+                  ]),
+                MarkerLayer(
+                  markers: _wps
+                      .asMap()
+                      .entries
+                      .map((e) => Marker(
+                            point: LatLng(e.value.lat, e.value.lng),
+                            width: 26,
+                            height: 26,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 2,
                                 ),
                               ),
-                            ))
-                        .toList(),
-                  ),
-                ],
-              ),
-      ),
-      const SizedBox(height: 12),
+                              alignment: Alignment.center,
+                              child: Text(
+                                '${e.key + 1}',
+                                style: AppTheme.inter(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  tabular: true,
+                                ),
+                              ),
+                            ),
+                          ))
+                      .toList(),
+                ),
+              ],
+            ),
+    );
+  }
+
+  // ── Editor de waypoints (cabecera + lista reordenable). Compartido. ─
+  List<Widget> _buildWaypointsEditor({required String headerLabel}) {
+    return [
       Row(children: [
         Text(
-          'Paraderos (${_wps.length})',
+          '$headerLabel (${_wps.length})',
           style: AppTheme.inter(
             fontSize: 13,
             fontWeight: FontWeight.w700,
@@ -684,7 +678,7 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Sin paraderos',
+              'Sin puntos',
               style: AppTheme.inter(fontSize: 13, color: AppColors.ink5),
             ),
           ]),
@@ -798,6 +792,17 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
     ];
   }
 
+  // ── Vista urbana ────────────────────────────────────────────────
+  List<Widget> _buildUrbano() {
+    return [
+      const _SectionLabel(label: 'Recorrido'),
+      const SizedBox(height: 8),
+      _buildMapPreview(),
+      const SizedBox(height: 12),
+      ..._buildWaypointsEditor(headerLabel: 'Paraderos'),
+    ];
+  }
+
   // ── Vista interprovincial ───────────────────────────────────────
   List<Widget> _buildInterprov() {
     return [
@@ -870,6 +875,14 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
           ),
         ),
       ]),
+      const SizedBox(height: 24),
+      const _SectionLabel(label: 'Paradas intermedias (opcional)'),
+      const SizedBox(height: 8),
+      _buildMapPreview(
+        emptyLabel: 'Captura GPS o suma paradas para ver el trazado',
+      ),
+      const SizedBox(height: 12),
+      ..._buildWaypointsEditor(headerLabel: 'Paradas'),
     ];
   }
 

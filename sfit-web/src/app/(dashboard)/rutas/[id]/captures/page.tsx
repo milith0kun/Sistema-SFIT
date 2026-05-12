@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, Loader2,
-  Eye, Sparkles, Activity, Trash2, History,
+  Eye, Sparkles, Activity, Trash2, History, Star, XCircle,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { WaypointsEditor, type Waypoint } from "@/components/ui/WaypointsEditor";
@@ -33,6 +33,20 @@ type Capture = {
 type RouteSummary = {
   id: string; code: string; name: string;
   waypoints: Waypoint[];
+};
+
+type Pass = {
+  id: string;
+  date?: string;
+  departureTime?: string;
+  driver: { name?: string } | null;
+  vehicle: { plate?: string } | null;
+  score: number | null;
+  numPings: number;
+  distanceMeters?: number;
+  durationSeconds?: number;
+  isBest: boolean;
+  isPreferred: boolean;
 };
 
 type StoredUser = { role: string };
@@ -98,6 +112,9 @@ export default function RutaCapturesPage({ params }: Props) {
   const [user, setUser] = useState<StoredUser | null>(null);
   const [route, setRoute] = useState<RouteSummary | null>(null);
   const [captures, setCaptures] = useState<Capture[]>([]);
+  const [passes, setPasses] = useState<Pass[]>([]);
+  const [preferredId, setPreferredId] = useState<string | null>(null);
+  const [markingPreferred, setMarkingPreferred] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [previewPoints, setPreviewPoints] = useState<{ lat: number; lng: number }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,14 +141,16 @@ export default function RutaCapturesPage({ params }: Props) {
     try {
       const token = localStorage.getItem("sfit_access_token");
       const headers = { Authorization: `Bearer ${token ?? ""}` };
-      const [routeRes, capturesRes] = await Promise.all([
+      const [routeRes, capturesRes, passesRes] = await Promise.all([
         fetch(`/api/rutas/${id}`, { headers }),
         fetch(`/api/rutas/${id}/captures?limit=50`, { headers }),
+        fetch(`/api/rutas/${id}/pasadas?limit=30`, { headers }),
       ]);
       if (routeRes.status === 401) { router.replace("/login"); return; }
       if (routeRes.status === 404) { setError("Ruta no encontrada"); return; }
       const routeData = await routeRes.json();
       const capturesData = await capturesRes.json();
+      const passesData = passesRes.ok ? await passesRes.json() : null;
       if (!routeRes.ok || !routeData.success) {
         setError(routeData.error ?? "No se pudo cargar la ruta"); return;
       }
@@ -144,12 +163,80 @@ export default function RutaCapturesPage({ params }: Props) {
       if (capturesRes.ok && capturesData.success) {
         setCaptures(capturesData.data.items ?? []);
       }
+      if (passesData?.success) {
+        setPasses((passesData.data.items ?? []) as Pass[]);
+        setPreferredId(passesData.data.route?.preferredCaptureId ?? null);
+      } else {
+        setPasses([]);
+        setPreferredId(null);
+      }
     } catch {
       setError("Error de conexión");
     } finally {
       setLoading(false);
     }
   }, [id, router]);
+
+  const markPreferred = useCallback(
+    async (captureId: string) => {
+      setMarkingPreferred(captureId);
+      setError(null);
+      setSuccess(null);
+      try {
+        const token = localStorage.getItem("sfit_access_token");
+        const res = await fetch(`/api/rutas/${id}/marcar-preferida`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token ?? ""}`,
+          },
+          body: JSON.stringify({ captureId }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          setError(data.error ?? "No se pudo marcar como recomendada");
+          return;
+        }
+        setSuccess(
+          data.data.waypointsReplaced
+            ? `Pasada marcada como recomendada. Ruta actualizada con ${data.data.waypointCount} puntos.`
+            : "Pasada marcada como recomendada, pero no tiene puntos GPS suficientes para reescribir el trazado.",
+        );
+        await load();
+      } catch {
+        setError("Error de conexión");
+      } finally {
+        setMarkingPreferred(null);
+      }
+    },
+    [id, load],
+  );
+
+  const clearPreferred = useCallback(async () => {
+    setMarkingPreferred("__clear__");
+    setError(null);
+    setSuccess(null);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/rutas/${id}/marcar-preferida`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error ?? "No se pudo limpiar la pasada preferida");
+        return;
+      }
+      setSuccess(
+        "Override quitado. El trazado actual queda como está; corre Vista previa para volver al promedio convergente.",
+      );
+      await load();
+    } catch {
+      setError("Error de conexión");
+    } finally {
+      setMarkingPreferred(null);
+    }
+  }, [id, load]);
 
   useEffect(() => { if (user) void load(); }, [user, load]);
 
@@ -441,6 +528,119 @@ export default function RutaCapturesPage({ params }: Props) {
                         {fmtAgo(c.createdAt)}
                       </div>
                     </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Pasadas (FleetEntry cerrados) — el operador elige una como
+             "recomendada" y el siguiente conductor que tome la ruta verá
+             ese trazado como oficial. Endpoint: GET /rutas/:id/pasadas. */}
+          <div style={{
+            background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden",
+            display: "flex", flexDirection: "column", maxHeight: 420,
+          }}>
+            <div style={{
+              padding: "10px 12px", borderBottom: `1px solid ${INK1}`,
+              display: "flex", alignItems: "center", gap: 6,
+              fontSize: "0.8125rem", fontWeight: 700, color: INK9,
+            }}>
+              <Star size={13} />
+              Pasadas — elegir recomendada
+              {preferredId && (
+                <button
+                  type="button"
+                  onClick={clearPreferred}
+                  disabled={markingPreferred !== null}
+                  style={{
+                    marginLeft: "auto",
+                    display: "inline-flex", alignItems: "center", gap: 4,
+                    height: 24, padding: "0 8px", borderRadius: 6,
+                    border: `1px solid ${INK2}`, background: "#fff", color: INK6,
+                    fontSize: "0.6875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                  }}
+                  title="Quitar el override manual"
+                >
+                  {markingPreferred === "__clear__" ? (
+                    <Loader2 size={10} style={{ animation: "spin 0.7s linear infinite" }} />
+                  ) : (
+                    <XCircle size={10} />
+                  )}
+                  Quitar
+                </button>
+              )}
+            </div>
+            <div style={{ overflowY: "auto", flex: 1 }}>
+              {passes.length === 0 ? (
+                <div style={{ padding: 16, textAlign: "center", color: INK5, fontSize: "0.75rem" }}>
+                  Sin pasadas cerradas todavía.
+                </div>
+              ) : (
+                passes.map((p) => {
+                  const score100 = p.score === null ? null : Math.round(p.score * 100);
+                  const busy = markingPreferred === p.id;
+                  return (
+                    <div
+                      key={p.id}
+                      style={{
+                        padding: "10px 12px",
+                        borderBottom: `1px solid ${INK1}`,
+                        background: p.isPreferred ? APTOBG : "#fff",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                        {p.isPreferred && (
+                          <span style={{
+                            display: "inline-flex", alignItems: "center", gap: 3,
+                            padding: "2px 7px", borderRadius: 4,
+                            background: APTO, color: "#fff",
+                            fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
+                          }}>
+                            <Star size={9} />Recomendada
+                          </span>
+                        )}
+                        {p.isBest && !p.isPreferred && (
+                          <span style={{
+                            padding: "2px 7px", borderRadius: 4,
+                            background: AMBBG, color: AMB, border: `1px solid ${AMBBD}`,
+                            fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
+                          }}>Mejor auto</span>
+                        )}
+                        {score100 !== null && <QualityPill score={score100} />}
+                      </div>
+                      <div style={{ fontSize: "0.75rem", color: INK6, fontWeight: 600 }}>
+                        {p.driver?.name ?? "Conductor desconocido"}
+                        {p.vehicle?.plate ? ` · ${p.vehicle.plate}` : ""}
+                      </div>
+                      <div style={{ fontSize: "0.6875rem", color: INK5, marginTop: 2, display: "flex", gap: 8, fontFamily: "ui-monospace, monospace" }}>
+                        <span><Activity size={9} style={{ verticalAlign: "middle" }} /> {p.numPings} pings</span>
+                        <span>{fmtKm(p.distanceMeters)}</span>
+                        <span>{fmtDuration(p.durationSeconds)}</span>
+                      </div>
+                      {!p.isPreferred && canRecalc && (
+                        <button
+                          type="button"
+                          onClick={() => markPreferred(p.id)}
+                          disabled={busy || markingPreferred !== null}
+                          style={{
+                            marginTop: 6,
+                            display: "inline-flex", alignItems: "center", gap: 4,
+                            height: 26, padding: "0 10px", borderRadius: 6,
+                            border: "none", background: INK9, color: "#fff",
+                            fontSize: "0.6875rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                          }}
+                          title="Reescribir route.waypoints con esta pasada (peso 100%)"
+                        >
+                          {busy ? (
+                            <Loader2 size={10} style={{ animation: "spin 0.7s linear infinite" }} />
+                          ) : (
+                            <Star size={10} />
+                          )}
+                          Marcar como recomendada
+                        </button>
+                      )}
+                    </div>
                   );
                 })
               )}

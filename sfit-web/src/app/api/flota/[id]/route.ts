@@ -7,10 +7,12 @@ import { Driver } from "@/models/Driver";
 import { LocationPing } from "@/models/LocationPing";
 import { Route as RouteModel } from "@/models/Route";
 import { RouteCapture } from "@/models/RouteCapture";
+import { Vehicle } from "@/models/Vehicle";
 import { apiResponse, apiError, apiForbidden, apiNotFound, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
+import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
 import { haversineMeters } from "@/lib/geo/haversine";
 import { computeQualityScore, polylineLengthMeters, type GpsPoint } from "@/lib/routes/converge";
 import { rolesFor } from "@/lib/auth/roleMatrix";
@@ -49,6 +51,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
   } else {
     if (!(await canAccessMunicipality(auth.session, String(entry.municipalityId)))) return apiForbidden();
+    // Operador: acotar a entries cuyo vehículo pertenezca a SU empresa.
+    // Sin este chequeo otra empresa del mismo municipio podría leer sus
+    // turnos por id directo.
+    if (auth.session.role === ROLES.OPERADOR) {
+      const companyId = await getOperatorCompanyId(auth.session.userId);
+      if (!companyId) return apiForbidden();
+      const vehicleDoc = entry.vehicleId as unknown as { companyId?: unknown; _id?: unknown } | null;
+      // populate trae solo plate/brand/model/vehicleTypeKey; companyId no
+      // está poblado, así que lo resolvemos por separado.
+      const vId = vehicleDoc?._id ?? entry.vehicleId;
+      if (!vId) return apiForbidden();
+      const v = await Vehicle.findById(String(vId)).select("companyId").lean<{ companyId?: unknown } | null>();
+      if (!v || String(v.companyId ?? "") !== String(companyId)) return apiForbidden();
+    }
   }
 
   // Lookup de la RouteCapture asociada para que la app pueda mostrar el
@@ -80,7 +96,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
     .map((p) => ({ lat: p.lat, lng: p.lng, ts: p.ts.toISOString() }));
 
-  return apiResponse({ id: String(entry._id), ...entry, capture, trackPoints });
+  // Devolvemos la misma forma que GET /flota (lista): `vehicle/driver/route`
+  // como objetos top-level (no `vehicleId/driverId/routeId` populados).
+  // Antes la app móvil recibía `vehicleId` como objeto y fallaba al deserializar.
+  const { vehicleId: _v, driverId: _d, routeId: _r, _id: _entryId, ...rest } =
+    entry as unknown as Record<string, unknown>;
+  return apiResponse({
+    id: String(entry._id),
+    ...rest,
+    vehicle: entry.vehicleId as unknown as Record<string, unknown>,
+    route: entry.routeId as unknown as Record<string, unknown> | null,
+    driver: entry.driverId as unknown as Record<string, unknown>,
+    capture,
+    trackPoints,
+  });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

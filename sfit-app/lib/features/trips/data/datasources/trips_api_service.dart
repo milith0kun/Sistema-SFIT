@@ -265,6 +265,38 @@ class TripsApiService {
     return Map<String, dynamic>.from(data);
   }
 
+  /// POST /rutas/:routeId/marcar-preferida — el conductor marca su propia
+  /// FleetEntry como pasada "recomendada" de la ruta. El backend valida que
+  /// la captura sea suya (driverId del session) y reescribe `Route.waypoints`
+  /// con los puntos GPS de esta pasada (peso 100%). El próximo conductor
+  /// que tome la ruta verá ese trazado como oficial.
+  ///
+  /// Devuelve `{routeId, preferredCaptureId, preferredAt, waypointsReplaced,
+  /// waypointCount, totalPings, filteredByAccuracy}`.
+  Future<Map<String, dynamic>> markRoutePreferredCapture({
+    required String routeId,
+    required String captureId,
+  }) async {
+    final resp = await _dio.post(
+      '/rutas/$routeId/marcar-preferida',
+      data: {'captureId': captureId},
+    );
+    final body = resp.data as Map?;
+    final status = resp.statusCode ?? 0;
+    if (status >= 400 || body == null || body['success'] == false) {
+      final err = body?['error'] as String? ?? 'HTTP $status';
+      throw LocationSendException(err, statusCode: status);
+    }
+    final data = body['data'];
+    if (data is! Map) {
+      throw LocationSendException(
+        'Respuesta inesperada del servidor',
+        statusCode: status,
+      );
+    }
+    return Map<String, dynamic>.from(data);
+  }
+
   /// PATCH /flota/:entryId/location — envía update de GPS al backend.
   /// Retorna el body `data` parseado (incluye `visitedStops` y `newlyVisited`).
   ///

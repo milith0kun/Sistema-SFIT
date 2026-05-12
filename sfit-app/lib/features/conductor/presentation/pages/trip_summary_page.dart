@@ -48,6 +48,43 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
   List<LatLng> _persistedTrack = const [];
   /// Indica si el bulk upload se disparó automáticamente (para evitar loops).
   bool _bulkUploadAttempted = false;
+
+  /// Estado del flujo "Marcar como recomendada":
+  ///   - `idle`: muestra el botón.
+  ///   - `loading`: spinner mientras se hace el POST.
+  ///   - `done`: confirma a través de un mensaje verde, oculta el botón.
+  ///   - `error`: muestra mensaje de error, permite reintentar.
+  _MarkPreferredState _markPreferred = _MarkPreferredState.idle;
+  String? _markPreferredMessage;
+
+  Future<void> _markAsPreferred(String routeId) async {
+    setState(() {
+      _markPreferred = _MarkPreferredState.loading;
+      _markPreferredMessage = null;
+    });
+    try {
+      final svc = ref.read(tripsApiServiceProvider);
+      final data = await svc.markRoutePreferredCapture(
+        routeId: routeId,
+        captureId: widget.entryId,
+      );
+      if (!mounted) return;
+      final replaced = data['waypointsReplaced'] == true;
+      final count = data['waypointCount'] as int? ?? 0;
+      setState(() {
+        _markPreferred = _MarkPreferredState.done;
+        _markPreferredMessage = replaced
+            ? '¡Listo! Ruta oficial actualizada con $count puntos GPS de esta grabación.'
+            : 'Marcada como recomendada, pero esta grabación no tiene suficientes puntos válidos.';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _markPreferred = _MarkPreferredState.error;
+        _markPreferredMessage = 'No se pudo marcar: $e';
+      });
+    }
+  }
   /// Estado del retry automático del bulk: para mostrar progreso en UI y
   /// permitir reintento manual cuando se agotan los intentos automáticos.
   int _bulkAttempt = 0;
@@ -304,6 +341,7 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
         visitedStops: visitedStops,
         waypoints: waypoints,
         plate: plate,
+        route: route,
         routeName: route?['name'] as String?,
         captureStatus: captureStatus,
         distanceMeters: distanceMeters,
@@ -323,6 +361,7 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
     required List<Map<String, dynamic>> visitedStops,
     required List<Map<String, dynamic>> waypoints,
     required String plate,
+    required Map<String, dynamic>? route,
     required String? routeName,
     required String? captureStatus,
     required num? distanceMeters,
@@ -763,6 +802,24 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
                         ),
                       ],
                       const SizedBox(height: 20),
+                      // Marcar esta grabación como "recomendada" para la ruta.
+                      // Solo visible cuando hay routeId (no en candidatas) y el
+                      // trazo es válido — el endpoint exige FleetEntry propia.
+                      // El backend reescribe Route.waypoints con peso 100%.
+                      if ((route?['_id'] as String? ??
+                              route?['id'] as String?) !=
+                          null &&
+                          hasValidTrack) ...[
+                        _MarkPreferredAction(
+                          state: _markPreferred,
+                          message: _markPreferredMessage,
+                          onPressed: () => _markAsPreferred(
+                            (route!['_id'] as String?) ??
+                                (route['id'] as String),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       // Botón Listo
                       SizedBox(
                         width: double.infinity,
@@ -1126,6 +1183,119 @@ class _BulkRetryBanner extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Estados del flujo "Marcar esta grabación como recomendada" en
+/// `TripSummaryPage`. Idle = botón visible; loading = spinner; done = mensaje
+/// de éxito (oculta el botón); error = mensaje + permite reintentar.
+enum _MarkPreferredState { idle, loading, done, error }
+
+/// Bloque de acción para que el conductor marque su propia FleetEntry como
+/// pasada recomendada del corredor. Vive en el bottom sheet del resumen.
+/// El backend reescribe `Route.waypoints` con los puntos GPS de esta
+/// grabación (peso 100%), así el próximo conductor que tome la ruta verá
+/// ese trazado como oficial.
+class _MarkPreferredAction extends StatelessWidget {
+  final _MarkPreferredState state;
+  final String? message;
+  final VoidCallback onPressed;
+
+  const _MarkPreferredAction({
+    required this.state,
+    required this.message,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (state == _MarkPreferredState.done) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0FDF4),
+          border: Border.all(color: const Color(0xFF86EFAC)),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle,
+                size: 18, color: Color(0xFF15803D)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message ?? '¡Marcada como recomendada!',
+                style: AppTheme.inter(
+                  fontSize: 12.5,
+                  color: const Color(0xFF15803D),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final isLoading = state == _MarkPreferredState.loading;
+    final isError = state == _MarkPreferredState.error;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: 44,
+          child: OutlinedButton.icon(
+            onPressed: isLoading ? null : onPressed,
+            icon: isLoading
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 1.5),
+                  )
+                : const Icon(Icons.star_outline, size: 18),
+            label: Text(
+              isError
+                  ? 'Reintentar marcar como recomendada'
+                  : 'Marcar esta grabación como recomendada',
+              style: AppTheme.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.ink9,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.ink9,
+              side: const BorderSide(color: AppColors.ink2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ),
+        if (isError && message != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            message!,
+            style: AppTheme.inter(
+              fontSize: 11.5,
+              color: AppColors.danger,
+            ),
+          ),
+        ] else ...[
+          const SizedBox(height: 4),
+          Text(
+            'La ruta oficial usará tus puntos GPS para que el próximo '
+            'conductor vea este trazado.',
+            style: AppTheme.inter(
+              fontSize: 11,
+              color: AppColors.ink5,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

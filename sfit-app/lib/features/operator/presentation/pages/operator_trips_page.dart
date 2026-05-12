@@ -114,21 +114,11 @@ class _OperatorTripsPageState extends ConsumerState<OperatorTripsPage> {
         ),
       ]),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text(
-                'Crea el viaje desde el panel web. Aquí lo verás listado.',
-              ),
-              behavior: SnackBarBehavior.floating,
-              backgroundColor: AppColors.ink9,
-              action: SnackBarAction(
-                label: 'OK',
-                textColor: Colors.white,
-                onPressed: () {},
-              ),
-            ),
-          );
+        onPressed: () async {
+          final created = await context.push<bool>('/operador/viajes/nuevo');
+          if (created == true && mounted) {
+            ref.invalidate(operadorTripsProvider);
+          }
         },
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,

@@ -12,6 +12,7 @@ import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { ROLES } from "@/lib/constants";
 import { logAction } from "@/lib/audit/logAction";
 import { convergeCaptures, type GpsPoint } from "@/lib/routes/converge";
+import { extractFleetEntryAsWaypoints } from "@/lib/routes/extractFleetEntry";
 import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const Body = z.object({
@@ -61,6 +62,105 @@ export async function POST(
   const route = await Route.findById(id);
   if (!route) return apiNotFound("Ruta no encontrada");
   if (!(await canAccessMunicipality(auth.session, String(route.municipalityId)))) return apiForbidden();
+
+  // Fast-path: si el operador ya marcó una pasada como preferida con
+  // /marcar-preferida, esa decisión gana sobre el promedio convergente.
+  // Usamos sus puntos GPS directamente (peso 100%). Idempotente con
+  // marcar-preferida (que ya hace lo mismo), pero útil cuando alguien
+  // dispara /recalcular después de marcar para confirmar el estado.
+  if (route.preferredCaptureId) {
+    const currentWaypoints: GpsPoint[] = (route.waypoints ?? []).map((w) => ({
+      lat: w.lat,
+      lng: w.lng,
+    }));
+    const extracted = await extractFleetEntryAsWaypoints(
+      route.preferredCaptureId,
+      {
+        rdpEpsilonMeters: parsed.data.rdpEpsilon,
+        resampleCount: parsed.data.resampleCount,
+      },
+    );
+    if (extracted.waypoints.length < 2) {
+      return apiError(
+        "La pasada preferida no tiene suficientes puntos GPS válidos. " +
+          "Limpia el override con DELETE /marcar-preferida o elige otra pasada.",
+        400,
+      );
+    }
+
+    if (parsed.data.preview) {
+      return apiResponse({
+        preview: true,
+        source: "preferred",
+        preferredCaptureId: String(route.preferredCaptureId),
+        before: currentWaypoints,
+        after: extracted.waypoints,
+        waypointCount: extracted.waypoints.length,
+        totalPings: extracted.totalPings,
+        filteredByAccuracy: extracted.filteredByAccuracy,
+      });
+    }
+
+    route.waypoints = extracted.waypoints.map((p, i) => ({
+      order: i,
+      lat: p.lat,
+      lng: p.lng,
+    })) as typeof route.waypoints;
+    await route.save();
+
+    if (route.waypoints.length >= 2) {
+      void (async () => {
+        try {
+          const { routeAlongWaypoints } = await import("@/lib/routing/routingService");
+          const geom = await routeAlongWaypoints(
+            route.waypoints.map((w) => ({ lat: w.lat, lng: w.lng })),
+          );
+          await Route.findByIdAndUpdate(route._id, {
+            polylineGeometry: geom
+              ? {
+                  coords: geom.coords,
+                  distanceMeters: geom.distanceMeters,
+                  durationSecondsBaseline: geom.durationSeconds,
+                  computedAt: new Date(),
+                }
+              : null,
+          });
+        } catch (err) {
+          console.warn("[rutas/[id]/recalcular] recompute geometry (preferred) failed", err);
+        }
+      })();
+    }
+
+    void logAction({
+      userId: auth.session.userId,
+      action: "route.converged",
+      resource: "route",
+      resourceId: String(route._id),
+      details: {
+        source: "preferred",
+        preferredCaptureId: String(route.preferredCaptureId),
+        previousPointCount: currentWaypoints.length,
+        newPointCount: route.waypoints.length,
+        totalPings: extracted.totalPings,
+        filteredByAccuracy: extracted.filteredByAccuracy,
+      },
+      req: request,
+      municipalityId: auth.session.municipalityId,
+      role: auth.session.role,
+    });
+
+    return apiResponse({
+      preview: false,
+      source: "preferred",
+      preferredCaptureId: String(route.preferredCaptureId),
+      routeId: String(route._id),
+      before: currentWaypoints,
+      after: extracted.waypoints,
+      waypointCount: extracted.waypoints.length,
+      totalPings: extracted.totalPings,
+      filteredByAccuracy: extracted.filteredByAccuracy,
+    });
+  }
 
   // Capturas candidatas: status "raw" o "validated", ordenadas por calidad descendente.
   const captures = await RouteCapture.find({
