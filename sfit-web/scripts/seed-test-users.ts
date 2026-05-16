@@ -22,11 +22,12 @@ dns.setServers(["8.8.8.8", "1.1.1.1", "8.8.4.4"]);
 config({ path: ".env.local" });
 
 // Provincia y municipalidad de pruebas resueltas desde el catálogo UBIGEO real.
-// Cusco-Cusco-Cusco (provincia 0801, distrito 080101). Se asume que el catálogo
+// Apurímac-Cotabambas-Tambobamba (provincia 0305, distrito 030501). El sistema
+// corre para la Municipalidad Provincial de Cotabambas. Se asume que el catálogo
 // UBIGEO ya fue sembrado: `npx tsx scripts/seed-ubigeo.ts`.
-const TEST_PROVINCE_UBIGEO     = "0801";
-const TEST_MUNICIPALITY_UBIGEO = "080101";
-const TEST_DEPARTMENT_UBIGEO   = "08";   // Cusco
+const TEST_PROVINCE_UBIGEO     = "0305";
+const TEST_MUNICIPALITY_UBIGEO = "030501";
+const TEST_DEPARTMENT_UBIGEO   = "03";   // Apurímac
 
 // Empresa de transporte de prueba — asignada al operador de seed.
 const TEST_COMPANY_RUC = "20100000001";
@@ -36,8 +37,6 @@ const PASSWORD = "Sfit2026!";
 
 type Role =
   | "super_admin"
-  | "admin_regional"
-  | "admin_provincial"
   | "admin_municipal"
   | "fiscal"
   | "operador"
@@ -48,7 +47,7 @@ interface SeedUser {
   email: string;
   name: string;
   role: Role;
-  scope: "global" | "region" | "province" | "municipality";
+  scope: "global" | "municipality";
 }
 
 const USERS: SeedUser[] = [
@@ -57,18 +56,6 @@ const USERS: SeedUser[] = [
     name: "Super Administrador SFIT",
     role: "super_admin",
     scope: "global",
-  },
-  {
-    email: "regional@sfit.test",
-    name: "Administrador Regional SFIT",
-    role: "admin_regional",
-    scope: "region",
-  },
-  {
-    email: "provincial@sfit.test",
-    name: "Administrador Provincial SFIT",
-    role: "admin_provincial",
-    scope: "province",
   },
   {
     email: "municipal@sfit.test",
@@ -226,13 +213,8 @@ async function main() {
       updatedAt: new Date(),
     };
 
-    if (u.scope === "region" || u.scope === "province" || u.scope === "municipality") {
-      set.regionId = provinceDoc.regionId;
-    }
-    if (u.scope === "province" || u.scope === "municipality") {
-      set.provinceId = provinceId;
-    }
     if (u.scope === "municipality") {
+      // El hook pre-save de User denormaliza provinceId y regionId desde la muni.
       set.municipalityId = municipalityId;
     }
     // El operador queda vinculado a la empresa de prueba: sin esto el helper

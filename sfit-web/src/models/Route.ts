@@ -35,7 +35,28 @@ export interface IRoute extends Document {
   length?: string;
   area?: string;
   vehicleTypeKey?: string;
+  /**
+   * Empresa propietaria de la ruta. Aplica cuando `isShared=false` (caso
+   * normal: ruta interprovincial pertenece a una empresa específica). Para
+   * rutas compartidas (`isShared=true`) este campo queda en null y la lista
+   * de operadores autorizados vive en `companyIds`.
+   */
   companyId?: mongoose.Types.ObjectId;
+  /**
+   * Ruta compartida por múltiples empresas con misma tarifa y mismos
+   * paraderos (caso típico de transporte urbano intra-provincial en
+   * Cotabambas). Cuando es `true`:
+   *   - `companyId` se ignora (queda null).
+   *   - `companyIds` lista las empresas autorizadas a operarla.
+   *   - Cada Trip debe traer `companyId` explícito para saber qué empresa
+   *     ejecutó cada viaje (auditoría regulatoria).
+   */
+  isShared: boolean;
+  /**
+   * Empresas autorizadas a operar una ruta compartida. Solo se usa si
+   * `isShared=true`. Vacío en rutas no compartidas.
+   */
+  companyIds: mongoose.Types.ObjectId[];
   vehicleCount: number;
   status: "activa" | "suspendida";
   frequencies?: string[];
@@ -135,6 +156,8 @@ const RouteSchema = new Schema<IRoute>(
     area: { type: String },
     vehicleTypeKey: { type: String },
     companyId: { type: Schema.Types.ObjectId, ref: "Company" },
+    isShared: { type: Boolean, default: false, index: true },
+    companyIds: { type: [{ type: Schema.Types.ObjectId, ref: "Company" }], default: [], index: true },
     vehicleCount: { type: Number, default: 0 },
     status: { type: String, enum: ["activa", "suspendida"], default: "activa" },
     frequencies: { type: [String], default: [] },
@@ -202,6 +225,26 @@ const RouteSchema = new Schema<IRoute>(
 
 RouteSchema.index({ municipalityId: 1, code: 1 }, { unique: true });
 RouteSchema.index({ serviceScope: 1, originDistrictCode: 1 });
+
+/**
+ * Hook pre-validate: garantiza coherencia entre `isShared`, `companyId` y
+ * `companyIds`. Ejecutado tanto en `.save()` como en `.create()`.
+ *   - Ruta compartida: companyId debe ser null/undefined; companyIds
+ *     debe tener al menos 1 empresa.
+ *   - Ruta no compartida: companyIds debe estar vacío. companyId puede
+ *     ser opcional (rutas sin dueño asignado todavía).
+ */
+RouteSchema.pre("validate", function () {
+  if (this.isShared) {
+    if (this.companyId) this.companyId = undefined;
+    if (!this.companyIds || this.companyIds.length === 0) {
+      throw new Error("Una ruta compartida debe listar al menos una empresa en companyIds");
+    }
+  } else if (this.companyIds && this.companyIds.length > 0) {
+    // Limpiamos en lugar de fallar para tolerar payloads laxos
+    this.companyIds = [] as never;
+  }
+});
 
 export const Route: Model<IRoute> =
   (mongoose.models.Route as Model<IRoute> | undefined) ||

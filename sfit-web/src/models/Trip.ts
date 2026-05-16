@@ -15,6 +15,14 @@ export interface ITrip extends Document {
   municipalityId: mongoose.Types.ObjectId;
   vehicleId: mongoose.Types.ObjectId;
   /**
+   * Empresa operadora del viaje. Crítico para auditoría regulatoria en
+   * rutas urbanas COMPARTIDAS (varias empresas usan misma ruta y paraderos),
+   * donde no basta inferir de `Vehicle.companyId`. Para rutas no
+   * compartidas coincide con la empresa del vehículo. Opcional para
+   * compatibilidad con trips legacy.
+   */
+  companyId?: mongoose.Types.ObjectId;
+  /**
    * Driver al que se asigna o que reclama el viaje. Opcional porque en el
    * flujo "pull" se puede crear un viaje sin driver y los conductores lo
    * toman desde el catálogo (`/api/viajes/disponibles`).
@@ -57,6 +65,7 @@ const TripSchema = new Schema<ITrip>(
   {
     municipalityId: { type: Schema.Types.ObjectId, ref: "Municipality", required: true, index: true },
     vehicleId: { type: Schema.Types.ObjectId, ref: "Vehicle", required: true },
+    companyId: { type: Schema.Types.ObjectId, ref: "Company", index: true },
     // No required: el flujo "pull" admite viajes sin driver hasta que alguno lo toma.
     driverId: { type: Schema.Types.ObjectId, ref: "Driver", index: true },
     routeId: { type: Schema.Types.ObjectId, ref: "Route" },
@@ -95,6 +104,8 @@ const TripSchema = new Schema<ITrip>(
 TripSchema.index({ municipalityId: 1, startTime: -1 });
 TripSchema.index({ municipalityId: 1, status: 1 });
 TripSchema.index({ driverId: 1, status: 1 });
+// Auditoría regulatoria: viajes por empresa en un rango temporal.
+TripSchema.index({ companyId: 1, startTime: -1 });
 // Catálogo "pull": viajes disponibles sin driver asignado.
 TripSchema.index({ municipalityId: 1, status: 1, driverId: 1 });
 

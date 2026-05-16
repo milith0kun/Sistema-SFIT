@@ -45,6 +45,13 @@ const CreateSchema = z.object({
   area: z.string().max(20).optional(),
   vehicleTypeKey: z.string().optional(),
   companyId: z.string().refine(isValidObjectId).optional(),
+  /**
+   * Ruta urbana compartida por múltiples empresas (caso Cotabambas: misma
+   * ruta operada por varias empresas con misma tarifa y paraderos).
+   * Cuando es true, companyId queda null y companyIds lista los operadores.
+   */
+  isShared: z.boolean().optional(),
+  companyIds: z.array(z.string().refine(isValidObjectId)).max(20).optional(),
   vehicleCount: z.number().min(0).optional(),
   status: z.enum(["activa", "suspendida"]).optional(),
   frequencies: z.array(z.string().max(80)).optional(),
@@ -252,12 +259,17 @@ export async function POST(request: NextRequest) {
     await connectDB();
     if (!(await canAccessMunicipality(auth.session, municipalityId))) return apiForbidden();
 
-    // companyId:
-    //   - operador: forzar a su empresa propia (ignora body) y validar muni.
-    //   - admins (SA/AR/AP/AM): si viene en body, validar que pertenezca al
-    //     scope geográfico vía scopedCompanyFilter.
+    // companyId / isShared / companyIds:
+    //   - operador: solo puede crear rutas NO compartidas, forzadas a su empresa.
+    //   - admins (super_admin / admin_municipal):
+    //       * isShared=true → companyId queda null y companyIds debe traer >=1
+    //         empresa válida (scopedCompanyFilter).
+    //       * isShared=false (default) → companyId opcional; si viene se valida.
     const dataForCreate: Record<string, unknown> = { ...parsed.data };
     if (auth.session.role === ROLES.OPERADOR) {
+      if (parsed.data.isShared) {
+        return apiForbidden("El operador no puede crear rutas compartidas");
+      }
       const myCompanyId = await getOperatorCompanyId(auth.session.userId);
       if (!myCompanyId) return apiError("Sin empresa asignada", 400);
       const company = await Company.findById(myCompanyId).select("municipalityId").lean<{ municipalityId?: unknown } | null>();
@@ -265,6 +277,24 @@ export async function POST(request: NextRequest) {
         return apiForbidden();
       }
       dataForCreate.companyId = myCompanyId;
+      dataForCreate.companyIds = [];
+    } else if (parsed.data.isShared) {
+      if (!parsed.data.companyIds || parsed.data.companyIds.length === 0) {
+        return apiValidationError({
+          companyIds: ["Las rutas compartidas requieren al menos una empresa autorizada"],
+        });
+      }
+      const filter = await scopedCompanyFilter(auth.session);
+      const valid = await Company.find({
+        _id: { $in: parsed.data.companyIds },
+        ...filter,
+      })
+        .select("_id")
+        .lean();
+      if (valid.length !== parsed.data.companyIds.length) {
+        return apiForbidden("Una o más empresas no son accesibles en tu scope");
+      }
+      dataForCreate.companyId = undefined;
     } else if (parsed.data.companyId) {
       const filter = await scopedCompanyFilter(auth.session);
       const match = await Company.findOne({ _id: parsed.data.companyId, ...filter })

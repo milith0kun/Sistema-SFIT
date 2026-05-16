@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
 
     // municipalityId según rol:
     //   - admin_municipal/fiscal/operador: usa el del JWT.
-    //   - super_admin/admin_regional/admin_provincial: viene del body.
+    //   - super_admin: viene del body.
     let municipalityId = parsed.data.municipalityId;
     if (
       auth.session.role === ROLES.ADMIN_MUNICIPAL ||
@@ -177,6 +177,7 @@ export async function POST(request: NextRequest) {
     // Operador: bloquear creación si no tiene empresa, y validar que el
     // vehicleId pertenezca a SU empresa (no permitir crear viajes con buses
     // de otras empresas).
+    let companyId: string | undefined;
     if (auth.session.role === ROLES.OPERADOR) {
       const myCompanyId = await getOperatorCompanyId(auth.session.userId);
       if (!myCompanyId) return apiError("Sin empresa asignada", 400);
@@ -186,11 +187,20 @@ export async function POST(request: NextRequest) {
       if (!vehicle || String(vehicle.companyId ?? "") !== String(myCompanyId)) {
         return apiForbidden();
       }
+      companyId = String(myCompanyId);
+    } else {
+      // Para admin_municipal/super_admin: derivar companyId desde el vehículo.
+      // En rutas urbanas compartidas se sobrescribirá si el body lo indica.
+      const vehicle = await Vehicle.findById(parsed.data.vehicleId)
+        .select("companyId")
+        .lean<{ companyId?: unknown } | null>();
+      if (vehicle?.companyId) companyId = String(vehicle.companyId);
     }
 
     const created = await Trip.create({
       municipalityId,
       vehicleId: parsed.data.vehicleId,
+      companyId,
       driverId: parsed.data.driverId,
       routeId: parsed.data.routeId,
       fleetEntryId: parsed.data.fleetEntryId,
