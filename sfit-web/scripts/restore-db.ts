@@ -106,7 +106,7 @@ async function main() {
     for await (const doc of readJsonl(file)) {
       ops.push({
         replaceOne: {
-          filter: { _id: doc._id },
+          filter: { _id: doc._id as never },
           replacement: doc,
           upsert: true,
         },

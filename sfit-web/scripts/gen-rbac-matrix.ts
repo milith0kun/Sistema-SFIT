@@ -39,8 +39,6 @@ const ACTION_SHORT: Record<Action, string> = {
 
 const ROLE_LABEL: Record<Role, string> = {
   super_admin: "Super Admin",
-  admin_regional: "Admin Regional",
-  admin_provincial: "Admin Provincial",
   admin_municipal: "Admin Municipal",
   fiscal: "Fiscal",
   operador: "Operador",
