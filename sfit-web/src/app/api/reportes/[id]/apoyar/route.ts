@@ -22,7 +22,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireRole(request, [ROLES.CIUDADANO, ROLES.FISCAL, ROLES.ADMIN_MUNICIPAL, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_REGIONAL, ROLES.SUPER_ADMIN]);
+  const auth = requireRole(request, [ROLES.CIUDADANO, ROLES.FISCAL, ROLES.ADMIN_MUNICIPAL, ROLES.SUPER_ADMIN]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   try {

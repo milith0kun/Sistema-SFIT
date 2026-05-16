@@ -164,8 +164,7 @@ export function Topbar({
 
   // Contexto territorial del usuario
   const contextLabel = useMemo(() => {
-    if (user.role === "super_admin") return "Plataforma Nacional";
-    if (user.role === "admin_provincial") return municipalityName ?? "Provincia";
+    if (user.role === "super_admin") return "Plataforma";
     if (user.role === "admin_municipal") return municipalityName ?? "Municipalidad";
     if (user.role === "fiscal") return municipalityName ?? "Jurisdicción";
     if (user.role === "operador") return municipalityName ?? "Empresa";

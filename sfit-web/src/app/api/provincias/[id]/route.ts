@@ -71,7 +71,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_REGIONAL]);
+  const auth = requireRole(request, [ROLES.SUPER_ADMIN]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }

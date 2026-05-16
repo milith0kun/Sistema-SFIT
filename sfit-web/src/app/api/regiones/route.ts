@@ -29,7 +29,7 @@ const CreateSchema = z.object({
  */
 export async function GET(request: NextRequest) {
   const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_REGIONAL, ROLES.ADMIN_PROVINCIAL,
+    ROLES.SUPER_ADMIN,
     ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL, ROLES.OPERADOR,
   ]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();

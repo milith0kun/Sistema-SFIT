@@ -6,8 +6,8 @@ import { ROLES, type Role } from "@/lib/constants";
  * las páginas web (`(dashboard)/.../page.tsx`) como los handlers de API
  * (`api/.../route.ts`) deben consumirla mediante `rolesFor(resource, action)`.
  *
- * Separación web/móvil:
- *   - WEB_ALLOWED_ROLES = los 4 admins jerárquicos (SA → AR → AP → AM).
+ * Modelo simplificado a 1 municipalidad:
+ *   - WEB_ALLOWED_ROLES = [super_admin, admin_municipal].
  *   - MOBILE_ONLY_ROLES = fiscal, operador, conductor, ciudadano. El layout
  *     `(dashboard)/layout.tsx` los redirige a MobileOnlyScreen.
  *
@@ -44,109 +44,111 @@ const A = ROLES;
 
 export const ROLE_MATRIX: Record<Resource, Record<Action, Role[]>> = {
   conductores: {
-    view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR],
-    create: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.OPERADOR],
-    edit: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR],
-    delete: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL],
+    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR],
+    create: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.OPERADOR],
+    edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR],
+    delete: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
   },
   vehiculos: {
-    view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR, A.CONDUCTOR],
-    create: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.OPERADOR],
-    edit: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.OPERADOR],
-    delete: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL],
+    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR, A.CONDUCTOR],
+    create: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.OPERADOR],
+    edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.OPERADOR],
+    delete: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
   },
   flota: {
-    view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR, A.CONDUCTOR],
-    create: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.OPERADOR, A.CONDUCTOR],
-    edit: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.OPERADOR, A.CONDUCTOR],
-    delete: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL],
+    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR, A.CONDUCTOR],
+    create: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.OPERADOR, A.CONDUCTOR],
+    edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.OPERADOR, A.CONDUCTOR],
+    delete: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
   },
   viajes: {
-    view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR, A.CONDUCTOR],
-    create: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.OPERADOR],
-    edit: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.OPERADOR, A.CONDUCTOR],
-    delete: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL],
+    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR, A.CONDUCTOR],
+    create: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.OPERADOR],
+    edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.OPERADOR, A.CONDUCTOR],
+    delete: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
   },
   rutas: {
-    view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR, A.CONDUCTOR],
-    create: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.OPERADOR],
-    edit: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.OPERADOR],
-    delete: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL],
+    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR, A.CONDUCTOR],
+    create: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.OPERADOR],
+    edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.OPERADOR],
+    delete: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
   },
   empresas: {
-    view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR],
-    create: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL],
-    edit: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.OPERADOR],
+    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR],
+    create: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
+    edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.OPERADOR],
     delete: [A.SUPER_ADMIN],
   },
   inspecciones: {
     // View: admins consultan/auditan en web (read-only). Fiscal trabaja en móvil.
-    view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR],
+    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR],
     // Create/Edit: solo fiscal desde la app móvil.
     create: [A.FISCAL],
     edit: [A.FISCAL],
     delete: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
   },
   sanciones: {
-    view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR, A.CONDUCTOR],
+    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR, A.CONDUCTOR],
     // Create/Edit: solo fiscal desde la app móvil. Anular tiene su propio
-    // listado SANCION_ANULAR_ROLES porque admins también pueden anular.
+    // listado SANCION_ANULAR_ROLES porque admin_municipal también puede anular.
     create: [A.FISCAL],
     edit: [A.FISCAL],
     delete: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
   },
   apelaciones: {
-    view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.FISCAL, A.CONDUCTOR],
+    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL, A.CONDUCTOR],
     // Conductor apela su propia sanción desde la app; operador apela en
     // nombre de su flota desde la app móvil. Ambos casos pasan por el mismo POST.
     create: [A.CONDUCTOR, A.OPERADOR],
-    // Resolver apelaciones: los 4 admins desde web + fiscal desde móvil
-    // (escalamiento administrativo). Scope geográfico se valida en el handler.
-    edit: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.FISCAL],
+    // Resolver apelaciones: admin_municipal desde web + fiscal desde móvil
+    // (escalamiento administrativo).
+    edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL],
     delete: [A.SUPER_ADMIN],
   },
   reportes: {
     // El operador ve los reportes que mencionan vehículos de su flota
     // (filtrado por companyId en el handler GET).
-    view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR, A.CIUDADANO],
+    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR, A.CIUDADANO],
     create: [A.CIUDADANO],
     edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL],
     delete: [A.SUPER_ADMIN],
   },
   recompensas: {
-    view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL, A.CIUDADANO],
+    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.CIUDADANO],
     create: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
     edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
     delete: [A.SUPER_ADMIN],
   },
   usuarios: {
-    view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL],
-    create: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL],
-    edit: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL],
+    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
+    create: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
+    edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
     delete: [A.SUPER_ADMIN],
   },
+  // Recursos geográficos: el modelo se conserva pero solo super_admin opera
+  // sobre ellos. En la práctica el sistema corre con 1 muni hardcoded en config.
   municipalidades: {
-    view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL],
-    create: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL],
-    edit: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL],
+    view: [A.SUPER_ADMIN],
+    create: [A.SUPER_ADMIN],
+    edit: [A.SUPER_ADMIN],
     delete: [A.SUPER_ADMIN],
   },
   provincias: {
-    view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL],
-    create: [A.SUPER_ADMIN, A.ADMIN_REGIONAL],
-    edit: [A.SUPER_ADMIN, A.ADMIN_REGIONAL],
+    view: [A.SUPER_ADMIN],
+    create: [A.SUPER_ADMIN],
+    edit: [A.SUPER_ADMIN],
     delete: [A.SUPER_ADMIN],
   },
   regiones: {
-    view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL],
+    view: [A.SUPER_ADMIN],
     create: [A.SUPER_ADMIN],
     edit: [A.SUPER_ADMIN],
     delete: [A.SUPER_ADMIN],
   },
   aprobaciones: {
-    view: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL],
-    create: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL],
-    edit: [A.SUPER_ADMIN, A.ADMIN_REGIONAL, A.ADMIN_PROVINCIAL, A.ADMIN_MUNICIPAL],
+    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
+    create: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
+    edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
     delete: [A.SUPER_ADMIN],
   },
 };
@@ -230,22 +232,19 @@ export const SANCION_ANULAR_ROLES: readonly Role[] = [
 /**
  * Roles cuya empresa está fija (no pueden cambiarla al crear conductor o
  * vehículo: el formulario muestra la empresa del operador en read-only).
- * Solo operador aplica; los admins eligen empresa destino dentro de su scope
- * geográfico filtrado por `scopedCompanyFilter`.
+ * Solo operador aplica; los admins eligen empresa destino.
  */
 export const FIXED_COMPANY_ROLES: readonly Role[] = [A.OPERADOR];
 
 /**
- * Roles que pueden navegar la app web. Son los 4 admins jerárquicos:
- *   super_admin → admin_regional → admin_provincial → admin_municipal
+ * Roles que pueden navegar la app web. Solo los 2 niveles administrativos:
+ *   super_admin → admin_municipal
  *
  * Cualquier otro rol autenticado en la web es redirigido a `MobileOnlyScreen`
  * por `(dashboard)/layout.tsx` (excepto la ruta `/perfil`).
  */
 export const WEB_ALLOWED_ROLES: readonly Role[] = [
   A.SUPER_ADMIN,
-  A.ADMIN_REGIONAL,
-  A.ADMIN_PROVINCIAL,
   A.ADMIN_MUNICIPAL,
 ];
 

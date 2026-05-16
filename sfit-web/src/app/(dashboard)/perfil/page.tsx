@@ -35,7 +35,6 @@ type Profile = {
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin:      "Super Administrador",
-  admin_provincial: "Administrador Provincial",
   admin_municipal:  "Administrador Municipal",
   fiscal:           "Fiscal / Inspector",
   operador:         "Operador",

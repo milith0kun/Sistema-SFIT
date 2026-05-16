@@ -11,7 +11,7 @@ import { KPIStrip, type KPIItem } from "@/components/dashboard/KPIStrip";
 import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
 type UserRole =
-  | "super_admin" | "admin_provincial" | "admin_municipal"
+  | "super_admin" | "admin_municipal"
   | "fiscal" | "operador" | "conductor" | "ciudadano";
 
 type UsuarioRow = {
@@ -32,7 +32,6 @@ const LIMIT   = 200;
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin:      "Super Administrador",
-  admin_provincial: "Administrador Provincial",
   admin_municipal:  "Administrador Municipal",
   fiscal:           "Fiscal",
   operador:         "Operador",

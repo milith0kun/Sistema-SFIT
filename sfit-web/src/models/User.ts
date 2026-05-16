@@ -15,12 +15,16 @@ export interface IUser extends Document {
 
   // Multi-tenancy
   municipalityId?: mongoose.Types.ObjectId;
+  /**
+   * Provincia derivada automáticamente desde la municipalidad por el hook
+   * pre-save/pre-findOneAndUpdate. Se mantiene aunque la jerarquía web sea
+   * solo super_admin → admin_municipal porque el modelo geográfico se
+   * conserva para datos históricos y para identificar la muni activa.
+   */
   provinceId?: mongoose.Types.ObjectId;
   /**
-   * Región (departamento) — nivel más alto de la jerarquía geográfica.
-   * Solo aplica al rol `admin_regional` (lo asigna super_admin); en otros
-   * roles se denormaliza automáticamente desde `Province.regionId` por el
-   * hook pre-save/findOneAndUpdate.
+   * Región (departamento) derivada automáticamente desde la provincia.
+   * Se mantiene por consistencia con el modelo geográfico.
    */
   regionId?: mongoose.Types.ObjectId;
   /**
@@ -127,8 +131,6 @@ const UserSchema = new Schema<IUser>(
       type: String,
       enum: [
         "super_admin",
-        "admin_regional",
-        "admin_provincial",
         "admin_municipal",
         "fiscal",
         "operador",
@@ -192,9 +194,11 @@ UserSchema.index({ provinceId: 1, status: 1 });
 
 /**
  * Hooks de denormalización: cuando se setea o cambia `municipalityId`, el
- * `provinceId` se llena automáticamente leyendo la municipalidad. Así los
- * listados del admin_provincial pueden filtrar simplemente por `provinceId`
- * sin necesidad de joins ni $or compuestos.
+ * `provinceId` y `regionId` se llenan automáticamente leyendo la jerarquía
+ * geográfica. Mantenemos la denormalización aunque la jerarquía web ya no
+ * use admin_provincial/admin_regional, porque el modelo geográfico
+ * (Region/Province/Municipality) sigue siendo fuente de verdad para datos
+ * históricos y para identificar el tenant activo.
  *
  * Cubre dos rutas: documentos hidratados (`new User().save()` /
  * `doc.save()`) vía pre("save"), y queries de actualización
@@ -233,8 +237,6 @@ UserSchema.pre("save", async function () {
     } else {
       // Si se quita la muni y no se setea explícitamente otra provincia,
       // limpiamos provinceId para evitar quedar con un dato inconsistente.
-      // El admin_provincial es la excepción: tiene provinceId pero no muni,
-      // y eso se setea explícitamente en el endpoint assign-admin-provincial.
       if (!this.isModified("provinceId")) this.provinceId = undefined;
     }
   }

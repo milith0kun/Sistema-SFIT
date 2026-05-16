@@ -54,7 +54,6 @@ const ROLE_META: Record<string, {
   requireProv: boolean; requireMuni: boolean;
 }> = {
   super_admin:      { label: "Super Administrador",      desc: "Acceso total al sistema — puede crear y gestionar todo", showProv: false, showMuni: false, requireProv: false, requireMuni: false },
-  admin_provincial: { label: "Administrador Provincial", desc: "Supervisa todas las municipalidades de su provincia",   showProv: true,  showMuni: false, requireProv: true,  requireMuni: false },
   admin_municipal:  { label: "Administrador Municipal",  desc: "Administra una municipalidad específica",                showProv: true,  showMuni: true,  requireProv: true,  requireMuni: true  },
   fiscal:           { label: "Fiscal / Inspector",       desc: "Realiza inspecciones en campo",                          showProv: true,  showMuni: true,  requireProv: false, requireMuni: false },
   operador:         { label: "Operador",                 desc: "Administra la flota de una empresa de transporte",       showProv: true,  showMuni: true,  requireProv: false, requireMuni: false },
@@ -376,7 +375,7 @@ export default function NuevoUsuarioPage() {
                             <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 2 }} />
                             <span>No hay empresas registradas en este municipio. Crea una empresa primero.</span>
                           </div>
-                          <Link href="/admin/empresas/nueva"
+                          <Link href="/empresas/nueva"
                             style={{ alignSelf: "flex-start", color: "#92400E", fontWeight: 700, textDecoration: "underline", fontSize: "0.75rem" }}>
                             Ir a crear empresa →
                           </Link>

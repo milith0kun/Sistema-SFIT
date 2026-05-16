@@ -47,13 +47,7 @@ export async function GET(request: NextRequest) {
 
     const filter: Record<string, unknown> = {};
 
-    // RNF-03: Aislamiento multi-tenant
-    if (auth.session.role === ROLES.ADMIN_PROVINCIAL) {
-      if (!auth.session.provinceId) return apiForbidden();
-      filter._id = auth.session.provinceId;
-    }
-
-    // Filtro UBIGEO por departamento (solo aplica si no estamos restringidos por _id).
+    // Filtro UBIGEO por departamento (solo aplica para super_admin).
     if (
       auth.session.role === ROLES.SUPER_ADMIN &&
       departmentCodeRaw &&
@@ -124,7 +118,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_REGIONAL]);
+  const auth = requireRole(request, [ROLES.SUPER_ADMIN]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }

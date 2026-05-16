@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   const auth = requireRole(request, [
     ROLES.OPERADOR,
     ROLES.ADMIN_MUNICIPAL,
-    ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_REGIONAL,
+    
     ROLES.SUPER_ADMIN,
   ]);
   if ("error" in auth) {
@@ -28,9 +28,8 @@ export async function GET(request: NextRequest) {
   }
 
   const { municipalityId, role } = auth.session;
-  // super_admin y admin_provincial no tienen municipalityId — devuelven totales globales
-  const isSuperScope =
-    role === ROLES.SUPER_ADMIN || role === ROLES.ADMIN_PROVINCIAL;
+  // super_admin no tiene municipalityId — devuelve totales globales
+  const isSuperScope = role === ROLES.SUPER_ADMIN;
   if (!municipalityId && !isSuperScope) {
     return apiError("Sin municipalidad asignada", 400);
   }
@@ -43,7 +42,7 @@ export async function GET(request: NextRequest) {
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
-    // Para super_admin / admin_provincial sin municipio: totales globales
+    // Para super_admin sin municipio: totales globales
     const muniFilter = isSuperScope ? {} : { municipalityId };
 
     const [

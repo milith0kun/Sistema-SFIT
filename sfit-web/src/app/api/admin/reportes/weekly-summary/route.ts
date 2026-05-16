@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     cronSecret === process.env.CRON_SECRET;
 
   if (!validCron) {
-    const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_REGIONAL]);
+    const auth = requireRole(request, [ROLES.SUPER_ADMIN]);
     if ("error" in auth) {
       return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
     }

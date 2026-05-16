@@ -103,7 +103,7 @@ export default function EmpresaDetallePage({ params }: Props) {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
     const u = JSON.parse(raw) as StoredUser;
-    if (!["super_admin", "admin_regional", "admin_provincial", "admin_municipal"].includes(u.role)) {
+    if (!["super_admin", "admin_municipal"].includes(u.role)) {
       router.replace("/dashboard"); return;
     }
     setUser(u);
@@ -370,7 +370,7 @@ export default function EmpresaDetallePage({ params }: Props) {
 
   const sc = scoreColor(company.reputationScore);
   const typeMap = new Map(types.map(t => [t.key, t.name]));
-  const canManage = !!user?.role && ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"].includes(user.role);
+  const canManage = !!user?.role && ["super_admin", "admin_municipal"].includes(user.role);
   const isSuspended = !company.active || company.status === "suspendido";
 
   const headerAction = (

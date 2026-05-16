@@ -47,8 +47,8 @@ type SancionItem = { _id: string; faultType: string; amountSoles: number; status
 type MunicipalStats = { kpis: MunicipalKpis; inspeccionesPorResultado: InspeccionResultado[]; top5VehiculosBajaReputacion: LowRepVehicle[]; ultimasSanciones: SancionItem[] };
 type StoredUser = { role: string; provinceId?: string; municipalityId?: string };
 
-const ROLE_LABELS: Record<string, string> = { super_admin: "Super Administrador", admin_provincial: "Administrador Provincial", admin_municipal: "Administrador Municipal", fiscal: "Fiscal / Inspector", operador: "Operador", conductor: "Conductor", ciudadano: "Ciudadano" };
-const ROLE_COLORS: Record<string, string> = { super_admin: G, admin_provincial: INK9, admin_municipal: INFO, fiscal: APTO, operador: WARN, conductor: INK6, ciudadano: "#a1a1aa" };
+const ROLE_LABELS: Record<string, string> = { super_admin: "Super Administrador", admin_municipal: "Administrador Municipal", fiscal: "Fiscal / Inspector", operador: "Operador", conductor: "Conductor", ciudadano: "Ciudadano" };
+const ROLE_COLORS: Record<string, string> = { super_admin: G, admin_municipal: INFO, fiscal: APTO, operador: WARN, conductor: INK6, ciudadano: "#a1a1aa" };
 
 function getToken(): string { return typeof window === "undefined" ? "" : localStorage.getItem("sfit_access_token") ?? ""; }
 
@@ -108,8 +108,8 @@ export default function EstadisticasPage() {
         fetch("/api/admin/stats/municipios", { headers }),
       ]);
       if (sres.ok) { const d: ApiResponse<GlobalStats> = await sres.json(); if (d.success && d.data) setStats(d.data); }
-      if (pres.ok) { const d: ApiResponse<{ items: Province[] }> = await pres.json(); if (d.success && d.data) { const items = d.data.items ?? []; setProvinces(currentUser.role === "admin_provincial" && currentUser.provinceId ? items.filter(p => p.id === currentUser.provinceId) : items); } }
-      if (mres.ok) { const d: ApiResponse<{ items: Municipality[] }> = await mres.json(); if (d.success && d.data) { const items = d.data.items ?? []; setMunicipalities(currentUser.role === "admin_provincial" && currentUser.provinceId ? items.filter(m => m.provinceId === currentUser.provinceId) : items); } }
+      if (pres.ok) { const d: ApiResponse<{ items: Province[] }> = await pres.json(); if (d.success && d.data) setProvinces(d.data.items ?? []); }
+      if (mres.ok) { const d: ApiResponse<{ items: Municipality[] }> = await mres.json(); if (d.success && d.data) setMunicipalities(d.data.items ?? []); }
       if (munires.ok) { const d: ApiResponse<{ rows: MunicipioRow[] }> = await munires.json(); if (d.success && d.data) setMunicipiosRows(d.data.rows ?? []); }
     } catch { setError("Error de conexión."); }
     finally { setLoading(false); }
@@ -128,7 +128,7 @@ export default function EstadisticasPage() {
 
   useEffect(() => {
     if (!user) return;
-    if (user.role === "super_admin" || user.role === "admin_regional" || user.role === "admin_provincial") void load(user);
+    if (user.role === "super_admin") void load(user);
     else if (user.role === "admin_municipal") void loadMunicipal();
     else setLoading(false);
   }, [user, load, loadMunicipal]);
@@ -183,8 +183,6 @@ export default function EstadisticasPage() {
 
   if (
     user.role !== "super_admin" &&
-    user.role !== "admin_regional" &&
-    user.role !== "admin_provincial" &&
     user.role !== "admin_municipal" &&
     user.role !== "fiscal"
   ) return <ComingSoon title="Estadísticas" rf="RF-19" />;

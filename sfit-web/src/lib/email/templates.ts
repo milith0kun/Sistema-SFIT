@@ -183,7 +183,6 @@ export function accountApprovedEmailHtml(params: {
 
   const roleLabels: Record<string, string> = {
     super_admin: 'Super Administrador',
-    admin_provincial: 'Administrador Provincial',
     admin_municipal: 'Administrador Municipal',
     fiscal: 'Fiscal',
     operador: 'Operador',

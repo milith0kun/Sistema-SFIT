@@ -29,7 +29,7 @@ type ActivityItem = {
 export async function GET(request: NextRequest) {
   const auth = requireRole(request, [
     ROLES.SUPER_ADMIN,
-    ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_REGIONAL,
+    
     ROLES.ADMIN_MUNICIPAL,
     ROLES.FISCAL,
   ]);
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     // Build municipality filter for non-super-admin users
     const muniFilter =
-      auth.session.role === ROLES.SUPER_ADMIN || auth.session.role === ROLES.ADMIN_PROVINCIAL
+      auth.session.role === ROLES.SUPER_ADMIN
         ? {}
         : { municipalityId: auth.session.municipalityId };
 

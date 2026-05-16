@@ -167,7 +167,7 @@ export async function DELETE(
 ) {
   const auth = requireRole(request, [
     ROLES.SUPER_ADMIN,
-    ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_REGIONAL,
+    
   ]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();

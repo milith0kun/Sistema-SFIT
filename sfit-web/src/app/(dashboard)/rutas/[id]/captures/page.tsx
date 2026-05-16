@@ -50,7 +50,7 @@ type Pass = {
 };
 
 type StoredUser = { role: string };
-const CAN_RECALC = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"];
+const CAN_RECALC = ["super_admin", "admin_municipal"];
 
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
 const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";

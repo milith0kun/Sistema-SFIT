@@ -46,7 +46,7 @@ const RED  = "#DC2626"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
 const GRN  = "#15803d"; const GRNBG = "#F0FDF4"; const GRNBD = "#86EFAC";
 const AMB  = "#b45309"; const AMBBG = "#FFFBEB"; const AMBBD = "#FCD34D";
 
-const ALLOWED_VIEW = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"];
+const ALLOWED_VIEW = ["super_admin", "admin_municipal"];
 
 const RESULT_META: Record<InspectionResult, { label: string; color: string; bg: string; bd: string }> = {
   aprobada:  { label: "Aprobada",  color: GRN, bg: GRNBG, bd: GRNBD },

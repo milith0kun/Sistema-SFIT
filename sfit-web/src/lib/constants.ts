@@ -1,17 +1,14 @@
 /**
- * Constantes de roles del sistema SFIT.
- * Coinciden con los roles definidos en el Readme (sección 5).
+ * Constantes de roles del sistema SFIT (modelo de 1 municipalidad).
  *
- * Jerarquía geográfica web:
- *   super_admin → admin_regional → admin_provincial → admin_municipal
+ * Jerarquía web (solo 2 niveles):
+ *   super_admin → admin_municipal
  *
  * Roles operativos móviles (no acceden a la web; ven MobileOnlyScreen):
  *   fiscal, operador, conductor, ciudadano
  */
 export const ROLES = {
   SUPER_ADMIN: "super_admin",
-  ADMIN_REGIONAL: "admin_regional",
-  ADMIN_PROVINCIAL: "admin_provincial",
   ADMIN_MUNICIPAL: "admin_municipal",
   FISCAL: "fiscal",
   OPERADOR: "operador",

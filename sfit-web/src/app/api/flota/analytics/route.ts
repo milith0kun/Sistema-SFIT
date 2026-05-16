@@ -37,8 +37,8 @@ export async function GET(request: NextRequest) {
   const auth = requireRole(request, [
     ROLES.OPERADOR,
     ROLES.ADMIN_MUNICIPAL,
-    ROLES.ADMIN_PROVINCIAL,
-    ROLES.ADMIN_REGIONAL,
+    
+    
     ROLES.SUPER_ADMIN,
   ]);
   if ("error" in auth) {

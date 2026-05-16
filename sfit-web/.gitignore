@@ -45,3 +45,6 @@ next-env.d.ts
 
 # cache local de datasets descargados (MTC, etc.) — se regenera con los seeds
 /.cache/
+
+# backups locales de MongoDB — pueden contener PII; nunca commitear
+/backups/

@@ -72,11 +72,9 @@ export async function GET(request: NextRequest) {
       filter.provinceId = provinceIdParam;
     }
 
-    // Filtros UBIGEO — disponibles para super_admin y admin_provincial.
+    // Filtros UBIGEO — disponibles solo para super_admin.
     // Para admin_municipal no aplican (el filtro base ya restringe a su _id).
-    const isPrivileged =
-      auth.session.role === ROLES.SUPER_ADMIN ||
-      auth.session.role === ROLES.ADMIN_PROVINCIAL;
+    const isPrivileged = auth.session.role === ROLES.SUPER_ADMIN;
 
     if (isPrivileged) {
       if (departmentCodeRaw && /^\d{2}$/.test(departmentCodeRaw)) {

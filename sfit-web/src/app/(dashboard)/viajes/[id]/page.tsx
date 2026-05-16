@@ -62,7 +62,7 @@ const LABEL: React.CSSProperties = {
   display: "block", fontSize: "0.6875rem", fontWeight: 700,
   letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, marginBottom: 6,
 };
-const CAN_EDIT = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"];
+const CAN_EDIT = ["super_admin", "admin_municipal"];
 
 interface Props { params: Promise<{ id: string }> }
 

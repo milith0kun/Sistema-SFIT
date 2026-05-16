@@ -17,7 +17,6 @@ import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
-import { Municipality } from "@/models/Municipality";
 import { Company } from "@/models/Company";
 import { signAccessToken, signRefreshToken } from "@/lib/auth/jwt";
 import { apiResponse, apiError, apiUnauthorized, apiForbidden, apiValidationError } from "@/lib/api/response";
@@ -25,7 +24,7 @@ import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { logAction } from "@/lib/audit/logAction";
 
-const ALLOWED_ROLES = [ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_MUNICIPAL];
+const ALLOWED_ROLES = [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL];
 
 // ── GET ──────────────────────────────────────────────────────────────────────
 
@@ -48,45 +47,8 @@ export async function GET(request: NextRequest) {
       return apiError("El admin municipal no tiene municipalidad asignada", 400);
     }
     filter.municipalityId = session.municipalityId;
-  } else if (session.role === ROLES.ADMIN_PROVINCIAL) {
-    if (!session.provinceId) {
-      return apiError("El admin provincial no tiene provincia asignada", 400);
-    }
-    // Acepta tanto provinceId directo (denormalizado por el hook de User)
-    // como municipalityId IN munis-de-su-provincia, para tolerar datos
-    // pre-migración mientras corre el endpoint sync-province-ids.
-    await connectDB();
-    const muniIds = (
-      await Municipality.find({ provinceId: session.provinceId }).select("_id").lean()
-    ).map((m: { _id: unknown }) => m._id);
-    filter.$or = [
-      { provinceId: session.provinceId },
-      { municipalityId: { $in: muniIds } },
-    ];
-  } else if (session.role === ROLES.ADMIN_REGIONAL) {
-    if (!session.regionId) {
-      return apiError("El admin regional no tiene región asignada", 400);
-    }
-    // Resolver provincias de la región y aceptar match por regionId
-    // directo (denormalizado) o por provinceId IN provs / municipalityId
-    // IN munis para datos pre-migración.
-    await connectDB();
-    const { Province } = await import("@/models/Province");
-    const provIds = (
-      await Province.find({ regionId: session.regionId }).select("_id").lean()
-    ).map((p: { _id: unknown }) => p._id);
-    const muniIdsRegional = provIds.length > 0
-      ? (await Municipality.find({
-          provinceId: { $in: provIds as import("mongoose").Types.ObjectId[] },
-        }).select("_id").lean())
-          .map((m: { _id: unknown }) => m._id)
-      : [];
-    filter.$or = [
-      { regionId: session.regionId },
-      { provinceId: { $in: provIds } },
-      { municipalityId: { $in: muniIdsRegional } },
-    ];
   }
+  // super_admin: sin filtro (ve todos los usuarios).
 
   const validRoles = Object.values(ROLES);
   if (roleFilter && validRoles.includes(roleFilter as typeof ROLES[keyof typeof ROLES])) {
@@ -146,7 +108,7 @@ const CreateSchema = z.object({
   email:          z.string().email("Correo inválido").toLowerCase(),
   password:       z.string().min(8, "Mínimo 8 caracteres").max(128),
   role: z.enum([
-    "super_admin", "admin_provincial", "admin_municipal",
+    "super_admin", "admin_municipal",
     "fiscal", "operador", "conductor", "ciudadano",
   ]),
   provinceId:     z.string().refine(v => !v || isValidObjectId(v), "provinceId inválido").optional(),

@@ -67,7 +67,7 @@ type StoredUser = { role: string };
 interface Props { params: Promise<{ id: string }> }
 // Los 4 admins jerárquicos editan rutas dentro de su scope geográfico; el
 // operador gestiona las rutas de su empresa desde la app móvil.
-const CAN_EDIT = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"];
+const CAN_EDIT = ["super_admin", "admin_municipal"];
 
 /* Paleta sobria */
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";

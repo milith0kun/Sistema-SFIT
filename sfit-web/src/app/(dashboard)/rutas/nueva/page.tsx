@@ -58,7 +58,7 @@ const FALLBACK_DISTRICTS: Array<{ code: string; name: string; province: string }
   { code: "040125", name: "Yanahuara",     province: "Arequipa" },
 ];
 
-const ALLOWED_CREATE = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"];
+const ALLOWED_CREATE = ["super_admin", "admin_municipal"];
 
 /* Paleta */
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";

@@ -1,5 +1,4 @@
 import { NextRequest } from "next/server";
-import mongoose from "mongoose";
 import { connectDB } from "@/lib/db/mongoose";
 import { Inspection } from "@/models/Inspection";
 import { CitizenReport } from "@/models/CitizenReport";
@@ -22,10 +21,10 @@ type MunicipioRow = {
 /**
  * GET /api/admin/stats/municipios
  * Agrega métricas por municipalidad usando $group.
- * Roles: super_admin, admin_provincial
+ * Roles: super_admin (vista global)
  */
 export async function GET(request: NextRequest) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_REGIONAL]);
+  const auth = requireRole(request, [ROLES.SUPER_ADMIN]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }
@@ -33,18 +32,7 @@ export async function GET(request: NextRequest) {
   try {
     await connectDB();
 
-    // Build optional province scope for admin_provincial
-    let municipioIds: mongoose.Types.ObjectId[] | null = null;
-    if (auth.session.role === ROLES.ADMIN_PROVINCIAL && auth.session.provinceId) {
-      const munis = await Municipality.find({ provinceId: auth.session.provinceId })
-        .select("_id")
-        .lean();
-      municipioIds = munis.map((m) => m._id as mongoose.Types.ObjectId);
-    }
-
-    const muniMatch = municipioIds
-      ? { municipalityId: { $in: municipioIds } }
-      : {};
+    const muniMatch = {};
 
     const [inspAgg, reportAgg, sanctAgg, municipios] = await Promise.all([
       // Inspecciones agrupadas por municipio
@@ -68,8 +56,8 @@ export async function GET(request: NextRequest) {
         { $match: muniMatch },
         { $group: { _id: "$municipalityId", total: { $sum: 1 } } },
       ]),
-      // Todos los municipios del scope
-      Municipality.find(municipioIds ? { _id: { $in: municipioIds } } : {})
+      // Todos los municipios
+      Municipality.find({})
         .select("_id name")
         .lean(),
     ]);

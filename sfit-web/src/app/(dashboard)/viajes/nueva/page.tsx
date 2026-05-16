@@ -20,7 +20,7 @@ type RouteItem   = {
   serviceScope?: string;
 };
 
-const ALLOWED_CREATE = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"];
+const ALLOWED_CREATE = ["super_admin", "admin_municipal"];
 
 /* Modalidades que requieren manifiesto nominal de pasajeros (RNF de Track A). */
 const SCOPES_REQUIRING_LIST = new Set([

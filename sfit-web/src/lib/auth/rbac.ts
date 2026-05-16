@@ -1,171 +1,87 @@
-import mongoose from "mongoose";
 import { Municipality } from "@/models/Municipality";
-import { Province } from "@/models/Province";
 import { ROLES } from "@/lib/constants";
 import type { ServiceScope } from "@/models/Company";
 import type { JwtPayload } from "./jwt";
 
 /**
- * Helpers RBAC centralizados. Implementan el aislamiento multi-tenant de
- * RNF-02 / RNF-03 y la jerarquía:
+ * Helpers RBAC centralizados. Modelo de 1 municipalidad:
  *   Super Admin       → todo
- *   Admin Regional    → su región (todas las provincias y munis dentro)
- *   Admin Provincial  → su provincia (todas las munis dentro)
  *   Admin Municipal   → su municipalidad
  *   Operador/Fiscal/Conductor/Ciudadano → su municipalidad
+ *
+ * Aislamiento multi-tenant (RNF-02 / RNF-03): toda query se filtra por
+ * `municipalityId = session.municipalityId` salvo super_admin.
  */
 
 /**
  * `true` si la sesión puede operar sobre la municipalidad indicada.
- * Para el Admin Provincial resuelve la provincia de la municipalidad en BD.
- * Requiere conexión activa a MongoDB (`connectDB()` antes).
  */
 export async function canAccessMunicipality(
   session: JwtPayload,
   municipalityId: string,
 ): Promise<boolean> {
   if (!municipalityId) return false;
-
   if (session.role === ROLES.SUPER_ADMIN) return true;
-
-  if (session.role === ROLES.ADMIN_REGIONAL) {
-    if (!session.regionId) return false;
-    // Resolver muni → province → region y comparar.
-    const muni = await Municipality.findById(municipalityId)
-      .select("provinceId")
-      .lean<{ provinceId?: unknown } | null>();
-    if (!muni?.provinceId) return false;
-    const prov = await Province.findById(String(muni.provinceId))
-      .select("regionId")
-      .lean<{ regionId?: unknown } | null>();
-    if (!prov?.regionId) return false;
-    return String(prov.regionId) === String(session.regionId);
-  }
-
-  if (session.role === ROLES.ADMIN_PROVINCIAL) {
-    if (!session.provinceId) return false;
-    const muni = await Municipality.findById(municipalityId)
-      .select("provinceId")
-      .lean<{ provinceId?: unknown } | null>();
-    if (!muni?.provinceId) return false;
-    return String(muni.provinceId) === String(session.provinceId);
-  }
-
-  // Admin Municipal, Fiscal, Operador, Conductor y Ciudadano: solo la propia.
   return !!session.municipalityId &&
     String(session.municipalityId) === String(municipalityId);
 }
 
 /**
  * `true` si la sesión puede operar sobre la provincia indicada.
- * Los roles por debajo de la provincia no tienen visibilidad a ese nivel.
+ * Solo super_admin tiene visibilidad cross-provincia en este modelo.
  */
 export function canAccessProvince(
   session: JwtPayload,
   provinceId: string,
 ): boolean {
   if (!provinceId) return false;
-  if (session.role === ROLES.SUPER_ADMIN) return true;
-  if (session.role === ROLES.ADMIN_PROVINCIAL) {
-    return (
-      !!session.provinceId &&
-      String(session.provinceId) === String(provinceId)
-    );
-  }
-  // admin_regional sync requiere lookup; usar canAccessProvinceAsync.
-  return false;
+  return session.role === ROLES.SUPER_ADMIN;
 }
 
 /**
- * Versión async que resuelve la región de la provincia para el caso
- * `admin_regional`. Usar cuando se necesita comparar provincia con la
- * región de la sesión (que requiere ir a BD).
+ * Variante async retenida por compatibilidad de firma con callers que aún
+ * la importan; en el modelo actual equivale a la versión síncrona.
  */
 export async function canAccessProvinceAsync(
   session: JwtPayload,
   provinceId: string,
 ): Promise<boolean> {
-  if (!provinceId) return false;
-  if (session.role === ROLES.SUPER_ADMIN) return true;
-
-  if (session.role === ROLES.ADMIN_REGIONAL) {
-    if (!session.regionId) return false;
-    const prov = await Province.findById(provinceId)
-      .select("regionId")
-      .lean<{ regionId?: unknown } | null>();
-    return !!prov?.regionId && String(prov.regionId) === String(session.regionId);
-  }
-
-  if (session.role === ROLES.ADMIN_PROVINCIAL) {
-    return !!session.provinceId &&
-      String(session.provinceId) === String(provinceId);
-  }
-  return false;
+  return canAccessProvince(session, provinceId);
 }
 
 /**
  * `true` si la sesión puede operar sobre la región indicada.
- * Solo super_admin y admin_regional (sobre la suya).
+ * Solo super_admin.
  */
 export function canAccessRegion(
   session: JwtPayload,
   regionId: string,
 ): boolean {
   if (!regionId) return false;
-  if (session.role === ROLES.SUPER_ADMIN) return true;
-  if (session.role === ROLES.ADMIN_REGIONAL) {
-    return !!session.regionId && String(session.regionId) === String(regionId);
-  }
-  return false;
+  return session.role === ROLES.SUPER_ADMIN;
 }
 
 /**
  * Filtro Mongoose para listar municipalidades según el rol de la sesión:
  *   Super Admin       → {}                                (todas)
- *   Admin Regional    → { provinceId IN provs-de-region } (todas las munis de su región)
- *   Admin Provincial  → { provinceId }                    (las de su provincia)
  *   Admin Municipal + → { _id }                           (solo la suya)
  *   Sin scope válido  → filtro imposible { _id: null }    (sin resultados)
- *
- * Para admin_regional el filtro es async porque requiere resolver las
- * provincias de la región en BD; usar `scopedMunicipalityFilterAsync`.
  */
 export function scopedMunicipalityFilter(
   session: JwtPayload,
 ): Record<string, unknown> {
   if (session.role === ROLES.SUPER_ADMIN) return {};
-
-  if (session.role === ROLES.ADMIN_PROVINCIAL) {
-    if (!session.provinceId) return { _id: null };
-    return { provinceId: session.provinceId };
-  }
-
-  // admin_regional usar la versión async; aquí devolvemos filtro imposible
-  // para forzar al caller a usar `scopedMunicipalityFilterAsync`.
-  if (session.role === ROLES.ADMIN_REGIONAL) {
-    return { _id: null };
-  }
-
   if (!session.municipalityId) return { _id: null };
   return { _id: session.municipalityId };
 }
 
 /**
- * Versión async — única que cubre admin_regional resolviendo provincias
- * de su región en BD. Para los demás roles devuelve lo mismo que la
- * versión síncrona.
+ * Variante async retenida por compatibilidad. En el modelo actual ya no
+ * requiere lookups a BD; equivale a la versión síncrona.
  */
 export async function scopedMunicipalityFilterAsync(
   session: JwtPayload,
 ): Promise<Record<string, unknown>> {
-  if (session.role === ROLES.ADMIN_REGIONAL) {
-    if (!session.regionId) return { _id: null };
-    const provs = await Province.find({ regionId: session.regionId })
-      .select("_id")
-      .lean<Array<{ _id: unknown }>>();
-    if (provs.length === 0) return { _id: null };
-    return { provinceId: { $in: provs.map((p) => p._id) } };
-  }
   return scopedMunicipalityFilter(session);
 }
 
@@ -186,17 +102,12 @@ export interface CompanyForRbac {
 /**
  * `true` si la sesión puede EDITAR la empresa indicada.
  *
- * Reglas:
- *   - super_admin                : siempre.
- *   - admin_provincial           : si la empresa está sediada en su provincia
- *                                  o su scope es urbano_distrital/urbano_provincial
- *                                  cubriendo al menos un distrito de su provincia.
- *   - admin_municipal            : solo empresas urbano_distrital cuya cobertura
- *                                  incluya su distrito.
- *   - otros                      : nunca.
- *
- * Para chequeos por provincia/distrito a partir de `municipalityId` se usa
- * `Municipality.findById(...).provinceCode` resuelto en BD (ya cargada).
+ * Reglas (modelo 1 muni):
+ *   - super_admin     : siempre.
+ *   - admin_municipal : empresas urbano_distrital cuya cobertura incluya
+ *                       el distrito de su municipalidad, O empresas sediadas
+ *                       en su municipalidad (cualquier serviceScope).
+ *   - otros           : nunca.
  */
 export async function canEditCompany(
   session: JwtPayload,
@@ -204,60 +115,16 @@ export async function canEditCompany(
 ): Promise<boolean> {
   if (session.role === ROLES.SUPER_ADMIN) return true;
 
-  if (session.role === ROLES.ADMIN_REGIONAL) {
-    if (!session.regionId) return false;
-    // Caso 1: la empresa está sediada en una muni cuya provincia pertenece
-    // a la región del admin.
-    if (company.municipalityId) {
-      const muni = await Municipality.findById(company.municipalityId)
-        .select("provinceId")
-        .lean<{ provinceId?: unknown } | null>();
-      if (muni?.provinceId) {
-        const prov = await Province.findById(String(muni.provinceId))
-          .select("regionId")
-          .lean<{ regionId?: unknown } | null>();
-        if (prov?.regionId && String(prov.regionId) === String(session.regionId)) {
-          return true;
-        }
-      }
-    }
-    // Caso 2: la cobertura de la empresa incluye el departmentCode de la región.
-    const regionDoc = await Municipality.db
-      .collection("regions")
-      .findOne({ _id: session.regionId as unknown as object }, { projection: { ubigeoCode: 1 } });
-    const regionCode = (regionDoc as { ubigeoCode?: string } | null)?.ubigeoCode;
-    if (regionCode && company.coverage?.departmentCodes?.includes(regionCode)) {
-      return true;
-    }
-    return false;
-  }
-
-  if (session.role === ROLES.ADMIN_PROVINCIAL) {
-    if (!session.provinceId) return false;
-    // Caso 1: la empresa está sediada en su provincia.
-    if (company.municipalityId) {
-      const muni = await Municipality.findById(company.municipalityId)
-        .select("provinceId")
-        .lean<{ provinceId?: unknown } | null>();
-      if (muni?.provinceId && String(muni.provinceId) === String(session.provinceId)) {
-        return true;
-      }
-    }
-    // Caso 2: la empresa cubre al menos una provincia del depto del admin.
-    // Para validar esto necesitaríamos el provinceCode de la sesión; por ahora
-    // resolvemos via la provincia en BD.
-    const sessionProvince = await Municipality.db
-      .collection("provinces")
-      .findOne({ _id: session.provinceId as unknown as object }, { projection: { ubigeoCode: 1 } });
-    const provCode = (sessionProvince as { ubigeoCode?: string } | null)?.ubigeoCode;
-    if (provCode && company.coverage?.provinceCodes?.includes(provCode)) {
-      return true;
-    }
-    return false;
-  }
-
   if (session.role === ROLES.ADMIN_MUNICIPAL) {
     if (!session.municipalityId) return false;
+    // Caso 1: la empresa está sediada en su municipalidad.
+    if (
+      company.municipalityId &&
+      String(company.municipalityId) === String(session.municipalityId)
+    ) {
+      return true;
+    }
+    // Caso 2: empresa urbano_distrital cuya cobertura incluye su distrito.
     if (company.serviceScope !== "urbano_distrital") return false;
     const muni = await Municipality.findById(session.municipalityId)
       .select("ubigeoCode")
@@ -273,82 +140,33 @@ export async function canEditCompany(
  * Filtro Mongoose para LISTAR empresas según el scope del rol.
  *
  *   super_admin       → {}                                 (todas)
- *   admin_provincial  → empresas sediadas en su provincia OR cuyo coverage
- *                       incluya el provinceCode de su provincia.
- *   admin_municipal   → empresas urbano_distrital cuya coverage incluya su
- *                       distrito (UBIGEO 6 dígitos).
+ *   admin_municipal   → empresas sediadas en su muni OR empresas
+ *                       urbano_distrital cuya coverage incluya su distrito.
  *
  * Si no hay scope válido devuelve filtro imposible para no leakear data.
  *
- * Asíncrono porque admin_provincial / admin_municipal requieren resolver el
- * UBIGEO de su provincia/distrito en BD.
+ * Asíncrono porque admin_municipal requiere resolver el UBIGEO de su distrito en BD.
  */
 export async function scopedCompanyFilter(
   session: JwtPayload,
 ): Promise<Record<string, unknown>> {
   if (session.role === ROLES.SUPER_ADMIN) return {};
 
-  if (session.role === ROLES.ADMIN_REGIONAL) {
-    if (!session.regionId) return { _id: null };
-    // Resolver todas las provincias de la región y luego sus munis.
-    const provs = await Province.find({ regionId: session.regionId })
-      .select("_id")
-      .lean<Array<{ _id: unknown }>>();
-    if (provs.length === 0) {
-      // Sin provincias resueltas, intentar match por departmentCode de coverage.
-      const regionDoc = await Municipality.db
-        .collection("regions")
-        .findOne({ _id: session.regionId as unknown as object }, { projection: { ubigeoCode: 1 } });
-      const regionCode = (regionDoc as { ubigeoCode?: string } | null)?.ubigeoCode;
-      if (regionCode) return { "coverage.departmentCodes": regionCode };
-      return { _id: null };
-    }
-    const provIds = provs.map((p) => p._id as mongoose.Types.ObjectId);
-    const munis = await Municipality.find({ provinceId: { $in: provIds } })
-      .select("_id")
-      .lean<Array<{ _id: unknown }>>();
-    const muniIds = munis.map((m) => m._id);
-    const regionDoc = await Municipality.db
-      .collection("regions")
-      .findOne({ _id: session.regionId as unknown as object }, { projection: { ubigeoCode: 1 } });
-    const regionCode = (regionDoc as { ubigeoCode?: string } | null)?.ubigeoCode;
-
-    const orClauses: Record<string, unknown>[] = [];
-    if (muniIds.length > 0) orClauses.push({ municipalityId: { $in: muniIds } });
-    if (regionCode) orClauses.push({ "coverage.departmentCodes": regionCode });
-    if (orClauses.length === 0) return { _id: null };
-    return { $or: orClauses };
-  }
-
-  if (session.role === ROLES.ADMIN_PROVINCIAL) {
-    if (!session.provinceId) return { _id: null };
-    // Resolver muni's de su provincia (para sede) y el provinceCode (para coverage).
-    const munis = await Municipality.find({ provinceId: session.provinceId })
-      .select("_id")
-      .lean<Array<{ _id: unknown }>>();
-    const muniIds = munis.map((m) => m._id);
-    const provDoc = await Municipality.db
-      .collection("provinces")
-      .findOne({ _id: session.provinceId as unknown as object }, { projection: { ubigeoCode: 1 } });
-    const provCode = (provDoc as { ubigeoCode?: string } | null)?.ubigeoCode;
-
-    const orClauses: Record<string, unknown>[] = [
-      { municipalityId: { $in: muniIds } },
-    ];
-    if (provCode) orClauses.push({ "coverage.provinceCodes": provCode });
-    return { $or: orClauses };
-  }
-
   if (session.role === ROLES.ADMIN_MUNICIPAL) {
     if (!session.municipalityId) return { _id: null };
     const muni = await Municipality.findById(session.municipalityId)
       .select("ubigeoCode")
       .lean<{ ubigeoCode?: string } | null>();
-    if (!muni?.ubigeoCode) return { _id: null };
-    return {
-      serviceScope: "urbano_distrital",
-      "coverage.districtCodes": muni.ubigeoCode,
-    };
+    const orClauses: Record<string, unknown>[] = [
+      { municipalityId: session.municipalityId },
+    ];
+    if (muni?.ubigeoCode) {
+      orClauses.push({
+        serviceScope: "urbano_distrital",
+        "coverage.districtCodes": muni.ubigeoCode,
+      });
+    }
+    return { $or: orClauses };
   }
 
   return { _id: null };

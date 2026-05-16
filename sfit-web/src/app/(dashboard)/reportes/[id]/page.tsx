@@ -53,7 +53,7 @@ const STATUS_META: Record<ReportStatus, { label: string; color: string; bg: stri
 };
 // Los 4 admins jerárquicos validan/cierran reportes ciudadanos desde web;
 // fiscal lo hace desde la app móvil.
-const CAN_ACT = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"];
+const CAN_ACT = ["super_admin", "admin_municipal"];
 
 const LABEL_S: React.CSSProperties = {
   display: "block", fontSize: "0.6875rem", fontWeight: 700,

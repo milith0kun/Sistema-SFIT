@@ -37,7 +37,7 @@ type Company = {
 type VehicleType = { id: string; key: string; name: string; active: boolean };
 type StoredUser = { role: string };
 
-const ALLOWED_ROLES = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"];
+const ALLOWED_ROLES = ["super_admin", "admin_municipal"];
 
 function repColor(score: number): string {
   if (score >= 80) return "#15803d";

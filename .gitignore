@@ -75,3 +75,6 @@ google-services.json
 # Screenshots y archivos temporales
 image*.png
 .claude/scheduled_tasks.lock
+
+# ----- Graphify -----
+graphify-out/cache/

@@ -37,8 +37,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   //   - CONDUCTOR: la sanción debe ser sobre él (driverId match).
   if (
     auth.session.role === ROLES.SUPER_ADMIN ||
-    auth.session.role === ROLES.ADMIN_REGIONAL ||
-    auth.session.role === ROLES.ADMIN_PROVINCIAL ||
     auth.session.role === ROLES.ADMIN_MUNICIPAL ||
     auth.session.role === ROLES.FISCAL
   ) {

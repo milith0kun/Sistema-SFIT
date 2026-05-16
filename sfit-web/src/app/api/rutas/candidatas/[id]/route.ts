@@ -137,8 +137,8 @@ export async function DELETE(
 ) {
   const auth = requireRole(request, [
     ROLES.SUPER_ADMIN,
-    ROLES.ADMIN_REGIONAL,
-    ROLES.ADMIN_PROVINCIAL,
+    
+    
     ROLES.ADMIN_MUNICIPAL,
     ROLES.OPERADOR,
   ]);

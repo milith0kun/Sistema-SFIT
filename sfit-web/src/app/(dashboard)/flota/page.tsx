@@ -337,7 +337,7 @@ export default function FlotaPage() {
 
   // Los 4 admins jerárquicos registran entradas de flota desde web;
   // operador y conductor lo hacen desde la app móvil.
-  const canRegister = ["super_admin", "admin_regional", "admin_provincial", "admin_municipal"].includes(user.role);
+  const canRegister = ["super_admin", "admin_municipal"].includes(user.role);
   const isToday = date === todayISO();
 
   return (

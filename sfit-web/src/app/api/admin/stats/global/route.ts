@@ -17,14 +17,13 @@ import { requireRole } from "@/lib/auth/guard";
 import { ROLES, USER_STATUS } from "@/lib/constants";
 
 /**
- * RF-02-07: Dashboard global del Super Admin / Admin Provincial.
+ * RF-02-07: Dashboard global del Super Admin / Admin Municipal.
  * super_admin     → métricas de toda la plataforma
- * admin_provincial→ métricas acotadas a su provincia
+ * admin_municipal → métricas acotadas a su municipalidad
  */
 export async function GET(request: NextRequest) {
   const auth = requireRole(request, [
     ROLES.SUPER_ADMIN,
-    ROLES.ADMIN_PROVINCIAL, ROLES.ADMIN_REGIONAL,
     ROLES.ADMIN_MUNICIPAL,
   ]);
   if ("error" in auth) {
@@ -34,11 +33,10 @@ export async function GET(request: NextRequest) {
   try {
     await connectDB();
 
-    const { role, provinceId, municipalityId } = auth.session;
+    const { municipalityId } = auth.session;
 
     const roleList = [
       ROLES.SUPER_ADMIN,
-      ROLES.ADMIN_PROVINCIAL,
       ROLES.ADMIN_MUNICIPAL,
       ROLES.FISCAL,
       ROLES.OPERADOR,
@@ -50,27 +48,10 @@ export async function GET(request: NextRequest) {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
-    // Calcular scope de municipios para admin_provincial
-    let scopedMuniIds: string[] | null = null;
-    if (role === ROLES.ADMIN_PROVINCIAL && provinceId) {
-      const munis = await Municipality.find({ provinceId }).select("_id").lean();
-      scopedMuniIds = munis.map((m) => String(m._id));
-    }
-
-    // Filtros base según rol
-    const muniFilter = municipalityId
-      ? { municipalityId }
-      : scopedMuniIds
-      ? { municipalityId: { $in: scopedMuniIds } }
-      : {};
-
-    const provinceFilter = scopedMuniIds ? { provinceId } : {};
-
-    const userScopeFilter = municipalityId
-      ? { municipalityId }
-      : scopedMuniIds
-      ? { provinceId }
-      : {};
+    // Filtros base según rol: super_admin → globales; admin_municipal → su muni
+    const muniFilter = municipalityId ? { municipalityId } : {};
+    const provinceFilter = {};
+    const userScopeFilter = municipalityId ? { municipalityId } : {};
 
     const sanctionFilter = { ...muniFilter, createdAt: { $gte: monthStart, $lte: monthEnd } };
     const reportFilter = { ...muniFilter, status: { $in: ["pendiente", "revision"] } };
@@ -87,8 +68,8 @@ export async function GET(request: NextRequest) {
       ...roleCounts
     ] = await Promise.all([
       Province.countDocuments(provinceFilter),
-      Municipality.countDocuments(scopedMuniIds ? { provinceId } : {}),
-      Municipality.countDocuments(scopedMuniIds ? { provinceId, active: true } : { active: true }),
+      Municipality.countDocuments({}),
+      Municipality.countDocuments({ active: true }),
       User.countDocuments({ ...userScopeFilter, status: USER_STATUS.PENDIENTE }),
       Company.countDocuments(muniFilter),
       VehicleType.countDocuments({}),
