@@ -68,6 +68,32 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<PendingUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Rol del actor leído de localStorage: define qué roles puede asignar
+  // al aprobar. super_admin es el único que puede crear admin_municipal.
+  const [actorRole, setActorRole] = useState<string>("");
+
+  useEffect(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("sfit_user") : null;
+      if (raw) {
+        const u = JSON.parse(raw) as { role?: string };
+        if (u.role) setActorRole(u.role);
+      }
+    } catch { /* localStorage corrupto, dejar vacío */ }
+  }, []);
+
+  /**
+   * Roles que el actor actual puede asignar al aprobar una solicitud:
+   *  - super_admin:    todos los roles del sistema, incluido admin_municipal.
+   *  - admin_municipal: ciudadano, conductor, operador, fiscal (NO admin_municipal).
+   *  - cualquier otro: ninguno (la page los redirige antes de llegar aquí).
+   */
+  const roleOptions = useMemo(() => {
+    if (actorRole === "super_admin") {
+      return [...ROLE_OPTIONS, { value: "admin_municipal", label: "Admin Municipal" }];
+    }
+    return ROLE_OPTIONS;
+  }, [actorRole]);
 
   // Selección + acción
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -299,6 +325,7 @@ export default function AdminUsersPage() {
               success={actionSuccess}
               onSubmit={handleAction}
               onClose={() => setSelectedId(null)}
+              roleOptions={roleOptions}
             />
           ) : (
             <DetailEmpty />
@@ -357,6 +384,7 @@ export default function AdminUsersPage() {
               success={actionSuccess}
               onSubmit={handleAction}
               onClose={() => setSelectedId(null)}
+              roleOptions={roleOptions}
             />
           </div>
         </div>,
@@ -598,6 +626,7 @@ function DetailPanel({
   rejectReason, setRejectReason,
   processing, error, success,
   onSubmit, onClose,
+  roleOptions,
 }: {
   user: PendingUser;
   action: ActionMode; setAction: (a: ActionMode) => void;
@@ -605,6 +634,7 @@ function DetailPanel({
   rejectReason: string; setRejectReason: (v: string) => void;
   processing: boolean; error: string | null; success: string | null;
   onSubmit: () => void; onClose: () => void;
+  roleOptions: { value: string; label: string }[];
 }) {
   return (
     <div style={{
@@ -705,7 +735,7 @@ function DetailPanel({
               outline: "none",
             }}
           >
-            {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+            {roleOptions.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
           </select>
           <svg viewBox="0 0 10 6" width="10" height="10" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} fill="none">
             <path d="M1 1l4 4 4-4" stroke={INK5} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

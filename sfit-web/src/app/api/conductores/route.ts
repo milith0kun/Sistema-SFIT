@@ -27,6 +27,7 @@ const CreateDriverSchema = z.object({
   continuousHours: z.number().min(0).max(24).default(0),
   restHours: z.number().min(0).max(24).default(8),
   reputationScore: z.number().min(0).max(100).default(100),
+  photoUrl: z.string().url().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -105,6 +106,7 @@ export async function GET(request: NextRequest) {
         licenseNumber: d.licenseNumber,
         licenseCategory: d.licenseCategory,
         phone: d.phone,
+        photoUrl: d.photoUrl,
         status: d.status,
         continuousHours: d.continuousHours,
         restHours: d.restHours,
@@ -191,6 +193,7 @@ export async function POST(request: NextRequest) {
       licenseNumber: parsed.data.licenseNumber,
       licenseCategory: parsed.data.licenseCategory,
       phone: parsed.data.phone,
+      photoUrl: parsed.data.photoUrl,
       status: parsed.data.status,
       continuousHours: parsed.data.continuousHours,
       restHours: parsed.data.restHours,

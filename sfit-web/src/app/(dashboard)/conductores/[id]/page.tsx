@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Save, Trash2, User, Phone, CreditCard, Award, Clock, TrendingUp,
-  AlertTriangle, CheckCircle, Loader2, Hash, Copy, Check, Building2, Pencil,
+  AlertTriangle, CheckCircle, Loader2, Hash, Copy, Check, Building2, Pencil, ImageUp,
 } from "lucide-react";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { PhotoUploader } from "@/components/ui/PhotoUploader";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 import { hasWebPermission, FATIGUE_ROLES } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
@@ -29,11 +30,13 @@ interface Conductor {
   phone?: string; status: "apto" | "riesgo" | "no_apto";
   continuousHours: number; restHours: number; reputationScore: number;
   active: boolean; createdAt: string; updatedAt: string;
+  photoUrl?: string;
 }
 interface Empresa { id: string; razonSocial: string }
 interface FormData {
   name: string; dni: string; licenseNumber: string;
   licenseCategory: string; companyId: string; phone: string;
+  photoUrl: string;
 }
 interface FieldErrors {
   name?: string; dni?: string; licenseNumber?: string; licenseCategory?: string;
@@ -105,7 +108,7 @@ export default function ConductorDetallePage({ params }: Props) {
   const [loadingConductor, setLoadingConductor] = useState(true);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [form, setForm] = useState<FormData>({
-    name: "", dni: "", licenseNumber: "", licenseCategory: "", companyId: "", phone: "",
+    name: "", dni: "", licenseNumber: "", licenseCategory: "", companyId: "", phone: "", photoUrl: "",
   });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -149,6 +152,7 @@ export default function ConductorDetallePage({ params }: Props) {
           licenseNumber: data.licenseNumber ?? "",
           licenseCategory: data.licenseCategory ?? "",
           companyId: data.companyId ?? "", phone: data.phone ?? "",
+          photoUrl: data.photoUrl ?? "",
         });
       })
       .catch(() => setNotFound(true))
@@ -283,6 +287,7 @@ export default function ConductorDetallePage({ params }: Props) {
     };
     if (form.companyId) payload.companyId = form.companyId;
     payload.phone = form.phone.trim() || undefined;
+    payload.photoUrl = form.photoUrl.trim() || null;
     try {
       const res = await fetch(`/api/conductores/${id}`, {
         method: "PUT",
@@ -775,35 +780,41 @@ export default function ConductorDetallePage({ params }: Props) {
             </div>
           </SectionCard>
 
-          {/* Empresa de transporte */}
+          {/* Empresa de transporte — read-only para admin_municipal.
+              La asignación a empresa la hace el OPERADOR desde la app móvil
+              cuando engancha conductor↔vehículo para su turno. El admin
+              solo valida licencia, DNI y foto. */}
           <SectionCard
             icon={<Building2 size={14} color={INK6} />}
             title="Empresa de transporte"
-            subtitle={canEdit ? "Asigna o cambia la empresa" : "Empresa asignada"}
+            subtitle="Asignación gestionada por el operador (app móvil)"
           >
-            {canEdit ? (
-              <div style={{ position: "relative" }}>
-                <select
-                  value={form.companyId}
-                  onChange={e => handleChange("companyId", e.target.value)}
-                  style={{ ...FIELD, appearance: "none", cursor: "pointer", paddingRight: 30 }}
-                  disabled={submitting}
-                  onFocus={e => { e.target.style.borderColor = INK9; }}
-                  onBlur={e => { e.target.style.borderColor = INK2; }}
-                >
-                  <option value="">Sin empresa asignada</option>
-                  {empresas.map(emp => (
-                    <option key={emp.id} value={emp.id}>{emp.razonSocial}</option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <input
-                style={READ}
-                value={conductor.companyName ?? "Sin empresa asignada"}
-                readOnly disabled
-              />
+            <input
+              style={READ}
+              value={conductor.companyName ?? "Sin empresa asignada"}
+              readOnly disabled
+            />
+            {empresas.length === 0 && (
+              <p style={{ marginTop: 6, fontSize: "0.6875rem", color: INK5, fontStyle: "italic" }}>
+                No hay empresas registradas en la municipalidad todavía.
+              </p>
             )}
+          </SectionCard>
+
+          {/* Foto referencial — usada en escaneo del ciudadano + reportes */}
+          <SectionCard
+            icon={<ImageUp size={14} color={INK6} />}
+            title="Foto referencial"
+            subtitle="Aparece en el escaneo del ciudadano y en reportes"
+          >
+            <PhotoUploader
+              category="driver"
+              value={form.photoUrl || null}
+              onChange={(url) => handleChange("photoUrl", url ?? "")}
+              aspect="square"
+              label=""
+              disabled={!canEdit || submitting}
+            />
           </SectionCard>
         </form>
 

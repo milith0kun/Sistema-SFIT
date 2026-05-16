@@ -60,7 +60,9 @@ const PERIODS: { key: string; label: string }[] = [
   { key: "mes", label: "Este mes" },
   { key: "todos", label: "Histórico" },
 ];
-const CAN_CREATE = ["super_admin", "admin_municipal"];
+// Crear viajes lo hace el OPERADOR desde la app móvil; admin_municipal solo
+// ve el listado para auditoría/sanciones. super_admin tiene acceso por debug.
+const CAN_CREATE = ["super_admin"];
 
 export default function ViajesPage() {
   const router = useRouter();

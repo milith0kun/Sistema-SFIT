@@ -20,6 +20,7 @@ const UpdateSchema = z.object({
   lastInspectionStatus: z.enum(["aprobada", "observada", "rechazada", "pendiente"]).optional(),
   reputationScore: z.number().min(0).max(100).optional(),
   soatExpiry: z.string().optional(),
+  photoUrl: z.string().url().nullable().optional(),
   active: z.boolean().optional(),
 });
 

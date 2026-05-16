@@ -39,11 +39,14 @@ export const NAV: NavItem[] = [
   { href: "/usuarios",        label: "Usuarios",            icon: Users,                 section: "GESTIÓN",        roles: ["super_admin","admin_municipal"] },
   { href: "/admin/users",     label: "Aprobaciones",        icon: UserCheck,             section: "GESTIÓN",        roles: ["super_admin","admin_municipal"] },
 
-  // OPERACIÓN — solo admin_municipal (super_admin no opera transporte)
+  // OPERACIÓN — solo admin_municipal (super_admin no opera transporte).
+  // /flota y /viajes/nueva son responsabilidad del OPERADOR (app móvil): el
+  // admin_municipal registra empresas/vehículos/conductores, pero las salidas
+  // diarias las programa el operador desde su app. /viajes queda como vista
+  // de auditoría read-only para admin_municipal.
   { href: "/empresas",        label: "Empresas",            icon: Building2,             section: "OPERACIÓN",      roles: ["admin_municipal"] },
   { href: "/conductores",     label: "Conductores",         icon: Users,                 section: "OPERACIÓN",      roles: ["admin_municipal"] },
   { href: "/vehiculos",       label: "Vehículos / QR",      icon: Car,                   section: "OPERACIÓN",      roles: ["admin_municipal"] },
-  { href: "/flota",           label: "Flota del día",       icon: ClipboardList,         section: "OPERACIÓN",      roles: ["admin_municipal"] },
   { href: "/rutas",           label: "Rutas y zonas",       icon: Route,                 section: "OPERACIÓN",      roles: ["admin_municipal"] },
   { href: "/viajes",          label: "Viajes",              icon: CalendarDays,          section: "OPERACIÓN",      roles: ["admin_municipal"] },
   // Inspecciones y apelaciones: read-only para admin_municipal; emisión queda

@@ -21,6 +21,7 @@ const CreateVehicleSchema = z.object({
   year: z.number().min(1990).max(new Date().getFullYear() + 1),
   status: z.enum(["disponible", "en_ruta", "en_mantenimiento", "fuera_de_servicio"]).optional(),
   soatExpiry: z.string().optional(),
+  photoUrl: z.string().url().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -99,6 +100,7 @@ export async function GET(request: NextRequest) {
         reputationScore: v.reputationScore,
         soatExpiry: v.soatExpiry,
         qrHmac: v.qrHmac,
+        photoUrl: v.photoUrl,
         active: v.active,
         createdAt: v.createdAt,
         updatedAt: v.updatedAt,
@@ -181,6 +183,7 @@ export async function POST(request: NextRequest) {
       year: parsed.data.year,
       status: parsed.data.status ?? VEHICLE_STATUS.DISPONIBLE,
       soatExpiry: parsed.data.soatExpiry ? new Date(parsed.data.soatExpiry) : undefined,
+      photoUrl: parsed.data.photoUrl,
     });
 
     return apiResponse({ id: String(created._id), ...created.toObject() }, 201);

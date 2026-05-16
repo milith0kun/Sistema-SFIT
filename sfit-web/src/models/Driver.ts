@@ -10,6 +10,13 @@ export interface IDriver extends Document {
   licenseNumber: string;
   licenseCategory: string;
   phone?: string;
+  /**
+   * Foto referencial del conductor (subida via POST /api/uploads/photos
+   * con category="driver"). Aparece en el escaneo del ciudadano cuando
+   * inicia un viaje interprovincial, en el dashboard del admin_municipal
+   * y en los reportes del fiscalizador.
+   */
+  photoUrl?: string;
   status: "apto" | "riesgo" | "no_apto";
   continuousHours: number;
   restHours: number;
@@ -32,6 +39,7 @@ const DriverSchema = new Schema<IDriver>(
     licenseNumber: { type: String, required: true, trim: true },
     licenseCategory: { type: String, required: true, trim: true, default: "A-IIB" },
     phone: { type: String, trim: true },
+    photoUrl: { type: String, trim: true },
     status: { type: String, enum: Object.values(DRIVER_STATUS), default: DRIVER_STATUS.APTO },
     continuousHours: { type: Number, default: 0, min: 0 },
     restHours: { type: Number, default: 8, min: 0 },

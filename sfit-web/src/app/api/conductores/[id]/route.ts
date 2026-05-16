@@ -15,6 +15,7 @@ const UpdateSchema = z.object({
   licenseNumber: z.string().min(4).max(30).optional(),
   licenseCategory: z.string().min(2).max(20).optional(),
   phone: z.string().max(30).optional(),
+  photoUrl: z.string().url().nullable().optional(),
   status: z.enum(["apto", "riesgo", "no_apto"]).optional(),
   continuousHours: z.number().min(0).max(24).optional(),
   restHours: z.number().min(0).max(24).optional(),

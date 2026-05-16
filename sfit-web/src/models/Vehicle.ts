@@ -15,6 +15,13 @@ export interface IVehicle extends Omit<Document, "model"> {
   reputationScore: number;
   soatExpiry?: Date;
   qrHmac?: string;
+  /**
+   * Foto referencial del vehículo (lateral o frontal). Aparece en el
+   * escaneo del ciudadano cuando inicia un viaje interprovincial, en el
+   * dashboard del admin_municipal y en los reportes del fiscalizador.
+   * Se sube via POST /api/uploads/photos con category="vehicle".
+   */
+  photoUrl?: string;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -39,6 +46,7 @@ const VehicleSchema = new Schema<IVehicle>(
     reputationScore: { type: Number, default: 100, min: 0, max: 100 },
     soatExpiry: { type: Date },
     qrHmac: { type: String },
+    photoUrl: { type: String, trim: true },
     active: { type: Boolean, default: true },
   },
   { timestamps: true },

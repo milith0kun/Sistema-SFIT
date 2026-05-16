@@ -23,6 +23,14 @@ function humanizeKey(key: string): string {
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
+type ServiceScope =
+  | "urbano_distrital"
+  | "urbano_provincial"
+  | "interprovincial_regional"
+  | "interregional_nacional";
+
+type Authorization = { scope: ServiceScope; [k: string]: unknown };
+
 type Company = {
   id: string;
   razonSocial: string;
@@ -32,7 +40,33 @@ type Company = {
   active: boolean;
   reputationScore: number;
   status?: "activo" | "suspendido" | "pendiente";
+  serviceScope?: ServiceScope;
+  authorizations?: Authorization[];
 };
+
+/**
+ * Modalidad operativa según la conversación con la municipalidad:
+ *   - "urbano":         opera rutas cortas intra-provincia con paraderos.
+ *   - "interprovincial": opera rutas largas a Cusco/Arequipa/Abancay.
+ *   - "mixta":          la empresa tiene authorizations en ambos tipos.
+ *
+ * Se calcula desde Company.serviceScope (default) y Company.authorizations[]
+ * (override si declara varias modalidades).
+ */
+type Modality = "urbano" | "interprovincial" | "mixta";
+
+function modalityOf(c: Company): Modality {
+  const scopes = new Set<ServiceScope>();
+  if (c.serviceScope) scopes.add(c.serviceScope);
+  for (const a of c.authorizations ?? []) {
+    if (a.scope) scopes.add(a.scope);
+  }
+  const hasUrban = [...scopes].some((s) => s === "urbano_distrital" || s === "urbano_provincial");
+  const hasInter = [...scopes].some((s) => s === "interprovincial_regional" || s === "interregional_nacional");
+  if (hasUrban && hasInter) return "mixta";
+  if (hasInter) return "interprovincial";
+  return "urbano";
+}
 
 type VehicleType = { id: string; key: string; name: string; active: boolean };
 type StoredUser = { role: string };
@@ -63,6 +97,7 @@ export default function EmpresasPage() {
   const [items, setItems] = useState<Company[]>([]);
   const [types, setTypes] = useState<VehicleType[]>([]);
   const [typeFilter, setTypeFilter] = useState<string>("");
+  const [tab, setTab] = useState<"todas" | Modality>("todas");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [forbidden, setForbidden] = useState(false);
@@ -182,6 +217,31 @@ export default function EmpresasPage() {
         ),
       },
       {
+        id: "modalidad",
+        header: "Modalidad",
+        enableSorting: false,
+        accessorFn: (c) => modalityOf(c),
+        cell: ({ row: r }) => {
+          const m = modalityOf(r.original);
+          const styles: Record<Modality, { bg: string; color: string; border: string; label: string }> = {
+            urbano:          { bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE", label: "URBANO" },
+            interprovincial: { bg: "#FBEAEA", color: "#4A0303", border: "#D9B0B0", label: "INTERPROV" },
+            mixta:           { bg: "#FEF3C7", color: "#92400E", border: "#FDE68A", label: "MIXTA" },
+          };
+          const s = styles[m];
+          return (
+            <span style={{
+              display: "inline-flex", alignItems: "center",
+              padding: "2px 9px", borderRadius: 999,
+              background: s.bg, color: s.color, border: `1px solid ${s.border}`,
+              fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.06em",
+            }}>
+              {s.label}
+            </span>
+          );
+        },
+      },
+      {
         id: "flota",
         header: "Tipos de vehículo",
         enableSorting: false,
@@ -260,9 +320,15 @@ export default function EmpresasPage() {
   if (!user) return null;
   const canCreate = user.role === "admin_municipal";
 
+  // Tally por modalidad para badges en los tabs.
+  const counts = { urbano: 0, interprovincial: 0, mixta: 0 };
+  for (const c of items) counts[modalityOf(c)] += 1;
+
+  const visibleItems = tab === "todas" ? items : items.filter((c) => modalityOf(c) === tab);
+
   const repAvg =
-    items.length > 0
-      ? Math.round(items.reduce((a, c) => a + c.reputationScore, 0) / items.length)
+    visibleItems.length > 0
+      ? Math.round(visibleItems.reduce((a, c) => a + c.reputationScore, 0) / visibleItems.length)
       : 0;
 
   const toolbarEnd = (
@@ -290,10 +356,45 @@ export default function EmpresasPage() {
       <KPIStrip
         cols={2}
         items={[
-          { label: "EMPRESAS", value: items.length, subtitle: "registradas", icon: Truck },
+          { label: "EMPRESAS", value: visibleItems.length, subtitle: tab === "todas" ? "registradas" : `de ${items.length} totales`, icon: Truck },
           { label: "REPUTACIÓN", value: repAvg, subtitle: "promedio del catálogo", icon: Star },
         ]}
       />
+
+      {/* Tabs por modalidad operativa */}
+      <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${INK2}` }}>
+        {([
+          { k: "todas" as const,           l: "Todas",            c: items.length },
+          { k: "urbano" as const,          l: "Urbanas",          c: counts.urbano },
+          { k: "interprovincial" as const, l: "Interprovinciales", c: counts.interprovincial },
+          { k: "mixta" as const,           l: "Mixtas",           c: counts.mixta },
+        ]).map((t) => {
+          const active = tab === t.k;
+          return (
+            <button
+              key={t.k}
+              onClick={() => setTab(t.k)}
+              style={{
+                padding: "9px 14px", fontSize: "0.875rem", fontWeight: 600,
+                cursor: "pointer", border: "none", background: "none",
+                borderBottom: active ? `2px solid ${INK9}` : "2px solid transparent",
+                marginBottom: -1, color: active ? INK9 : INK5,
+                fontFamily: "inherit",
+                display: "inline-flex", alignItems: "center", gap: 6,
+              }}
+            >
+              {t.l}
+              <span style={{
+                fontSize: "0.6875rem", padding: "1px 7px", borderRadius: 999,
+                background: active ? INK9 : INK1, color: active ? "#fff" : INK5,
+                fontWeight: 700, fontVariantNumeric: "tabular-nums",
+              }}>
+                {t.c}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
       {error && (
         <div
@@ -314,14 +415,16 @@ export default function EmpresasPage() {
 
       <DataTable<Company>
         columns={columns}
-        data={items}
+        data={visibleItems}
         loading={loading}
         searchPlaceholder="Buscar empresa, RUC o representante…"
         emptyTitle="Sin empresas"
         emptyDescription={
-          canCreate
-            ? "Registra la primera empresa para comenzar a gestionar su flota."
-            : "Aún no hay empresas registradas o ninguna coincide con los filtros."
+          tab !== "todas"
+            ? `No hay empresas con modalidad ${tab}. Cambia de pestaña o registra una nueva.`
+            : canCreate
+              ? "Registra la primera empresa para comenzar a gestionar su flota."
+              : "Aún no hay empresas registradas o ninguna coincide con los filtros."
         }
         defaultPageSize={20}
         showColumnToggle
