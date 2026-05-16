@@ -3,17 +3,40 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Download, Plus, Pencil, Eye, MapPin, Map, AlertTriangle } from "lucide-react";
+import { Download, Plus, Pencil, Eye, MapPin, Map, AlertTriangle, Users } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { GoogleMapView } from "@/components/ui/GoogleMapView";
 
 import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
-type RouteType = "ruta" | "zona";
+
+/**
+ * Modalidades del modelo Cotabambas:
+ *   - "urbano":         serviceScope ∈ {urbano_distrital, urbano_provincial}
+ *                       Rutas cortas intra-provincia (30 min–1.5 h), con paraderos.
+ *                       Pueden ser compartidas por varias empresas (isShared=true).
+ *   - "interprovincial": serviceScope ∈ {interprovincial_regional, interregional_nacional}
+ *                       Rutas largas a Cusco/Arequipa/Abancay. Cada empresa
+ *                       tiene sus propias rutas (isShared=false).
+ */
+type Modality = "urbano" | "interprovincial";
+type ServiceScope = "urbano_distrital" | "urbano_provincial" | "interprovincial_regional" | "interregional_nacional";
+
+function modalityOf(scope?: ServiceScope): Modality {
+  if (scope === "interprovincial_regional" || scope === "interregional_nacional") return "interprovincial";
+  return "urbano";
+}
+
 type Waypoint = { order: number; lat: number; lng: number; label?: string };
 type RouteItem = {
-  id: string; code: string; name: string; type: RouteType;
+  id: string; code: string; name: string;
+  type: "ruta" | "zona";
+  serviceScope?: ServiceScope;
+  isShared?: boolean;
+  companyIds?: string[];
+  originDistrictCode?: string;
+  destinationDistrictCode?: string;
   stops?: number; length?: string; area?: string;
   vehicleTypeKey?: string; companyName?: string; vehicleCount: number;
   status: "activa" | "suspendida"; frequencies?: string[];
@@ -49,7 +72,7 @@ export default function RutasPage() {
   const router = useRouter();
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [items, setItems] = useState<RouteItem[]>([]);
-  const [tab, setTab] = useState<RouteType>("ruta");
+  const [tab, setTab] = useState<Modality>("urbano");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sel, setSel] = useState<RouteItem | null>(null);
@@ -74,7 +97,7 @@ export default function RutasPage() {
       const data = await res.json();
       if (!res.ok || !data.success) { setError(data.error ?? "Error"); return; }
       setItems(data.data.items ?? []);
-      const first = (data.data.items ?? []).find((i: RouteItem) => i.type === tab);
+      const first = (data.data.items ?? []).find((i: RouteItem) => modalityOf(i.serviceScope) === tab);
       if (first) setSel(first);
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
@@ -83,9 +106,9 @@ export default function RutasPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const rutas = items.filter(i => i.type === "ruta");
-  const zonas = items.filter(i => i.type === "zona");
-  const visible = tab === "ruta" ? rutas : zonas;
+  const urbanas = items.filter(i => modalityOf(i.serviceScope) === "urbano");
+  const interprovinciales = items.filter(i => modalityOf(i.serviceScope) === "interprovincial");
+  const visible = tab === "urbano" ? urbanas : interprovinciales;
   const canEdit = user ? CAN_EDIT.includes(user.role) : false;
   const canCreate = user ? CAN_CREATE.includes(user.role) : false;
 
@@ -108,36 +131,61 @@ export default function RutasPage() {
     },
     {
       id: "nombre",
-      header: tab === "ruta" ? "Ruta" : "Zona",
+      header: tab === "urbano" ? "Ruta urbana" : "Ruta interprovincial",
       accessorFn: (row) => `${row.name} ${row.companyName ?? ""} ${row.frequencies?.join(" ") ?? ""}`,
       cell: ({ row: r }) => (
         <div>
-          <div style={{ fontWeight: 600, fontSize: "0.875rem", color: INK9 }}>
-            {r.original.name?.trim() || "Sin nombre"}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ fontWeight: 600, fontSize: "0.875rem", color: INK9 }}>
+              {r.original.name?.trim() || "Sin nombre"}
+            </span>
+            {r.original.isShared && (
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 3,
+                padding: "1px 7px", borderRadius: 999,
+                background: "#EFF6FF", color: "#1D4ED8",
+                border: "1px solid #BFDBFE",
+                fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.04em",
+              }}>
+                <Users size={9} />
+                COMPARTIDA
+              </span>
+            )}
           </div>
           <div style={{ fontSize: "0.75rem", color: INK5 }}>
-            {r.original.companyName?.trim()
-              || (r.original.frequencies?.[0]?.trim())
-              || <span style={{ color: INK5 }}>—</span>}
+            {tab === "urbano"
+              ? (r.original.isShared
+                  ? `${r.original.companyIds?.length ?? 0} empresas`
+                  : (r.original.companyName?.trim() || <span style={{ color: INK5 }}>—</span>))
+              : (r.original.companyName?.trim() || <span style={{ color: INK5 }}>—</span>)
+            }
           </div>
         </div>
       ),
     },
-    {
-      id: "paradas",
-      header: tab === "ruta" ? "Paradas" : "Área",
-      accessorFn: (row) => tab === "ruta" ? (row.stops ?? 0) : (row.area ?? ""),
-      cell: ({ row: r }) => (
-        <span style={{ fontSize: "0.8125rem", color: INK9, fontVariantNumeric: "tabular-nums" }}>
-          {tab === "ruta"
-            ? (r.original.stops != null
+    tab === "interprovincial"
+      ? {
+          id: "destino",
+          header: "Origen → Destino",
+          accessorFn: (row) => `${row.originDistrictCode ?? ""} ${row.destinationDistrictCode ?? ""}`,
+          cell: ({ row: r }) => (
+            <span style={{ fontSize: "0.75rem", color: INK6, fontFamily: "ui-monospace, monospace" }}>
+              {r.original.originDistrictCode ?? "?"} → {r.original.destinationDistrictCode ?? "?"}
+            </span>
+          ),
+        }
+      : {
+          id: "paradas",
+          header: "Paraderos",
+          accessorFn: (row) => row.stops ?? 0,
+          cell: ({ row: r }) => (
+            <span style={{ fontSize: "0.8125rem", color: INK9, fontVariantNumeric: "tabular-nums" }}>
+              {r.original.stops != null
                 ? `${r.original.stops}${r.original.length ? ` · ${r.original.length}` : ""}`
-                : "—")
-            : (r.original.area?.trim() || "—")
-          }
-        </span>
-      ),
-    },
+                : "—"}
+            </span>
+          ),
+        },
     {
       id: "vehiculos",
       header: "Vehíc.",
@@ -188,18 +236,18 @@ export default function RutasPage() {
     <div className="flex flex-col gap-4 animate-fade-in pb-10">
       <PageHeader
         kicker="Operación · RF-09"
-        title="Rutas y zonas"
-        subtitle={`${rutas.length} rutas · ${zonas.length} zonas · ${items.filter(i => i.status === "activa").length} activas`}
+        title="Rutas de transporte"
+        subtitle={`${urbanas.length} urbanas · ${interprovinciales.length} interprovinciales · ${items.filter(i => i.status === "activa").length} activas`}
         action={headerAction}
       />
 
-      {/* Tabs por tipo */}
+      {/* Tabs por modalidad */}
       <div style={{
         display: "flex", gap: 0, borderBottom: `1px solid ${INK2}`,
       }}>
         {([
-          { k: "ruta" as RouteType, l: "Rutas fijas", c: rutas.length },
-          { k: "zona" as RouteType, l: "Zonas de operación", c: zonas.length },
+          { k: "urbano" as Modality, l: "Urbanas", sub: "intra-provincia · con paraderos", c: urbanas.length },
+          { k: "interprovincial" as Modality, l: "Interprovinciales", sub: "a Cusco/Arequipa/Abancay", c: interprovinciales.length },
         ]).map(t => {
           const active = tab === t.k;
           return (
@@ -207,7 +255,7 @@ export default function RutasPage() {
               key={t.k}
               onClick={() => {
                 setTab(t.k);
-                const f = items.find(i => i.type === t.k);
+                const f = items.find(i => modalityOf(i.serviceScope) === t.k);
                 setSel(f ?? null);
               }}
               style={{
@@ -218,6 +266,7 @@ export default function RutasPage() {
                 fontFamily: "inherit",
                 display: "inline-flex", alignItems: "center", gap: 6,
               }}
+              title={t.sub}
             >
               {t.l}
               <span style={{
@@ -248,13 +297,21 @@ export default function RutasPage() {
           data={visible}
           loading={loading}
           searchPlaceholder="Buscar por código, nombre, empresa…"
-          emptyTitle={`Sin ${tab === "ruta" ? "rutas" : "zonas"} registradas`}
-          emptyDescription="No se encontraron registros."
+          emptyTitle={`Sin rutas ${tab === "urbano" ? "urbanas" : "interprovinciales"} registradas`}
+          emptyDescription={
+            tab === "urbano"
+              ? "Las rutas urbanas son las que conectan distritos de la provincia con paraderos."
+              : "Las rutas interprovinciales son las que conectan la provincia con Cusco, Arequipa o Abancay."
+          }
           onRowClick={(row) => setSel(row)}
         />
 
         {sel ? (
-          <RoutePreview route={sel} canEdit={canEdit} typeLabel={tab === "ruta" ? "Ruta fija" : "Zona"} />
+          <RoutePreview
+            route={sel}
+            canEdit={canEdit}
+            typeLabel={modalityOf(sel.serviceScope) === "urbano" ? "Urbana" : "Interprovincial"}
+          />
         ) : (
           <div style={{
             background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12,
@@ -269,7 +326,7 @@ export default function RutasPage() {
               <Map size={20} color={INK5} strokeWidth={1.5} />
             </div>
             <div style={{ fontSize: "0.875rem", fontWeight: 600, color: INK9 }}>
-              Selecciona una {tab === "ruta" ? "ruta" : "zona"}
+              Selecciona una ruta {tab === "urbano" ? "urbana" : "interprovincial"}
             </div>
             <div style={{ fontSize: "0.8125rem", color: INK5, maxWidth: 260, lineHeight: 1.5 }}>
               Haz clic en cualquier registro de la lista para ver su trazado en el mapa.

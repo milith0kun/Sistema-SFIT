@@ -36,26 +36,20 @@ const URBAN_SCOPES = new Set<ServiceScope>(["urbano_distrital", "urbano_provinci
 const INTERPROV_SCOPES = new Set<ServiceScope>(["interprovincial_regional", "interregional_nacional"]);
 
 /** Catálogo mínimo de distritos de demo (UBIGEO 6 dígitos).
- *  Si existe `/api/distritos` se usa; este array es fallback. */
+ *  Si existe `/api/distritos` se usa; este array es fallback.
+ *  Cubre Cotabambas (origen) + Cusco/Arequipa/Abancay (destinos típicos). */
 const FALLBACK_DISTRICTS: Array<{ code: string; name: string; province: string }> = [
-  { code: "080101", name: "Cusco",         province: "Cusco" },
-  { code: "080102", name: "Ccorca",        province: "Cusco" },
-  { code: "080103", name: "Poroy",         province: "Cusco" },
-  { code: "080104", name: "San Jerónimo",  province: "Cusco" },
-  { code: "080105", name: "San Sebastián", province: "Cusco" },
-  { code: "080106", name: "Santiago",      province: "Cusco" },
-  { code: "080107", name: "Saylla",        province: "Cusco" },
-  { code: "080108", name: "Wanchaq",       province: "Cusco" },
-  { code: "150101", name: "Lima",          province: "Lima" },
-  { code: "150116", name: "Lince",         province: "Lima" },
-  { code: "150122", name: "Miraflores",    province: "Lima" },
-  { code: "150128", name: "San Isidro",    province: "Lima" },
-  { code: "150140", name: "Surquillo",     province: "Lima" },
-  { code: "040101", name: "Arequipa",      province: "Arequipa" },
-  { code: "040102", name: "Alto Selva Alegre", province: "Arequipa" },
-  { code: "040106", name: "Cerro Colorado", province: "Arequipa" },
-  { code: "040112", name: "Mariano Melgar", province: "Arequipa" },
-  { code: "040125", name: "Yanahuara",     province: "Arequipa" },
+  // Provincia Cotabambas (Apurímac) — origen
+  { code: "030501", name: "Tambobamba",     province: "Cotabambas" },
+  { code: "030502", name: "Cotabambas",     province: "Cotabambas" },
+  { code: "030503", name: "Coyllurqui",     province: "Cotabambas" },
+  { code: "030504", name: "Haquira",        province: "Cotabambas" },
+  { code: "030505", name: "Mara",           province: "Cotabambas" },
+  { code: "030506", name: "Challhuahuacho", province: "Cotabambas" },
+  // Destinos típicos interprovinciales
+  { code: "030101", name: "Abancay",        province: "Abancay" },
+  { code: "080101", name: "Cusco",          province: "Cusco" },
+  { code: "040101", name: "Arequipa",       province: "Arequipa" },
 ];
 
 const ALLOWED_CREATE = ["super_admin", "admin_municipal"];
@@ -88,11 +82,17 @@ export default function NuevaRutaPage() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const [serviceScope, setServiceScope] = useState<ServiceScope>("urbano_distrital");
+  const [serviceScope, setServiceScope] = useState<ServiceScope>("urbano_provincial");
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
   const [originDistrictCode, setOriginDistrictCode] = useState("");
   const [destinationDistrictCode, setDestinationDistrictCode] = useState("");
   const [traversedDistrictCodes, setTraversedDistrictCodes] = useState<string[]>([]);
+
+  // Rutas urbanas compartidas: varias empresas operan la misma ruta con
+  // misma tarifa y paraderos (caso típico Cotabambas intra-provincia).
+  // Solo aplica si serviceScope es urbano.
+  const [isShared, setIsShared] = useState(false);
+  const [sharedCompanyIds, setSharedCompanyIds] = useState<string[]>([]);
 
   const [departureSchedules, setDepartureSchedules] = useState<string[]>([]);
   const [scheduleDraft, setScheduleDraft] = useState("");
@@ -164,6 +164,22 @@ export default function NuevaRutaPage() {
     );
   }
 
+  function handleScopeChange(s: ServiceScope) {
+    setServiceScope(s);
+    // Las rutas interprovinciales NO pueden ser compartidas en el modelo
+    // (cada empresa tiene sus propias rutas). Resetea el flag.
+    if (!URBAN_SCOPES.has(s)) {
+      setIsShared(false);
+      setSharedCompanyIds([]);
+    }
+  }
+
+  function toggleSharedCompany(id: string) {
+    setSharedCompanyIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true); setError(null); setFieldErrors({});
@@ -187,12 +203,21 @@ export default function NuevaRutaPage() {
     if (isUrban && waypoints.length < 2) localErrors.waypoints = "Las rutas urbanas necesitan al menos 2 paradas.";
     if (isInterprov && !originDistrictCode) localErrors.originDistrictCode = "Selecciona el distrito de origen.";
     if (isInterprov && !destinationDistrictCode) localErrors.destinationDistrictCode = "Selecciona el distrito de destino.";
+    if (isUrban && isShared && sharedCompanyIds.length === 0) {
+      localErrors.companyIds = "Una ruta compartida requiere al menos una empresa autorizada.";
+    }
     if (Object.keys(localErrors).length > 0) {
       setFieldErrors(localErrors); setLoading(false); return;
     }
 
     const payload: Record<string, unknown> = { code, name, type, status, serviceScope };
-    if (companyId) payload.companyId = companyId;
+    // Ruta compartida: omite companyId individual e incluye companyIds.
+    if (isUrban && isShared) {
+      payload.isShared = true;
+      payload.companyIds = sharedCompanyIds;
+    } else if (companyId) {
+      payload.companyId = companyId;
+    }
     if (vehicleTypeKey) payload.vehicleTypeKey = vehicleTypeKey;
     if (stops != null && !isNaN(stops)) payload.stops = stops;
     if (length) payload.length = length;
@@ -301,7 +326,7 @@ export default function NuevaRutaPage() {
               const active = serviceScope === s;
               return (
                 <button
-                  key={s} type="button" onClick={() => setServiceScope(s)}
+                  key={s} type="button" onClick={() => handleScopeChange(s)}
                   style={{
                     textAlign: "left", padding: "10px 12px",
                     borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
@@ -361,20 +386,100 @@ export default function NuevaRutaPage() {
             subtitle="Empresa y tipo de vehículo"
           >
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label htmlFor="companyId" style={LABEL}>Empresa</label>
-                <div style={{ position: "relative" }}>
-                  <Building2 size={13} color={INK5} style={{
-                    position: "absolute", left: 11, top: "50%",
-                    transform: "translateY(-50%)", pointerEvents: "none",
-                  }} />
-                  <select id="companyId" name="companyId" defaultValue=""
-                    style={{ ...FIELD, paddingLeft: 32, appearance: "none", paddingRight: 30 }}>
-                    <option value="">— Sin empresa —</option>
-                    {companies.map(c => <option key={c.id} value={c.id}>{c.razonSocial}</option>)}
-                  </select>
+              {/* Toggle "Ruta compartida" — solo para urbanas */}
+              {isUrban && (
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label style={{
+                    display: "flex", alignItems: "flex-start", gap: 10,
+                    padding: "10px 12px", borderRadius: 9,
+                    border: `1.5px solid ${isShared ? "#1D4ED8" : INK2}`,
+                    background: isShared ? "#EFF6FF" : "#fff",
+                    cursor: "pointer", fontFamily: "inherit",
+                  }}>
+                    <input type="checkbox" checked={isShared}
+                      onChange={(e) => {
+                        setIsShared(e.target.checked);
+                        if (!e.target.checked) setSharedCompanyIds([]);
+                      }}
+                      style={{ marginTop: 3, accentColor: "#1D4ED8" }}
+                    />
+                    <div>
+                      <div style={{ fontSize: "0.8125rem", fontWeight: 700, color: INK9 }}>
+                        Ruta compartida entre varias empresas
+                      </div>
+                      <div style={{ fontSize: "0.6875rem", color: INK5, marginTop: 2, lineHeight: 1.5 }}>
+                        Misma ruta y paraderos operados por más de una empresa con misma tarifa.
+                        Cada viaje deberá registrar qué empresa lo ejecutó (auditoría).
+                      </div>
+                    </div>
+                  </label>
                 </div>
-              </div>
+              )}
+
+              {/* Empresa(s): single select cuando NO es compartida, multi-select cuando lo es */}
+              {!isShared ? (
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label htmlFor="companyId" style={LABEL}>Empresa</label>
+                  <div style={{ position: "relative" }}>
+                    <Building2 size={13} color={INK5} style={{
+                      position: "absolute", left: 11, top: "50%",
+                      transform: "translateY(-50%)", pointerEvents: "none",
+                    }} />
+                    <select id="companyId" name="companyId" defaultValue=""
+                      style={{ ...FIELD, paddingLeft: 32, appearance: "none", paddingRight: 30 }}>
+                      <option value="">— Sin empresa —</option>
+                      {companies.map(c => <option key={c.id} value={c.id}>{c.razonSocial}</option>)}
+                    </select>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label style={LABEL}>
+                    Empresas autorizadas <span style={{ color: RED, marginLeft: 3 }}>*</span>
+                    <span style={{ color: INK5, fontWeight: 500, textTransform: "none", letterSpacing: 0, marginLeft: 4 }}>
+                      ({sharedCompanyIds.length} seleccionada{sharedCompanyIds.length !== 1 ? "s" : ""})
+                    </span>
+                  </label>
+                  <div style={{
+                    display: "grid", gap: 6,
+                    gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                    maxHeight: 220, overflowY: "auto",
+                    border: `1px solid ${fieldErrors.companyIds ? RED : INK2}`,
+                    borderRadius: 8, padding: 8, background: "#fff",
+                  }}>
+                    {companies.length === 0 ? (
+                      <p style={{ fontSize: "0.75rem", color: INK5, padding: 8 }}>
+                        No hay empresas registradas. Crea una empresa primero.
+                      </p>
+                    ) : (
+                      companies.map(c => {
+                        const checked = sharedCompanyIds.includes(c.id);
+                        return (
+                          <label key={c.id} style={{
+                            display: "flex", alignItems: "center", gap: 6,
+                            padding: "6px 10px", borderRadius: 7,
+                            border: `1px solid ${checked ? "#BFDBFE" : INK2}`,
+                            background: checked ? "#EFF6FF" : "#fff",
+                            cursor: "pointer", fontSize: "0.8125rem", color: INK9,
+                          }}>
+                            <input type="checkbox" checked={checked}
+                              onChange={() => toggleSharedCompany(c.id)}
+                              style={{ accentColor: "#1D4ED8" }} />
+                            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}>
+                              {c.razonSocial}
+                            </span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                  {fieldErrors.companyIds && (
+                    <p style={{ marginTop: 5, fontSize: "0.75rem", color: RED, fontWeight: 500 }}>
+                      {fieldErrors.companyIds}
+                    </p>
+                  )}
+                </div>
+              )}
               <div>
                 <label htmlFor="vehicleTypeKey" style={LABEL}>Tipo de vehículo</label>
                 <select id="vehicleTypeKey" name="vehicleTypeKey" defaultValue=""

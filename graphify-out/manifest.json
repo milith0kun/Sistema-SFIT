@@ -795,6 +795,10 @@
     "mtime": 1778130311.0067093,
     "hash": "28c38b7b403a151f9cdfa0b835a2e00e"
   },
+  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\backfill-trip-companyid.ts": {
+    "mtime": 1778913141.8913054,
+    "hash": "d5ce65e94d5c0434a79d17d27451cd4f"
+  },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\backup-db.ts": {
     "mtime": 1778911315.0002325,
     "hash": "d2da397a4d6c26efd211d14e5bd62e23"
@@ -830,6 +834,10 @@
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\migrate-company-scope.ts": {
     "mtime": 1777252026.532307,
     "hash": "8a2cc564800cb1c70531c6f00400bfc9"
+  },
+  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\migrate-deprecated-admin-roles.ts": {
+    "mtime": 1778913384.9362807,
+    "hash": "f763175723749b84ada0ddd42942f824"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\migrate-legacy-munis.ts": {
     "mtime": 1777398817.9496026,
@@ -908,8 +916,8 @@
     "hash": "218af3a0e798d2b1aa3fe75af7986766"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\seed-test-users.ts": {
-    "mtime": 1778458186.3062751,
-    "hash": "d405d966aef289671f0b74bf0ce778e2"
+    "mtime": 1778913456.9411826,
+    "hash": "fee7f71687d003b4db9c6080d336bb83"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\seed-ubigeo.ts": {
     "mtime": 1777225650.2344427,
@@ -1604,8 +1612,8 @@
     "hash": "4eb4dd85afb08d0d9f9d97828c2633a4"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\rutas\\route.ts": {
-    "mtime": 1778458186.3153913,
-    "hash": "36450110f870182cfbeadb21e7aa0423"
+    "mtime": 1778913260.5119526,
+    "hash": "16b789a52207ba33db7ae4896c458b90"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\rutas\\candidatas\\route.ts": {
     "mtime": 1778130311.009637,
@@ -1732,8 +1740,8 @@
     "hash": "b211459d7a295d21a8c7a635e46c6799"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\viajes\\route.ts": {
-    "mtime": 1778458186.3163953,
-    "hash": "495322e3442b7b55c69b935088f58407"
+    "mtime": 1778913120.442518,
+    "hash": "b609999898c7b8bef8e15651c5e337d0"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\viajes\\auto-close\\route.ts": {
     "mtime": 1778276374.481066,
@@ -2296,8 +2304,8 @@
     "hash": "a473e7138aba7e82b01b82a4f7a745c3"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\models\\Route.ts": {
-    "mtime": 1778346624.211964,
-    "hash": "90eeea1bf4e909637d055a2f47511060"
+    "mtime": 1778913286.767496,
+    "hash": "6ccabcc391f9fcb2e54005388cca209d"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\models\\RouteCapture.ts": {
     "mtime": 1778130311.010612,
@@ -2316,8 +2324,8 @@
     "hash": "58712fa4e8a8f28fc57fc8e0f1fd5316"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\models\\Trip.ts": {
-    "mtime": 1778276356.3562393,
-    "hash": "a50c35ae874d26dfb8cb02c4a5b89647"
+    "mtime": 1778913085.7400198,
+    "hash": "0da286b241d56e64e1cc6f7dbff711cd"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\models\\UploadedFile.ts": {
     "mtime": 1777609299.9758935,
