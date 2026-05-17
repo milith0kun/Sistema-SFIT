@@ -13,6 +13,11 @@ import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 
 import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
+import {
+  ACTIVE_DISTRICTS,
+  ACTIVE_PROVINCE_NAME,
+  INTERPROV_DESTINATIONS,
+} from "@/lib/scope";
 type RouteType = "ruta" | "zona";
 type RouteStatus = "activa" | "suspendida";
 type ServiceScope =
@@ -43,20 +48,21 @@ const SCOPE_LABEL: Record<ServiceScope, string> = {
 const URBAN_SCOPES = new Set<ServiceScope>(["urbano_distrital", "urbano_provincial"]);
 const INTERPROV_SCOPES = new Set<ServiceScope>(["interprovincial_regional", "interregional_nacional"]);
 
-const FALLBACK_DISTRICTS: Array<{ code: string; name: string; province: string }> = [
-  { code: "080101", name: "Cusco",         province: "Cusco" },
-  { code: "080102", name: "Ccorca",        province: "Cusco" },
-  { code: "080104", name: "San Jerónimo",  province: "Cusco" },
-  { code: "080105", name: "San Sebastián", province: "Cusco" },
-  { code: "080108", name: "Wanchaq",       province: "Cusco" },
-  { code: "150101", name: "Lima",          province: "Lima" },
-  { code: "150116", name: "Lince",         province: "Lima" },
-  { code: "150122", name: "Miraflores",    province: "Lima" },
-  { code: "150128", name: "San Isidro",    province: "Lima" },
-  { code: "040101", name: "Arequipa",      province: "Arequipa" },
-  { code: "040106", name: "Cerro Colorado", province: "Arequipa" },
-  { code: "040125", name: "Yanahuara",     province: "Arequipa" },
-];
+/**
+ * Catálogo de distritos para edición de rutas (mismo modelo que `nueva`).
+ * Orígenes y traversed: distritos de Cotabambas.
+ * Destinos interprov: Cusco / Arequipa / Abancay.
+ */
+const ORIGIN_DISTRICTS = ACTIVE_DISTRICTS.map((d) => ({
+  code: d.code,
+  name: d.name,
+  province: ACTIVE_PROVINCE_NAME,
+}));
+const DESTINATION_DISTRICTS = INTERPROV_DESTINATIONS.map((d) => ({
+  code: d.code,
+  name: d.name,
+  province: d.province,
+}));
 
 const TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -624,12 +630,12 @@ export default function RutaDetallePage({ params }: Props) {
                           appearance: "none", paddingRight: 30,
                         }}>
                         <option value="">— Seleccionar —</option>
-                        {FALLBACK_DISTRICTS.map(d => (
+                        {ORIGIN_DISTRICTS.map(d => (
                           <option key={d.code} value={d.code}>
                             {d.name} ({d.province}) · {d.code}
                           </option>
                         ))}
-                        {originDistrictCode && !FALLBACK_DISTRICTS.find(d => d.code === originDistrictCode) && (
+                        {originDistrictCode && !ORIGIN_DISTRICTS.find(d => d.code === originDistrictCode) && (
                           <option value={originDistrictCode}>UBIGEO {originDistrictCode}</option>
                         )}
                       </select>
@@ -648,12 +654,12 @@ export default function RutaDetallePage({ params }: Props) {
                           appearance: "none", paddingRight: 30,
                         }}>
                         <option value="">— Seleccionar —</option>
-                        {FALLBACK_DISTRICTS.map(d => (
+                        {DESTINATION_DISTRICTS.map(d => (
                           <option key={d.code} value={d.code}>
                             {d.name} ({d.province}) · {d.code}
                           </option>
                         ))}
-                        {destinationDistrictCode && !FALLBACK_DISTRICTS.find(d => d.code === destinationDistrictCode) && (
+                        {destinationDistrictCode && !DESTINATION_DISTRICTS.find(d => d.code === destinationDistrictCode) && (
                           <option value={destinationDistrictCode}>UBIGEO {destinationDistrictCode}</option>
                         )}
                       </select>
@@ -672,7 +678,7 @@ export default function RutaDetallePage({ params }: Props) {
                     gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
                     maxHeight: 220, overflowY: "auto",
                   }}>
-                    {FALLBACK_DISTRICTS.map(d => {
+                    {ORIGIN_DISTRICTS.map(d => {
                       const checked = traversedDistrictCodes.includes(d.code);
                       return (
                         <label key={d.code} style={{

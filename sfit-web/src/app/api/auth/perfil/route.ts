@@ -24,9 +24,14 @@ const PatchSchema = z
     name:  z.string().min(2).max(100).trim().optional(),
     phone: z.string().max(20).trim().nullable().optional(),
     dni:   z.string().length(8).regex(/^\d{8}$/, "DNI debe tener 8 dígitos").nullable().optional(),
+    image: z.string().url().max(500).nullable().optional(),
   })
   .refine(
-    (d) => d.name !== undefined || d.phone !== undefined || d.dni !== undefined,
+    (d) =>
+      d.name !== undefined ||
+      d.phone !== undefined ||
+      d.dni !== undefined ||
+      d.image !== undefined,
     { message: "Especifica al menos un campo a actualizar" }
   );
 
@@ -112,6 +117,7 @@ export async function PATCH(request: NextRequest) {
     if (parsed.data.name  !== undefined) update.name  = parsed.data.name;
     if (parsed.data.phone !== undefined) update.phone = parsed.data.phone;
     if (parsed.data.dni   !== undefined) update.dni   = parsed.data.dni;
+    if (parsed.data.image !== undefined) update.image = parsed.data.image;
 
     const updated = await User.findByIdAndUpdate(
       session.userId,

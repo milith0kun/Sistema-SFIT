@@ -74,7 +74,7 @@ async function main() {
   }).limit(20).lean() as AnyDoc[];
 
   if (validRoutes.length === 0) {
-    console.error("❌ No hay rutas con ≥2 waypoints. Ejecuta seed-full-data.ts primero.");
+    console.error("❌ No hay rutas con ≥2 waypoints. Crea rutas urbanas desde el panel admin antes de correr este seed.");
     process.exit(1);
   }
   console.log(`📍 ${validRoutes.length} rutas válidas (con ≥2 waypoints) disponibles.`);
@@ -99,7 +99,7 @@ async function main() {
       ]);
 
       if (vehicles.length === 0 || drivers.length === 0) {
-        console.error("❌ Faltan vehicles/drivers. Ejecuta seed-full-data.ts primero.");
+        console.error("❌ Faltan vehicles/drivers. Créalos desde el panel admin antes de correr este seed.");
         process.exit(1);
       }
 

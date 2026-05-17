@@ -349,7 +349,7 @@ export default function ViajeDetallePage({ params }: Props) {
       if (newStatus) payload.status = newStatus;
 
       const res = await fetch(`/api/viajes/${id}`, {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify(payload),
       });
@@ -368,7 +368,7 @@ export default function ViajeDetallePage({ params }: Props) {
     try {
       const token = localStorage.getItem("sfit_access_token");
       const res = await fetch(`/api/viajes/${id}`, {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({ status: "completado", endTime: new Date().toISOString() }),
       });

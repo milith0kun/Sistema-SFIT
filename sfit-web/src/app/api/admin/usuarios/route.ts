@@ -55,6 +55,18 @@ export async function GET(request: NextRequest) {
     filter.role = roleFilter;
   }
 
+  // admin_municipal nunca debe ver super_admins (no son parte de su jerarquía).
+  // Aplicar después del roleFilter para que no se pueda saltar pidiendo
+  // role=super_admin desde el cliente.
+  if (session.role === ROLES.ADMIN_MUNICIPAL) {
+    if (filter.role === ROLES.SUPER_ADMIN) {
+      return apiResponse({ items: [], total: 0, page, limit });
+    }
+    if (!filter.role) {
+      filter.role = { $ne: ROLES.SUPER_ADMIN };
+    }
+  }
+
   const validStatuses = ["activo", "pendiente", "suspendido", "rechazado"];
   if (statusFilter && validStatuses.includes(statusFilter)) {
     filter.status = statusFilter;

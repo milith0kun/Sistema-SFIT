@@ -102,6 +102,8 @@ export async function GET(request: NextRequest) {
         qrHmac: v.qrHmac,
         photoUrl: v.photoUrl,
         active: v.active,
+        verified: v.verified ?? false,
+        verifiedAt: v.verifiedAt ?? null,
         createdAt: v.createdAt,
         updatedAt: v.updatedAt,
       })),
@@ -157,17 +159,31 @@ export async function POST(request: NextRequest) {
     if (auth.session.role === ROLES.OPERADOR) {
       const myCompanyId = await getOperatorCompanyId(auth.session.userId);
       if (!myCompanyId) return apiError("Sin empresa asignada", 400);
-      const company = await Company.findById(myCompanyId).select("municipalityId").lean<{ municipalityId?: unknown } | null>();
+      const company = await Company.findById(myCompanyId)
+        .select("municipalityId active")
+        .lean<{ municipalityId?: unknown; active?: boolean } | null>();
       if (!company || String(company.municipalityId) !== String(auth.session.municipalityId)) {
         return apiForbidden();
+      }
+      if (!company.active) {
+        return apiError(
+          "Tu empresa está pendiente de aprobación. Contacta al administrador municipal.",
+          403,
+        );
       }
       effectiveCompanyId = myCompanyId;
     } else if (effectiveCompanyId) {
       const filter = await scopedCompanyFilter(auth.session);
       const match = await Company.findOne({ _id: effectiveCompanyId, ...filter })
-        .select("_id")
-        .lean();
+        .select("_id active")
+        .lean<{ _id: unknown; active?: boolean } | null>();
       if (!match) return apiForbidden();
+      if (!match.active) {
+        return apiError(
+          "La empresa indicada está inactiva o pendiente de aprobación.",
+          403,
+        );
+      }
     }
 
     const duplicate = await Vehicle.findOne({ municipalityId, plate: parsed.data.plate.toUpperCase() });

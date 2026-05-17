@@ -102,7 +102,7 @@ async function main() {
     ]);
 
     if (vehicles.length === 0 || drivers.length === 0) {
-      console.error("❌ No hay vehículos o conductores. Ejecuta seed-full-data.ts primero.");
+      console.error("❌ No hay vehículos o conductores. Créalos desde el panel admin antes de correr este seed.");
       process.exit(1);
     }
 

@@ -19,6 +19,7 @@ type Vehicle = {
   status: VehicleStatus; companyName?: string; currentDriverName?: string;
   lastInspectionStatus?: string; reputationScore: number;
   soatExpiry?: string; qrHmac?: string;
+  verified?: boolean;
 };
 
 /* Paleta sobria — gris + verde/ámbar/rojo sólo como semántica de estado */
@@ -199,8 +200,17 @@ export default function VehiculosPage() {
       header: "Placa",
       accessorFn: (v) => v.plate,
       cell: ({ row: r }) => (
-        <div style={{ cursor: "pointer" }} onClick={() => setSel(r.original)}>
+        <div style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }} onClick={() => setSel(r.original)}>
           <Plate p={r.original.plate ?? "—"} />
+          {r.original.verified === false && (
+            <span style={{
+              fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.04em",
+              textTransform: "uppercase", padding: "1px 6px", borderRadius: 5,
+              background: "#FEFCE8", color: "#92400E", border: "1px solid #FDE68A",
+            }}>
+              Sin verificar
+            </span>
+          )}
         </div>
       ),
     },

@@ -514,6 +514,7 @@ export default function RegisterPage() {
             </label>
             <LocationPicker
               scope="public"
+              lockedScope="active-province"
               value={{
                 regionId:       form.regionId       || null,
                 provinceId:     form.provinceId     || null,

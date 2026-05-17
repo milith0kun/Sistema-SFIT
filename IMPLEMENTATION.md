@@ -36,7 +36,7 @@ Tras ejecutar `cd sfit-web && npx tsx scripts/seed-test-users.ts` quedan 7 usuar
 
 > Para `admin_regional` ejecutar el seed adicional o asignarlo desde `superadmin@` vía `/usuarios/[id]/assign-admin-regional`.
 
-Los IDs de la provincia y municipalidad semilla se imprimen al final del script. Datos sembrados según commits recientes: `seed-full-data.ts` carga municipios, provincias, empresas, conductores y viajes; `seed-ubigeo.ts` carga la tabla UBIGEO; `seed-mtc-pasajeros.ts` carga el catálogo MTC de pasajeros.
+Los IDs de la provincia y municipalidad semilla se imprimen al final del script. Datos base: `seed-ubigeo.ts --depto=03` carga UBIGEO de Apurímac, `activate-cotabambas.ts` activa la provincia 0305 y sus 6 distritos, `seed-mtc-pasajeros.ts --depto=03` carga el catálogo MTC. Las empresas/conductores/vehículos se crean desde el panel admin (operador autoservicio + aprobación del admin_municipal en `/aprobaciones`).
 
 ---
 
@@ -361,10 +361,9 @@ flutter build appbundle --release
 | `setup.ts`                                          | Inicialización DB (índices, colecciones)                           |
 | `create-admin.ts`                                   | Crear super-admin seed                                               |
 | `seed-test-users.ts`                                | 7 usuarios test por rol                                              |
-| `seed-full-data.ts`                                 | Seed completo: municipios, provincias, empresas, conductores, viajes |
-| `seed-ubigeo.ts`                                    | Tabla UBIGEO (departamentos, provincias, distritos)                  |
-| `seed-mtc-pasajeros.ts`                             | Catálogo MTC pasajeros                                              |
-| `seed-apelaciones.ts`                               | Datos test de apelaciones                                            |
+| `seed-ubigeo.ts`                                    | Tabla UBIGEO (departamentos, provincias, distritos). Usar `--depto=03` para Apurímac |
+| `activate-cotabambas.ts`                            | Activa Cotabambas (0305) + 6 distritos en el catálogo UBIGEO         |
+| `seed-mtc-pasajeros.ts`                             | Catálogo MTC pasajeros. Usar `--depto=03` para Apurímac             |
 | `seed-aprobaciones.ts`                              | Estados de aprobación                                               |
 | `seed-conductor-test.ts`                            | Conductor + vehículos + viajes test                                 |
 | `seed-flota-hoy.ts` · `seed-viajes-hoy.ts`         | Datos de hoy para QA en vivo                                         |
@@ -373,7 +372,6 @@ flutter build appbundle --release
 | `migrate-legacy-munis.ts` · `migrate-to-ubigeo.ts` | Migraciones de tenants legacy                                        |
 | `migrate-company-scope.ts`                          | Scope empresas (urbano/nacional)                                     |
 | `migrate-uniqueness-check.ts`                       | Re-creación de índices únicos                                     |
-| `debug-flota-conductor.ts`                          | Debug del many-to-many flota↔conductor                              |
 | `generate-icons.mjs`                                | Generar mipmap Android + favicons + Apple                            |
 
 ---

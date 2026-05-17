@@ -14,6 +14,7 @@ import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { logAudit } from "@/lib/audit/log";
 import { rolesFor } from "@/lib/auth/roleMatrix";
+import { ACTIVE_DEPARTMENT_CODE, ACTIVE_PROVINCE_CODE } from "@/lib/scope";
 
 const CreateProvinceSchema = z.object({
   name: z.string().min(2).max(120),
@@ -47,13 +48,16 @@ export async function GET(request: NextRequest) {
 
     const filter: Record<string, unknown> = {};
 
-    // Filtro UBIGEO por departamento (solo aplica para super_admin).
-    if (
-      auth.session.role === ROLES.SUPER_ADMIN &&
-      departmentCodeRaw &&
-      /^\d{2}$/.test(departmentCodeRaw)
-    ) {
-      filter.departmentCode = departmentCodeRaw;
+    if (auth.session.role === ROLES.SUPER_ADMIN) {
+      // Filtro UBIGEO opcional por departamento.
+      if (departmentCodeRaw && /^\d{2}$/.test(departmentCodeRaw)) {
+        filter.departmentCode = departmentCodeRaw;
+      }
+    } else {
+      // SFIT opera solo en Cotabambas (Apurímac). Para roles no-super_admin,
+      // forzamos el scope independientemente de los query params del cliente.
+      filter.departmentCode = ACTIVE_DEPARTMENT_CODE;
+      filter.ubigeoCode = ACTIVE_PROVINCE_CODE;
     }
 
     if (activeRaw === "true")  filter.active = true;

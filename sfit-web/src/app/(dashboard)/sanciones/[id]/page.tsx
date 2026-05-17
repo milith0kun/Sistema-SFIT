@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 
-import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import { hasWebPermission, SANCION_ANULAR_ROLES } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
 /* ── Tipos ── */
 type SanctionStatus = "emitida" | "notificada" | "apelada" | "confirmada" | "anulada";
@@ -206,13 +206,15 @@ export default function SancionDetallePage({ params }: Props) {
     finally { setUpdating(false); }
   }
 
-  // Editar sanciones es exclusivo de la app móvil del fiscal. En web los
-  // admins solo ven (read-only); para anular se usa el flujo de anulación
-  // (SANCION_ANULAR_ROLES) que cubre super_admin y admin_municipal.
-  const canEdit = false;
-  const canAnular = canEdit && sanction
+  // La emisión de sanciones nace de la app móvil del fiscal, pero el
+  // admin_municipal puede cambiar el estado del workflow desde la web
+  // (notificar → confirmar) y anular. `hasWebPermission(..., "edit")`
+  // es la fuente de verdad: la matriz de roles ya restringe quién edita.
+  const canEdit = hasWebPermission(userRole as Role, "sanciones", "edit");
+  const canAnular = !!sanction
     && sanction.status !== "anulada"
-    && sanction.status !== "confirmada";
+    && sanction.status !== "confirmada"
+    && (SANCION_ANULAR_ROLES as readonly string[]).includes(userRole);
 
   async function handleAnular() {
     if (anularReason.trim().length < 5) return;

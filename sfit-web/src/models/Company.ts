@@ -86,6 +86,16 @@ export interface ICompany extends Document {
   documents: ICompanyDocument[];
   active: boolean;
   suspendedAt?: Date;
+  /**
+   * Sello de aprobación administrativa. Cuando un operador crea la empresa
+   * vía autoservicio (`POST /api/operador/crear-empresa`) queda con
+   * `active: false` y `approvedAt: undefined`. El admin_municipal la aprueba
+   * desde el centro de aprobaciones (`POST /api/empresas/[id]/aprobar`),
+   * lo que setea `active: true`, `approvedAt: now`, `approvedBy: adminId`.
+   * Sin estos campos no se sabe cuándo ni quién aprobó.
+   */
+  approvedAt?: Date;
+  approvedBy?: mongoose.Types.ObjectId;
   reputationScore: number;
 
   serviceScope: ServiceScope;
@@ -150,6 +160,8 @@ const CompanySchema = new Schema<ICompany>(
     documents: { type: [CompanyDocumentSchema], default: [] },
     active: { type: Boolean, default: true },
     suspendedAt: { type: Date },
+    approvedAt: { type: Date },
+    approvedBy: { type: Schema.Types.ObjectId, ref: "User" },
     reputationScore: { type: Number, default: 100, min: 0, max: 100 },
 
     serviceScope: {

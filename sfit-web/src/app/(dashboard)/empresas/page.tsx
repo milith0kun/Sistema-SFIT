@@ -42,6 +42,9 @@ type Company = {
   status?: "activo" | "suspendido" | "pendiente";
   serviceScope?: ServiceScope;
   authorizations?: Authorization[];
+  /** Sello de aprobación. `null` = nunca aprobada (queda como pendiente). */
+  approvedAt?: string | null;
+  suspendedAt?: string | null;
 };
 
 /**
@@ -178,20 +181,39 @@ export default function EmpresasPage() {
         accessorFn: (c) => `${c.razonSocial} ${c.ruc} ${c.representanteLegal.name}`,
         cell: ({ row: r }) => {
           const ok = r.original.active;
+          // Pendiente: nunca aprobada (sin approvedAt) y no activa.
+          // Suspendida: tuvo aprobación previa pero ahora `active=false` (suspendedAt seteado).
+          const isPending =
+            !ok && !r.original.approvedAt && !r.original.suspendedAt;
+          const dotColor = ok
+            ? "#15803d"
+            : isPending
+              ? "#B45309"
+              : "#DC2626";
+          const dotLabel = ok ? "Activa" : isPending ? "Pendiente" : "Suspendida";
           return (
             <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
               <span
-                title={ok ? "Activa" : "Suspendida"}
-                aria-label={ok ? "Activa" : "Suspendida"}
+                title={dotLabel}
+                aria-label={dotLabel}
                 style={{
                   width: 7, height: 7, borderRadius: "50%",
-                  background: ok ? "#15803d" : "#DC2626",
+                  background: dotColor,
                   flexShrink: 0,
                 }}
               />
               <Link href={`/empresas/${r.original.id}`} style={{ fontWeight: 600, color: INK9, textDecoration: "none" }}>
                 {r.original.razonSocial}
               </Link>
+              {isPending && (
+                <span style={{
+                  fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
+                  textTransform: "uppercase", padding: "2px 7px", borderRadius: 6,
+                  background: "#FEFCE8", color: "#92400E", border: "1px solid #FDE68A",
+                }}>
+                  Pendiente
+                </span>
+              )}
             </div>
           );
         },

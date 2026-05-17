@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
+import { useApprovalsPending } from "@/hooks/useApprovalsPending";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { DashboardStyles } from "@/components/layout/DashboardStyles";
@@ -23,6 +24,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const user = useSyncExternalStore(subscribeUser, getClientUser, getServerUser);
   const unread = useUnreadCount();
+  const pendingApprovals = useApprovalsPending();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Cierra el sidebar móvil al navegar
@@ -44,6 +46,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (typeof window === "undefined") return;
     const raw = localStorage.getItem("sfit_user");
     if (!raw) {
+      console.log("[dashboard-layout] no sfit_user en localStorage → /login");
       router.replace("/login");
       return;
     }
@@ -51,16 +54,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     try {
       parsed = JSON.parse(raw) as StoredUser;
     } catch {
+      console.log("[dashboard-layout] sfit_user inválido → /login");
       router.replace("/login");
       return;
     }
+    console.log("[dashboard-layout] parsed user:", {
+      role: parsed.role,
+      status: parsed.status,
+      profileCompleted: parsed.profileCompleted,
+      mustChangePassword: parsed.mustChangePassword,
+    });
 
     if (parsed.status && parsed.status !== "activo") {
+      console.log("[dashboard-layout] status no activo → redirect");
       router.replace(parsed.status === "rechazado" ? "/rejected" : "/pending");
+      return;
     }
     // Onboarding obligatorio: si el perfil está incompleto o tiene password
     // temporal, forzamos al usuario a /onboarding antes de cualquier otra ruta.
     if (parsed.profileCompleted === false || parsed.mustChangePassword === true) {
+      console.log("[dashboard-layout] onboarding obligatorio → /onboarding");
       router.replace("/onboarding");
       return;
     }
@@ -70,11 +83,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // /api/auth/perfil responde 401 con code SESSION_INVALIDATED → forzamos
     // logout limpio para evitar el loop login↔dashboard con JWT obsoleto.
     const token = localStorage.getItem("sfit_access_token");
-    if (!token) return;
+    if (!token) {
+      console.log("[dashboard-layout] sin access token");
+      return;
+    }
     fetch("/api/auth/perfil", { headers: { Authorization: `Bearer ${token}` } })
       .then(async (r) => {
+        console.log("[dashboard-layout] /api/auth/perfil status:", r.status);
         if (r.status === 401) {
           const body = (await r.json().catch(() => ({}))) as { code?: string };
+          console.log("[dashboard-layout] 401 body:", body);
           if (body?.code === "SESSION_INVALIDATED") {
             clearSession();
             router.replace("/login?reason=role_changed");
@@ -92,6 +110,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       })
       .then((data) => {
         if (!data?.success || !data?.data) return;
+        console.log("[dashboard-layout] perfil data:", data.data);
         // Si el rol cambió en backend pero la sesión sigue válida (caso raro:
         // sessionVersion no se incrementó), sincronizamos el cache local.
         const next: StoredUser = { ...parsed };
@@ -101,6 +120,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (parsed.role === "admin_municipal") {
           next.municipalityDataCompleted = data.data.municipalityDataCompleted === true;
           if (!next.municipalityDataCompleted) {
+            console.log("[dashboard-layout] municipalityDataCompleted=false → /onboarding");
             localStorage.setItem("sfit_user", JSON.stringify(next));
             router.replace("/onboarding");
             return;
@@ -108,7 +128,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
         localStorage.setItem("sfit_user", JSON.stringify(next));
       })
-      .catch(() => { /* silent */ });
+      .catch((err) => {
+        console.warn("[dashboard-layout] fetch perfil error:", err);
+      });
   }, [router]);
 
   function logout() {
@@ -151,6 +173,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           user={user}
           pathname={pathname}
           unread={unread}
+          pendingApprovals={pendingApprovals}
           onClose={() => setSidebarOpen(false)}
           onLogout={logout}
         />

@@ -112,6 +112,8 @@ export async function GET(request: NextRequest) {
         restHours: d.restHours,
         reputationScore: d.reputationScore,
         active: d.active,
+        verified: d.verified ?? false,
+        verifiedAt: d.verifiedAt ?? null,
         createdAt: d.createdAt,
         updatedAt: d.updatedAt,
       })),
@@ -169,17 +171,33 @@ export async function POST(request: NextRequest) {
     if (auth.session.role === ROLES.OPERADOR) {
       const myCompanyId = await getOperatorCompanyId(auth.session.userId);
       if (!myCompanyId) return apiError("Sin empresa asignada", 400);
-      const company = await Company.findById(myCompanyId).select("municipalityId").lean<{ municipalityId?: unknown } | null>();
+      const company = await Company.findById(myCompanyId)
+        .select("municipalityId active")
+        .lean<{ municipalityId?: unknown; active?: boolean } | null>();
       if (!company || String(company.municipalityId) !== String(auth.session.municipalityId)) {
         return apiForbidden();
+      }
+      // No se puede operar con empresa pendiente: cierra el flujo hasta que
+      // el admin_municipal apruebe la empresa desde el centro de aprobaciones.
+      if (!company.active) {
+        return apiError(
+          "Tu empresa está pendiente de aprobación. Contacta al administrador municipal.",
+          403,
+        );
       }
       effectiveCompanyId = myCompanyId;
     } else if (effectiveCompanyId) {
       const filter = await scopedCompanyFilter(auth.session);
       const match = await Company.findOne({ _id: effectiveCompanyId, ...filter })
-        .select("_id")
-        .lean();
+        .select("_id active")
+        .lean<{ _id: unknown; active?: boolean } | null>();
       if (!match) return apiForbidden();
+      if (!match.active) {
+        return apiError(
+          "La empresa indicada está inactiva o pendiente de aprobación.",
+          403,
+        );
+      }
     }
 
     const duplicate = await Driver.findOne({ municipalityId, dni: parsed.data.dni });

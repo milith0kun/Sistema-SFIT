@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, MapPin } from "lucide-react";
 import {
   Command,
@@ -19,6 +19,12 @@ import {
   useProvincesByRegion,
   useRegions,
 } from "@/lib/hooks/use-location-catalog";
+import {
+  ACTIVE_DEPARTMENT_CODE,
+  ACTIVE_DEPARTMENT_NAME,
+  ACTIVE_PROVINCE_CODE,
+  ACTIVE_PROVINCE_NAME,
+} from "@/lib/scope";
 
 export type LocationLevel = "region" | "province" | "municipality";
 
@@ -49,6 +55,14 @@ export type LocationPickerProps = {
   /** Deshabilita los 3 dropdowns. */
   disabled?: boolean;
   /**
+   * Restringe el alcance del selector al ámbito operativo activo de SFIT
+   * (Apurímac · Cotabambas). Con "active-province" la región y la provincia
+   * quedan fijas como texto informativo y solo se permite escoger distrito.
+   * Útil para flujos donde el alcance ya está definido por política
+   * (registro público, alta de usuarios por admin_municipal, etc.).
+   */
+  lockedScope?: "active-province";
+  /**
    * Nombres opcionales para mostrar mientras se carga el catálogo —
    * evita el "flicker" de mostrar el id crudo entre el mount y el fetch.
    */
@@ -74,10 +88,14 @@ export function LocationPicker({
   levels = ["region", "province", "municipality"],
   scope = "admin",
   disabled = false,
+  lockedScope,
   initialNames,
 }: LocationPickerProps) {
-  const showRegion = levels.includes("region");
-  const showProvince = levels.includes("province");
+  const isLocked = lockedScope === "active-province";
+  // Con lockedScope mostramos región y provincia como texto fijo (no selectores)
+  // y dejamos disponible solo el selector de distrito.
+  const showRegion = !isLocked && levels.includes("region");
+  const showProvince = !isLocked && levels.includes("province");
   const showMunicipality = levels.includes("municipality");
 
   // Selección "ad-hoc" mientras el usuario navega (override del value pasado
@@ -175,8 +193,42 @@ export function LocationPicker({
     emit({ region, province, municipality: m });
   }
 
+  // Auto-selección del scope activo: cuando isLocked, fijamos región=Apurímac
+  // y provincia=Cotabambas tan pronto cargan los catálogos. Sin esto el padre
+  // recibiría regionId/provinceId nulos y el selector de distrito quedaría
+  // bloqueado esperando una elección que el usuario no puede hacer.
+  useEffect(() => {
+    if (!isLocked) return;
+    if (region) return;
+    const target = regions.find((r) => r.code === ACTIVE_DEPARTMENT_CODE);
+    if (target) handleRegionSelect(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLocked, regions, region]);
+
+  useEffect(() => {
+    if (!isLocked) return;
+    if (province) return;
+    const target = provinces.find((p) => p.ubigeoCode === ACTIVE_PROVINCE_CODE);
+    if (target) handleProvinceSelect(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLocked, provinces, province]);
+
   return (
     <div className="grid gap-3 sm:grid-cols-3">
+      {isLocked && (
+        <div className="sm:col-span-2 flex items-center gap-2 rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2.5">
+          <MapPin className="h-3.5 w-3.5 shrink-0 text-[#71717A]" />
+          <div className="min-w-0">
+            <div className="text-[10.5px] font-semibold uppercase tracking-wider text-[#71717A]">
+              Ámbito
+            </div>
+            <div className="truncate text-[13.5px] font-medium text-[#0A1628]">
+              {ACTIVE_DEPARTMENT_NAME} · {ACTIVE_PROVINCE_NAME}
+            </div>
+          </div>
+        </div>
+      )}
+
       {showRegion && (
         <ComboField
           label="Región"

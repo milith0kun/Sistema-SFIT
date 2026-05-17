@@ -125,22 +125,25 @@ export const ROLE_MATRIX: Record<Resource, Record<Action, Role[]>> = {
     edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
     delete: [A.SUPER_ADMIN],
   },
-  // Recursos geográficos: el modelo se conserva pero solo super_admin opera
-  // sobre ellos. En la práctica el sistema corre con 1 muni hardcoded en config.
+  // Recursos geográficos: super_admin opera (CRUD) sobre el catálogo. El
+  // admin_municipal puede LEER catálogos porque el LocationPicker los consume
+  // (al crear/editar usuarios, empresas, etc.); los endpoints aplican el
+  // filtro del scope activo (ver src/lib/scope.ts) para que admin_municipal
+  // solo vea su provincia/región operativa.
   municipalidades: {
-    view: [A.SUPER_ADMIN],
+    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
     create: [A.SUPER_ADMIN],
     edit: [A.SUPER_ADMIN],
     delete: [A.SUPER_ADMIN],
   },
   provincias: {
-    view: [A.SUPER_ADMIN],
+    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
     create: [A.SUPER_ADMIN],
     edit: [A.SUPER_ADMIN],
     delete: [A.SUPER_ADMIN],
   },
   regiones: {
-    view: [A.SUPER_ADMIN],
+    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
     create: [A.SUPER_ADMIN],
     edit: [A.SUPER_ADMIN],
     delete: [A.SUPER_ADMIN],

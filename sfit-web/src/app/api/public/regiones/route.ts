@@ -1,12 +1,13 @@
 import { connectDB } from "@/lib/db/mongoose";
 import { Province } from "@/models/Province";
 import { apiResponse, apiError } from "@/lib/api/response";
+import { ACTIVE_DEPARTMENT_CODE } from "@/lib/scope";
 
 /**
- * Endpoint público — lista las 25 regiones (departamentos) del Perú para
- * selectores en flujos sin auth (registro). Lee del catálogo UBIGEO
- * denormalizado en Province.departmentCode/Name (mismo origen que
- * /api/admin/red-nacional). El `id` es el departmentCode UBIGEO (2 dígitos).
+ * Endpoint público — lista las regiones (departamentos) habilitadas para
+ * selectores en flujos sin auth (registro). SFIT opera exclusivamente en
+ * Apurímac, así que esta lista contiene un único elemento aunque la BD
+ * tenga sembradas más regiones.
  */
 export async function GET() {
   try {
@@ -15,7 +16,7 @@ export async function GET() {
       _id: string;
       departmentName: string;
     }>([
-      { $match: { departmentCode: { $exists: true, $ne: null } } },
+      { $match: { departmentCode: ACTIVE_DEPARTMENT_CODE } },
       {
         $group: {
           _id: "$departmentCode",

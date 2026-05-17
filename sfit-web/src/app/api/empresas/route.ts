@@ -109,6 +109,8 @@ export async function GET(request: NextRequest) {
         documents: c.documents,
         active: c.active,
         suspendedAt: c.suspendedAt,
+        approvedAt: c.approvedAt,
+        approvedBy: c.approvedBy ? String(c.approvedBy) : null,
         reputationScore: c.reputationScore,
         serviceScope: c.serviceScope,
         coverage: c.coverage,

@@ -37,7 +37,10 @@ export const NAV: NavItem[] = [
 
   // GESTIÓN — administración de cuentas (super_admin + admin_municipal)
   { href: "/usuarios",        label: "Usuarios",            icon: Users,                 section: "GESTIÓN",        roles: ["super_admin","admin_municipal"] },
-  { href: "/admin/users",     label: "Aprobaciones",        icon: UserCheck,             section: "GESTIÓN",        roles: ["super_admin","admin_municipal"] },
+  // Centro unificado de aprobaciones (usuarios + empresas + conductores + vehículos).
+  // La página interna `/admin/users` sigue existiendo para detalle de cada
+  // aprobación de usuario y se enlaza desde aquí.
+  { href: "/aprobaciones",    label: "Aprobaciones",        icon: UserCheck,             section: "GESTIÓN",        roles: ["super_admin","admin_municipal"] },
 
   // OPERACIÓN — solo admin_municipal (super_admin no opera transporte).
   // /flota y /viajes/nueva son responsabilidad del OPERADOR (app móvil): el
@@ -103,6 +106,7 @@ export const SEG_LABELS: Record<string, string> = {
   perfil: "Mi perfil",
   "mi-empresa": "Mi empresa",
   users: "Aprobaciones",
+  aprobaciones: "Centro de aprobaciones",
 };
 
 export type RoleBadgeStyle = { bg: string; color: string; border: string };

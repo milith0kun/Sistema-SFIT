@@ -14,12 +14,14 @@ export function Sidebar({
   user,
   pathname,
   unread,
+  pendingApprovals,
   onClose,
   onLogout,
 }: {
   user: StoredUser;
   pathname: string | null;
   unread: number;
+  pendingApprovals: number;
   onClose: () => void;
   onLogout: () => void;
 }) {
@@ -91,7 +93,13 @@ export function Sidebar({
                     key={item.href}
                     item={item}
                     active={pathname === item.href || (pathname?.startsWith(item.href + "/") ?? false)}
-                    badge={item.href === "/notificaciones" ? unread : 0}
+                    badge={
+                      item.href === "/notificaciones"
+                        ? unread
+                        : item.href === "/aprobaciones"
+                          ? pendingApprovals
+                          : 0
+                    }
                   />
                 ))}
               </div>

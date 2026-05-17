@@ -11,6 +11,7 @@ import {
 import { PageHeader } from "@/components/ui/PageHeader";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
+import { ACTIVE_DISTRICTS } from "@/lib/scope";
 
 /* ── Tokens — paleta sobria ── */
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK3 = "#d4d4d8";
@@ -34,17 +35,66 @@ const LABEL: React.CSSProperties = {
   textTransform: "uppercase", color: INK5, marginBottom: 6,
 };
 
+type ServiceScope =
+  | "urbano_distrital"
+  | "urbano_provincial"
+  | "interprovincial_regional"
+  | "interregional_nacional";
+
+type AuthorityLevel =
+  | "municipal_distrital"
+  | "municipal_provincial"
+  | "regional"
+  | "mtc";
+
+type Authorization = {
+  level: AuthorityLevel;
+  scope: ServiceScope;
+  issuedBy?: string;
+  resolutionNumber?: string;
+  issuedAt?: string;
+  expiresAt?: string;
+  documentUrl?: string;
+};
+
+type Coverage = {
+  departmentCodes: string[];
+  provinceCodes: string[];
+  districtCodes: string[];
+};
+
 type Company = {
   id: string; razonSocial: string; ruc: string;
   representanteLegal: { name: string; dni: string; phone?: string };
   vehicleTypeKeys: string[]; documents: { name: string; url: string }[];
   active: boolean; reputationScore: number; status?: string;
+  serviceScope?: ServiceScope;
+  coverage?: Coverage;
+  authorizations?: Authorization[];
+};
+
+const SCOPE_LABEL: Record<ServiceScope, string> = {
+  urbano_distrital: "Urbano distrital",
+  urbano_provincial: "Urbano provincial",
+  interprovincial_regional: "Interprovincial / regional",
+  interregional_nacional: "Interregional / nacional",
+};
+
+const AUTHORITY_LABEL: Record<AuthorityLevel, string> = {
+  municipal_distrital: "Muni. distrital",
+  municipal_provincial: "Muni. provincial",
+  regional: "Gobierno regional",
+  mtc: "MTC",
 };
 type VehicleType = { id: string; key: string; name: string };
 type StoredUser = { role: string };
 interface FormState {
   razonSocial: string; ruc: string;
   repName: string; repDni: string; repPhone: string;
+  serviceScope: ServiceScope;
+  districtCodes: string[];
+  authorizations: Authorization[];
+  documents: { name: string; url: string }[];
 }
 type RucLookup =
   | { state: "idle" } | { state: "loading" }
@@ -82,6 +132,10 @@ export default function EmpresaDetallePage({ params }: Props) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<FormState>({
     razonSocial: "", ruc: "", repName: "", repDni: "", repPhone: "",
+    serviceScope: "urbano_distrital",
+    districtCodes: [],
+    authorizations: [],
+    documents: [],
   });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -134,6 +188,10 @@ export default function EmpresaDetallePage({ params }: Props) {
         repName: c.representanteLegal?.name ?? "",
         repDni: c.representanteLegal?.dni ?? "",
         repPhone: c.representanteLegal?.phone ?? "",
+        serviceScope: c.serviceScope ?? "urbano_distrital",
+        districtCodes: c.coverage?.districtCodes ?? [],
+        authorizations: c.authorizations ?? [],
+        documents: c.documents ?? [],
       });
     } catch { setError("Error de conexión."); }
     finally { setLoading(false); }
@@ -232,6 +290,10 @@ export default function EmpresaDetallePage({ params }: Props) {
       repName: company.representanteLegal?.name ?? "",
       repDni: company.representanteLegal?.dni ?? "",
       repPhone: company.representanteLegal?.phone ?? "",
+      serviceScope: company.serviceScope ?? "urbano_distrital",
+      districtCodes: company.coverage?.districtCodes ?? [],
+      authorizations: company.authorizations ?? [],
+      documents: company.documents ?? [],
     });
   }
 
@@ -252,6 +314,19 @@ export default function EmpresaDetallePage({ params }: Props) {
             name: form.repName.trim(), dni: form.repDni.trim(),
             phone: form.repPhone.trim() || undefined,
           },
+          serviceScope: form.serviceScope,
+          coverage: {
+            // departmentCodes/provinceCodes se mantienen; districtCodes editable.
+            departmentCodes: company?.coverage?.departmentCodes ?? [],
+            provinceCodes:   company?.coverage?.provinceCodes   ?? [],
+            districtCodes:   form.districtCodes,
+          },
+          authorizations: form.authorizations.map(a => ({
+            ...a,
+            issuedAt: a.issuedAt || undefined,
+            expiresAt: a.expiresAt || undefined,
+          })),
+          documents: form.documents.filter(d => d.name.trim() && d.url.trim()),
         }),
       });
       if (res.status === 401) return router.replace("/login");
@@ -372,6 +447,25 @@ export default function EmpresaDetallePage({ params }: Props) {
   const typeMap = new Map(types.map(t => [t.key, t.name]));
   const canManage = !!user?.role && ["super_admin", "admin_municipal"].includes(user.role);
   const isSuspended = !company.active || company.status === "suspendido";
+
+  function updateAuth(i: number, patch: Partial<Authorization>) {
+    setForm(p => ({
+      ...p,
+      authorizations: p.authorizations.map((a, idx) => idx === i ? { ...a, ...patch } : a),
+    }));
+  }
+  function removeAuth(i: number) {
+    setForm(p => ({ ...p, authorizations: p.authorizations.filter((_, idx) => idx !== i) }));
+  }
+  function updateDoc(i: number, patch: Partial<{ name: string; url: string }>) {
+    setForm(p => ({
+      ...p,
+      documents: p.documents.map((d, idx) => idx === i ? { ...d, ...patch } : d),
+    }));
+  }
+  function removeDoc(i: number) {
+    setForm(p => ({ ...p, documents: p.documents.filter((_, idx) => idx !== i) }));
+  }
 
   const headerAction = (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -871,36 +965,290 @@ export default function EmpresaDetallePage({ params }: Props) {
             })()}
           </SectionCard>
 
+          {/* ── Modalidad y cobertura operativa ── */}
+          <SectionCard
+            icon={<Briefcase size={14} color={INK6} />}
+            title="Modalidad y cobertura"
+            subtitle="Tipo de servicio autorizado y distritos donde opera"
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <div style={LABEL}>Modalidad de servicio</div>
+                {editing ? (
+                  <select
+                    value={form.serviceScope}
+                    onChange={e => setForm(p => ({ ...p, serviceScope: e.target.value as ServiceScope }))}
+                    style={{ ...FIELD, appearance: "none", paddingRight: 30 }}
+                  >
+                    <option value="urbano_distrital">Urbano distrital · municipalidad distrital</option>
+                    <option value="urbano_provincial">Urbano provincial · municipalidad provincial</option>
+                    <option value="interprovincial_regional">Interprovincial · gobierno regional + MTC</option>
+                    <option value="interregional_nacional">Interregional · MTC</option>
+                  </select>
+                ) : (
+                  <input value={SCOPE_LABEL[company.serviceScope ?? "urbano_distrital"]} style={READ} readOnly />
+                )}
+              </div>
+              <div>
+                <div style={LABEL}>Distritos cubiertos (Cotabambas)</div>
+                {editing ? (
+                  <div style={{
+                    display: "grid", gap: 6,
+                    gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+                    padding: 8, border: `1px solid ${INK2}`, borderRadius: 8, background: "#fff",
+                  }}>
+                    {ACTIVE_DISTRICTS.map(d => {
+                      const checked = form.districtCodes.includes(d.code);
+                      return (
+                        <label key={d.code} style={{
+                          display: "flex", alignItems: "center", gap: 8,
+                          padding: "6px 10px", borderRadius: 6,
+                          border: `1px solid ${checked ? GRN_BD : INK2}`,
+                          background: checked ? GRN_BG : "#fff",
+                          cursor: "pointer", fontSize: "0.8125rem",
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => setForm(p => ({
+                              ...p,
+                              districtCodes: checked
+                                ? p.districtCodes.filter(c => c !== d.code)
+                                : [...p.districtCodes, d.code],
+                            }))}
+                            style={{ accentColor: GRN }}
+                          />
+                          <span style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, color: INK9 }}>{d.name}</div>
+                            <div style={{ fontSize: "0.6875rem", color: INK5, fontFamily: "ui-monospace, monospace" }}>{d.code}</div>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {(company.coverage?.districtCodes ?? []).length === 0 ? (
+                      <span style={{ fontSize: "0.8125rem", color: INK5 }}>— Sin distritos definidos —</span>
+                    ) : (
+                      (company.coverage?.districtCodes ?? []).map(code => {
+                        const found = ACTIVE_DISTRICTS.find(d => d.code === code);
+                        return (
+                          <span key={code} style={{
+                            padding: "4px 10px", borderRadius: 6,
+                            background: GRN_BG, color: GRN, border: `1px solid ${GRN_BD}`,
+                            fontSize: "0.75rem", fontWeight: 600,
+                          }}>
+                            {found?.name ?? code}
+                          </span>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </SectionCard>
+
+          {/* ── Autorizaciones ── */}
+          <SectionCard
+            icon={<FileText size={14} color={INK6} />}
+            title="Autorizaciones"
+            subtitle="Resoluciones municipales / regionales / MTC"
+          >
+            {!editing ? (
+              !(company.authorizations?.length) ? (
+                <EmptyBlock
+                  icon={<FileText size={20} color={INK5} strokeWidth={1.5} />}
+                  title="Sin autorizaciones registradas"
+                  subtitle="Las resoluciones de operación se mostrarán aquí."
+                />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {(company.authorizations ?? []).map((a, i) => (
+                    <div key={i} style={{
+                      padding: "10px 12px", borderRadius: 8,
+                      background: "#fff", border: `1px solid ${INK2}`,
+                      display: "flex", flexDirection: "column", gap: 4,
+                    }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <span style={{ fontWeight: 700, color: INK9, fontSize: "0.8125rem" }}>
+                          {AUTHORITY_LABEL[a.level]}
+                        </span>
+                        <span style={{ fontSize: "0.6875rem", color: INK5 }}>·</span>
+                        <span style={{ fontSize: "0.75rem", color: INK6 }}>
+                          {SCOPE_LABEL[a.scope]}
+                        </span>
+                      </div>
+                      {a.resolutionNumber && (
+                        <div style={{ fontSize: "0.75rem", color: INK6, fontFamily: "ui-monospace, monospace" }}>
+                          Res. {a.resolutionNumber}{a.issuedBy ? ` · ${a.issuedBy}` : ""}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {form.authorizations.map((a, i) => (
+                  <div key={i} style={{
+                    padding: 10, borderRadius: 8,
+                    border: `1px solid ${INK2}`, background: "#fff",
+                    display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8,
+                  }}>
+                    <select
+                      value={a.level}
+                      onChange={e => updateAuth(i, { level: e.target.value as AuthorityLevel })}
+                      style={{ ...FIELD, height: 34 }}
+                    >
+                      <option value="municipal_distrital">Municipal distrital</option>
+                      <option value="municipal_provincial">Municipal provincial</option>
+                      <option value="regional">Regional</option>
+                      <option value="mtc">MTC</option>
+                    </select>
+                    <select
+                      value={a.scope}
+                      onChange={e => updateAuth(i, { scope: e.target.value as ServiceScope })}
+                      style={{ ...FIELD, height: 34 }}
+                    >
+                      <option value="urbano_distrital">Urbano distrital</option>
+                      <option value="urbano_provincial">Urbano provincial</option>
+                      <option value="interprovincial_regional">Interprovincial</option>
+                      <option value="interregional_nacional">Interregional</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => removeAuth(i)}
+                      style={{
+                        height: 34, padding: "0 10px", borderRadius: 7,
+                        border: `1px solid ${RED_BD}`, background: RED_BG, color: RED,
+                        cursor: "pointer", fontSize: "0.75rem", fontWeight: 600,
+                      }}
+                    >
+                      Quitar
+                    </button>
+                    <input
+                      placeholder="N° de resolución"
+                      value={a.resolutionNumber ?? ""}
+                      onChange={e => updateAuth(i, { resolutionNumber: e.target.value })}
+                      style={{ ...FIELD, height: 34, gridColumn: "1 / 3" }}
+                    />
+                    <input
+                      placeholder="Emisora"
+                      value={a.issuedBy ?? ""}
+                      onChange={e => updateAuth(i, { issuedBy: e.target.value })}
+                      style={{ ...FIELD, height: 34, gridColumn: "3" }}
+                    />
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setForm(p => ({
+                    ...p,
+                    authorizations: [...p.authorizations, {
+                      level: "municipal_distrital",
+                      scope: form.serviceScope,
+                      resolutionNumber: "",
+                      issuedBy: "",
+                    }],
+                  }))}
+                  style={{
+                    alignSelf: "flex-start",
+                    height: 32, padding: "0 12px", borderRadius: 7,
+                    border: `1px solid ${INK2}`, background: "#fff", color: INK6,
+                    cursor: "pointer", fontSize: "0.75rem", fontWeight: 600,
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                  }}
+                >
+                  <Plus size={12} /> Agregar autorización
+                </button>
+              </div>
+            )}
+          </SectionCard>
+
           {/* ── Documentos ── */}
           <SectionCard
             icon={<FileText size={14} color={INK6} />}
             title="Documentos"
-            subtitle={`${company.documents?.length ?? 0} adjunto${(company.documents?.length ?? 0) === 1 ? "" : "s"}`}
+            subtitle={`${(editing ? form.documents : company.documents)?.length ?? 0} adjunto${((editing ? form.documents : company.documents)?.length ?? 0) === 1 ? "" : "s"}`}
           >
-            {!company.documents?.length ? (
-              <EmptyBlock
-                icon={<FileText size={20} color={INK5} strokeWidth={1.5} />}
-                title="Sin documentos adjuntos"
-                subtitle="Permisos, autorizaciones MTC o resoluciones se mostrarán aquí."
-              />
+            {!editing ? (
+              !company.documents?.length ? (
+                <EmptyBlock
+                  icon={<FileText size={20} color={INK5} strokeWidth={1.5} />}
+                  title="Sin documentos adjuntos"
+                  subtitle="Permisos, autorizaciones MTC o resoluciones se mostrarán aquí."
+                />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {company.documents.map((d, i) => (
+                    <a key={i} href={d.url} target="_blank" rel="noopener noreferrer" style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      padding: "8px 12px", borderRadius: 8,
+                      background: "#fff", border: `1px solid ${INK2}`, color: INK9,
+                      fontSize: "0.8125rem", textDecoration: "none",
+                      transition: "border-color 120ms",
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = INK5; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = INK2; }}
+                    >
+                      <FileText size={13} color={INK6} />
+                      <span style={{ flex: 1, fontWeight: 600 }}>{d.name}</span>
+                      <span style={{ fontSize: "0.6875rem", color: INK5 }}>Abrir →</span>
+                    </a>
+                  ))}
+                </div>
+              )
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {company.documents.map((d, i) => (
-                  <a key={i} href={d.url} target="_blank" rel="noopener noreferrer" style={{
-                    display: "flex", alignItems: "center", gap: 8,
-                    padding: "8px 12px", borderRadius: 8,
-                    background: "#fff", border: `1px solid ${INK2}`, color: INK9,
-                    fontSize: "0.8125rem", textDecoration: "none",
-                    transition: "border-color 120ms",
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = INK5; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = INK2; }}
-                  >
-                    <FileText size={13} color={INK6} />
-                    <span style={{ flex: 1, fontWeight: 600 }}>{d.name}</span>
-                    <span style={{ fontSize: "0.6875rem", color: INK5 }}>Abrir →</span>
-                  </a>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {form.documents.map((d, i) => (
+                  <div key={i} style={{
+                    display: "grid", gridTemplateColumns: "1fr 2fr auto", gap: 8,
+                    padding: 8, borderRadius: 8,
+                    border: `1px solid ${INK2}`, background: "#fff",
+                  }}>
+                    <input
+                      placeholder="Nombre del documento"
+                      value={d.name}
+                      onChange={e => updateDoc(i, { name: e.target.value })}
+                      style={{ ...FIELD, height: 34 }}
+                    />
+                    <input
+                      placeholder="https://..."
+                      value={d.url}
+                      onChange={e => updateDoc(i, { url: e.target.value })}
+                      style={{ ...FIELD, height: 34 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeDoc(i)}
+                      style={{
+                        height: 34, padding: "0 10px", borderRadius: 7,
+                        border: `1px solid ${RED_BD}`, background: RED_BG, color: RED,
+                        cursor: "pointer", fontSize: "0.75rem", fontWeight: 600,
+                      }}
+                    >
+                      Quitar
+                    </button>
+                  </div>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => setForm(p => ({
+                    ...p,
+                    documents: [...p.documents, { name: "", url: "" }],
+                  }))}
+                  style={{
+                    alignSelf: "flex-start",
+                    height: 32, padding: "0 12px", borderRadius: 7,
+                    border: `1px solid ${INK2}`, background: "#fff", color: INK6,
+                    cursor: "pointer", fontSize: "0.75rem", fontWeight: 600,
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                  }}
+                >
+                  <Plus size={12} /> Agregar documento
+                </button>
               </div>
             )}
           </SectionCard>

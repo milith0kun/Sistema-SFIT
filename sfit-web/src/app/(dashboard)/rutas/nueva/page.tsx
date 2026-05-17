@@ -9,6 +9,11 @@ import {
 } from "lucide-react";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { WaypointsEditor, type Waypoint } from "@/components/ui/WaypointsEditor";
+import {
+  ACTIVE_DISTRICTS,
+  ACTIVE_PROVINCE_NAME,
+  INTERPROV_DESTINATIONS,
+} from "@/lib/scope";
 
 type Company = { id: string; razonSocial: string };
 type VehicleType = { id: string; key: string; name: string; active: boolean };
@@ -35,22 +40,26 @@ const SCOPE_DESC: Record<ServiceScope, string> = {
 const URBAN_SCOPES = new Set<ServiceScope>(["urbano_distrital", "urbano_provincial"]);
 const INTERPROV_SCOPES = new Set<ServiceScope>(["interprovincial_regional", "interregional_nacional"]);
 
-/** Catálogo mínimo de distritos de demo (UBIGEO 6 dígitos).
- *  Si existe `/api/distritos` se usa; este array es fallback.
- *  Cubre Cotabambas (origen) + Cusco/Arequipa/Abancay (destinos típicos). */
-const FALLBACK_DISTRICTS: Array<{ code: string; name: string; province: string }> = [
-  // Provincia Cotabambas (Apurímac) — origen
-  { code: "030501", name: "Tambobamba",     province: "Cotabambas" },
-  { code: "030502", name: "Cotabambas",     province: "Cotabambas" },
-  { code: "030503", name: "Coyllurqui",     province: "Cotabambas" },
-  { code: "030504", name: "Haquira",        province: "Cotabambas" },
-  { code: "030505", name: "Mara",           province: "Cotabambas" },
-  { code: "030506", name: "Challhuahuacho", province: "Cotabambas" },
-  // Destinos típicos interprovinciales
-  { code: "030101", name: "Abancay",        province: "Abancay" },
-  { code: "080101", name: "Cusco",          province: "Cusco" },
-  { code: "040101", name: "Arequipa",       province: "Arequipa" },
-];
+/**
+ * Catálogo de distritos para el form de rutas.
+ *
+ * Orígenes (urbanas e interprovinciales): los 6 distritos de Cotabambas.
+ * Destinos interprovinciales: Cusco / Arequipa / Abancay (ver lib/scope.ts).
+ *
+ * Los `traversedDistrictCodes` para rutas interprov solo cubren tramos
+ * dentro de Cotabambas (paraderos intermedios antes de salir de la
+ * provincia), por eso reutilizamos ACTIVE_DISTRICTS para esa lista.
+ */
+const ORIGIN_DISTRICTS = ACTIVE_DISTRICTS.map((d) => ({
+  code: d.code,
+  name: d.name,
+  province: ACTIVE_PROVINCE_NAME,
+}));
+const DESTINATION_DISTRICTS = INTERPROV_DESTINATIONS.map((d) => ({
+  code: d.code,
+  name: d.name,
+  province: d.province,
+}));
 
 const ALLOWED_CREATE = ["super_admin", "admin_municipal"];
 
@@ -77,7 +86,6 @@ export default function NuevaRutaPage() {
   const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
-  const [districts] = useState(FALLBACK_DISTRICTS);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -560,7 +568,7 @@ export default function NuevaRutaPage() {
                     onChange={e => setOriginDistrictCode(e.target.value)}
                     style={{ ...FIELD, borderColor: fieldErrors.originDistrictCode ? RED : INK2, appearance: "none", paddingRight: 30 }}>
                     <option value="">— Seleccionar —</option>
-                    {districts.map(d => (
+                    {ORIGIN_DISTRICTS.map(d => (
                       <option key={d.code} value={d.code}>
                         {d.name} ({d.province}) · {d.code}
                       </option>
@@ -576,7 +584,7 @@ export default function NuevaRutaPage() {
                     onChange={e => setDestinationDistrictCode(e.target.value)}
                     style={{ ...FIELD, borderColor: fieldErrors.destinationDistrictCode ? RED : INK2, appearance: "none", paddingRight: 30 }}>
                     <option value="">— Seleccionar —</option>
-                    {districts.map(d => (
+                    {DESTINATION_DISTRICTS.map(d => (
                       <option key={d.code} value={d.code}>
                         {d.name} ({d.province}) · {d.code}
                       </option>
@@ -598,7 +606,7 @@ export default function NuevaRutaPage() {
                 maxHeight: 220, overflowY: "auto",
                 padding: "4px 2px",
               }}>
-                {districts.map(d => {
+                {ORIGIN_DISTRICTS.map(d => {
                   const checked = traversedDistrictCodes.includes(d.code);
                   return (
                     <label key={d.code} style={{

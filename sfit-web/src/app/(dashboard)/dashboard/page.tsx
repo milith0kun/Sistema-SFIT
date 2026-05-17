@@ -25,7 +25,6 @@ import {
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { KPIStrip, type KPIItem } from "@/components/dashboard/KPIStrip";
 import { FeatureCard } from "@/components/dashboard/FeatureCard";
-import { GoogleMapView } from "@/components/ui/GoogleMapView";
 import { OperatorDashboard } from "./components/OperatorDashboard";
 
 type User = { name: string; email: string; role: string; regionId?: string };
@@ -75,19 +74,6 @@ type ActivityItem = {
   href: string;
 };
 
-type ActiveLocationItem = {
-  id: string;
-  plate: string;
-  vehicleLabel: string;
-  driverName: string;
-  routeCode: string | null;
-  routeName: string | null;
-  lat: number;
-  lng: number;
-  locationUpdatedAt: string;
-  departureTime: string | null;
-};
-
 function subscribeUser(onChange: () => void): () => void {
   if (typeof window === "undefined") return () => {};
   const handler = (e: StorageEvent) => {
@@ -133,8 +119,6 @@ export default function DashboardPage() {
   const [fiscalStats, setFiscalStats] = useState<FiscalStats | null>(null);
   const [conductorStats, setConductorStats] = useState<ConductorStats | null>(null);
   const [actividad, setActividad] = useState<ActivityItem[]>([]);
-  const [fleetLocations, setFleetLocations] = useState<ActiveLocationItem[]>([]);
-  const [locationsLoading, setLocationsLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -207,29 +191,11 @@ export default function DashboardPage() {
     }
   }, []);
 
-  const loadFleetLocations = useCallback(async () => {
-    setLocationsLoading(true);
-    try {
-      const token = localStorage.getItem("sfit_access_token");
-      const res = await fetch("/api/flota/active-locations", { headers: { Authorization: `Bearer ${token ?? ""}` } });
-      if (res.ok) {
-        const data = await res.json();
-        setFleetLocations(data.data?.items ?? []);
-      } else {
-        console.warn("[dashboard/loadFleetLocations] HTTP", res.status);
-      }
-    } catch (err) {
-      console.warn("[dashboard/loadFleetLocations] failed:", err);
-    } finally {
-      setLocationsLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     if (!user) return;
     if (["super_admin", "admin_municipal"].includes(user.role)) {
       void loadSuperAdmin(); void loadActividad();
-      if (user.role === "admin_municipal") { void loadFiscal(); void loadFleetLocations(); }
+      if (user.role === "admin_municipal") { void loadFiscal(); }
     } else if (user.role === "operador") {
       void loadOperador();
     } else if (user.role === "fiscal") {
@@ -237,7 +203,7 @@ export default function DashboardPage() {
     } else if (user.role === "conductor") {
       void loadConductor();
     }
-  }, [user, loadSuperAdmin, loadOperador, loadFiscal, loadConductor, loadActividad, loadFleetLocations]);
+  }, [user, loadSuperAdmin, loadOperador, loadFiscal, loadConductor, loadActividad]);
 
   if (!user) return null;
 
@@ -283,11 +249,6 @@ export default function DashboardPage() {
         <KPIStrip items={kpiItems} cols={kpiItems.length >= 4 ? 4 : (kpiItems.length as 3 | 4)} />
       )}
 
-      {/* ── Mapa de flota activa — solo admin_municipal ── */}
-      {role === "admin_municipal" && (
-        <ActiveFleetMap locations={fleetLocations} loading={locationsLoading} onRefresh={loadFleetLocations} />
-      )}
-
       {/* ── Contenido principal: izquierda + módulos derecha ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 animate-fade-up">
         {/* Columna izquierda: acción principal + actividad */}
@@ -303,99 +264,6 @@ export default function DashboardPage() {
         <div className="lg:col-span-4 min-w-0">
           <AllModulesPanel role={role} stats={stats} />
         </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Mapa de flota activa (admin_municipal) ── */
-
-function ActiveFleetMap({
-  locations,
-  loading,
-  onRefresh,
-}: {
-  locations: ActiveLocationItem[];
-  loading: boolean;
-  onRefresh: () => void;
-}) {
-  // Auto-refresca cada 30 s para mantener posiciones actualizadas
-  useEffect(() => {
-    const id = setInterval(onRefresh, 30_000);
-    return () => clearInterval(id);
-  }, [onRefresh]);
-  const center = locations.length > 0
-    ? {
-        lat: locations.reduce((s, l) => s + l.lat, 0) / locations.length,
-        lng: locations.reduce((s, l) => s + l.lng, 0) / locations.length,
-      }
-    : { lat: -13.5178, lng: -71.9785 };
-
-  const markers = locations.map((l) => ({
-    lat: l.lat,
-    lng: l.lng,
-    title: `${l.plate} — ${l.driverName}`,
-    color: "gold" as const,
-  }));
-
-  return (
-    <div style={{ background: "#fff", border: "1.5px solid #e4e4e7", borderRadius: 12, overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #f4f4f5" }}>
-        <div>
-          <div style={{ fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "#71717a", marginBottom: 1 }}>Tiempo real</div>
-          <h3 style={{ fontSize: "0.875rem", fontWeight: 700, color: "#09090b", margin: 0 }}>Flota activa</h3>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {loading && <span style={{ fontSize: "0.75rem", color: "#71717a" }}>Actualizando…</span>}
-          {locations.length > 0 && (
-            <span style={{ fontSize: "0.6875rem", fontWeight: 700, color: "#4A0303", background: "#FBEAEA", borderRadius: 999, padding: "2px 8px" }}>
-              {locations.length} en ruta
-            </span>
-          )}
-          <button
-            onClick={onRefresh}
-            style={{ display: "inline-flex", alignItems: "center", gap: 4, height: 28, padding: "0 10px", borderRadius: 7, fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", border: "1.5px solid #e4e4e7", background: "#fff", color: "#52525b" }}
-          >
-            <Route size={12} />
-            Actualizar
-          </button>
-        </div>
-      </div>
-
-      <div style={{ padding: 14 }}>
-        {locations.length === 0 && !loading ? (
-          <div style={{ textAlign: "center", color: "#a1a1aa", padding: "24px 0", fontSize: "0.8125rem" }}>
-            Sin vehículos en ruta con GPS activo
-          </div>
-        ) : (
-          <>
-            <GoogleMapView
-              center={center}
-              zoom={locations.length > 0 ? 13 : 12}
-              height={200}
-              markers={markers}
-              style={{ borderRadius: 10 }}
-            />
-            {locations.length > 0 && (
-              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
-                {locations.map((loc) => (
-                  <div key={loc.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", background: "#FBEAEA", border: "1px solid #D9B0B0", borderRadius: 8 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#6C0606", flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ fontWeight: 700, fontSize: "0.8125rem", color: "#09090b" }}>{loc.plate}</span>
-                      {loc.routeCode && (
-                        <span style={{ marginLeft: 6, fontSize: "0.75rem", color: "#71717a" }}>{loc.routeCode}</span>
-                      )}
-                    </div>
-                    <span style={{ fontSize: "0.75rem", color: "#52525b", flexShrink: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 110 }}>
-                      {loc.driverName}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
       </div>
     </div>
   );

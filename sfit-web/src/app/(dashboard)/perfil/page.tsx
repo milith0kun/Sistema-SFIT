@@ -9,6 +9,7 @@ import {
   IdCard, Loader2, Search, Phone as PhoneIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { PhotoUploader } from "@/components/ui/PhotoUploader";
 import {
   INK1, INK2, INK5, INK6, INK9,
   RED, REDBG, REDBD,
@@ -201,6 +202,35 @@ export default function PerfilPage() {
   function flashSuccess(msg: string) {
     setSuccess(msg);
     setTimeout(() => setSuccess(null), 3500);
+  }
+
+  async function savePhoto(nextUrl: string | null) {
+    if (!profile) return;
+    try {
+      const res = await fetch("/api/auth/perfil", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ image: nextUrl }),
+      });
+      const data = await res.json() as { success: boolean; data?: Profile; error?: string };
+      if (!res.ok || !data.success) {
+        setError(data.error ?? "No se pudo actualizar la foto");
+        return;
+      }
+      setProfile(p => (p ? { ...p, image: nextUrl } : p));
+      // Sincronizar localStorage para que el avatar del topbar refresque.
+      try {
+        const raw = localStorage.getItem("sfit_user");
+        if (raw) {
+          const stored = JSON.parse(raw);
+          stored.image = nextUrl ?? undefined;
+          localStorage.setItem("sfit_user", JSON.stringify(stored));
+        }
+      } catch { /* silent */ }
+      flashSuccess(nextUrl ? "Foto actualizada" : "Foto eliminada");
+    } catch {
+      setError("Error de conexión al actualizar la foto");
+    }
   }
 
   async function saveProfile() {
@@ -534,14 +564,15 @@ export default function PerfilPage() {
           {/* Identidad */}
           <div style={{ background: "#fff", border: `1.5px solid ${INK2}`, borderRadius: 14, overflow: "hidden" }}>
             <div style={{ padding: "20px 20px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, borderBottom: `1px solid ${INK1}` }}>
-              {profile.image ? (
-                <Image src={profile.image} alt={profile.name} width={72} height={72}
-                  style={{ borderRadius: "50%", objectFit: "cover" }} unoptimized />
-              ) : (
-                <div style={{ width: 72, height: 72, borderRadius: "50%", background: GOLD_BG, border: `2px solid ${GOLD_BD}`, display: "flex", alignItems: "center", justifyContent: "center", color: GOLD, fontWeight: 800, fontSize: "1.5rem" }}>
-                  {initials || "?"}
-                </div>
-              )}
+              <div style={{ width: 96 }}>
+                <PhotoUploader
+                  category="user"
+                  value={profile.image ?? null}
+                  onChange={(url) => { void savePhoto(url); }}
+                  aspect="square"
+                  label=""
+                />
+              </div>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontWeight: 700, fontSize: "0.9375rem", color: INK9, lineHeight: 1.3 }}>{profile.name}</div>
                 <div style={{ marginTop: 6 }}>

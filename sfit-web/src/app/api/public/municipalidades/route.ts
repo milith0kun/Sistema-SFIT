@@ -2,11 +2,15 @@ import { NextRequest } from "next/server";
 import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/db/mongoose";
 import { Municipality } from "@/models/Municipality";
+import { Province } from "@/models/Province";
 import { apiResponse, apiError } from "@/lib/api/response";
+import { ACTIVE_PROVINCE_CODE } from "@/lib/scope";
 
 /**
- * Endpoint público — lista municipalidades activas de una provincia.
- * Usado por el formulario de registro y por LocationPicker en flujo público.
+ * Endpoint público — lista municipalidades (distritos) activas de una
+ * provincia. SFIT opera solo en Cotabambas, así que validamos que la
+ * provincia solicitada coincida con el scope activo y rechazamos cualquier
+ * otra para no leakar geografía fuera del despliegue.
  */
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
@@ -18,6 +22,14 @@ export async function GET(request: NextRequest) {
 
   try {
     await connectDB();
+
+    const province = await Province.findById(provinceId)
+      .select("ubigeoCode")
+      .lean<{ ubigeoCode?: string } | null>();
+    if (!province || province.ubigeoCode !== ACTIVE_PROVINCE_CODE) {
+      return apiError("Provincia fuera del ámbito habilitado", 404);
+    }
+
     const items = await Municipality.find({ provinceId, active: true })
       .sort({ name: 1 })
       .select("_id name provinceId ubigeoCode")

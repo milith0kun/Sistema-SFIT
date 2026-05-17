@@ -285,12 +285,14 @@ export default function ConductorDetallePage({ params }: Props) {
       licenseNumber: form.licenseNumber.trim(),
       licenseCategory: form.licenseCategory,
     };
-    if (form.companyId) payload.companyId = form.companyId;
+    // Enviamos companyId siempre: cadena vacía → null (desasignar);
+    // valor → ObjectId. Esto permite al admin desligar el conductor.
+    payload.companyId = form.companyId.trim() || null;
     payload.phone = form.phone.trim() || undefined;
     payload.photoUrl = form.photoUrl.trim() || null;
     try {
       const res = await fetch(`/api/conductores/${id}`, {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
@@ -780,20 +782,36 @@ export default function ConductorDetallePage({ params }: Props) {
             </div>
           </SectionCard>
 
-          {/* Empresa de transporte — read-only para admin_municipal.
-              La asignación a empresa la hace el OPERADOR desde la app móvil
-              cuando engancha conductor↔vehículo para su turno. El admin
-              solo valida licencia, DNI y foto. */}
+          {/* Empresa de transporte: editable por admin (super_admin /
+              admin_municipal). El operador móvil también puede asignar al
+              enganchar conductor↔vehículo para su turno; aquí permitimos
+              el override administrativo cuando hay rotaciones reales. */}
           <SectionCard
             icon={<Building2 size={14} color={INK6} />}
             title="Empresa de transporte"
-            subtitle="Asignación gestionada por el operador (app móvil)"
+            subtitle={canEdit
+              ? "Asigna o cambia la empresa que opera con este conductor"
+              : "Asignación actual del conductor"}
           >
-            <input
-              style={READ}
-              value={conductor.companyName ?? "Sin empresa asignada"}
-              readOnly disabled
-            />
+            {canEdit ? (
+              <select
+                value={form.companyId}
+                onChange={e => setForm(f => ({ ...f, companyId: e.target.value }))}
+                style={{ ...FIELD, appearance: "none", paddingRight: 30, cursor: "pointer" }}
+                disabled={empresas.length === 0}
+              >
+                <option value="">— Sin empresa asignada —</option>
+                {empresas.map(e => (
+                  <option key={e.id} value={e.id}>{e.razonSocial}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                style={READ}
+                value={conductor.companyName ?? "Sin empresa asignada"}
+                readOnly disabled
+              />
+            )}
             {empresas.length === 0 && (
               <p style={{ marginTop: 6, fontSize: "0.6875rem", color: INK5, fontStyle: "italic" }}>
                 No hay empresas registradas en la municipalidad todavía.

@@ -20,6 +20,7 @@ type Driver = {
   id: string; name: string; dni: string; licenseNumber: string; licenseCategory: string;
   companyName?: string; phone?: string; status: DriverStatus;
   continuousHours: number; restHours: number; reputationScore: number; active: boolean;
+  verified?: boolean;
 };
 
 /* Paleta sobria — gris + verde/ámbar/rojo sólo como semántica de fatiga */
@@ -165,8 +166,17 @@ export default function ConductoresPage() {
           >
             <Avatar name={d.name ?? "?"} />
             <div>
-              <div style={{ fontWeight: 600, color: isSel ? INK9 : INK9, fontSize: "0.875rem" }}>
+              <div style={{ fontWeight: 600, color: isSel ? INK9 : INK9, fontSize: "0.875rem", display: "flex", alignItems: "center", gap: 6 }}>
                 {d.name?.trim() || "Sin nombre"}
+                {d.verified === false && (
+                  <span style={{
+                    fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.04em",
+                    textTransform: "uppercase", padding: "1px 6px", borderRadius: 5,
+                    background: "#FEFCE8", color: "#92400E", border: "1px solid #FDE68A",
+                  }}>
+                    Sin verificar
+                  </span>
+                )}
               </div>
               <div style={{ fontSize: "0.75rem", color: INK5, fontFamily: "ui-monospace,monospace" }}>
                 DNI {dni} · {cat}

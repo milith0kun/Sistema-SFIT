@@ -223,7 +223,9 @@ export default function UsuariosAdminPage() {
     <>
       <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} style={selectStyle}>
         <option value="">Todos los roles</option>
-        {Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        {Object.entries(ROLE_LABELS)
+          .filter(([v]) => !(user?.role === "admin_municipal" && v === "super_admin"))
+          .map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
       <button
         onClick={() => { void load(); }}

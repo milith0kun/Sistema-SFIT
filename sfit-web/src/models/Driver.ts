@@ -25,6 +25,15 @@ export interface IDriver extends Document {
   /** Última ruta operada por el conductor — usada para sugerir al iniciar turno. */
   lastRouteId?: mongoose.Types.ObjectId;
   active: boolean;
+  /**
+   * Verificación administrativa del conductor. Al crearse queda `false`;
+   * el admin_municipal lo marca `true` desde el centro de aprobaciones tras
+   * revisar licencia, antecedentes y fotos. Solo los conductores verificados
+   * pueden ser asignados a viajes (TripsEngine valida este flag).
+   */
+  verified: boolean;
+  verifiedAt?: Date;
+  verifiedBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -47,6 +56,9 @@ const DriverSchema = new Schema<IDriver>(
     currentVehicleId: { type: Schema.Types.ObjectId, ref: "Vehicle" },
     lastRouteId: { type: Schema.Types.ObjectId, ref: "Route" },
     active: { type: Boolean, default: true },
+    verified: { type: Boolean, default: false, index: true },
+    verifiedAt: { type: Date },
+    verifiedBy: { type: Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true },
 );
@@ -55,6 +67,7 @@ const DriverSchema = new Schema<IDriver>(
 DriverSchema.index({ dni: 1 }, { unique: true });
 DriverSchema.index({ municipalityId: 1, status: 1 });
 DriverSchema.index({ companyId: 1, status: 1 });
+DriverSchema.index({ municipalityId: 1, verified: 1 });
 
 export const Driver: Model<IDriver> =
   (mongoose.models.Driver as Model<IDriver> | undefined) ||

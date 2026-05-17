@@ -23,6 +23,15 @@ export interface IVehicle extends Omit<Document, "model"> {
    */
   photoUrl?: string;
   active: boolean;
+  /**
+   * Verificación administrativa del vehículo. Queda `false` al crearse; el
+   * admin_municipal lo marca `true` desde el centro de aprobaciones tras
+   * confirmar SOAT, revisión técnica y placa. Solo los vehículos verificados
+   * pueden ser asignados a viajes (TripsEngine valida este flag).
+   */
+  verified: boolean;
+  verifiedAt?: Date;
+  verifiedBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,6 +57,9 @@ const VehicleSchema = new Schema<IVehicle>(
     qrHmac: { type: String },
     photoUrl: { type: String, trim: true },
     active: { type: Boolean, default: true },
+    verified: { type: Boolean, default: false, index: true },
+    verifiedAt: { type: Date },
+    verifiedBy: { type: Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true },
 );
@@ -56,6 +68,7 @@ const VehicleSchema = new Schema<IVehicle>(
 VehicleSchema.index({ plate: 1 }, { unique: true });
 VehicleSchema.index({ municipalityId: 1, status: 1 });
 VehicleSchema.index({ companyId: 1, status: 1 });
+VehicleSchema.index({ municipalityId: 1, verified: 1 });
 
 export const Vehicle: Model<IVehicle> =
   (mongoose.models.Vehicle as Model<IVehicle> | undefined) ||

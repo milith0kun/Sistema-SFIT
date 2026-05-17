@@ -9,6 +9,7 @@ import {
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { rolesFor } from "@/lib/auth/roleMatrix";
+import { ACTIVE_DEPARTMENT_CODE } from "@/lib/scope";
 
 const CreateSchema = z.object({
   name: z.string().min(2).max(100).trim(),
@@ -36,12 +37,21 @@ export async function GET(request: NextRequest) {
 
   try {
     await connectDB();
+
+    // SFIT opera exclusivamente en Apurímac (ver lib/scope.ts). Solo super_admin
+    // ve la lista completa de regiones; el resto de roles ve únicamente el
+    // departamento activo para no exponer geografía fuera del scope operativo.
+    const departmentMatch =
+      auth.session.role === ROLES.SUPER_ADMIN
+        ? { departmentCode: { $exists: true, $ne: null } }
+        : { departmentCode: ACTIVE_DEPARTMENT_CODE };
+
     const agg = await Province.aggregate<{
       _id: string;
       departmentName: string;
       provinceCount: number;
     }>([
-      { $match: { departmentCode: { $exists: true, $ne: null } } },
+      { $match: departmentMatch },
       {
         $group: {
           _id: "$departmentCode",

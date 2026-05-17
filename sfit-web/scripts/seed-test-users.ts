@@ -264,9 +264,8 @@ async function main() {
   console.log("Municipalidad ID: " + municipalityId);
   console.log("Empresa ID:       " + companyId);
   console.log(
-    "\nSiguiente paso: poblar vehículos/conductores/rutas para la empresa de prueba:",
+    "\nSiguiente paso: poblar vehículos/conductores/rutas desde el panel admin o vía API.",
   );
-  console.log("  npx tsx scripts/seed-empresa-test-data.ts");
 
   await mongoose.disconnect();
 }

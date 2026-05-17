@@ -340,6 +340,7 @@ export default function NuevoUsuarioPage() {
                     value={location}
                     onChange={setLocation}
                     levels={meta.showMuni ? ["region", "province", "municipality"] : ["region", "province"]}
+                    lockedScope="active-province"
                   />
                   <div style={{ marginTop: 8 }}>
                     <FieldErr k="provinceId" />

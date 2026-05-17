@@ -29,6 +29,36 @@ const DocumentSchema = z.object({
   url: z.string().url(),
 });
 
+const ServiceScopeEnum = z.enum([
+  "urbano_distrital",
+  "urbano_provincial",
+  "interprovincial_regional",
+  "interregional_nacional",
+]);
+
+const AuthorityLevelEnum = z.enum([
+  "municipal_distrital",
+  "municipal_provincial",
+  "regional",
+  "mtc",
+]);
+
+const AuthorizationSchema = z.object({
+  level: AuthorityLevelEnum,
+  scope: ServiceScopeEnum,
+  issuedBy: z.string().max(160).optional(),
+  resolutionNumber: z.string().max(80).optional(),
+  issuedAt: z.string().datetime().optional(),
+  expiresAt: z.string().datetime().optional(),
+  documentUrl: z.string().url().optional(),
+});
+
+const CoverageSchema = z.object({
+  departmentCodes: z.array(z.string().regex(/^\d{2}$/)).default([]),
+  provinceCodes:   z.array(z.string().regex(/^\d{4}$/)).default([]),
+  districtCodes:   z.array(z.string().regex(/^\d{6}$/)).default([]),
+});
+
 const UpdateCompanySchema = z.object({
   razonSocial: z.string().min(2).max(200).optional(),
   ruc: z.string().min(8).max(20).optional(),
@@ -37,6 +67,9 @@ const UpdateCompanySchema = z.object({
   documents: z.array(DocumentSchema).optional(),
   active: z.boolean().optional(),
   reputationScore: z.number().min(0).max(100).optional(),
+  serviceScope: ServiceScopeEnum.optional(),
+  coverage: CoverageSchema.optional(),
+  authorizations: z.array(AuthorizationSchema).optional(),
 });
 
 /**
@@ -68,7 +101,16 @@ export async function GET(
       documents: { name: string; url: string }[];
       active: boolean;
       suspendedAt?: Date;
+      approvedAt?: Date;
+      approvedBy?: unknown;
       reputationScore: number;
+      serviceScope?: string;
+      coverage?: { departmentCodes: string[]; provinceCodes: string[]; districtCodes: string[] };
+      authorizations?: Array<{
+        level: string; scope: string;
+        issuedBy?: string; resolutionNumber?: string;
+        issuedAt?: Date; expiresAt?: Date; documentUrl?: string;
+      }>;
       createdAt: Date;
       updatedAt: Date;
     } | null>();
@@ -93,7 +135,12 @@ export async function GET(
       documents: company.documents,
       active: company.active,
       suspendedAt: company.suspendedAt,
+      approvedAt: company.approvedAt,
+      approvedBy: company.approvedBy ? String(company.approvedBy) : null,
       reputationScore: company.reputationScore,
+      serviceScope: company.serviceScope,
+      coverage: company.coverage ?? { departmentCodes: [], provinceCodes: [], districtCodes: [] },
+      authorizations: company.authorizations ?? [],
       createdAt: company.createdAt,
       updatedAt: company.updatedAt,
     });

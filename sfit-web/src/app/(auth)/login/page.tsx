@@ -157,10 +157,10 @@ export default function LoginPage() {
     return () => observer.disconnect();
   }, [gisReady, GOOGLE_CLIENT_ID]);
 
-  // Persiste tokens y navega inmediatamente con replace.
-  // (replace evita que el botón "atrás" del navegador devuelva al login).
-  // Sin overlay intermedio: el prefetch hace que la navegación sea
-  // prácticamente instantánea cuando llega aquí.
+  // Hard navigation post-login: el callback de Google GSI corre en contexto
+  // de iframe/postMessage donde router.replace() de Next.js no completa la
+  // soft navigation y la página se queda en /login. window.location.replace
+  // garantiza re-hidratación limpia y sigue bloqueando el botón "atrás".
   function persistSessionAndRedirect(data: {
     accessToken: string;
     refreshToken: string;
@@ -170,7 +170,7 @@ export default function LoginPage() {
     localStorage.setItem("sfit_refresh_token", data.refreshToken);
     localStorage.setItem("sfit_user", JSON.stringify(data.user));
     document.cookie = `sfit_access_token=${data.accessToken}; path=/; max-age=7200; SameSite=Lax`;
-    router.replace(destForStatus(data.user.status));
+    window.location.replace(destForStatus(data.user.status));
   }
 
   async function handleGoogleCredential(response: { credential: string }) {
