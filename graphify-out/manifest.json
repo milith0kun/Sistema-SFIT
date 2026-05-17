@@ -776,8 +776,8 @@
     "hash": "6c4307ffa009658f5c97f5629094c0c2"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\next-env.d.ts": {
-    "mtime": 1778635727.7941217,
-    "hash": "d0f8375ae1199dc7acd3977fc33b78b8"
+    "mtime": 1778997703.2952383,
+    "hash": "2a74d3909800ca5467fa83b0ab4a4890"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\next.config.ts": {
     "mtime": 1776908158.4177043,
@@ -790,6 +790,10 @@
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\vitest.config.ts": {
     "mtime": 1776908145.1928284,
     "hash": "68c35ec4a65eee9778d34d913eda111c"
+  },
+  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\activate-cotabambas.ts": {
+    "mtime": 1778998246.3323212,
+    "hash": "6ff0a2ddfe4dea855a104205dcdc74a3"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\backfill-route-captures.ts": {
     "mtime": 1778130311.0067093,
@@ -806,10 +810,6 @@
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\create-admin.ts": {
     "mtime": 1776908145.10764,
     "hash": "d668c8a58c3104755d7b57558fa3ebc4"
-  },
-  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\debug-flota-conductor.ts": {
-    "mtime": 1777854275.9794514,
-    "hash": "1d8d129e3189041722f886a119861ecb"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\gen-rbac-matrix.ts": {
     "mtime": 1778912817.386342,
@@ -863,45 +863,25 @@
     "mtime": 1778912823.882468,
     "hash": "74cf2ea59a2f907c8b9097d21fe2f635"
   },
-  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\seed-apelaciones.ts": {
-    "mtime": 1777223445.2380006,
-    "hash": "9010eca9b5272f6f73251091a55e10c0"
-  },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\seed-aprobaciones.ts": {
     "mtime": 1777223542.8803954,
     "hash": "893cd70ee4b29953cf3961aeb85f4659"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\seed-buses-vivos.ts": {
-    "mtime": 1778034193.5996592,
-    "hash": "2bf8649b8f88fc277910cf97273638f3"
+    "mtime": 1779003670.6803083,
+    "hash": "2773739328575af753816d0ddd1d7a16"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\seed-conductor-test.ts": {
     "mtime": 1777855333.774464,
     "hash": "d7bcf0e96383833ba2d19bd2f3bacc7e"
-  },
-  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\seed-empresa-test-data.ts": {
-    "mtime": 1778345835.775569,
-    "hash": "509b2930e24a72c6e33205191b5a5652"
-  },
-  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\seed-empresas-cusco.ts": {
-    "mtime": 1778482003.3696437,
-    "hash": "b7db6fcd5228929f8378c86a76ed41df"
-  },
-  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\seed-expand-data.ts": {
-    "mtime": 1776908145.10764,
-    "hash": "dac21247f8d76005d4fc9caef12b155d"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\seed-extra-test-users.ts": {
     "mtime": 1778111737.9783463,
     "hash": "38ede3406dfc60158abc46ec713066a9"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\seed-flota-hoy.ts": {
-    "mtime": 1777527995.4289367,
-    "hash": "feac4bf2afb9100d71d95142c94f7697"
-  },
-  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\seed-full-data.ts": {
-    "mtime": 1777244554.396523,
-    "hash": "c9847eeaa0947f64ac503c3eca04b068"
+    "mtime": 1779003653.0100212,
+    "hash": "fa2f831087b0876840993e36aa7c5b5c"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\seed-mtc-pasajeros.ts": {
     "mtime": 1777412766.6690314,
@@ -916,36 +896,20 @@
     "hash": "218af3a0e798d2b1aa3fe75af7986766"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\seed-test-users.ts": {
-    "mtime": 1778913456.9411826,
-    "hash": "fee7f71687d003b4db9c6080d336bb83"
+    "mtime": 1779003608.7756445,
+    "hash": "b0e87164910adde1e63d75d270f7ae1a"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\seed-ubigeo.ts": {
     "mtime": 1777225650.2344427,
     "hash": "25e0d112e70c01eb7d261ec2713c58f7"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\seed-viajes-hoy.ts": {
-    "mtime": 1777529357.6925678,
-    "hash": "065ce7b4e1c1b6311b880db272a77d25"
+    "mtime": 1779003633.110249,
+    "hash": "dbc558b5b9f82db2ee0e5945e80db67d"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\setup.ts": {
     "mtime": 1776908145.1091506,
     "hash": "b7c9c8c101c05c91ef46889c6d4e6dbb"
-  },
-  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\_check-pipeline.ts": {
-    "mtime": 1778102276.5469313,
-    "hash": "cc35feaeeae45442ed944c59829ead66"
-  },
-  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\_check-routes.ts": {
-    "mtime": 1778124040.689211,
-    "hash": "662ef049f3d9893fcf66f30e36191931"
-  },
-  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\_debug-ciudadano-buses.ts": {
-    "mtime": 1778042788.0425951,
-    "hash": "e015ff1894edf168c38eaec52b1d35be"
-  },
-  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\scripts\\_fix-ciudadano-tenant.ts": {
-    "mtime": 1778042836.1889858,
-    "hash": "8b10809c01721469895d0f6717d974f6"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\instrumentation.ts": {
     "mtime": 1776908145.1815107,
@@ -972,16 +936,16 @@
     "hash": "cfcdf18c01b4c6b7a5466e8130bdfe1a"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(auth)\\login\\page.tsx": {
-    "mtime": 1778347899.5628004,
-    "hash": "0afaaa2d4543414d59976ac99c3b0633"
+    "mtime": 1778995690.1162686,
+    "hash": "aca356b60528966eac56d768ec2fc314"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(auth)\\pending\\page.tsx": {
     "mtime": 1777416707.682222,
     "hash": "b4e386e0cfadd009f43e5a92e571271c"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(auth)\\register\\page.tsx": {
-    "mtime": 1778262057.7618146,
-    "hash": "9f581ddf8313294fc0053acbd7ac83a4"
+    "mtime": 1778997423.2061622,
+    "hash": "7a26e099b479f42198b0bc187b7258ac"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(auth)\\rejected\\page.tsx": {
     "mtime": 1777416707.6832685,
@@ -996,8 +960,8 @@
     "hash": "e97c42123cf7e4ffe73188f7bf1f4e86"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\layout.tsx": {
-    "mtime": 1778458186.3107984,
-    "hash": "5f7d4f492ed460dda2b7300e2fb46fbc"
+    "mtime": 1779006505.8620734,
+    "hash": "dc1b44a4f2c7c30c1b14516c9b353c5b"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\admin\\users\\page.tsx": {
     "mtime": 1778919457.366808,
@@ -1011,37 +975,41 @@
     "mtime": 1778911795.6779284,
     "hash": "dd0323dfeb41d20359d2056b1e7efc2e"
   },
+  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\aprobaciones\\page.tsx": {
+    "mtime": 1779006429.0105288,
+    "hash": "1e20163a9679f48f96fb7435630eb501"
+  },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\conductores\\page.tsx": {
-    "mtime": 1778911795.7133362,
-    "hash": "427ce3623830aedff7d4d2e578c6efab"
+    "mtime": 1779001347.5374074,
+    "hash": "c68284edca7212e75178676364047af3"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\conductores\\nuevo\\page.tsx": {
     "mtime": 1778458186.3077781,
     "hash": "0750bba52faf6e070bc2d9f5ada6428b"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\conductores\\[id]\\page.tsx": {
-    "mtime": 1778919254.8151934,
-    "hash": "b1a699839e7d2a0c0971e2f15a68db2b"
+    "mtime": 1779006677.9520829,
+    "hash": "6a5f932333ce05dc23fc3ed35a4d361b"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\dashboard\\page.tsx": {
-    "mtime": 1778910945.8701992,
-    "hash": "45984bdf9630156a228bf37816dfc3b2"
+    "mtime": 1778995803.5805588,
+    "hash": "85c49ec3275c7219beb7082bb886e8f2"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\dashboard\\components\\OperatorDashboard.tsx": {
     "mtime": 1778458273.4119287,
     "hash": "e8844126738f5741ee9419144168b61a"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\empresas\\page.tsx": {
-    "mtime": 1778918829.8363957,
-    "hash": "63a72abd3f501c09d61c24e958123a56"
+    "mtime": 1779001320.8159096,
+    "hash": "9e388129f956935738b29a8d8a549320"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\empresas\\nueva\\page.tsx": {
     "mtime": 1777416800.1790206,
     "hash": "5998fa8e1d73f3d5da3db0b3c5b4769f"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\empresas\\[id]\\page.tsx": {
-    "mtime": 1778911795.7707858,
-    "hash": "7e32a56df4994c257fb1678fd5215995"
+    "mtime": 1779006037.2784925,
+    "hash": "76c787a45abb854a09328b59ac63f0ce"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\estadisticas\\page.tsx": {
     "mtime": 1778911904.748363,
@@ -1076,8 +1044,8 @@
     "hash": "12a1cd5f8e46b1fbdad2ee689fbb4805"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\perfil\\page.tsx": {
-    "mtime": 1778912006.594188,
-    "hash": "51b2c9dfd27a1e1a90e09ee6932286cc"
+    "mtime": 1779006701.252645,
+    "hash": "4419d6e0836864b22d901241a96b5c45"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\recompensas\\page.tsx": {
     "mtime": 1778269958.204097,
@@ -1100,12 +1068,12 @@
     "hash": "7f4b4e00dd7f010e4e23b4f1d2f731ab"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\rutas\\nueva\\page.tsx": {
-    "mtime": 1778913910.4484982,
-    "hash": "f876fbc35ea5cd66e3607ee714aff791"
+    "mtime": 1778997521.8820994,
+    "hash": "0e306e72fa252e17dca0074c89d931a3"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\rutas\\[id]\\page.tsx": {
-    "mtime": 1778911796.0576432,
-    "hash": "2f1fa9f3f2eacb9ba25ca49a932ee066"
+    "mtime": 1778997584.6891932,
+    "hash": "2e52fc935d14afcad09c2450e4f6859f"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\rutas\\[id]\\captures\\page.tsx": {
     "mtime": 1778911796.0249884,
@@ -1116,8 +1084,8 @@
     "hash": "6f077e5a149bd219fe8738f420723572"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\sanciones\\[id]\\page.tsx": {
-    "mtime": 1778458353.971661,
-    "hash": "f0ccba99e0028eba6045c95cb4ee69d9"
+    "mtime": 1779006328.1381595,
+    "hash": "78bc1ff82481c01f01dec56e3c290fd4"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\tipos-vehiculo\\page.tsx": {
     "mtime": 1777607525.1132078,
@@ -1132,20 +1100,20 @@
     "hash": "056c7555ba97dfeb5ac909157931c5c0"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\usuarios\\page.tsx": {
-    "mtime": 1778912051.0027776,
-    "hash": "498ebc2271a6ba577b88655ca675983c"
+    "mtime": 1778995751.5454264,
+    "hash": "39c5739542b54ee55725a8d815abfedf"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\usuarios\\nuevo\\page.tsx": {
-    "mtime": 1778912035.817565,
-    "hash": "b569f41da0d7acf34142bef3f70c8c4e"
+    "mtime": 1778997383.0875216,
+    "hash": "162079447fb14c7e3b9eb34e6bcab18a"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\usuarios\\[id]\\page.tsx": {
     "mtime": 1778911851.1281643,
     "hash": "db5085e76e91a0dfbd0aaf6a62ad0a6e"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\vehiculos\\page.tsx": {
-    "mtime": 1778911796.145161,
-    "hash": "6f41375816acd96831a3e2485cfe0d58"
+    "mtime": 1779001379.5510747,
+    "hash": "c82cc5ef081dc783f6775e1e5f59b73c"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\vehiculos\\nuevo\\page.tsx": {
     "mtime": 1778458186.3118198,
@@ -1154,10 +1122,6 @@
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\vehiculos\\[id]\\page.tsx": {
     "mtime": 1778458186.3118198,
     "hash": "6a334e0c176c0e6bdaa50fea66ad6f5c"
-  },
-  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\vehiculos\\[id]\\editar\\page.tsx": {
-    "mtime": 1778269958.2252886,
-    "hash": "d655efda423ea64c0a154580c7a00fca"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\viajes\\page.tsx": {
     "mtime": 1778918730.920917,
@@ -1168,8 +1132,8 @@
     "hash": "b8d122bf33357db0710cd5bce28a262f"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(dashboard)\\viajes\\[id]\\page.tsx": {
-    "mtime": 1778911796.2358754,
-    "hash": "ddd15060588bf8e30b58763a29984de8"
+    "mtime": 1779006137.4519463,
+    "hash": "010548452f6636b5345bb4b83a40c1be"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\(print)\\layout.tsx": {
     "mtime": 1777609934.3149211,
@@ -1182,6 +1146,10 @@
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\admin\\actividad\\route.ts": {
     "mtime": 1778911152.4771736,
     "hash": "966eba5a568aef49a389a333f282bfe5"
+  },
+  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\admin\\aprobaciones\\resumen\\route.ts": {
+    "mtime": 1779001080.6136959,
+    "hash": "7194be43aefba1b9cd0c9e3e589d99b4"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\admin\\departamentos\\route.ts": {
     "mtime": 1777244342.637229,
@@ -1256,8 +1224,8 @@
     "hash": "1abc7b05f5b4aa949ec0461ed58ef165"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\admin\\usuarios\\route.ts": {
-    "mtime": 1778911796.4662943,
-    "hash": "784ab56e1f03ef5c37c31ed25d6241f3"
+    "mtime": 1778995745.7357993,
+    "hash": "78958f1da392a757e43c748f3f733ea7"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\admin\\usuarios\\[id]\\route.ts": {
     "mtime": 1778911141.5708117,
@@ -1316,8 +1284,8 @@
     "hash": "0925a5a5688abd05d734df312536631d"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\auth\\perfil\\route.ts": {
-    "mtime": 1778347839.3523529,
-    "hash": "455f828cd9dd152801439a5b88ee8c50"
+    "mtime": 1779006546.11511,
+    "hash": "5170df6d860a2781463e84ab72a5e5fb"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\auth\\preview-as\\route.ts": {
     "mtime": 1777855663.4951,
@@ -1376,8 +1344,8 @@
     "hash": "f294488fcf1bd50889cb09c062474f82"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\conductores\\route.ts": {
-    "mtime": 1778919010.146153,
-    "hash": "f54b2010856a00f14f88a26c5c29e129"
+    "mtime": 1779001239.6784563,
+    "hash": "09c7623c552f60a6bed7629e38604173"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\conductores\\me\\route.ts": {
     "mtime": 1778911086.0295134,
@@ -1387,17 +1355,25 @@
     "mtime": 1778919068.4115806,
     "hash": "46dc80ea3035229744bd69e746053e80"
   },
+  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\conductores\\[id]\\verificar\\route.ts": {
+    "mtime": 1779000952.06812,
+    "hash": "c3ef3ef35d72232f38c2aeae4dfc9d67"
+  },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\docs\\route.ts": {
     "mtime": 1778124157.0750306,
     "hash": "ad6699a595c1601d7804ec0b6a5f702b"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\empresas\\route.ts": {
-    "mtime": 1778268818.6104312,
-    "hash": "6064cdd5819a3d128c2b155e4d5ebef8"
+    "mtime": 1779001225.4273596,
+    "hash": "e066165dcddc196bf0b13698e63553ba"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\empresas\\[id]\\route.ts": {
-    "mtime": 1778268818.6104312,
-    "hash": "9179320b0f964b43b59aed1bb88bd5ad"
+    "mtime": 1779005830.0474794,
+    "hash": "36c47da05c1646d660b3dc427f8ffd16"
+  },
+  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\empresas\\[id]\\aprobar\\route.ts": {
+    "mtime": 1779000911.9498332,
+    "hash": "2cd00d733899fb4804ec6699d3372724"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\flota\\route.ts": {
     "mtime": 1778458186.3153913,
@@ -1516,8 +1492,8 @@
     "hash": "b4d4e09e91df80b5180be5ee48b6573a"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\provincias\\route.ts": {
-    "mtime": 1778911737.3950765,
-    "hash": "6e3481e8a24fa442e56378d9102818e7"
+    "mtime": 1778997278.8473659,
+    "hash": "7607863b4d165315cfda85f885d5d794"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\provincias\\[id]\\route.ts": {
     "mtime": 1778911086.5345516,
@@ -1536,16 +1512,16 @@
     "hash": "c9b31c92e64e1858ae72e677841763f7"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\public\\municipalidades\\route.ts": {
-    "mtime": 1778262001.260951,
-    "hash": "9c7668e343365ee7a425d1e6cabd08ca"
+    "mtime": 1778997241.382603,
+    "hash": "e3aea21a77021baad625614416857d47"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\public\\provincias\\route.ts": {
-    "mtime": 1778261994.458144,
-    "hash": "ae91d283a4650e27b6df5ddbc2b10296"
+    "mtime": 1778997231.5051904,
+    "hash": "8741e229e00ef8aaddbb37cbc98be045"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\public\\regiones\\route.ts": {
-    "mtime": 1778272295.238084,
-    "hash": "94dda421f02df4983dbf26b5368d6c20"
+    "mtime": 1778997219.5862334,
+    "hash": "4ad3ee059bf242416b09a903f1cc68ce"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\public\\rutas\\route.ts": {
     "mtime": 1778470895.2943864,
@@ -1572,8 +1548,8 @@
     "hash": "2d588c866f421b3c9e92acd7b64b81e5"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\regiones\\route.ts": {
-    "mtime": 1778911086.6652272,
-    "hash": "afadbd66e9ac52dfdc0fa94c94b6ee37"
+    "mtime": 1778997261.5355055,
+    "hash": "d176fe4b4862e02aa82210998df79f40"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\regiones\\[id]\\route.ts": {
     "mtime": 1778268818.6237125,
@@ -1720,8 +1696,8 @@
     "hash": "cfce7b08e5be5e27711871322a74fb30"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\vehiculos\\route.ts": {
-    "mtime": 1778919049.7459779,
-    "hash": "fa3af5f82d7a165fbe76c9826c6bbf62"
+    "mtime": 1779001285.3714151,
+    "hash": "5c45c091c909a6fca0a260cc63ff9f87"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\vehiculos\\[id]\\route.ts": {
     "mtime": 1778919079.3062024,
@@ -1734,6 +1710,10 @@
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\vehiculos\\[id]\\suspender\\route.ts": {
     "mtime": 1778272583.9865365,
     "hash": "409ccd41a7aa403ad98730f3b6fa7588"
+  },
+  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\vehiculos\\[id]\\verificar\\route.ts": {
+    "mtime": 1779000964.1959107,
+    "hash": "68a2664ec955f702149fb49db88868fb"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\app\\api\\version\\route.ts": {
     "mtime": 1777658264.3955643,
@@ -1832,8 +1812,8 @@
     "hash": "5dd72bfd3f6dbd446634a53c48dc80c8"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\components\\location-picker.tsx": {
-    "mtime": 1778272001.217985,
-    "hash": "18e9b4c2f56ea02fa3a2ea3d5291504c"
+    "mtime": 1778997368.5144222,
+    "hash": "e06570d87dbd08229632d2c916eaa14d"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\components\\auth\\MobileOnlyScreen.tsx": {
     "mtime": 1778458186.3163953,
@@ -1904,16 +1884,16 @@
     "hash": "8c72de9494b9a801ed73720bf800d154"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\components\\layout\\nav.ts": {
-    "mtime": 1778918687.4416046,
-    "hash": "3592ab60d9013d72f5c52ebf17c42c0a"
+    "mtime": 1779001196.5080721,
+    "hash": "5faf0528e57582855a6317f34d8d06a0"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\components\\layout\\NotificationsBell.tsx": {
     "mtime": 1777416707.7156663,
     "hash": "0004ac10ade949a57a0688d78e3d93e9"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\components\\layout\\Sidebar.tsx": {
-    "mtime": 1777675672.0648413,
-    "hash": "9ba16d8d32c59b92ec62ee443788b896"
+    "mtime": 1779006480.7518463,
+    "hash": "477c4d74ec033bce4a9b15aa06b8525f"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\components\\layout\\SidebarLink.tsx": {
     "mtime": 1777416707.7156663,
@@ -2063,6 +2043,10 @@
     "mtime": 1777848962.4557135,
     "hash": "cc23b1483297c72955bf0e70e2412572"
   },
+  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\hooks\\useApprovalsPending.ts": {
+    "mtime": 1779006468.57185,
+    "hash": "872695b0b29c7878d9891ef7abe06a16"
+  },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\hooks\\useBreadcrumbTitle.ts": {
     "mtime": 1777523176.8703,
     "hash": "11786e0e46bf56c9d87013a69e1d3308"
@@ -2098,6 +2082,10 @@
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\lib\\graphify-demo.ts": {
     "mtime": 1778263968.2848656,
     "hash": "e53ab788c6d9f37b0f30f51767e7f0d8"
+  },
+  "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\lib\\scope.ts": {
+    "mtime": 1778997207.4524803,
+    "hash": "4193b537ab3d75af0365a63cd59f1587"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\lib\\utils.ts": {
     "mtime": 1776908145.1882844,
@@ -2156,8 +2144,8 @@
     "hash": "acc68818e47e726fadad7ccd708aedd0"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\lib\\auth\\roleMatrix.ts": {
-    "mtime": 1778910623.8584154,
-    "hash": "3fcb287c45f52c0128f91ee28efb4a44"
+    "mtime": 1778998447.0998187,
+    "hash": "fa1ab3f64321adcd042092f24679615a"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\lib\\coins\\awardCoins.ts": {
     "mtime": 1776908145.1851306,
@@ -2264,12 +2252,12 @@
     "hash": "d278a86898ce83459a14199cfc48da94"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\models\\Company.ts": {
-    "mtime": 1777251952.2795444,
-    "hash": "dede65218ec6b409c28bedbeb3c30926"
+    "mtime": 1779000894.1326697,
+    "hash": "c9aef512d2694e64d985d351ef43a4ca"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\models\\Driver.ts": {
-    "mtime": 1778918946.827312,
-    "hash": "ada699e5639f1c608bbbd3a8ab9c2b0c"
+    "mtime": 1779000819.7135286,
+    "hash": "2c218c7194e312a108c98c3c70a28692"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\models\\FleetEntry.ts": {
     "mtime": 1777858590.102163,
@@ -2344,8 +2332,8 @@
     "hash": "b7398f126378e8db270871de7bb683c2"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\models\\Vehicle.ts": {
-    "mtime": 1778918963.6959858,
-    "hash": "ad788314861333509d962f51937a390b"
+    "mtime": 1779000841.9220579,
+    "hash": "6b30478e94b47cba593500d13ef1ce29"
   },
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\src\\models\\VehicleType.ts": {
     "mtime": 1776908145.1918285,
@@ -2372,8 +2360,8 @@
     "hash": "d2469f4a6beb9de680820b9cb1b651e7"
   },
   "D:\\Proyectos\\Sistema Sfit\\IMPLEMENTATION.md": {
-    "mtime": 1778276272.460961,
-    "hash": "d49dd083b5af5e2fda39f43fb23447c6"
+    "mtime": 1779003747.751678,
+    "hash": "c12d3cdda881eedc2a4b76dd75003bc8"
   },
   "D:\\Proyectos\\Sistema Sfit\\Readme.md": {
     "mtime": 1778279206.0835307,
@@ -2410,33 +2398,5 @@
   "D:\\Proyectos\\Sistema Sfit\\sfit-web\\AGENTS.md": {
     "mtime": 1776908158.4165578,
     "hash": "7f4a264a88e84191d96fd516a3f1f50f"
-  },
-  "D:\\Proyectos\\Sistema Sfit\\image copy 2.png": {
-    "mtime": 1778346195.9668355,
-    "hash": "2aca18f7960bd2ef8dcd86405ebfe7a6"
-  },
-  "D:\\Proyectos\\Sistema Sfit\\image copy 3.png": {
-    "mtime": 1778350056.9148927,
-    "hash": "5b0d53e2cbd5a5af6d5a7408f8498b22"
-  },
-  "D:\\Proyectos\\Sistema Sfit\\image copy 4.png": {
-    "mtime": 1778462666.8913798,
-    "hash": "ac67ee9267a1496f4d4283863558f244"
-  },
-  "D:\\Proyectos\\Sistema Sfit\\image copy 5.png": {
-    "mtime": 1778462851.4389286,
-    "hash": "eadb77d4c301c4129782a0bc4498b418"
-  },
-  "D:\\Proyectos\\Sistema Sfit\\image copy 6.png": {
-    "mtime": 1778462914.2146473,
-    "hash": "25652715fef94b3742b7a8f5db890929"
-  },
-  "D:\\Proyectos\\Sistema Sfit\\image copy.png": {
-    "mtime": 1778344800.747602,
-    "hash": "159b823f78f681f5f7f9e14c4bcd5cea"
-  },
-  "D:\\Proyectos\\Sistema Sfit\\image.png": {
-    "mtime": 1778303145.95496,
-    "hash": "11155eac9a010b7b896f23cca5ceef5d"
   }
 }
