@@ -1,8 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  House, UserCheck, Users, Building2, Car, ClipboardList,
+  House, UserCheck, Users, Building2, Car, Boxes,
   Route, Shield, Flag, TriangleAlert, ChartColumn, Bell,
-  CalendarDays, MessageSquareWarning, Gift, CircleUserRound,
+  MessageSquareWarning, Gift, CircleUserRound,
 } from "lucide-react";
 
 export type NavSection =
@@ -43,15 +43,17 @@ export const NAV: NavItem[] = [
   { href: "/aprobaciones",    label: "Aprobaciones",        icon: UserCheck,             section: "GESTIÓN",        roles: ["super_admin","admin_municipal"] },
 
   // OPERACIÓN — solo admin_municipal (super_admin no opera transporte).
-  // /flota y /viajes/nueva son responsabilidad del OPERADOR (app móvil): el
-  // admin_municipal registra empresas/vehículos/conductores, pero las salidas
-  // diarias las programa el operador desde su app. /viajes queda como vista
-  // de auditoría read-only para admin_municipal.
+  // Lo que NO va aquí:
+  //   - /flota: la marca el operador desde la app móvil al abrir su turno.
+  //   - /viajes: los crea y cierra el operador (y el conductor) desde la
+  //     app móvil. La ruta /viajes queda accesible vía URL como vista de
+  //     auditoría puntual, pero NO va en el sidebar para no inducir al
+  //     admin_municipal a "operar" desde la web — su rol es supervisar.
   { href: "/empresas",        label: "Empresas",            icon: Building2,             section: "OPERACIÓN",      roles: ["admin_municipal"] },
+  { href: "/tipos-vehiculo",  label: "Tipos de vehículo",   icon: Boxes,                 section: "OPERACIÓN",      roles: ["admin_municipal"] },
   { href: "/conductores",     label: "Conductores",         icon: Users,                 section: "OPERACIÓN",      roles: ["admin_municipal"] },
   { href: "/vehiculos",       label: "Vehículos / QR",      icon: Car,                   section: "OPERACIÓN",      roles: ["admin_municipal"] },
   { href: "/rutas",           label: "Rutas y zonas",       icon: Route,                 section: "OPERACIÓN",      roles: ["admin_municipal"] },
-  { href: "/viajes",          label: "Viajes",              icon: CalendarDays,          section: "OPERACIÓN",      roles: ["admin_municipal"] },
   // Inspecciones y apelaciones: read-only para admin_municipal; emisión queda
   // en la app móvil del fiscal. Resolución de apelaciones se hace desde la web.
   { href: "/inspecciones",    label: "Inspecciones",        icon: Shield,                section: "OPERACIÓN",      roles: ["admin_municipal"] },

@@ -343,8 +343,17 @@ export default function UsuarioDetallePage() {
 
   const roles     = assignableRoles(actor.role);
   const isSA      = actor.role === "super_admin";
-  const canDelete = isSA && target?.id !== actor.id;
+  const isAM      = actor.role === "admin_municipal";
   const canPass   = isSA;
+  // Reglas de eliminación (espejo del endpoint DELETE):
+  //   super_admin → puede eliminar a cualquiera (excepto a sí mismo).
+  //   admin_municipal → solo a los 4 roles móviles. No puede eliminar a otro
+  //   admin_municipal ni a super_admin. El backend valida también el scope.
+  const targetIsMobileRole =
+    !!target && ["fiscal", "operador", "conductor", "ciudadano"].includes(target.role);
+  const canDelete =
+    target?.id !== actor.id &&
+    (isSA || (isAM && targetIsMobileRole));
 
   const backBtn = (
     <Link href="/usuarios">
@@ -776,17 +785,22 @@ export default function UsuarioDetallePage() {
             </SectionCard>
           )}
 
-          {/* Ubicación */}
+          {/* Ubicación — el sistema opera solo en Cotabambas (Apurímac), así que
+              región y provincia quedan fijas. Solo se permite elegir distrito
+              entre los 6 operativos. lockedScope renderiza el banner fijo y
+              auto-resuelve los IDs internos para que el endpoint reciba los
+              valores correctos al guardar. */}
           <SectionCard
             icon={<MapPin size={16} color={INK6} />}
-            title="Departamento, provincia y municipalidad"
-            subtitle={isSA ? "Reasigna el ámbito de trabajo del usuario" : "Scope asignado al usuario"}
+            title="Distrito asignado"
+            subtitle={isSA ? "Reasigna el distrito del usuario dentro de Cotabambas" : "Distrito operativo del usuario"}
           >
             <div style={{ marginBottom: isSA ? 18 : 0 }}>
               <LocationPicker
                 value={location}
                 onChange={setLocation}
                 disabled={!isSA}
+                lockedScope="active-province"
                 initialNames={{
                   regionName:       target.regionName       ?? null,
                   provinceName:     target.provinceName     ?? null,

@@ -390,11 +390,25 @@ export async function PATCH(
 }
 
 // ── DELETE /api/admin/usuarios/[id] ─────────────────────────────────────────
+// Reglas de eliminación:
+//   - super_admin: puede eliminar cualquier usuario (con la salvaguarda de
+//     no eliminar al último super_admin del sistema).
+//   - admin_municipal: solo puede eliminar a los 4 roles móviles dentro de
+//     SU municipalidad: fiscal, operador, conductor, ciudadano. Intentar
+//     eliminar a otro admin_municipal o a un super_admin devuelve 403.
+//   - Nadie puede eliminarse a sí mismo.
+const DELETABLE_BY_ADMIN_MUNICIPAL: readonly string[] = [
+  ROLES.FISCAL,
+  ROLES.OPERADOR,
+  ROLES.CONDUCTOR,
+  ROLES.CIUDADANO,
+];
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireRole(request, [ROLES.SUPER_ADMIN]);
+  const auth = requireRole(request, [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { session } = auth;
@@ -411,6 +425,27 @@ export async function DELETE(
 
     const target = await User.findById(id).lean();
     if (!target) return apiNotFound("Usuario no encontrado");
+
+    // Gate por rol del actor.
+    if (session.role === ROLES.ADMIN_MUNICIPAL) {
+      // admin_municipal solo puede eliminar roles móviles.
+      if (!DELETABLE_BY_ADMIN_MUNICIPAL.includes(target.role)) {
+        return apiForbidden(
+          "Solo el super administrador puede eliminar a otros administradores.",
+        );
+      }
+      // Y solo dentro de su propia municipalidad — no debe poder borrar
+      // usuarios de otra muni aunque la matriz se lo permita.
+      if (!session.municipalityId) {
+        return apiForbidden("No tienes municipalidad asignada.");
+      }
+      if (
+        !target.municipalityId ||
+        String(target.municipalityId) !== String(session.municipalityId)
+      ) {
+        return apiForbidden("El usuario no pertenece a tu municipalidad.");
+      }
+    }
 
     if (target.role === "super_admin") {
       const remainingSuperAdmins = await User.countDocuments({

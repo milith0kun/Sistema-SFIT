@@ -565,7 +565,7 @@ function AllModulesPanel({ role, stats }: { role: string; stats: GlobalStats | n
 function buildQuickActionFor(role: string): QuickActionDef | null {
   switch (role) {
     case "super_admin":      return { icon: Users,       title: "Gestión de Usuarios y Roles",     subtitle: "Designar accesos y permisos en toda la plataforma.", href: "/usuarios" };
-    case "admin_municipal":  return { icon: UserCheck,   title: "Aprobaciones pendientes",          subtitle: "Revise nuevos usuarios y sus permisos.",             href: "/admin/users" };
+    case "admin_municipal":  return { icon: UserCheck,   title: "Centro de aprobaciones",           subtitle: "Empresas, conductores, vehículos y usuarios pendientes.", href: "/aprobaciones" };
     case "operador":         return { icon: ClipboardList, title: "Flota del día",                 subtitle: "Asignaciones, conductores y despacho.",               href: "/flota" };
     case "fiscal":           return { icon: Shield,      title: "Inspecciones en campo",            subtitle: "Levanta actas digitales y escanea QR.",              href: "/inspecciones" };
     default:                 return { icon: Bell,        title: "Notificaciones",                   subtitle: "Mantente al día con novedades.",                     href: "/notificaciones" };
@@ -679,15 +679,17 @@ function buildTabsFor(role: string, stats: GlobalStats | null): TabConfig[] {
 
   if (role === "admin_municipal") return [
     { key: "operacion",  label: "Operación",  items: [
-      { title: "Empresas",          subtitle: "De transporte",  href: "/empresas",       icon: Truck     },
-      { title: "Tipos de vehículo", subtitle: "Catálogo local", href: "/tipos-vehiculo", icon: Car       },
-      { title: "Conductores",       subtitle: "Registro",       href: "/conductores",    icon: Users     },
-      { title: "Vehículos / QR",    subtitle: "Emisión",        href: "/vehiculos",      icon: Car       },
+      { title: "Empresas",          subtitle: "De transporte",     href: "/empresas",       icon: Truck     },
+      { title: "Tipos de vehículo", subtitle: "Catálogo local",    href: "/tipos-vehiculo", icon: Car       },
+      { title: "Conductores",       subtitle: "Registro",          href: "/conductores",    icon: Users     },
+      { title: "Vehículos / QR",    subtitle: "Emisión",           href: "/vehiculos",      icon: Car       },
+      { title: "Rutas y zonas",     subtitle: "Urbanas e interp.", href: "/rutas",          icon: Route     },
     ]},
     { key: "ciudadania", label: "Ciudadanía", items: [
       { title: "Reportes",     subtitle: "Ciudadanos",  href: "/reportes",     icon: Flag          },
       { title: "Sanciones",    subtitle: "Aplicadas",   href: "/sanciones",    icon: TriangleAlert },
       { title: "Inspecciones", subtitle: "Actas",       href: "/inspecciones", icon: Shield        },
+      { title: "Apelaciones",  subtitle: "Resolución",  href: "/apelaciones",  icon: MessageSquareWarning },
     ]},
     { key: "analisis",   label: "Análisis",   items: [
       { title: "Estadísticas", subtitle: "Municipales",  href: "/estadisticas", icon: ChartColumn },

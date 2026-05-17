@@ -18,6 +18,16 @@ export const ACTIVE_PROVINCE_CODE = "0305";       // Cotabambas (UBIGEO 4 dígit
 export const ACTIVE_PROVINCE_NAME = "Cotabambas";
 
 /**
+ * Municipalidad provincial sede (capital de Cotabambas). El admin_municipal
+ * opera sobre esta muni. Los datos institucionales (razón social, RUC) viven
+ * en la collection `municipalities` y los siembra `scripts/activate-cotabambas.ts`,
+ * por lo que el onboarding NO los pide al primer login.
+ */
+export const ACTIVE_MUNICIPALITY_CODE = "030501";  // Tambobamba (UBIGEO 6 dígitos)
+export const ACTIVE_MUNICIPALITY_NAME = "Tambobamba";
+export const ACTIVE_MUNICIPALITY_FULL_NAME = "Municipalidad Provincial de Cotabambas — Tambobamba";
+
+/**
  * 6 distritos operativos de la provincia de Cotabambas. UBIGEO 6 dígitos.
  * Tambobamba es la capital provincial.
  */

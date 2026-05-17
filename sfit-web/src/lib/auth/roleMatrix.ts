@@ -123,7 +123,11 @@ export const ROLE_MATRIX: Record<Resource, Record<Action, Role[]>> = {
     view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
     create: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
     edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
-    delete: [A.SUPER_ADMIN],
+    // Eliminación: admin_municipal puede dar de baja a los 4 roles móviles
+    // (fiscal, operador, conductor, ciudadano) de su municipalidad. NO puede
+    // eliminar a otro admin_municipal ni a super_admin — eso queda reservado
+    // al super_admin. El gate fino vive en el endpoint DELETE.
+    delete: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
   },
   // Recursos geográficos: super_admin opera (CRUD) sobre el catálogo. El
   // admin_municipal puede LEER catálogos porque el LocationPicker los consume

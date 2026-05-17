@@ -46,7 +46,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (typeof window === "undefined") return;
     const raw = localStorage.getItem("sfit_user");
     if (!raw) {
-      console.log("[dashboard-layout] no sfit_user en localStorage → /login");
       router.replace("/login");
       return;
     }
@@ -54,26 +53,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     try {
       parsed = JSON.parse(raw) as StoredUser;
     } catch {
-      console.log("[dashboard-layout] sfit_user inválido → /login");
       router.replace("/login");
       return;
     }
-    console.log("[dashboard-layout] parsed user:", {
-      role: parsed.role,
-      status: parsed.status,
-      profileCompleted: parsed.profileCompleted,
-      mustChangePassword: parsed.mustChangePassword,
-    });
 
     if (parsed.status && parsed.status !== "activo") {
-      console.log("[dashboard-layout] status no activo → redirect");
       router.replace(parsed.status === "rechazado" ? "/rejected" : "/pending");
       return;
     }
-    // Onboarding obligatorio: si el perfil está incompleto o tiene password
-    // temporal, forzamos al usuario a /onboarding antes de cualquier otra ruta.
+    // Onboarding obligatorio: si el perfil personal está incompleto o tiene
+    // password temporal, forzamos al usuario a /onboarding antes de seguir.
+    // NOTA: los datos institucionales de la municipalidad NO se piden en el
+    // onboarding (los siembra activate-cotabambas.ts). Por eso no hacemos
+    // redirect basado en municipalityDataCompleted — ese flujo causaría un
+    // loop entre dashboard y onboarding ahora que el último no los pide.
     if (parsed.profileCompleted === false || parsed.mustChangePassword === true) {
-      console.log("[dashboard-layout] onboarding obligatorio → /onboarding");
       router.replace("/onboarding");
       return;
     }
@@ -83,16 +77,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // /api/auth/perfil responde 401 con code SESSION_INVALIDATED → forzamos
     // logout limpio para evitar el loop login↔dashboard con JWT obsoleto.
     const token = localStorage.getItem("sfit_access_token");
-    if (!token) {
-      console.log("[dashboard-layout] sin access token");
-      return;
-    }
+    if (!token) return;
     fetch("/api/auth/perfil", { headers: { Authorization: `Bearer ${token}` } })
       .then(async (r) => {
-        console.log("[dashboard-layout] /api/auth/perfil status:", r.status);
         if (r.status === 401) {
           const body = (await r.json().catch(() => ({}))) as { code?: string };
-          console.log("[dashboard-layout] 401 body:", body);
           if (body?.code === "SESSION_INVALIDATED") {
             clearSession();
             router.replace("/login?reason=role_changed");
@@ -110,27 +99,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       })
       .then((data) => {
         if (!data?.success || !data?.data) return;
-        console.log("[dashboard-layout] perfil data:", data.data);
         // Si el rol cambió en backend pero la sesión sigue válida (caso raro:
         // sessionVersion no se incrementó), sincronizamos el cache local.
+        // También sincronizamos municipalityDataCompleted como cache para
+        // que páginas que lo consulten lo tengan al día — pero NO redirigimos
+        // por este flag (ver nota arriba).
         const next: StoredUser = { ...parsed };
         if (data.data.role && data.data.role !== parsed.role) {
           next.role = data.data.role;
         }
         if (parsed.role === "admin_municipal") {
           next.municipalityDataCompleted = data.data.municipalityDataCompleted === true;
-          if (!next.municipalityDataCompleted) {
-            console.log("[dashboard-layout] municipalityDataCompleted=false → /onboarding");
-            localStorage.setItem("sfit_user", JSON.stringify(next));
-            router.replace("/onboarding");
-            return;
-          }
         }
         localStorage.setItem("sfit_user", JSON.stringify(next));
       })
-      .catch((err) => {
-        console.warn("[dashboard-layout] fetch perfil error:", err);
-      });
+      .catch(() => { /* silent — degradamos a cache local */ });
   }, [router]);
 
   function logout() {
