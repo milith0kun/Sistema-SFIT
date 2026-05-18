@@ -32,6 +32,9 @@ type CitizenReport = {
   rejectionReason?: string;
   assignedFiscalId?: string;
   assignedFiscal?: { _id: string; name: string } | null;
+  appealReason?: string | null;
+  appealEvidence?: string[];
+  appealedAt?: string | null;
   createdAt: string;
 };
 
@@ -470,6 +473,66 @@ export default function ReporteDetallePage({ params }: Props) {
               </SectionCard>
             );
           })()}
+
+          {/* Apelación del ciudadano — sólo si la presentó */}
+          {report.appealReason && (
+            <SectionCard
+              icon={<ShieldAlert size={14} color={AMB} />}
+              title="Apelación del ciudadano"
+              subtitle={
+                report.appealedAt
+                  ? `Presentada el ${fmtDateShort(report.appealedAt)}`
+                  : "Presentada por el ciudadano"
+              }
+            >
+              <div style={{
+                padding: "12px 14px", borderRadius: 9,
+                background: AMBBG, border: `1px solid ${AMBBD}`,
+                color: "#92400E", fontSize: "0.875rem", lineHeight: 1.55,
+                whiteSpace: "pre-wrap",
+              }}>
+                {report.appealReason}
+              </div>
+
+              {report.appealEvidence && report.appealEvidence.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ ...LABEL_S, marginBottom: 8 }}>Evidencia adjunta</div>
+                  <div style={{
+                    display: "grid", gap: 8,
+                    gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+                  }}>
+                    {report.appealEvidence.map((url, i) => {
+                      const img = isImageUrl(url);
+                      return img ? (
+                        <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                          style={{
+                            display: "block", border: `1px solid ${INK2}`, borderRadius: 8,
+                            overflow: "hidden", aspectRatio: "1/1", background: INK1,
+                          }}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={url} alt={`Evidencia ${i + 1}`}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        </a>
+                      ) : (
+                        <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                          style={{
+                            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                            padding: 14, border: `1px solid ${INK2}`, borderRadius: 8,
+                            background: "#fff", color: INK9, textDecoration: "none",
+                            aspectRatio: "1/1", gap: 6,
+                          }}
+                        >
+                          <FileText size={20} strokeWidth={1.6} />
+                          <span style={{ fontSize: "0.75rem", fontWeight: 600 }}>Archivo {i + 1}</span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </SectionCard>
+          )}
 
           {/* Score de fraude (sobrio) */}
           <SectionCard

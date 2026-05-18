@@ -60,6 +60,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     longitude: report.longitude,
     rejectionReason: report.rejectionReason,
     assignedFiscalId: report.assignedFiscalId,
+    appealReason: report.appealReason ?? null,
+    appealEvidence: report.appealEvidence ?? [],
+    appealedAt: report.appealedAt ?? null,
     createdAt: report.createdAt,
     updatedAt: report.updatedAt,
   });

@@ -11,10 +11,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
-import {
-  LocationPicker,
-  type LocationValue,
-} from "@/components/location-picker";
+import { LocationPicker } from "@/components/location-picker";
 
 /* ── Types ── */
 type UserDetail = {
@@ -33,7 +30,7 @@ type StoredUser   = { id: string; role: string };
 type DniLookup =
   | { state: "idle" }
   | { state: "loading" }
-  | { state: "ok"; nombreCompleto: string }
+  | { state: "ok"; nombreCompleto: string; source: "reniec" | "mock" }
   | { state: "not_found" }
   | { state: "error"; message: string };
 
@@ -152,7 +149,6 @@ export default function UsuarioDetallePage() {
   const [phone,       setPhone]       = useState("");
   const [dni,         setDni]         = useState("");
   const [selRole,     setSelRole]     = useState("");
-  const [location,    setLocation]    = useState<LocationValue>({});
   const [selStatus,   setSelStatus]   = useState("");
   const [newPass,     setNewPass]     = useState("");
   const [confirmPass, setConfirmPass] = useState("");
@@ -196,29 +192,24 @@ export default function UsuarioDetallePage() {
       setPhone(u.phone ?? "");
       setDni(u.dni ?? "");
       setSelRole(u.role);
-      setLocation({
-        regionId:       u.regionId       ?? null,
-        provinceId:     u.provinceId     ?? null,
-        municipalityId: u.municipalityId ?? null,
-      });
       setSelStatus(u.status);
       setCompanyId(u.companyId ?? "");
     } catch { setError("Error de conexión."); }
     finally { setLoading(false); }
   }, [id, router]);
 
-  // Carga las empresas del municipio del usuario cuando el rol seleccionado
-  // es operador (para que aparezca el dropdown de Empresa).
+  // Carga las empresas activas cuando el rol seleccionado es operador. Todas
+  // las empresas pertenecen a la muni institucional única, así que no filtramos
+  // por muni desde el cliente.
   useEffect(() => {
-    if (selRole !== "operador" || !location.municipalityId) {
+    if (selRole !== "operador") {
       setCompanies([]);
       return;
     }
     setLoadingCompanies(true);
-    fetch(
-      `/api/empresas?municipalityId=${encodeURIComponent(location.municipalityId)}&limit=100`,
-      { headers: { Authorization: `Bearer ${getToken()}` } },
-    )
+    fetch(`/api/empresas?limit=100`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
       .then((r) => r.json())
       .then((body) => {
         const items: CompanyOption[] = body?.data?.items ?? [];
@@ -226,7 +217,7 @@ export default function UsuarioDetallePage() {
       })
       .catch(() => setCompanies([]))
       .finally(() => setLoadingCompanies(false));
-  }, [selRole, location.municipalityId]);
+  }, [selRole]);
 
   useEffect(() => { if (actor) { void fetchTarget(); } }, [actor, fetchTarget]);
 
@@ -260,9 +251,11 @@ export default function UsuarioDetallePage() {
           return;
         }
         const nombre = (data.data?.nombre_completo ?? "").toString().trim();
-        setDniLookup({ state: "ok", nombreCompleto: nombre });
-        // Auto-aplica el nombre SIEMPRE al verificar RENIEC.
-        setName(nombre);
+        const source: "reniec" | "mock" = data.data?.source === "mock" ? "mock" : "reniec";
+        setDniLookup({ state: "ok", nombreCompleto: nombre, source });
+        // Auto-aplica el nombre solo si viene de RENIEC. Los mocks de dev
+        // NO sobreescriben el nombre — el admin lo edita manualmente.
+        if (source === "reniec") setName(nombre);
       } catch {
         setDniLookup({ state: "error", message: "No se pudo verificar el DNI." });
       }
@@ -305,16 +298,6 @@ export default function UsuarioDetallePage() {
   }
   async function saveCompany() {
     await patch({ companyId: companyId || null }, "Empresa actualizada correctamente.");
-  }
-  async function saveLocation() {
-    await patch(
-      {
-        regionId:       location.regionId       || null,
-        provinceId:     location.provinceId     || null,
-        municipalityId: location.municipalityId || null,
-      },
-      "Ubicación actualizada correctamente.",
-    );
   }
   async function saveStatus()   { await patch({ status: selStatus }, "Estado actualizado correctamente."); }
 
@@ -457,22 +440,27 @@ export default function UsuarioDetallePage() {
                       ...FIELD,
                       fontFamily: "ui-monospace, monospace",
                       paddingRight: 38,
-                      borderColor: dniLookup.state === "ok" ? GRN
-                        : dniLookup.state === "not_found" ? "#F59E0B"
-                        : dniLookup.state === "error" ? RED
-                        : INK2,
+                      borderColor:
+                        dniLookup.state === "ok"
+                          ? (dniLookup.source === "mock" ? "#F59E0B" : GRN)
+                          : dniLookup.state === "not_found" ? "#F59E0B"
+                          : dniLookup.state === "error" ? RED
+                          : INK2,
                     }}
                     onFocus={e => { e.currentTarget.style.borderColor = INK9; }}
                     onBlur={e => {
-                      e.currentTarget.style.borderColor = dniLookup.state === "ok" ? GRN
-                        : dniLookup.state === "not_found" ? "#F59E0B"
-                        : dniLookup.state === "error" ? RED
-                        : INK2;
+                      e.currentTarget.style.borderColor =
+                        dniLookup.state === "ok"
+                          ? (dniLookup.source === "mock" ? "#F59E0B" : GRN)
+                          : dniLookup.state === "not_found" ? "#F59E0B"
+                          : dniLookup.state === "error" ? RED
+                          : INK2;
                     }}
                   />
                   <div style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
                     {dniLookup.state === "loading"   && <Loader2 size={15} color={INK5} style={{ animation: "spin 0.7s linear infinite" }} />}
-                    {dniLookup.state === "ok"        && <CheckCircle size={15} color={GRN} />}
+                    {dniLookup.state === "ok" && dniLookup.source === "reniec" && <CheckCircle size={15} color={GRN} />}
+                    {dniLookup.state === "ok" && dniLookup.source === "mock"   && <AlertTriangle size={15} color="#F59E0B" />}
                     {dniLookup.state === "not_found" && <AlertTriangle size={15} color="#F59E0B" />}
                     {dniLookup.state === "error"     && <AlertTriangle size={15} color={RED} />}
                   </div>
@@ -491,10 +479,11 @@ export default function UsuarioDetallePage() {
                         zIndex: 50,
                         background: "#fff",
                         border: `1px solid ${
-                          dniLookup.state === "ok" ? GRNBD
-                          : dniLookup.state === "not_found" ? "#FDE68A"
-                          : dniLookup.state === "error" ? REDBD
-                          : INK2
+                          dniLookup.state === "ok"
+                            ? (dniLookup.source === "mock" ? "#FDE68A" : GRNBD)
+                            : dniLookup.state === "not_found" ? "#FDE68A"
+                            : dniLookup.state === "error" ? REDBD
+                            : INK2
                         }`,
                         borderRadius: 8,
                         padding: "10px 12px",
@@ -509,7 +498,7 @@ export default function UsuarioDetallePage() {
                         </div>
                       )}
 
-                      {dniLookup.state === "ok" && (
+                      {dniLookup.state === "ok" && dniLookup.source === "reniec" && (
                         <>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                             <CheckCircle size={12} color={GRN} />
@@ -534,6 +523,20 @@ export default function UsuarioDetallePage() {
                               Usar este nombre
                             </button>
                           )}
+                        </>
+                      )}
+
+                      {dniLookup.state === "ok" && dniLookup.source === "mock" && (
+                        <>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                            <AlertTriangle size={12} color="#92400E" />
+                            <span style={{ fontSize: "0.625rem", fontWeight: 800, color: "#92400E", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                              Datos de prueba — RENIEC no disponible
+                            </span>
+                          </div>
+                          <div style={{ fontSize: "0.75rem", color: INK6, lineHeight: 1.5 }}>
+                            El servicio RENIEC no respondió. Estos datos son un mock de desarrollo — escribe el nombre real manualmente antes de guardar.
+                          </div>
                         </>
                       )}
 
@@ -697,11 +700,7 @@ export default function UsuarioDetallePage() {
                 </button>
               }
             >
-              {!location.municipalityId ? (
-                <p style={{ fontSize: "0.8125rem", color: INK5, margin: 0 }}>
-                  Asigna primero un municipio al usuario para listar empresas disponibles.
-                </p>
-              ) : loadingCompanies ? (
+              {loadingCompanies ? (
                 <div style={{ ...FIELD, display: "flex", alignItems: "center", color: INK5 }}>
                   <Loader2 size={14} style={{ animation: "spin 0.7s linear infinite", marginRight: 8 }} />
                   Cargando empresas…
@@ -785,37 +784,21 @@ export default function UsuarioDetallePage() {
             </SectionCard>
           )}
 
-          {/* Ubicación — el sistema opera solo en Cotabambas (Apurímac), así que
-              región y provincia quedan fijas. Solo se permite elegir distrito
-              entre los 6 operativos. lockedScope renderiza el banner fijo y
-              auto-resuelve los IDs internos para que el endpoint reciba los
-              valores correctos al guardar. */}
+          {/* Ámbito institucional — el sistema entero pertenece a la
+              municipalidad provincial de Cotabambas (Tambobamba). El banner
+              es puramente informativo: todos los usuarios viven ahí y no es
+              reasignable desde el panel. */}
           <SectionCard
             icon={<MapPin size={16} color={INK6} />}
-            title="Distrito asignado"
-            subtitle={isSA ? "Reasigna el distrito del usuario dentro de Cotabambas" : "Distrito operativo del usuario"}
+            title="Ámbito institucional"
+            subtitle="Municipalidad a la que pertenece el usuario"
           >
-            <div style={{ marginBottom: isSA ? 18 : 0 }}>
-              <LocationPicker
-                value={location}
-                onChange={setLocation}
-                disabled={!isSA}
-                lockedScope="active-province"
-                initialNames={{
-                  regionName:       target.regionName       ?? null,
-                  provinceName:     target.provinceName     ?? null,
-                  municipalityName: target.municipalityName ?? null,
-                }}
-              />
-            </div>
-            {isSA && (
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <button onClick={() => { void saveLocation(); }} disabled={saving}
-                  style={{ ...BTN_PRIMARY, opacity: saving ? 0.6 : 1, cursor: saving ? "not-allowed" : "pointer" }}>
-                  <MapPin size={14} />{saving ? "Guardando…" : "Guardar ubicación"}
-                </button>
-              </div>
-            )}
+            <LocationPicker
+              value={{}}
+              onChange={() => { /* fijado por el sistema */ }}
+              disabled
+              lockedScope="active-municipality"
+            />
           </SectionCard>
 
         </div>

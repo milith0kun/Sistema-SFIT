@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
             id: String(company._id),
             razonSocial: company.razonSocial,
             ruc: company.ruc,
-            serviceScope: company.serviceScope ?? "urbano_distrital",
+            serviceScope: company.serviceScope ?? "urbano",
             departmentCodes: company.coverage?.departmentCodes ?? [],
             provinceCodes:   company.coverage?.provinceCodes   ?? [],
             districtCodes:   company.coverage?.districtCodes   ?? [],

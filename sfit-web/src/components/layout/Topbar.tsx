@@ -7,6 +7,7 @@ import {
   Wifi, Search, ArrowLeft,
 } from "lucide-react";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
+import { CommandPalette } from "@/components/layout/CommandPalette";
 import { buildCrumbs, NAV, ROLE_BADGE, ROLE_LABELS } from "./nav";
 import type { StoredUser } from "./user-storage";
 import { useBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
@@ -60,10 +61,23 @@ export function Topbar({
   const router = useRouter();
   const now = useNow();
   const [open, setOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const pillRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
   const municipalityName = useMunicipalityName();
+
+  // Atajo Cmd/Ctrl+K para abrir el palette desde cualquier parte del dashboard.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Si pathname NO está en NAV_ROOTS, es una sub-página (detail/nuevo/
   // editar/vistas internas) y mostramos el botón "atrás" en mobile.
@@ -376,10 +390,12 @@ export function Topbar({
           </span>
         </div>
 
-        {/* Búsqueda rápida */}
+        {/* Búsqueda rápida — abre el CommandPalette (Cmd/Ctrl+K también). */}
         <button
           className="sfit-search-btn hidden-mobile"
-          aria-label="Buscar"
+          aria-label="Buscar (Ctrl+K)"
+          title="Buscar (Ctrl+K)"
+          onClick={() => setSearchOpen(true)}
           style={{
             width: 32,
             height: 32,
@@ -707,6 +723,12 @@ export function Topbar({
           )}
         </div>
       </div>
+
+      <CommandPalette
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        role={user.role}
+      />
     </div>
   );
 }

@@ -67,10 +67,10 @@ function req(method: "GET" | "POST", tok: string, body?: unknown, search = "") {
 const mockInspection = {
   _id: { toString: () => "insp1" },
   municipalityId: { toString: () => MUNI_ID },
-  vehicleId: { plate: "ABC-123", vehicleTypeKey: "transporte_publico", brand: "Toyota", model: "Coaster" },
+  vehicleId: { plate: "ABC-123", vehicleTypeKey: "transporte_urbano", brand: "Toyota", model: "Coaster" },
   fiscalId: { name: "Carlos Quispe" },
   driverId: null,
-  vehicleTypeKey: "transporte_publico",
+  vehicleTypeKey: "transporte_urbano",
   date: new Date(),
   score: 85,
   result: "aprobada",
@@ -116,7 +116,7 @@ describe("POST /api/inspecciones", () => {
   const VEH_ID = "664f0000000000000000002b";
   const validBody = {
     vehicleId: VEH_ID,
-    vehicleTypeKey: "transporte_publico",
+    vehicleTypeKey: "transporte_urbano",
     checklistResults: [{ item: "Frenos", passed: true }],
     score: 90,
     result: "aprobada",

@@ -42,10 +42,8 @@ interface TripBrief {
 }
 
 const SERVICE_SCOPE_LABEL: Record<string, string> = {
-  urbano_distrital: "Urbano distrital",
-  urbano_provincial: "Urbano provincial",
-  interprovincial_regional: "Interprovincial regional",
-  interregional_nacional: "Interregional nacional",
+  urbano: "Urbano",
+  interprovincial: "Interprovincial",
 };
 
 const STATUS_LABEL: Record<string, string> = {

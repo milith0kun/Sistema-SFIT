@@ -730,7 +730,7 @@ class _RouteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scope = route.type ?? 'urbano_distrital';
+    final scope = route.type ?? 'urbano';
     final scopeInfo = _scopeInfo(scope);
     final code = route.code ?? '';
     final name = route.name ?? '';
@@ -857,7 +857,7 @@ class _RouteCard extends StatelessWidget {
 }
 
 bool _isUrbano(String s) =>
-    s == 'urbano_distrital' || s == 'urbano_provincial';
+    s == 'urbano' || s == 'urbano_distrital' || s == 'urbano_provincial';
 
 class _ScopeInfo {
   final String label;
@@ -875,33 +875,22 @@ class _ScopeInfo {
 }
 
 _ScopeInfo _scopeInfo(String s) => switch (s) {
-      'urbano_distrital' => const _ScopeInfo(
-          label: 'URBANO DISTRITAL',
+      'urbano' || 'urbano_distrital' || 'urbano_provincial' => const _ScopeInfo(
+          label: 'URBANO',
           icon: Icons.directions_bus_outlined,
           fg: AppColors.info,
           bg: AppColors.infoBg,
           border: AppColors.infoBorder,
         ),
-      'urbano_provincial' => const _ScopeInfo(
-          label: 'URBANO PROVINCIAL',
-          icon: Icons.directions_bus_outlined,
-          fg: AppColors.info,
-          bg: AppColors.infoBg,
-          border: AppColors.infoBorder,
-        ),
-      'interprovincial_regional' => const _ScopeInfo(
+      'interprovincial' ||
+      'interprovincial_regional' ||
+      'interregional_nacional' =>
+        const _ScopeInfo(
           label: 'INTERPROVINCIAL',
           icon: Icons.airport_shuttle_outlined,
           fg: AppColors.riesgo,
           bg: AppColors.riesgoBg,
           border: AppColors.riesgoBorder,
-        ),
-      'interregional_nacional' => const _ScopeInfo(
-          label: 'INTERREGIONAL',
-          icon: Icons.airport_shuttle_outlined,
-          fg: AppColors.primary,
-          bg: AppColors.primaryBg,
-          border: AppColors.primaryBorder,
         ),
       _ => const _ScopeInfo(
           label: 'RUTA',

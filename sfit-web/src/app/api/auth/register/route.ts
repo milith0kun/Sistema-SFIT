@@ -13,12 +13,12 @@ import { ROLES, USER_STATUS } from "@/lib/constants";
 import type { Role } from "@/lib/constants";
 import { createNotificationForRole } from "@/lib/notifications/create";
 import { logAuditRaw } from "@/lib/audit/log";
+import { getActiveMunicipalityId } from "@/lib/scope-server";
 
 const RegisterSchema = z.object({
   name: z.string().min(2).max(100),
   email: z.string().email(),
   password: z.string().min(8).max(128),
-  municipalityId: z.string().optional(),
   requestedRole: z.enum([
     ROLES.FISCAL,
     ROLES.OPERADOR,
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       return apiValidationError(errors);
     }
 
-    const { name, email, password, municipalityId, requestedRole, requestMessage } =
+    const { name, email, password, requestedRole, requestMessage } =
       parsed.data;
 
     await connectDB();
@@ -71,12 +71,18 @@ export async function POST(request: NextRequest) {
       ? USER_STATUS.ACTIVO
       : USER_STATUS.PENDIENTE;
 
+    // El sistema opera sobre una única municipalidad institucional
+    // (Tambobamba, sede provincial de Cotabambas). Todos los usuarios — admin,
+    // operativo y ciudadano — quedan asignados a ella. No se acepta input del
+    // cliente para evitar discrepancias.
+    const activeMunicipalityId = await getActiveMunicipalityId();
+
     const user = await User.create({
       name,
       email,
       password: hashedPassword,
       provider: "credentials",
-      municipalityId: municipalityId ?? undefined,
+      municipalityId: activeMunicipalityId,
       role: isInitialAdmin ? ROLES.SUPER_ADMIN : ROLES.CIUDADANO,
       requestedRole: isInitialAdmin ? undefined : requestedRole,
       // Solo guardamos mensaje si requiere aprobación; ciudadanos/admin inicial no lo necesitan
@@ -86,10 +92,12 @@ export async function POST(request: NextRequest) {
       status,
     });
 
-    // Notificar al admin municipal solo si es rol operativo con municipalidad
-    if (!isInitialAdmin && !isCiudadano && municipalityId) {
+    // Notificar al admin municipal cuando es rol operativo (la muni siempre
+    // existe ya, así que la condición se simplifica respecto a la versión
+    // multi-tenant anterior).
+    if (!isInitialAdmin && !isCiudadano) {
       await createNotificationForRole(ROLES.ADMIN_MUNICIPAL, {
-        municipalityId,
+        municipalityId: activeMunicipalityId.toString(),
         title: "Nueva solicitud de registro",
         body: `${name} solicita acceso como ${requestedRole}. Revise y aprueba o rechaza.`,
         type: "action_required",
@@ -104,7 +112,7 @@ export async function POST(request: NextRequest) {
       {
         actorId: user._id.toString(),
         actorRole: user.role,
-        municipalityId: municipalityId,
+        municipalityId: activeMunicipalityId.toString(),
       },
       {
         action: "user.registered",

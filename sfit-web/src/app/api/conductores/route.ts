@@ -10,6 +10,10 @@ import { ROLES, DRIVER_STATUS } from "@/lib/constants";
 import { rolesFor } from "@/lib/auth/roleMatrix";
 import { canAccessMunicipality, scopedCompanyFilter } from "@/lib/auth/rbac";
 import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
+import {
+  buildLicenseValidityFilter,
+  type LicenseValidityState,
+} from "@/lib/license-validity";
 
 const CreateDriverSchema = z.object({
   municipalityId: z.string().refine(isValidObjectId, "municipalityId inválido").optional(),
@@ -18,6 +22,10 @@ const CreateDriverSchema = z.object({
   dni: z.string().min(6).max(20),
   licenseNumber: z.string().min(4).max(30),
   licenseCategory: z.string().min(2).max(20),
+  /** Fecha emisión licencia MTC. ISO. */
+  licenseIssuedAt: z.coerce.date().optional(),
+  /** Fecha vencimiento licencia MTC. ISO. */
+  licenseExpiryDate: z.coerce.date().optional(),
   phone: z.string().max(30).optional(),
   // Defaults explícitos vía zod: el contrato del endpoint queda visible en
   // el schema y los handlers no necesitan re-aplicar `?? valor` por cada
@@ -28,7 +36,16 @@ const CreateDriverSchema = z.object({
   restHours: z.number().min(0).max(24).default(8),
   reputationScore: z.number().min(0).max(100).default(100),
   photoUrl: z.string().url().optional(),
-});
+}).refine(
+  (d) =>
+    !d.licenseIssuedAt ||
+    !d.licenseExpiryDate ||
+    d.licenseExpiryDate.getTime() > d.licenseIssuedAt.getTime(),
+  {
+    message: "La fecha de vencimiento debe ser posterior a la fecha de emisión",
+    path: ["licenseExpiryDate"],
+  },
+);
 
 export async function GET(request: NextRequest) {
   const auth = requireRole(request, [...rolesFor("conductores", "view")]);
@@ -70,6 +87,19 @@ export async function GET(request: NextRequest) {
     if (statusParam && Object.values(DRIVER_STATUS).includes(statusParam as never)) {
       filter.status = statusParam;
     }
+
+    // Filtro de vigencia de licencia. valid | expiring_soon | expired | missing | all
+    const validityParam = url.searchParams.get("validity") as
+      | LicenseValidityState
+      | "all"
+      | null;
+    if (
+      validityParam &&
+      ["valid", "expiring_soon", "expired", "missing", "all"].includes(validityParam)
+    ) {
+      Object.assign(filter, buildLicenseValidityFilter(validityParam));
+    }
+
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: "i" } },
@@ -105,6 +135,8 @@ export async function GET(request: NextRequest) {
         dni: d.dni,
         licenseNumber: d.licenseNumber,
         licenseCategory: d.licenseCategory,
+        licenseIssuedAt: d.licenseIssuedAt ?? null,
+        licenseExpiryDate: d.licenseExpiryDate ?? null,
         phone: d.phone,
         photoUrl: d.photoUrl,
         status: d.status,
@@ -210,6 +242,8 @@ export async function POST(request: NextRequest) {
       dni: parsed.data.dni,
       licenseNumber: parsed.data.licenseNumber,
       licenseCategory: parsed.data.licenseCategory,
+      licenseIssuedAt: parsed.data.licenseIssuedAt,
+      licenseExpiryDate: parsed.data.licenseExpiryDate,
       phone: parsed.data.phone,
       photoUrl: parsed.data.photoUrl,
       status: parsed.data.status,

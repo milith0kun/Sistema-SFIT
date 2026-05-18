@@ -7,7 +7,7 @@
  *      drivers     : (municipalityId, dni)   → reemplazado por (dni)   único nacional
  *
  * 2. Pobla serviceScope + coverage en companies existentes:
- *      - Si no tienen serviceScope: marcadas como "urbano_distrital".
+ *      - Si no tienen serviceScope: marcadas como "urbano".
  *      - coverage.districtCodes se deriva del Municipality.ubigeoCode.
  *      - authorizations[]: una entrada inferida con level=municipal_distrital.
  *
@@ -102,7 +102,7 @@ async function main() {
       { _id: c._id },
       {
         $set: {
-          serviceScope: c.serviceScope ?? "urbano_distrital",
+          serviceScope: c.serviceScope ?? "urbano",
           coverage: {
             districtCodes:   [muni.ubigeoCode],
             provinceCodes:   muni.provinceCode   ? [muni.provinceCode]   : [],
@@ -114,7 +114,7 @@ async function main() {
               : [
                   {
                     level: "municipal_distrital",
-                    scope: "urbano_distrital",
+                    scope: "urbano",
                     issuedBy: `Municipalidad de ${muni.name ?? "—"}`,
                   },
                 ],
@@ -137,14 +137,14 @@ async function main() {
   // ── 4. Resumen ────────────────────────────────────────────────────────────
   const totalCompanies   = await CompanyModel.countDocuments({});
   const withScope        = await CompanyModel.countDocuments({ serviceScope: { $exists: true, $ne: null } });
-  const urbanoDistrital  = await CompanyModel.countDocuments({ serviceScope: "urbano_distrital" });
-  const interprovincial  = await CompanyModel.countDocuments({ serviceScope: "interprovincial_regional" });
+  const urbanoCount      = await CompanyModel.countDocuments({ serviceScope: "urbano" });
+  const interprovincial  = await CompanyModel.countDocuments({ serviceScope: "interprovincial" });
 
   console.log("\n=== RESUMEN POST-MIGRACIÓN ===");
   console.log(`Companies total                : ${totalCompanies}`);
   console.log(`Con serviceScope               : ${withScope}`);
-  console.log(`  urbano_distrital             : ${urbanoDistrital}`);
-  console.log(`  interprovincial_regional     : ${interprovincial}`);
+  console.log(`  urbano                       : ${urbanoCount}`);
+  console.log(`  interprovincial              : ${interprovincial}`);
   console.log("\nMigración completada.");
 
   await mongoose.disconnect();

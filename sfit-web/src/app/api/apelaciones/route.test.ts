@@ -51,7 +51,7 @@ function req(method: "GET" | "POST", tok: string, body?: unknown, search = "") {
 const mockApelacion = {
   _id: { toString: () => "apel1" },
   inspectionId: { result: "rechazada", date: new Date(), score: 45 },
-  vehicleId: { plate: "XYZ-999", vehicleTypeKey: "transporte_publico" },
+  vehicleId: { plate: "XYZ-999", vehicleTypeKey: "transporte_urbano" },
   submittedBy: { name: "Operador Flores", email: "flores@op.com" },
   reason: "La inspección fue incorrecta porque el vehículo fue revisado sin el instrumental adecuado.",
   evidence: [],

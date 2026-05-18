@@ -3,8 +3,9 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'SFIT';
-  static const String appFullName = 'Sistema de Fiscalización Inteligente de Transporte';
-  static const String appVersion = '1.3.1';
+  static const String appFullName =
+      'Sistema de Fiscalización Inteligente de Transporte';
+  static const String appVersion = '1.4.0';
 
   // Actualización — versión mínima local (fallback si la API no responde)
   static const String minimumVersion = '1.2.0';
@@ -12,8 +13,11 @@ class AppConstants {
       'https://play.google.com/store/apps/details?id=com.sfit.sfit_app';
 
   // QR
-  static const String qrSecretKey = 'SFIT_QR_SECRET_KEY'; // Se obtiene de env
-  
+  static const String qrSecretKey = String.fromEnvironment(
+    'SFIT_QR_SECRET',
+    defaultValue: 'SFIT_QR_SECRET_KEY',
+  );
+
   // Estados del conductor
   static const String estadoApto = 'APTO';
   static const String estadoRiesgo = 'RIESGO';

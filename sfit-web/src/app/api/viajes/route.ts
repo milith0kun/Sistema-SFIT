@@ -6,12 +6,14 @@ import { Trip } from "@/models/Trip";
 import { Driver } from "@/models/Driver";
 import { User } from "@/models/User";
 import { Vehicle } from "@/models/Vehicle";
+import { Company, type IAuthorization } from "@/models/Company";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
 import { rolesFor } from "@/lib/auth/roleMatrix";
+import { isCompanyAuthorizationValid } from "@/lib/company-authorization";
 
 const CreateSchema = z.object({
   municipalityId: z.string().refine(isValidObjectId).optional(),
@@ -195,6 +197,67 @@ export async function POST(request: NextRequest) {
         .select("companyId")
         .lean<{ companyId?: unknown } | null>();
       if (vehicle?.companyId) companyId = String(vehicle.companyId);
+    }
+
+    // Validar autorización vigente de la empresa que opera el viaje. Sin
+    // autorización al día no se aceptan viajes. super_admin puede bypasear
+    // con ?override=true (queda en audit log a través de los hooks).
+    if (companyId) {
+      const overrideAuth = new URL(request.url).searchParams.get("override") === "true"
+        && auth.session.role === ROLES.SUPER_ADMIN;
+      if (!overrideAuth) {
+        const company = await Company.findById(companyId)
+          .select("authorizations razonSocial")
+          .lean<{ authorizations?: IAuthorization[]; razonSocial?: string } | null>();
+        if (!company || !isCompanyAuthorizationValid(company.authorizations)) {
+          return apiError(
+            `La empresa ${company?.razonSocial ?? ""} no tiene autorización vigente para operar viajes.`,
+            422,
+          );
+        }
+      }
+    }
+
+    // Adopción de Trip "auto" creado por un ciudadano vía
+    // `POST /api/ciudadano/viajes/registrar` (interprov). Si existe un Trip
+    // activo del mismo vehículo SIN driver, lo adoptamos en lugar de crear
+    // un duplicado — así los ciudadanos que ya escanearon su QR quedan
+    // enlazados con el viaje del conductor sin manualmente reasociarse.
+    const adoptable = await Trip.findOneAndUpdate(
+      {
+        vehicleId: parsed.data.vehicleId,
+        driverId: { $exists: false },
+        status: { $in: ["en_curso", "aceptado"] },
+        endTime: { $exists: false },
+      },
+      {
+        $set: {
+          driverId: parsed.data.driverId,
+          routeId: parsed.data.routeId,
+          fleetEntryId: parsed.data.fleetEntryId,
+          companyId,
+          ...(parsed.data.startTime
+            ? { startTime: new Date(parsed.data.startTime) }
+            : {}),
+          ...(parsed.data.km != null ? { km: parsed.data.km } : {}),
+          ...(parsed.data.passengers != null
+            ? { passengers: parsed.data.passengers }
+            : {}),
+          status: "en_curso",
+        },
+      },
+      { new: true, sort: { startTime: -1 } },
+    );
+
+    if (adoptable) {
+      return apiResponse(
+        {
+          id: String(adoptable._id),
+          adopted: true,
+          ...adoptable.toObject(),
+        },
+        200,
+      );
     }
 
     const created = await Trip.create({

@@ -14,11 +14,8 @@ const INK9 = "#18181b";
 const GRANATE = "#6C0606";
 
 const TYPE_LABELS: Record<string, string> = {
-  transporte_publico: "Transporte público",
-  limpieza_residuos: "Limpieza y residuos",
-  emergencia: "Emergencia",
-  maquinaria: "Maquinaria",
-  municipal_general: "Municipal",
+  transporte_urbano: "Transporte urbano",
+  transporte_interprovincial: "Transporte interprovincial",
 };
 
 type QrData = {

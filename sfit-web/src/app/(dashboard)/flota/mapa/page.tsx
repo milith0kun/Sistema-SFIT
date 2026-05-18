@@ -34,7 +34,15 @@ type ActiveLocation = {
   lng: number;
   locationUpdatedAt: string;
   departureTime: string | null;
+  /**
+   * Modalidad de servicio del bus (`urbano` | `interprovincial`). El backend
+   * lo resuelve desde `Vehicle.companyId.serviceScope`. Permite que el mapa
+   * admin colore los interprov distinto al urbano y aplique el filtro.
+   */
+  serviceScope?: "urbano" | "interprovincial";
 };
+
+type ScopeFilter = "todos" | "urbano" | "interprovincial";
 
 type TrackPoint = { lat: number; lng: number; ts: string; accuracy?: number; speed?: number };
 type LocationDetail = {
@@ -78,9 +86,22 @@ export default function FlotaMapaPage() {
   const [user, setUser] = useState<{ role: Role } | null>(null);
 
   const [activeList, setActiveList] = useState<ActiveLocation[]>([]);
+  const [scopeFilter, setScopeFilter] = useState<ScopeFilter>("todos");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Vista filtrada por modalidad. El admin necesita poder aislar
+  // interprovinciales para inspeccionar rutas largas sin saturarse de marcadores
+  // urbanos. Por defecto se ven todos (criterio operativo: el admin de
+  // Cotabambas suele querer ambas modalidades juntas).
+  const filteredActive = useMemo(
+    () =>
+      scopeFilter === "todos"
+        ? activeList
+        : activeList.filter((a) => a.serviceScope === scopeFilter),
+    [activeList, scopeFilter],
+  );
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<LocationDetail | null>(null);
@@ -237,14 +258,21 @@ export default function FlotaMapaPage() {
     return new Set(activeList.map(a => a.routeCode ?? "—")).size;
   }, [activeList]);
 
-  // Marcadores: todos los vehículos activos. Seleccionado en gold, resto en azul.
-  const markers = useMemo(() => activeList.map(a => ({
+  // Marcadores: solo los visibles tras el filtro de modalidad. Los
+  // interprovinciales se colorean en granate (corporate) para distinguirlos
+  // visualmente del urbano (azul). El seleccionado siempre va en gold.
+  const markers = useMemo(() => filteredActive.map(a => ({
     lat: a.lat,
     lng: a.lng,
     title: `${a.plate} · ${a.driverName}`,
     label: a.plate.slice(-3),
-    color: (a.id === selectedId ? "gold" : "blue") as "gold" | "blue",
-  })), [activeList, selectedId]);
+    color:
+      a.id === selectedId
+        ? "gold"
+        : a.serviceScope === "interprovincial"
+          ? "red"
+          : "blue",
+  })) as { lat: number; lng: number; title: string; label: string; color: "gold" | "blue" | "red" }[], [filteredActive, selectedId]);
 
   // Polyline real del seleccionado (verde APTO)
   const polylinesPayload: MapPolyline[] = useMemo(() => {
@@ -345,12 +373,117 @@ export default function FlotaMapaPage() {
         kicker="Operación · Tiempo real"
         title="Flota en vivo"
         pills={[
-          { label: "En ruta", value: activeList.length },
+          { label: "En ruta", value: filteredActive.length },
           { label: "Rutas activas", value: municipalitiesCount },
           { label: "Auto-refresh", value: paused ? "Pausa" : "15s", warn: paused },
         ]}
         action={heroAction}
       />
+
+      {/* Filtro por modalidad (urbano/interprov). El admin necesita poder
+          aislar cada flujo para fiscalizar sin saturarse de marcadores. */}
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
+        <span
+          style={{
+            fontSize: "0.6875rem",
+            fontWeight: 700,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: INK5,
+          }}
+        >
+          Modalidad
+        </span>
+        {([
+          { k: "todos" as const, l: "Todos", c: activeList.length },
+          {
+            k: "urbano" as const,
+            l: "Urbanos",
+            c: activeList.filter((a) => a.serviceScope === "urbano").length,
+          },
+          {
+            k: "interprovincial" as const,
+            l: "Interprovinciales",
+            c: activeList.filter((a) => a.serviceScope === "interprovincial").length,
+          },
+        ]).map((opt) => {
+          const active = scopeFilter === opt.k;
+          return (
+            <button
+              key={opt.k}
+              type="button"
+              onClick={() => setScopeFilter(opt.k)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "6px 12px",
+                borderRadius: 999,
+                border: `1px solid ${active ? INK9 : INK2}`,
+                background: active ? INK9 : "#fff",
+                color: active ? "#fff" : INK6,
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              {opt.l}
+              <span
+                style={{
+                  fontSize: "0.6875rem",
+                  padding: "1px 7px",
+                  borderRadius: 999,
+                  background: active ? "#fff" : INK1,
+                  color: active ? INK9 : INK5,
+                  fontWeight: 700,
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {opt.c}
+              </span>
+            </button>
+          );
+        })}
+        {/* Leyenda de colores del mapa */}
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            marginLeft: 12,
+            fontSize: "0.6875rem",
+            color: INK5,
+          }}
+        >
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: "#2563EB",
+            }}
+          />
+          Urbano
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: NO,
+              marginLeft: 6,
+            }}
+          />
+          Interprovincial
+        </span>
+      </div>
 
       {error && (
         <div role="alert" style={{
@@ -392,7 +525,7 @@ export default function FlotaMapaPage() {
               <Loader2 size={20} style={{ animation: "spin 0.7s linear infinite" }} />
               <span style={{ fontSize: "0.8125rem" }}>Cargando flota…</span>
             </div>
-          ) : activeList.length === 0 ? (
+          ) : filteredActive.length === 0 ? (
             <EmptyMapState />
           ) : (
             <GoogleMapView
@@ -431,7 +564,10 @@ export default function FlotaMapaPage() {
                 Vehículos activos
               </div>
               <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 1 }}>
-                {activeList.length} en circulación
+                {filteredActive.length} en circulación
+                {scopeFilter !== "todos" && activeList.length !== filteredActive.length
+                  ? ` (de ${activeList.length})`
+                  : ""}
               </div>
             </div>
           </div>
@@ -445,7 +581,7 @@ export default function FlotaMapaPage() {
                   <div key={i} className="skeleton-shimmer" style={{ height: 60, borderRadius: 8 }} />
                 ))}
               </div>
-            ) : activeList.length === 0 ? (
+            ) : filteredActive.length === 0 ? (
               <div style={{
                 padding: 24, display: "flex", flexDirection: "column",
                 alignItems: "center", gap: 10, color: INK5, textAlign: "center",
@@ -456,9 +592,13 @@ export default function FlotaMapaPage() {
                 }}>
                   <Inbox size={16} color={INK5} strokeWidth={1.5} />
                 </div>
-                <div style={{ fontSize: "0.8125rem" }}>Sin vehículos activos</div>
+                <div style={{ fontSize: "0.8125rem" }}>
+                  {scopeFilter === "todos"
+                    ? "Sin vehículos activos"
+                    : `Sin vehículos ${scopeFilter === "urbano" ? "urbanos" : "interprovinciales"} activos`}
+                </div>
               </div>
-            ) : activeList.map((a, i) => {
+            ) : filteredActive.map((a, i) => {
               const isSel = a.id === selectedId;
               const dot = freshnessDot(a.locationUpdatedAt);
               return (
@@ -469,7 +609,7 @@ export default function FlotaMapaPage() {
                     width: "100%", textAlign: "left",
                     padding: "10px 14px",
                     border: "none",
-                    borderBottom: i < activeList.length - 1 ? `1px solid ${INK1}` : "none",
+                    borderBottom: i < filteredActive.length - 1 ? `1px solid ${INK1}` : "none",
                     borderLeft: isSel ? `3px solid ${GOLD}` : "3px solid transparent",
                     background: isSel ? INK1 : "#fff",
                     cursor: "pointer", fontFamily: "inherit",

@@ -192,6 +192,11 @@ UserSchema.index({ municipalityId: 1, role: 1 });
 UserSchema.index({ municipalityId: 1, status: 1 });
 UserSchema.index({ provinceId: 1, status: 1 });
 
+// DNI único nacional. Sparse permite que la mayoría de cuentas Google/registro
+// inicial no tengan DNI hasta completar onboarding; unique bloquea duplicados
+// a nivel DB y cierra el race condition de las validaciones por aplicación.
+UserSchema.index({ dni: 1 }, { unique: true, sparse: true });
+
 /**
  * Hooks de denormalización: cuando se setea o cambia `municipalityId`, el
  * `provinceId` y `regionId` se llenan automáticamente leyendo la jerarquía

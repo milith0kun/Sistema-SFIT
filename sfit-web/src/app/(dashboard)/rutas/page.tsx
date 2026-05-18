@@ -12,20 +12,18 @@ import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
 
 /**
- * Modalidades del modelo Cotabambas:
- *   - "urbano":         serviceScope ∈ {urbano_distrital, urbano_provincial}
- *                       Rutas cortas intra-provincia (30 min–1.5 h), con paraderos.
- *                       Pueden ser compartidas por varias empresas (isShared=true).
- *   - "interprovincial": serviceScope ∈ {interprovincial_regional, interregional_nacional}
- *                       Rutas largas a Cusco/Arequipa/Abancay. Cada empresa
- *                       tiene sus propias rutas (isShared=false).
+ * Modalidades del modelo Cotabambas (alineadas 1:1 con `serviceScope`):
+ *   - "urbano":          rutas intra-provincia (30 min–1.5 h), con paraderos.
+ *                        Pueden ser compartidas por varias empresas
+ *                        (isShared=true).
+ *   - "interprovincial": rutas largas a Cusco/Arequipa/Abancay. Cada empresa
+ *                        tiene sus propias rutas (isShared=false).
  */
 type Modality = "urbano" | "interprovincial";
-type ServiceScope = "urbano_distrital" | "urbano_provincial" | "interprovincial_regional" | "interregional_nacional";
+type ServiceScope = "urbano" | "interprovincial";
 
 function modalityOf(scope?: ServiceScope): Modality {
-  if (scope === "interprovincial_regional" || scope === "interregional_nacional") return "interprovincial";
-  return "urbano";
+  return scope ?? "urbano";
 }
 
 type Waypoint = { order: number; lat: number; lng: number; label?: string };

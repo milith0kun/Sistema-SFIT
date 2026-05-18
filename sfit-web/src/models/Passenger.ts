@@ -3,9 +3,9 @@ import mongoose, { Schema, type Document, type Model } from "mongoose";
 /**
  * Pasajero de un viaje interprovincial.
  *
- * Para servicios urbano_distrital / urbano_provincial el manifiesto se reduce
- * a un contador (Trip.passengers). Para interprovincial_regional /
- * interregional_nacional la normativa exige una lista nominal con DNI.
+ * Para servicios `urbano` el manifiesto se reduce a un contador
+ * (Trip.passengers). Para `interprovincial` la normativa exige una lista
+ * nominal con DNI.
  */
 export type PassengerDocumentType = "DNI" | "CE" | "PASSPORT";
 

@@ -1,8 +1,10 @@
 /// Entidad de usuario para la capa de dominio (RF-01).
 ///
 /// `status` usa los valores del backend: `activo`, `pendiente`, `rechazado`, `suspendido`.
-/// `role` usa los snake_case del backend. Jerarquía web:
-///   super_admin → admin_regional → admin_provincial → admin_municipal.
+/// `role` usa los snake_case del backend. Jerarquía web (post-cleanup
+/// municipal): super_admin → admin_municipal. Los roles admin_regional y
+/// admin_provincial fueron retirados — el sistema opera sobre una sola
+/// municipalidad institucional.
 /// Roles móviles: fiscal, operador, conductor, ciudadano.
 class UserEntity {
   final String id;
@@ -48,14 +50,11 @@ class UserEntity {
   bool get isOperador         => role == 'operador';
   // Roles administrativos (web-only):
   bool get isAdminMunicipal   => role == 'admin_municipal';
-  bool get isAdminProvincial  => role == 'admin_provincial';
-  bool get isAdminRegional    => role == 'admin_regional';
   bool get isSuperAdmin       => role == 'super_admin';
 
   /// Roles que SOLO operan desde el panel web.
-  /// Los roles de administración gestionan flujos pesados de aprobación,
-  /// usuarios y reportes — más cómodos en el dashboard web. En el app móvil
-  /// se les muestra una pantalla que los redirige a `sfit.ecosdelseo.com`.
-  bool get isWebOnlyRole =>
-      isAdminMunicipal || isAdminProvincial || isAdminRegional || isSuperAdmin;
+  /// Gestionan flujos pesados de aprobación, usuarios y reportes — más
+  /// cómodos en el dashboard web. En el app móvil se les muestra una
+  /// pantalla que los redirige a `sfit.ecosdelseo.com`.
+  bool get isWebOnlyRole => isAdminMunicipal || isSuperAdmin;
 }

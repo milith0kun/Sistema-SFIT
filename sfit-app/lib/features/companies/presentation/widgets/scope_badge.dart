@@ -32,7 +32,7 @@ class ScopeBadge extends StatelessWidget {
 
   ({IconData icon, Color color, Color bg, Color border, String text}) _resolve() {
     final s = scope ?? '';
-    if (s.startsWith('urbano_')) {
+    if (s == 'urbano' || s.startsWith('urbano_')) {
       return (
         icon: Icons.directions_bus_filled_rounded,
         color: AppColors.info,
@@ -41,7 +41,9 @@ class ScopeBadge extends StatelessWidget {
         text: 'Urbano · con paraderos',
       );
     }
-    if (s == 'interprovincial_regional' || s == 'interregional_nacional') {
+    if (s == 'interprovincial' ||
+        s == 'interprovincial_regional' ||
+        s == 'interregional_nacional') {
       return (
         icon: Icons.alt_route_rounded,
         color: _interprovColor,
@@ -97,11 +99,13 @@ class ScopeBadge extends StatelessWidget {
 /// empresa. Se muestra debajo del badge en `mi_empresa_page`.
 String scopeExplanation(String? scope) {
   final s = scope ?? '';
-  if (s.startsWith('urbano_')) {
+  if (s == 'urbano' || s.startsWith('urbano_')) {
     return 'Esta empresa opera rutas urbanas con paraderos fijos. Verás '
         'los paraderos en tu mapa al iniciar el turno.';
   }
-  if (s == 'interprovincial_regional' || s == 'interregional_nacional') {
+  if (s == 'interprovincial' ||
+      s == 'interprovincial_regional' ||
+      s == 'interregional_nacional') {
     return 'Esta empresa opera viajes interprovinciales por horarios. '
         'Confirmarás origen y destino al iniciar el turno (sin paraderos '
         'intermedios obligatorios).';

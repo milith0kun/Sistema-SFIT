@@ -14,10 +14,10 @@ export interface IWaypoint {
 /**
  * Ruta o zona de operación.
  *
- * Para rutas urbano_distrital: `municipalityId` contiene la única jurisdicción
- * (origen y destino caen dentro del mismo distrito).
+ * Para rutas `urbano`: `municipalityId` contiene la jurisdicción donde queda
+ * la sede (origen y destino dentro de la provincia administradora).
  *
- * Para rutas interprovinciales/regionales/nacionales:
+ * Para rutas `interprovincial`:
  *   - `originDistrictCode` y `destinationDistrictCode` (UBIGEO 6 dígitos) son
  *     los extremos.
  *   - `traversedDistrictCodes[]` lista los distritos que la ruta atraviesa
@@ -167,7 +167,7 @@ const RouteSchema = new Schema<IRoute>(
     serviceScope: {
       type: String,
       enum: SERVICE_SCOPES,
-      default: "urbano_distrital",
+      default: "urbano",
       index: true,
     },
     originDistrictCode:      { type: String, trim: true },

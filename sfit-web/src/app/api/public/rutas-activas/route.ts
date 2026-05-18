@@ -33,6 +33,13 @@ export async function GET(request: NextRequest) {
   const userLatStr = url.searchParams.get("lat");
   const userLngStr = url.searchParams.get("lng");
   const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit") ?? 30)));
+  // Filtro por modalidad: el feed ciudadano pasa `serviceScope=urbano` para
+  // ocultar interprovinciales (privacidad). Sin valor → no filtra.
+  const serviceScopeParam = (url.searchParams.get("serviceScope") ?? "").trim().toLowerCase();
+  const serviceScope =
+    serviceScopeParam === "urbano" || serviceScopeParam === "interprovincial"
+      ? serviceScopeParam
+      : null;
 
   if (!municipalityId || !isValidObjectId(municipalityId)) {
     return apiResponse({ items: [], total: 0 });
@@ -68,8 +75,10 @@ export async function GET(request: NextRequest) {
   const routeIds = Array.from(
     new Set(entries.map((e) => String(e.routeId)).filter(Boolean)),
   );
-  const routes = await Route.find({ _id: { $in: routeIds } })
-    .select("name code waypoints polylineGeometry status direction vehicleTypeKey")
+  const routeFilter: Record<string, unknown> = { _id: { $in: routeIds } };
+  if (serviceScope) routeFilter.serviceScope = serviceScope;
+  const routes = await Route.find(routeFilter)
+    .select("name code waypoints polylineGeometry status direction vehicleTypeKey serviceScope")
     .lean();
 
   type RouteLite = {
@@ -79,6 +88,7 @@ export async function GET(request: NextRequest) {
     status?: string;
     direction?: string;
     vehicleTypeKey?: string;
+    serviceScope?: string;
     waypoints?: WaypointLite[];
     polylineGeometry?: { coords?: [number, number][] } | null;
   };
@@ -87,10 +97,13 @@ export async function GET(request: NextRequest) {
     routes.map((r) => [String(r._id), r as RouteLite]),
   );
 
-  // Agrupar entries por routeId
+  // Agrupar entries por routeId, descartando aquellos cuya ruta NO está en
+  // `routesById` (filtrada por serviceScope arriba). Sin este descarte, las
+  // rutas interprov filtradas seguirían apareciendo con name="—".
   const byRoute = new Map<string, typeof entries>();
   for (const e of entries) {
     const rid = String(e.routeId);
+    if (!routesById.has(rid)) continue;
     if (!byRoute.has(rid)) byRoute.set(rid, []);
     byRoute.get(rid)!.push(e);
   }

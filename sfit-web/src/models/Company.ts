@@ -1,27 +1,23 @@
 import mongoose, { Schema, type Document, type Model } from "mongoose";
 
 /**
- * Modalidad de servicio reconocida por el marco regulatorio peruano
- * (Ley 27181 — Ley General de Transporte y Tránsito Terrestre).
+ * Modalidad de servicio simplificada para Cotabambas (mono-muni administrativo).
  *
- *  - urbano_distrital        : dentro de un distrito (autoridad: muni distrital)
- *  - urbano_provincial       : entre distritos de la misma provincia (autoridad: muni provincial)
- *  - interprovincial_regional: entre provincias del mismo departamento o entre departamentos
- *                              (autoridad: gobierno regional + MTC)
- *  - interregional_nacional  : entre departamentos / nacional (autoridad: MTC)
+ *  - urbano         : rutas dentro de los 6 distritos de la provincia (incluye
+ *                     lo que antes era `urbano_distrital` + `urbano_provincial`).
+ *                     Autoridad: municipalidad provincial.
+ *  - interprovincial: rutas a otras provincias/regiones (Cusco, Abancay,
+ *                     Arequipa). Incluye lo que antes era
+ *                     `interprovincial_regional` + `interregional_nacional`.
+ *                     Autoridad: gobierno regional o MTC, según corresponda.
+ *
+ * El campo `Authorization.level` mantiene la distinción legal de la entidad
+ * emisora (municipal/regional/MTC); el `serviceScope` solo describe la
+ * cobertura operativa.
  */
-export type ServiceScope =
-  | "urbano_distrital"
-  | "urbano_provincial"
-  | "interprovincial_regional"
-  | "interregional_nacional";
+export type ServiceScope = "urbano" | "interprovincial";
 
-export const SERVICE_SCOPES: ServiceScope[] = [
-  "urbano_distrital",
-  "urbano_provincial",
-  "interprovincial_regional",
-  "interregional_nacional",
-];
+export const SERVICE_SCOPES: ServiceScope[] = ["urbano", "interprovincial"];
 
 export type AuthorityLevel =
   | "municipal_distrital"
@@ -72,8 +68,8 @@ export interface ICoverage {
  *
  * Multi-tenancy: `municipalityId` representa la municipalidad SEDE (donde está
  * el domicilio fiscal). El alcance operativo está dado por `serviceScope` +
- * `coverage`, no por la sede. Para empresas urbano_distrital la sede coincide
- * con el único distrito en `coverage.districtCodes`.
+ * `coverage`, no por la sede. Para empresas `urbano` la sede coincide con
+ * uno de los distritos en `coverage.districtCodes`.
  *
  * Unicidad nacional: el RUC SUNAT es único en todo el país (no compuesto).
  */
@@ -167,7 +163,7 @@ const CompanySchema = new Schema<ICompany>(
     serviceScope: {
       type: String,
       enum: SERVICE_SCOPES,
-      default: "urbano_distrital",
+      default: "urbano",
       index: true,
     },
     coverage: { type: CoverageSchema, default: () => ({}) },

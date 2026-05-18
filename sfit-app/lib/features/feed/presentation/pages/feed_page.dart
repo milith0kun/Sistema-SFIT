@@ -144,10 +144,13 @@ class _FilterBarDelegate extends SliverPersistentHeaderDelegate {
 
   _FilterBarDelegate({required this.filters, required this.onChanged});
 
+  // Una sola fila de chips (Solo míos · Orden · Categorías). El feed
+  // siempre muestra reportes de la municipalidad activa — el filtro de
+  // región (distrito/provincia/Perú) se retiró con el cleanup municipal.
   @override
-  double get minExtent => 84;
+  double get minExtent => 48;
   @override
-  double get maxExtent => 84;
+  double get maxExtent => 48;
 
   @override
   Widget build(
@@ -160,124 +163,84 @@ class _FilterBarDelegate extends SliverPersistentHeaderDelegate {
         color: Colors.white,
         border: Border(bottom: BorderSide(color: AppColors.ink2, width: 1)),
       ),
-      child: Column(
-        children: [
-          // Fila 1: regiones — segmented full-width centrado.
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-            child: SizedBox(
-              height: 34,
-              width: double.infinity,
-              child: SegmentedButton<FeedRegion>(
-                showSelectedIcon: false,
-                expandedInsets: EdgeInsets.zero,
-                style: ButtonStyle(
-                  visualDensity: VisualDensity.compact,
-                  padding: const WidgetStatePropertyAll(
-                    EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                  ),
-                  textStyle: WidgetStatePropertyAll(
-                    AppTheme.inter(fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
-                  backgroundColor: WidgetStateProperty.resolveWith((states) {
-                    if (states.contains(WidgetState.selected)) {
-                      return AppColors.primary;
-                    }
-                    return Colors.white;
-                  }),
-                  foregroundColor: WidgetStateProperty.resolveWith((states) {
-                    if (states.contains(WidgetState.selected)) {
-                      return Colors.white;
-                    }
-                    return AppColors.ink8;
-                  }),
-                  side: const WidgetStatePropertyAll(
-                    BorderSide(color: AppColors.ink2),
-                  ),
-                ),
-                segments:
-                    FeedRegion.values
-                        .map(
-                          (r) => ButtonSegment(value: r, label: Text(r.label)),
-                        )
-                        .toList(),
-                selected: {filters.region},
-                onSelectionChanged:
-                    (sel) => onChanged(filters.copyWith(region: sel.first)),
+      child: ShaderMask(
+        shaderCallback:
+            (bounds) => const LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              stops: [0.0, 0.015, 0.985, 1.0],
+              colors: [
+                Colors.transparent,
+                Colors.black,
+                Colors.black,
+                Colors.transparent,
+              ],
+            ).createShader(bounds),
+        blendMode: BlendMode.dstIn,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
+          children: [
+            _CategoryChip(
+              label: 'Solo míos',
+              selected: filters.mine,
+              onTap: () => onChanged(filters.copyWith(mine: !filters.mine)),
+              icon: Icons.person_rounded,
+            ),
+            Container(
+              width: 1,
+              height: 22,
+              color: AppColors.ink2,
+              margin: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+            _OrderChip(
+              current: filters.order,
+              onChange: (o) => onChanged(filters.copyWith(order: o)),
+            ),
+            Container(
+              width: 1,
+              height: 22,
+              color: AppColors.ink2,
+              margin: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+            _CategoryChip(
+              label: 'Todas',
+              selected: filters.category == null,
+              onTap: () => onChanged(filters.copyWith(category: null)),
+            ),
+            ...kReportCategories.map(
+              (c) => _CategoryChip(
+                label: c,
+                selected: filters.category == c,
+                onTap: () => onChanged(filters.copyWith(category: c)),
               ),
             ),
-          ),
-          // Fila 2: orden inline al inicio + categorías scroll.
-          // El orden ahora es un chip más en la fila (no un ícono raro
-          // pegado a la derecha), mejor jerarquía visual.
-          Expanded(
-            child: ShaderMask(
-              shaderCallback:
-                  (bounds) => const LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    stops: [0.0, 0.015, 0.985, 1.0],
-                    colors: [
-                      Colors.transparent,
-                      Colors.black,
-                      Colors.black,
-                      Colors.transparent,
-                    ],
-                  ).createShader(bounds),
-              blendMode: BlendMode.dstIn,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
-                children: [
-                  _OrderChip(
-                    current: filters.order,
-                    onChange: (o) => onChanged(filters.copyWith(order: o)),
-                  ),
-                  Container(
-                    width: 1,
-                    height: 22,
-                    color: AppColors.ink2,
-                    margin: const EdgeInsets.symmetric(horizontal: 8),
-                  ),
-                  _CategoryChip(
-                    label: 'Todas',
-                    selected: filters.category == null,
-                    onTap: () => onChanged(filters.copyWith(category: null)),
-                  ),
-                  ...kReportCategories.map(
-                    (c) => _CategoryChip(
-                      label: c,
-                      selected: filters.category == c,
-                      onTap: () => onChanged(filters.copyWith(category: c)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   @override
   bool shouldRebuild(_FilterBarDelegate oldDelegate) =>
-      oldDelegate.filters.region != filters.region ||
       oldDelegate.filters.category != filters.category ||
-      oldDelegate.filters.order != filters.order;
+      oldDelegate.filters.order != filters.order ||
+      oldDelegate.filters.mine != filters.mine;
 }
 
 class _CategoryChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final IconData? icon;
 
   const _CategoryChip({
     required this.label,
     required this.selected,
+    this.icon,
     required this.onTap,
   });
 
@@ -300,13 +263,26 @@ class _CategoryChip extends StatelessWidget {
               ),
             ),
             alignment: Alignment.center,
-            child: Text(
-              label,
-              style: AppTheme.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : AppColors.ink7,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(
+                    icon,
+                    size: 13,
+                    color: selected ? Colors.white : AppColors.ink7,
+                  ),
+                  const SizedBox(width: 5),
+                ],
+                Text(
+                  label,
+                  style: AppTheme.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: selected ? Colors.white : AppColors.ink7,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeft, Save, Trash2, AlertTriangle, CheckCircle, Loader2, Hash, Copy, Check,
   Car, TrendingUp, ClipboardCheck, ShieldCheck, Building2, Calendar, ShieldOff,
+  BadgeCheck,
 } from "lucide-react";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -47,6 +48,8 @@ interface Vehicle {
   lastInspectionStatus?: InspectionStatus;
   reputationScore: number;
   soatExpiry?: string;
+  verified?: boolean;
+  verifiedAt?: string | null;
   active: boolean;
   createdAt: string;
 }
@@ -136,6 +139,8 @@ export default function VehiculoDetallePage({ params }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  // Verificación administrativa del vehículo (espejo del flujo conductores).
+  const [verifying, setVerifying] = useState(false);
 
   // Validación SUNARP de la placa
   const [placaLookup, setPlacaLookup] = useState<PlacaLookup>({ state: "idle" });
@@ -239,6 +244,29 @@ export default function VehiculoDetallePage({ params }: Props) {
       });
     } catch { setLoadError("Error de conexión."); }
     finally { setLoading(false); }
+  }
+
+  async function verifyVehicle() {
+    if (!vehicle || vehicle.verified) return;
+    setVerifying(true);
+    setServerError(null);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/vehiculos/${id}/verificar`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setServerError(data.error ?? "No se pudo verificar el vehículo.");
+        return;
+      }
+      setVehicle((v) => v ? { ...v, verified: true, verifiedAt: data.data?.verifiedAt ?? new Date().toISOString() } : v);
+    } catch {
+      setServerError("Error de conexión al verificar.");
+    } finally {
+      setVerifying(false);
+    }
   }
 
   async function loadDropdowns() {
@@ -414,9 +442,30 @@ export default function VehiculoDetallePage({ params }: Props) {
   const soatExpired = soatDays != null && soatDays < 0;
 
   const canShowSuspend = canSuspend && vehicle.status !== "fuera_de_servicio";
+  const canVerify = canEdit && !vehicle.verified;
   const headerAction = (
     <div style={{ display: "flex", gap: 8 }}>
       {backBtnPlain}
+      {canVerify && (
+        <button
+          type="button"
+          onClick={() => { void verifyVehicle(); }}
+          disabled={verifying || submitting}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            height: 36, padding: "0 14px", borderRadius: 9,
+            border: `1.5px solid ${APTO_BD}`, background: APTO_BG,
+            color: APTO, fontWeight: 700, fontSize: "0.875rem",
+            cursor: verifying ? "not-allowed" : "pointer", fontFamily: "inherit",
+            opacity: verifying ? 0.7 : 1,
+          }}
+        >
+          {verifying
+            ? <Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} />
+            : <BadgeCheck size={14} />}
+          {verifying ? "Verificando…" : "Verificar"}
+        </button>
+      )}
       {canShowSuspend && (
         <button
           type="button"
@@ -458,6 +507,33 @@ export default function VehiculoDetallePage({ params }: Props) {
         subtitle={`${vehicle.brand} ${vehicle.model} · ${vehicle.year} · ${stMeta.label}`}
         action={headerAction}
       />
+
+      {/* Estado de verificación administrativa.
+          - sin verificar  → banner ámbar "pendiente" + CTA al botón.
+          - verificado     → línea verde compacta con fecha. */}
+      {vehicle.verified ? (
+        <div style={{
+          padding: "8px 14px", borderRadius: 8,
+          background: APTO_BG, border: `1px solid ${APTO_BD}`,
+          color: APTO, fontSize: "0.8125rem", fontWeight: 600,
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <BadgeCheck size={14} />
+          Vehículo verificado{vehicle.verifiedAt
+            ? ` el ${new Date(vehicle.verifiedAt).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}`
+            : ""}.
+        </div>
+      ) : (
+        <div role="alert" style={{
+          padding: "10px 14px", borderRadius: 8,
+          background: RIESGO_BG, border: `1px solid ${RIESGO_BD}`,
+          color: RIESGO, fontSize: "0.8125rem", fontWeight: 600,
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <AlertTriangle size={14} />
+          Pendiente de verificación administrativa — el vehículo no puede asignarse a viajes hasta validar SOAT, revisión técnica y placa.
+        </div>
+      )}
 
       <KPIStrip cols={3} items={[
         {

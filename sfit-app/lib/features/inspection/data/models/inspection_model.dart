@@ -74,8 +74,12 @@ class InspectionModel {
 
 /// Checklist predefinido por tipo de vehículo.
 /// El admin puede personalizarlos desde la web; estos son los ítems por defecto.
+///
+/// Solo cubrimos los 2 tipos vigentes del sistema. El interprovincial
+/// agrega revisión de elementos críticos para viajes largos (extintor,
+/// neumáticos de repuesto, descanso del conductor).
 const Map<String, List<String>> kDefaultChecklist = {
-  'transporte_publico': [
+  'transporte_urbano': [
     'Luces delanteras y traseras funcionando',
     'Frenos en buen estado',
     'Documentos del vehículo vigentes',
@@ -87,44 +91,20 @@ const Map<String, List<String>> kDefaultChecklist = {
     'Botón de emergencia operativo',
     'Limpieza e higiene del vehículo',
   ],
-  'limpieza_residuos': [
-    'Sistema de compactación operativo',
-    'Contenedores sin derrames',
-    'Luces de emergencia funcionando',
-    'Documentos vigentes',
-    'SOAT vigente',
-    'Frenos en buen estado',
-    'Neumáticos en buen estado',
-    'Equipo de protección del operario a bordo',
-  ],
-  'emergencia': [
-    'Sirena y luces de emergencia operativas',
-    'Equipamiento médico / bomberil completo',
-    'Combustible al 100%',
-    'Documentos vigentes',
-    'Frenos en buen estado',
-    'Comunicaciones (radio) operativas',
-    'Neumáticos en buen estado',
-  ],
-  'maquinaria': [
-    'Luces de seguridad y balizas operativas',
-    'Hidráulica sin fugas',
-    'Frenos en buen estado',
-    'Nivel de aceite correcto',
-    'Documentos vigentes',
-    'Operario con licencia de maquinaria',
-    'Extintor a bordo',
-  ],
-  'municipal_general': [
+  'transporte_interprovincial': [
     'Luces delanteras y traseras funcionando',
     'Frenos en buen estado',
     'Documentos del vehículo vigentes',
-    'Licencia del conductor vigente',
+    'Licencia del conductor vigente (categoría interprov)',
     'SOAT vigente',
     'Cinturones de seguridad operativos',
-    'Neumáticos en buen estado',
+    'Neumáticos en buen estado y llanta de repuesto',
+    'Extintor dentro del vehículo',
+    'Botón de emergencia operativo',
+    'Bitácora de descanso del conductor al día',
+    'Equipo de comunicación (radio) operativo',
   ],
 };
 
 List<String> checklistForType(String typeKey) =>
-    kDefaultChecklist[typeKey] ?? kDefaultChecklist['municipal_general']!;
+    kDefaultChecklist[typeKey] ?? kDefaultChecklist['transporte_urbano']!;

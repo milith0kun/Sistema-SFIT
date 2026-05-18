@@ -183,11 +183,8 @@ class _DataView extends StatelessWidget {
   }
 
   String _vehicleTypeLabel(String key) => switch (key) {
-        'transporte_publico' => 'Transporte público',
-        'limpieza_residuos'  => 'Limpieza y residuos',
-        'emergencia'         => 'Emergencia',
-        'maquinaria'         => 'Maquinaria municipal',
-        'municipal_general'  => 'Vehículo municipal',
+        'transporte_urbano'          => 'Transporte urbano',
+        'transporte_interprovincial' => 'Transporte interprovincial',
         _ => key,
       };
 

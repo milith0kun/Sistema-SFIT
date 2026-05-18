@@ -129,19 +129,29 @@ export default function UsuariosAdminPage() {
     return items.filter(u => !roleFilter || u.role === roleFilter);
   }, [items, roleFilter]);
 
+  // KPIs fijos por rol: el admin_municipal debe ver siempre el conteo de
+  // los 4 roles operativos (fiscal, operador, conductor, ciudadano) — antes
+  // mostraba solo el "top 3 por conteo" y los roles con pocos usuarios
+  // quedaban escondidos. Super admin ve adicionalmente Admin Municipal.
   const kpis: KPIItem[] = useMemo(() => {
-    const byRole = Object.entries(ROLE_LABELS).map(([role, label]) => ({
-      role, count: items.filter(u => u.role === role).length, label,
-    })).filter(r => r.count > 0);
-
-    const topRoles = byRole.sort((a, b) => b.count - a.count).slice(0, 3);
-    return [
-      { label: "Total", value: total || items.length, subtitle: "usuarios", icon: Users },
-      ...topRoles.map(r => ({
-        label: r.label.toUpperCase(), value: r.count, subtitle: "usuarios", icon: Users,
-      })),
+    const countOf = (r: UserRole) => items.filter(u => u.role === r).length;
+    const base: KPIItem[] = [
+      { label: "TOTAL",       value: total || items.length, subtitle: "usuarios", icon: Users },
+      { label: "FISCALES",    value: countOf("fiscal"),     subtitle: "inspectores en campo", icon: Users },
+      { label: "OPERADORES",  value: countOf("operador"),   subtitle: "empresas operando",    icon: Users },
+      { label: "CONDUCTORES", value: countOf("conductor"),  subtitle: "registrados",          icon: Users },
+      { label: "CIUDADANOS",  value: countOf("ciudadano"),  subtitle: "reportantes",          icon: Users },
     ];
-  }, [items, total]);
+    if (user?.role === "super_admin") {
+      base.push({
+        label: "ADMINS MUNICIPALES",
+        value: countOf("admin_municipal"),
+        subtitle: "panel web",
+        icon: Users,
+      });
+    }
+    return base;
+  }, [items, total, user]);
 
   const columns = useMemo<ColumnDef<UsuarioRow, unknown>[]>(() => [
     {
@@ -263,7 +273,7 @@ export default function UsuariosAdminPage() {
     <div className="flex flex-col gap-4 animate-fade-in">
       <PageHeader kicker="Administración · RF-01" title="Gestión de usuarios" action={headerAction} />
 
-      <KPIStrip items={kpis} cols={kpis.length as 2 | 3 | 4} />
+      <KPIStrip items={kpis} cols={kpis.length as 2 | 3 | 4 | 5 | 6} />
 
       {error && (
         <div style={{ padding: "11px 16px", background: "#FFF5F5", border: "1px solid #FCA5A5", borderRadius: 10, color: "#DC2626", fontSize: "0.8125rem" }}>

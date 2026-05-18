@@ -89,6 +89,18 @@
             </intent-filter>
         </service>
 
+        <!-- Canal por defecto para FCM. SIN este meta-data, en Android 8+
+             cualquier push con `notification` payload se descarta
+             silenciosamente porque Firebase no encuentra un canal válido.
+             El canal `sfit_alerts` lo crea NotificationService.initialize()
+             al boot del app (importancia alta + sonido + vibración). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="sfit_alerts" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
+
         <!-- Flutter engine -->
         <meta-data
             android:name="flutterEmbedding"

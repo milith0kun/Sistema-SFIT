@@ -2,11 +2,12 @@
  * PATCH /api/admin/usuarios/[id] — Actualizar datos de un usuario.
  *
  * Restricciones:
- *   - admin_municipal NO puede asignar super_admin ni admin_provincial.
- *   - admin_provincial NO puede asignar super_admin.
- *   - municipalityId y provinceId solo editables por super_admin.
+ *   - admin_municipal NO puede asignar super_admin.
  *   - password solo editable por super_admin (solo cuentas credentials).
- *   - Campos permitidos: status, role, name, phone, dni, municipalityId, provinceId, password.
+ *   - Campos permitidos: status, role, name, phone, dni, companyId, password,
+ *     rejectionReason. La ubicación (region/province/municipality) NO es
+ *     editable — el sistema opera sobre una única muni institucional y se
+ *     asigna automáticamente al crear/aprobar al usuario.
  */
 import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
@@ -26,6 +27,7 @@ import { logAction } from "@/lib/audit/logAction";
 import { createNotification } from "@/lib/notifications/create";
 import { sendEmail } from "@/lib/email/email_service";
 import { accountRejectedEmailHtml, accountApprovedEmailHtml } from "@/lib/email/templates";
+import { getActiveMunicipalityId } from "@/lib/scope-server";
 
 const ALLOWED_ROLES = [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL];
 
@@ -47,9 +49,6 @@ const PatchSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100).trim().optional(),
   phone: z.string().max(20).trim().nullable().optional(),
   dni: z.string().max(20).trim().nullable().optional(),
-  municipalityId: z.string().nullable().optional(),
-  provinceId: z.string().nullable().optional(),
-  regionId: z.string().nullable().optional(),
   companyId: z.string().nullable().optional(),
   password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres").max(128).optional(),
   rejectionReason: z.string().trim().min(5, "El motivo debe tener al menos 5 caracteres").max(500).optional(),
@@ -57,9 +56,7 @@ const PatchSchema = z.object({
   (d) =>
     d.status !== undefined || d.role !== undefined ||
     d.name !== undefined || d.phone !== undefined ||
-    d.dni !== undefined || d.municipalityId !== undefined ||
-    d.provinceId !== undefined || d.regionId !== undefined ||
-    d.companyId !== undefined ||
+    d.dni !== undefined || d.companyId !== undefined ||
     d.password !== undefined ||
     d.rejectionReason !== undefined,
   { message: "Se debe especificar al menos un campo a actualizar" },
@@ -95,10 +92,18 @@ export async function GET(
     const prov = user.provinceId     as unknown as { _id: string; name: string } | null;
     const reg  = user.regionId       as unknown as { _id: string; name: string } | null;
 
-    // Scope: admin_municipal solo ve usuarios de su muni
+    // Scope: admin_municipal ve usuarios de su muni + usuarios sin muni
+    // asignada (cuentas legacy del cleanup municipal — el sistema opera
+    // sobre UNA municipalidad institucional, así que esos usuarios son
+    // implícitamente suyos). Sin esto, hacer click en un usuario legacy
+    // desde el listado devolvía 403 y la UI mostraba "Usuario no encontrado".
     if (session.role === ROLES.ADMIN_MUNICIPAL) {
       const userMuniId = muni ? String(muni._id) : null;
-      if (session.municipalityId && userMuniId !== String(session.municipalityId)) {
+      if (
+        userMuniId !== null &&
+        session.municipalityId &&
+        userMuniId !== String(session.municipalityId)
+      ) {
         return apiForbidden();
       }
     }
@@ -150,7 +155,7 @@ export async function PATCH(
     return apiError(first, 422);
   }
 
-  const { status, role, name, phone, dni, municipalityId, provinceId, regionId, companyId, password, rejectionReason } = parsed.data;
+  const { status, role, name, phone, dni, companyId, password, rejectionReason } = parsed.data;
 
   // ── Protecciones de escalada de privilegios ───────────────────────────────
   if (password !== undefined && session.role !== ROLES.SUPER_ADMIN) {
@@ -163,24 +168,11 @@ export async function PATCH(
       return apiForbidden(`No tienes permiso para asignar el rol ${role}`);
     }
   }
-  if (session.role !== ROLES.SUPER_ADMIN && (municipalityId !== undefined || provinceId !== undefined || regionId !== undefined)) {
-    return apiForbidden("Solo el super admin puede reasignar región, provincia o municipio");
-  }
   // Rechazar requiere motivo (RF-01-04).
   if (status === "rechazado" && !rejectionReason) {
     return apiError("Debes indicar el motivo del rechazo", 422);
   }
 
-  // Validar ObjectIds de municipio/provincia/región si se envían
-  if (municipalityId && municipalityId !== "" && !isValidObjectId(municipalityId)) {
-    return apiError("municipalityId inválido", 400);
-  }
-  if (provinceId && provinceId !== "" && !isValidObjectId(provinceId)) {
-    return apiError("provinceId inválido", 400);
-  }
-  if (regionId && regionId !== "" && !isValidObjectId(regionId)) {
-    return apiError("regionId inválido", 400);
-  }
   if (companyId && companyId !== "" && !isValidObjectId(companyId)) {
     return apiError("companyId inválido", 400);
   }
@@ -201,12 +193,29 @@ export async function PATCH(
       }
     }
 
-    // Aislamiento por tenant: usar canAccessMunicipality.
+    // Muni institucional única. Si el usuario aún no la tiene (cuenta vieja o
+    // creada por flujo Google antes del cleanup), la asignamos en este patch.
+    const activeMunicipalityId = await getActiveMunicipalityId();
+
+    // Aislamiento por tenant: usar canAccessMunicipality. Si el usuario no
+    // tiene `municipalityId` (cuenta legacy), el admin_municipal sí puede
+    // tocarlo — el PATCH abajo le inyecta la muni activa, así queda
+    // normalizado a la única muni institucional del sistema.
     if (target.municipalityId) {
       const allowed = await canAccessMunicipality(session, String(target.municipalityId));
       if (!allowed) return apiForbidden("El usuario no pertenece a su jurisdicción");
-    } else if (session.role === ROLES.ADMIN_MUNICIPAL && !target.municipalityId) {
-      return apiForbidden("El usuario no pertenece a su municipio");
+    }
+
+    // DNI único nacional: si cambia respecto al actual, verificar que no esté
+    // tomado por otra cuenta. Si no se valida acá el índice unique fallaría
+    // con error de Mongo crudo en el findByIdAndUpdate de abajo.
+    if (dni !== undefined && dni && dni !== (target.dni ?? null)) {
+      const dup = await User.findOne({ dni, _id: { $ne: id } })
+        .select("_id")
+        .lean<{ _id: unknown } | null>();
+      if (dup) {
+        return apiError("El DNI ya está registrado en otra cuenta", 409);
+      }
     }
 
     // Construir actualización
@@ -216,15 +225,6 @@ export async function PATCH(
     if (name          !== undefined) update.name   = name;
     if (phone         !== undefined) update.phone  = phone ?? undefined;
     if (dni           !== undefined) update.dni    = dni   ?? undefined;
-    if (municipalityId !== undefined) {
-      update.municipalityId = municipalityId && municipalityId !== "" ? municipalityId : null;
-    }
-    if (provinceId !== undefined) {
-      update.provinceId = provinceId && provinceId !== "" ? provinceId : null;
-    }
-    if (regionId !== undefined) {
-      update.regionId = regionId && regionId !== "" ? regionId : null;
-    }
     if (companyId !== undefined) {
       update.companyId = companyId && companyId !== "" ? companyId : null;
     }
@@ -234,6 +234,11 @@ export async function PATCH(
     if (rejectionReason !== undefined) {
       update.rejectionReason = rejectionReason;
     }
+    // Backfill de muni institucional para cuentas que la tengan vacía. El
+    // hook pre-save de User deriva province/region desde aquí.
+    if (!target.municipalityId) {
+      update.municipalityId = activeMunicipalityId;
+    }
     // Al aprobar limpiamos el flag de "requestedRole" porque ya tomó decisión.
     if (status === "activo" && previousStatus === "pendiente") {
       update.requestedRole = undefined;
@@ -241,29 +246,17 @@ export async function PATCH(
 
     // ── Validación tenant para OPERADOR ─────────────────────────────────────
     // Si el resultado final del usuario va a ser rol=operador, exigir que
-    // tenga companyId asignado y que la empresa pertenezca al mismo muni
-    // que tendrá el operador. Esto evita operadores huérfanos viendo data
-    // de otras empresas a través de heurísticas de fallback.
+    // tenga companyId asignado y que la empresa pertenezca a la muni activa.
     const finalRole = (update.role ?? target.role) as Role;
     if (finalRole === ROLES.OPERADOR) {
       const finalCompanyId =
         update.companyId !== undefined
           ? (update.companyId as string | null)
           : (target.companyId ? String(target.companyId) : null);
-      const finalMunicipalityId =
-        update.municipalityId !== undefined
-          ? (update.municipalityId as string | null)
-          : (target.municipalityId ? String(target.municipalityId) : null);
 
       if (!finalCompanyId) {
         return apiError(
           "El rol operador requiere asignar una empresa (companyId).",
-          422,
-        );
-      }
-      if (!finalMunicipalityId) {
-        return apiError(
-          "El rol operador requiere municipalidad asignada.",
           422,
         );
       }
@@ -273,9 +266,9 @@ export async function PATCH(
       if (!company) {
         return apiError("La empresa asignada no existe.", 422);
       }
-      if (String(company.municipalityId) !== String(finalMunicipalityId)) {
+      if (String(company.municipalityId) !== String(activeMunicipalityId)) {
         return apiError(
-          "La empresa asignada no pertenece a la misma municipalidad que el operador.",
+          "La empresa asignada no pertenece a la municipalidad activa.",
           422,
         );
       }

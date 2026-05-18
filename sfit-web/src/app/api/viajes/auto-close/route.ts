@@ -118,6 +118,46 @@ export async function POST(request: NextRequest) {
       await Notification.insertMany(notificacionesBulk);
     }
 
+    // Propagación a CitizenTripRegistration: cerrar los registros activos
+    // de ciudadanos vinculados a los Trips auto-cerrados. Best-effort.
+    try {
+      const { CitizenTripRegistration } = await import(
+        "@/models/CitizenTripRegistration"
+      );
+      const activeRegs = await CitizenTripRegistration.find({
+        tripId: { $in: ids },
+        endedAt: { $exists: false },
+      })
+        .select("_id userId tripId")
+        .lean<Array<{ _id: unknown; userId: unknown; tripId: unknown }>>();
+      if (activeRegs.length > 0) {
+        await CitizenTripRegistration.updateMany(
+          { tripId: { $in: ids }, endedAt: { $exists: false } },
+          { $set: { endedAt: now, endReason: "auto" } },
+        );
+        const { createNotification } = await import(
+          "@/lib/notifications/create"
+        );
+        await Promise.all(
+          activeRegs.map((r) =>
+            createNotification({
+              userId: String(r.userId),
+              title: "Tu viaje terminó",
+              body:
+                "El sistema cerró automáticamente tu viaje por inactividad. " +
+                "Si seguías a bordo, vuelve a registrarte.",
+              type: "info",
+              category: "asignacion",
+              link: "/ciudadano/mi-viaje",
+              metadata: { tripId: String(r.tripId), endReason: "auto" },
+            }),
+          ),
+        );
+      }
+    } catch (e) {
+      console.error("[viajes/auto-close] cierre CitizenTripRegistration", e);
+    }
+
     return apiResponse({ closed: viajesVencidos.length });
   } catch (error) {
     console.error("[viajes/auto-close POST]", error);

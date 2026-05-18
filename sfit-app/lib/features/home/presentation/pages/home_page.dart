@@ -113,9 +113,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     if (user == null) return const _BlankLoading();
 
     // super_admin → selector de rol para "entrar como" un usuario
-    // operativo (ciudadano/conductor/fiscal/operador). Los demás roles
-    // web-only (admin_municipal, admin_provincial) ven el StatusScreen
-    // que los redirige al panel web.
+    // operativo (ciudadano/conductor/fiscal/operador). admin_municipal
+    // ve el StatusScreen que lo redirige al panel web.
     if (user.isSuperAdmin) {
       return const RolePreviewPage();
     }
@@ -514,9 +513,9 @@ class _HomePageState extends ConsumerState<HomePage> {
             page: ProfilePage(),
           ),
         ],
-      // Nota: admin_municipal, admin_provincial, admin_regional y super_admin
-      // son web-only (ver `UserEntity.isWebOnlyRole`). HomePage muestra
-      // `StatusScreen` para esos roles antes de llegar a `_tabsForRole`,
+      // Nota: admin_municipal y super_admin son web-only (ver
+      // `UserEntity.isWebOnlyRole`). HomePage muestra `StatusScreen`
+      // para esos roles antes de llegar a `_tabsForRole`,
       // por eso no están listados aquí.
       _ => const [
           _Tab(
@@ -551,8 +550,6 @@ class _HomePageState extends ConsumerState<HomePage> {
         'fiscal'            => 'Fiscal / Inspector',
         'operador'          => 'Operador de Empresa',
         'admin_municipal'   => 'Administrador Municipal',
-        'admin_provincial'  => 'Administrador Provincial',
-        'admin_regional'    => 'Administrador Regional',
         'super_admin'       => 'Super Admin',
         _                   => role,
       };

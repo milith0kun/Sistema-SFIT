@@ -10,6 +10,13 @@ class ConductorModel {
   final String status; // apto | riesgo | no_apto
   final String? licenseCategory;
   final String? licenseNumber;
+  /// Fecha de emisión de la licencia (MTC). El backend la guarda en
+  /// `licenseIssuedAt`; tanto la web como la app la capturan en el
+  /// onboarding del conductor o en su edición desde el panel admin.
+  final DateTime? licenseIssuedAt;
+  /// Fecha de vencimiento de la licencia. Backend serializa como
+  /// `licenseExpiryDate` (alineado al cleanup); seguimos aceptando
+  /// `licenseExpiry` como alias para back-compat de payloads antiguos.
   final DateTime? licenseExpiry;
   final String? phone;
   final String? dni;
@@ -26,6 +33,7 @@ class ConductorModel {
     required this.status,
     this.licenseCategory,
     this.licenseNumber,
+    this.licenseIssuedAt,
     this.licenseExpiry,
     this.phone,
     this.dni,
@@ -36,6 +44,12 @@ class ConductorModel {
     this.companyRuc,
   });
 
+  static DateTime? _parseDate(dynamic v) {
+    if (v == null) return null;
+    if (v is String) return DateTime.tryParse(v);
+    return null;
+  }
+
   factory ConductorModel.fromJson(Map<String, dynamic> j) => ConductorModel(
         id: j['_id'] as String? ?? j['id'] as String? ?? '',
         name: j['name'] as String? ?? '',
@@ -43,9 +57,11 @@ class ConductorModel {
         status: j['status'] as String? ?? 'apto',
         licenseCategory: j['licenseCategory'] as String?,
         licenseNumber: j['licenseNumber'] as String?,
-        licenseExpiry: j['licenseExpiry'] != null
-            ? DateTime.tryParse(j['licenseExpiry'] as String)
-            : null,
+        licenseIssuedAt: _parseDate(j['licenseIssuedAt']),
+        // El backend devuelve `licenseExpiryDate` post-cleanup; mantenemos
+        // `licenseExpiry` como fallback para clientes con payloads en cache.
+        licenseExpiry:
+            _parseDate(j['licenseExpiryDate']) ?? _parseDate(j['licenseExpiry']),
         phone: j['phone'] as String?,
         dni: j['dni'] as String?,
         continuousHours: (j['continuousHours'] as num?)?.toDouble(),

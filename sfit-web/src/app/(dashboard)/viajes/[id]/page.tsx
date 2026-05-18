@@ -88,10 +88,7 @@ function fmtDuration(min: number | null): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-const SCOPES_REQUIRING_LIST = new Set([
-  "interprovincial_regional",
-  "interregional_nacional",
-]);
+const SCOPES_REQUIRING_LIST = new Set(["interprovincial"]);
 
 export default function ViajeDetallePage({ params }: Props) {
   const { id } = usePromise(params);

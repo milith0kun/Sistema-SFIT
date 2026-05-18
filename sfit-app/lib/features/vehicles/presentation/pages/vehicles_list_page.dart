@@ -170,13 +170,9 @@ class _VehicleCard extends StatelessWidget {
   }
 
   String _typeLabel(String key) => switch (key) {
-        'transporte_publico'   => 'Transp. Público',
-        'limpieza_residuos'    => 'Limpieza',
-        'emergencia'           => 'Emergencia',
-        'maquinaria'           => 'Maquinaria',
-        'bus_interprovincial'  => 'Bus Interprov.',
-        'municipal_general'    => 'Municipal',
-        _                      => key,
+        'transporte_urbano'          => 'Transp. urbano',
+        'transporte_interprovincial' => 'Transp. interprov.',
+        _                            => key,
       };
 }
 

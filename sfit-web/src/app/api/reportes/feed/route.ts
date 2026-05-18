@@ -14,12 +14,19 @@ import { rolesFor } from "@/lib/auth/roleMatrix";
  * Feed público de reportes ciudadanos validados, estilo red social.
  *
  * Query params:
- *   - region: 'all' | 'province' | 'municipality' (default: 'municipality')
- *   - category: string opcional (filtra por categoría exacta)
- *   - order: 'recent' | 'supported' (default: 'recent')
- *   - page, limit: paginación (limit máx 50)
+ *   - region: 'all' | 'province' | 'municipality' (default: 'municipality').
+ *     En el modelo post-cleanup donde el sistema opera sobre una sola
+ *     municipalidad institucional, los 3 valores devuelven el mismo
+ *     resultado en la práctica. Se mantiene el param por compat.
+ *   - category: string opcional (filtra por categoría exacta).
+ *   - order: 'recent' | 'supported' (default: 'recent').
+ *   - mine: 'true' | 'false' (default: 'false'). Si true, ignora el filtro
+ *     de visibilidad pública y devuelve TODOS los reportes del ciudadano
+ *     autenticado (cualquier status). Sirve para la vista "Solo míos".
+ *   - page, limit: paginación (limit máx 50).
  *
- * Solo retorna reportes con status='validado'. Anonimiza al ciudadano (solo primer nombre + inicial).
+ * Solo retorna reportes con status='validado', excepto cuando son propios.
+ * Anonimiza al ciudadano (solo primer nombre + inicial).
  * Incluye conteo de apoyos y si el usuario actual los apoyó.
  */
 export async function GET(request: NextRequest) {
@@ -33,6 +40,7 @@ export async function GET(request: NextRequest) {
     const region = (url.searchParams.get("region") ?? "municipality") as "all" | "province" | "municipality";
     const category = url.searchParams.get("category") ?? undefined;
     const order = (url.searchParams.get("order") ?? "recent") as "recent" | "supported";
+    const mine = url.searchParams.get("mine") === "true";
     const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
     const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit") ?? 20)));
 
@@ -69,21 +77,23 @@ export async function GET(request: NextRequest) {
     }
 
     // Filtro de visibilidad estilo red social:
-    // - Reportes con status='validado' son visibles para todos.
-    // - Reportes propios con status pendiente/en_revisión también son
-    //   visibles para el dueño (UX estilo Instagram: "tu publicación está
-    //   en revisión"). Se distinguen con `status` e `isMine` en el payload.
+    // - mine=true → todos los reportes del propio ciudadano sin importar status.
+    // - mine=false → reportes con status='validado' (visibles a todos) +
+    //   reportes propios con status pendiente/en_revisión (UX estilo
+    //   Instagram: "tu publicación está en revisión").
     const myCitizenId = new Types.ObjectId(auth.session.userId);
-    const filter: Record<string, unknown> = {
-      ...baseFilter,
-      $or: [
-        { status: "validado" },
-        {
-          citizenId: myCitizenId,
-          status: { $in: ["pendiente", "en_revision"] },
-        },
-      ],
-    };
+    const filter: Record<string, unknown> = mine
+      ? { ...baseFilter, citizenId: myCitizenId }
+      : {
+          ...baseFilter,
+          $or: [
+            { status: "validado" },
+            {
+              citizenId: myCitizenId,
+              status: { $in: ["pendiente", "en_revision"] },
+            },
+          ],
+        };
 
     // Pipeline con conteo de apoyos
     const skip = (page - 1) * limit;

@@ -7,9 +7,10 @@ import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationErro
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality, scopedCompanyFilter } from "@/lib/auth/rbac";
-import { Company, SERVICE_SCOPES } from "@/models/Company";
+import { Company, SERVICE_SCOPES, type IAuthorization } from "@/models/Company";
 import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
 import { rolesFor } from "@/lib/auth/roleMatrix";
+import { isCompanyAuthorizationValid } from "@/lib/company-authorization";
 
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -68,12 +69,33 @@ const CreateSchema = z.object({
 });
 
 /**
+ * Recolecta todos los códigos UBIGEO (6 dígitos) tocados por una ruta —
+ * waypoints para urbanas, origen+destino para interprovinciales. Útil para
+ * validar contra la cobertura geográfica declarada por la empresa.
+ */
+function collectRouteDistrictCodes(data: {
+  waypoints?: { districtCode?: string }[];
+  originDistrictCode?: string;
+  destinationDistrictCode?: string;
+}): string[] {
+  const codes = new Set<string>();
+  for (const w of data.waypoints ?? []) {
+    if (w.districtCode && /^\d{6}$/.test(w.districtCode)) codes.add(w.districtCode);
+  }
+  if (data.originDistrictCode && /^\d{6}$/.test(data.originDistrictCode)) {
+    codes.add(data.originDistrictCode);
+  }
+  if (data.destinationDistrictCode && /^\d{6}$/.test(data.destinationDistrictCode)) {
+    codes.add(data.destinationDistrictCode);
+  }
+  return Array.from(codes);
+}
+
+/**
  * Reglas semánticas adicionales según `serviceScope`:
- *  - urbano_distrital / urbano_provincial : exige al menos 2 waypoints (la
- *    ruta se traza dentro de calles).
- *  - interprovincial_regional / interregional_nacional : exige
- *    `originDistrictCode` y `destinationDistrictCode` (UBIGEO 6).
- *    Los waypoints quedan opcionales (la ruta es lineal por carretera).
+ *  - `urbano`: exige al menos 2 waypoints (la ruta se traza por calles).
+ *  - `interprovincial`: exige `originDistrictCode` y `destinationDistrictCode`
+ *    (UBIGEO 6). Los waypoints quedan opcionales (carretera lineal).
  *
  * Devuelve un mapa de errores compatible con `apiValidationError` o `null`
  * cuando todo es válido.
@@ -89,13 +111,13 @@ export function validateRouteByScope(
   if (!scope) return null;
   const errors: Record<string, string[]> = {};
 
-  if (scope === "urbano_distrital" || scope === "urbano_provincial") {
+  if (scope === "urbano") {
     if (!data.waypoints || data.waypoints.length < 2) {
       errors.waypoints = ["Las rutas urbanas requieren al menos 2 waypoints"];
     }
   }
 
-  if (scope === "interprovincial_regional" || scope === "interregional_nacional") {
+  if (scope === "interprovincial") {
     if (!data.originDistrictCode) {
       errors.originDistrictCode = [
         "Las rutas interprovinciales requieren el distrito de origen (UBIGEO)",
@@ -270,6 +292,36 @@ export async function POST(request: NextRequest) {
     //       * isShared=true → companyId queda null y companyIds debe traer >=1
     //         empresa válida (scopedCompanyFilter).
     //       * isShared=false (default) → companyId opcional; si viene se valida.
+    //
+    // Para cada empresa involucrada se valida vigencia de autorizaciones —
+    // sin autorización vigente la empresa no puede crear/asociarse a rutas.
+    // super_admin bypasea con ?override=true (auditable) por si necesita
+    // crear ruta administrativa antes de aprobar la autorización.
+    const overrideAuth =
+      new URL(request.url).searchParams.get("override") === "true"
+      && auth.session.role === ROLES.SUPER_ADMIN;
+
+    const routeDistrictCodes = collectRouteDistrictCodes({
+      waypoints: parsed.data.waypoints,
+      originDistrictCode: parsed.data.originDistrictCode,
+      destinationDistrictCode: parsed.data.destinationDistrictCode,
+    });
+
+    /** Cruza la ruta contra la cobertura declarada por la empresa. Sólo
+     *  bloquea si la empresa SÍ declaró cobertura y la ruta sale de ahí.
+     *  Empresas sin cobertura declarada quedan exentas — el admin debería
+     *  pedirles que la registren, pero no es bloqueante. */
+    const validateCoverage = (
+      company: { coverage?: { districtCodes?: string[] }; razonSocial?: string },
+    ): string | null => {
+      const cov = company.coverage?.districtCodes ?? [];
+      if (cov.length === 0) return null; // sin cobertura → no validamos
+      if (routeDistrictCodes.length === 0) return null; // ruta sin códigos → no validamos
+      const outside = routeDistrictCodes.filter((c) => !cov.includes(c));
+      if (outside.length === 0) return null;
+      return `Distritos fuera de la cobertura de ${company.razonSocial ?? "la empresa"}: ${outside.join(", ")}`;
+    };
+
     const dataForCreate: Record<string, unknown> = { ...parsed.data };
     if (auth.session.role === ROLES.OPERADOR) {
       if (parsed.data.isShared) {
@@ -277,10 +329,20 @@ export async function POST(request: NextRequest) {
       }
       const myCompanyId = await getOperatorCompanyId(auth.session.userId);
       if (!myCompanyId) return apiError("Sin empresa asignada", 400);
-      const company = await Company.findById(myCompanyId).select("municipalityId").lean<{ municipalityId?: unknown } | null>();
+      const company = await Company.findById(myCompanyId)
+        .select("municipalityId authorizations coverage razonSocial")
+        .lean<{ municipalityId?: unknown; authorizations?: IAuthorization[]; coverage?: { districtCodes?: string[] }; razonSocial?: string } | null>();
       if (!company || String(company.municipalityId) !== String(auth.session.municipalityId)) {
         return apiForbidden();
       }
+      if (!isCompanyAuthorizationValid(company.authorizations)) {
+        return apiError(
+          "Tu empresa no tiene autorización vigente para operar rutas. Renueva la autorización antes de crear rutas.",
+          422,
+        );
+      }
+      const coverageErr = validateCoverage(company);
+      if (coverageErr) return apiError(coverageErr, 422);
       dataForCreate.companyId = myCompanyId;
       dataForCreate.companyIds = [];
     } else if (parsed.data.isShared) {
@@ -294,18 +356,47 @@ export async function POST(request: NextRequest) {
         _id: { $in: parsed.data.companyIds },
         ...filter,
       })
-        .select("_id")
-        .lean();
+        .select("_id authorizations coverage razonSocial")
+        .lean<Array<{ _id: unknown; authorizations?: IAuthorization[]; coverage?: { districtCodes?: string[] }; razonSocial?: string }>>();
       if (valid.length !== parsed.data.companyIds.length) {
         return apiForbidden("Una o más empresas no son accesibles en tu scope");
+      }
+      if (!overrideAuth) {
+        const sinAutorizacion = valid.filter(
+          (c) => !isCompanyAuthorizationValid(c.authorizations),
+        );
+        if (sinAutorizacion.length > 0) {
+          return apiError(
+            `Sin autorización vigente: ${sinAutorizacion
+              .map((c) => c.razonSocial ?? String(c._id))
+              .join(", ")}`,
+            422,
+          );
+        }
+        // Cobertura: cada empresa asociada debe cubrir todos los distritos
+        // de la ruta. Si una sola no los cubre, la ruta queda fuera.
+        for (const c of valid) {
+          const err = validateCoverage(c);
+          if (err) return apiError(err, 422);
+        }
       }
       dataForCreate.companyId = undefined;
     } else if (parsed.data.companyId) {
       const filter = await scopedCompanyFilter(auth.session);
       const match = await Company.findOne({ _id: parsed.data.companyId, ...filter })
-        .select("_id")
-        .lean();
+        .select("_id authorizations coverage razonSocial")
+        .lean<{ _id: unknown; authorizations?: IAuthorization[]; coverage?: { districtCodes?: string[] }; razonSocial?: string } | null>();
       if (!match) return apiForbidden();
+      if (!overrideAuth && !isCompanyAuthorizationValid(match.authorizations)) {
+        return apiError(
+          `La empresa ${match.razonSocial ?? ""} no tiene autorización vigente para operar rutas.`,
+          422,
+        );
+      }
+      if (!overrideAuth) {
+        const err = validateCoverage(match);
+        if (err) return apiError(err, 422);
+      }
     }
 
     const duplicate = await Route.findOne({ municipalityId, code: parsed.data.code });

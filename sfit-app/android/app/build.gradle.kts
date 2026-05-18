@@ -11,6 +11,11 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
+    // Firebase: aplicar después del plugin de Android. Requiere
+    // `android/app/google-services.json` descargado de Firebase Console
+    // (Project Settings → Your apps → Android). El archivo está
+    // gitignorado; cada dev/CI lo provee localmente.
+    id("com.google.gms.google-services")
 }
 
 android {

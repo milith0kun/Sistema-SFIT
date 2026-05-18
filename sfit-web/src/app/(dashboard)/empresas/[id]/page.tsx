@@ -11,7 +11,11 @@ import {
 import { PageHeader } from "@/components/ui/PageHeader";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
-import { ACTIVE_DISTRICTS } from "@/lib/scope";
+import { ACTIVE_DISTRICTS, INTERPROV_DESTINATIONS } from "@/lib/scope";
+import {
+  getCompanyAuthorizationStatus,
+  AUTHORIZATION_WARN_DAYS,
+} from "@/lib/company-authorization";
 
 /* ── Tokens — paleta sobria ── */
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK3 = "#d4d4d8";
@@ -35,11 +39,7 @@ const LABEL: React.CSSProperties = {
   textTransform: "uppercase", color: INK5, marginBottom: 6,
 };
 
-type ServiceScope =
-  | "urbano_distrital"
-  | "urbano_provincial"
-  | "interprovincial_regional"
-  | "interregional_nacional";
+type ServiceScope = "urbano" | "interprovincial";
 
 type AuthorityLevel =
   | "municipal_distrital"
@@ -74,10 +74,8 @@ type Company = {
 };
 
 const SCOPE_LABEL: Record<ServiceScope, string> = {
-  urbano_distrital: "Urbano distrital",
-  urbano_provincial: "Urbano provincial",
-  interprovincial_regional: "Interprovincial / regional",
-  interregional_nacional: "Interregional / nacional",
+  urbano: "Urbano",
+  interprovincial: "Interprovincial",
 };
 
 const AUTHORITY_LABEL: Record<AuthorityLevel, string> = {
@@ -132,7 +130,7 @@ export default function EmpresaDetallePage({ params }: Props) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<FormState>({
     razonSocial: "", ruc: "", repName: "", repDni: "", repPhone: "",
-    serviceScope: "urbano_distrital",
+    serviceScope: "urbano",
     districtCodes: [],
     authorizations: [],
     documents: [],
@@ -142,6 +140,15 @@ export default function EmpresaDetallePage({ params }: Props) {
   const [confirm, setConfirm] = useState<"suspend" | "reactivate" | null>(null);
   const [toggling, setToggling] = useState(false);
   const [togglingType, setTogglingType] = useState<string | null>(null);
+
+  // Operadores que administran esta empresa (tab F5.2)
+  const [operadores, setOperadores] = useState<Array<{
+    id: string;
+    name: string;
+    email: string;
+    status: string;
+    lastLoginAt: string | null;
+  }> | null>(null);
 
   // Validación RUC (SUNAT)
   const [rucLookup, setRucLookup] = useState<RucLookup>({ state: "idle" });
@@ -163,8 +170,21 @@ export default function EmpresaDetallePage({ params }: Props) {
     setUser(u);
     void load();
     void loadTypes();
+    void loadOperadores();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, router]);
+
+  async function loadOperadores() {
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/empresas/${id}/operadores`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { setOperadores([]); return; }
+      const body = await res.json();
+      setOperadores(body?.data?.items ?? []);
+    } catch { setOperadores([]); }
+  }
 
   // Breadcrumb dinámico
   useSetBreadcrumbTitle(company?.razonSocial);
@@ -188,7 +208,7 @@ export default function EmpresaDetallePage({ params }: Props) {
         repName: c.representanteLegal?.name ?? "",
         repDni: c.representanteLegal?.dni ?? "",
         repPhone: c.representanteLegal?.phone ?? "",
-        serviceScope: c.serviceScope ?? "urbano_distrital",
+        serviceScope: c.serviceScope ?? "urbano",
         districtCodes: c.coverage?.districtCodes ?? [],
         authorizations: c.authorizations ?? [],
         documents: c.documents ?? [],
@@ -290,7 +310,7 @@ export default function EmpresaDetallePage({ params }: Props) {
       repName: company.representanteLegal?.name ?? "",
       repDni: company.representanteLegal?.dni ?? "",
       repPhone: company.representanteLegal?.phone ?? "",
-      serviceScope: company.serviceScope ?? "urbano_distrital",
+      serviceScope: company.serviceScope ?? "urbano",
       districtCodes: company.coverage?.districtCodes ?? [],
       authorizations: company.authorizations ?? [],
       documents: company.documents ?? [],
@@ -573,6 +593,44 @@ export default function EmpresaDetallePage({ params }: Props) {
           <AlertTriangle size={14} />{error ?? saveError}
         </div>
       )}
+
+      {/* Banner de vigencia de autorizaciones. Solo se muestra cuando hay algo
+          que reportar (expiring_soon / expired / none). El estado "valid" es
+          el default silencioso para no saturar la UI. */}
+      {(() => {
+        const status = getCompanyAuthorizationStatus(company.authorizations);
+        if (status.state === "valid") return null;
+        const palette =
+          status.state === "expired"        ? { bg: RED_BG,  bd: RED_BD,  color: RED  } :
+          status.state === "expiring_soon"  ? { bg: WARN_BG, bd: WARN_BD, color: WARN } :
+                                              { bg: WARN_BG, bd: WARN_BD, color: WARN };
+        const heading =
+          status.state === "expired"       ? "Autorización vencida" :
+          status.state === "expiring_soon" ? `Autorización por vencer en ${status.daysToExpiry} días` :
+                                             "Sin autorización registrada";
+        const sub =
+          status.state === "none"
+            ? "Esta empresa no tiene autorizaciones cargadas. Crea una rutas/viaje quedará bloqueado hasta registrar la resolución vigente."
+            : status.state === "expired"
+            ? "La empresa no puede crear rutas ni iniciar viajes hasta renovar y registrar la nueva resolución."
+            : `Renueva la autorización para evitar interrupciones. Se alerta cuando faltan ≤${AUTHORIZATION_WARN_DAYS} días.`;
+        return (
+          <div role="alert" style={{
+            padding: "12px 16px", background: palette.bg, border: `1px solid ${palette.bd}`,
+            borderRadius: 9, display: "flex", alignItems: "flex-start", gap: 10,
+          }}>
+            <AlertTriangle size={16} color={palette.color} style={{ flexShrink: 0, marginTop: 2 }} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: "0.8125rem", color: palette.color }}>
+                {heading}
+              </div>
+              <div style={{ fontSize: "0.75rem", color: INK6, marginTop: 4, lineHeight: 1.5 }}>
+                {sub}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <form id="empresa-form" onSubmit={handleSave} noValidate>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
@@ -980,13 +1038,11 @@ export default function EmpresaDetallePage({ params }: Props) {
                     onChange={e => setForm(p => ({ ...p, serviceScope: e.target.value as ServiceScope }))}
                     style={{ ...FIELD, appearance: "none", paddingRight: 30 }}
                   >
-                    <option value="urbano_distrital">Urbano distrital · municipalidad distrital</option>
-                    <option value="urbano_provincial">Urbano provincial · municipalidad provincial</option>
-                    <option value="interprovincial_regional">Interprovincial · gobierno regional + MTC</option>
-                    <option value="interregional_nacional">Interregional · MTC</option>
+                    <option value="urbano">Urbano · rutas dentro de los 6 distritos de Cotabambas</option>
+                    <option value="interprovincial">Interprovincial · rutas a Cusco / Abancay / Arequipa</option>
                   </select>
                 ) : (
-                  <input value={SCOPE_LABEL[company.serviceScope ?? "urbano_distrital"]} style={READ} readOnly />
+                  <input value={SCOPE_LABEL[company.serviceScope ?? "urbano"]} style={READ} readOnly />
                 )}
               </div>
               <div>
@@ -997,8 +1053,9 @@ export default function EmpresaDetallePage({ params }: Props) {
                     gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
                     padding: 8, border: `1px solid ${INK2}`, borderRadius: 8, background: "#fff",
                   }}>
-                    {ACTIVE_DISTRICTS.map(d => {
+                    {[...ACTIVE_DISTRICTS, ...INTERPROV_DESTINATIONS].map(d => {
                       const checked = form.districtCodes.includes(d.code);
+                      const isInterprov = "province" in d;
                       return (
                         <label key={d.code} style={{
                           display: "flex", alignItems: "center", gap: 8,
@@ -1020,7 +1077,9 @@ export default function EmpresaDetallePage({ params }: Props) {
                           />
                           <span style={{ flex: 1 }}>
                             <div style={{ fontWeight: 600, color: INK9 }}>{d.name}</div>
-                            <div style={{ fontSize: "0.6875rem", color: INK5, fontFamily: "ui-monospace, monospace" }}>{d.code}</div>
+                            <div style={{ fontSize: "0.6875rem", color: INK5, fontFamily: "ui-monospace, monospace" }}>
+                              {d.code}{isInterprov ? ` · ${(d as { province: string }).province}` : ""}
+                            </div>
                           </span>
                         </label>
                       );
@@ -1032,7 +1091,9 @@ export default function EmpresaDetallePage({ params }: Props) {
                       <span style={{ fontSize: "0.8125rem", color: INK5 }}>— Sin distritos definidos —</span>
                     ) : (
                       (company.coverage?.districtCodes ?? []).map(code => {
-                        const found = ACTIVE_DISTRICTS.find(d => d.code === code);
+                        const found =
+                          ACTIVE_DISTRICTS.find(d => d.code === code) ??
+                          INTERPROV_DESTINATIONS.find(d => d.code === code);
                         return (
                           <span key={code} style={{
                             padding: "4px 10px", borderRadius: 6,
@@ -1112,10 +1173,8 @@ export default function EmpresaDetallePage({ params }: Props) {
                       onChange={e => updateAuth(i, { scope: e.target.value as ServiceScope })}
                       style={{ ...FIELD, height: 34 }}
                     >
-                      <option value="urbano_distrital">Urbano distrital</option>
-                      <option value="urbano_provincial">Urbano provincial</option>
-                      <option value="interprovincial_regional">Interprovincial</option>
-                      <option value="interregional_nacional">Interregional</option>
+                      <option value="urbano">Urbano</option>
+                      <option value="interprovincial">Interprovincial</option>
                     </select>
                     <button
                       type="button"
@@ -1252,6 +1311,61 @@ export default function EmpresaDetallePage({ params }: Props) {
               </div>
             )}
           </SectionCard>
+
+          {/* ── Operadores que administran ── */}
+          <div style={{ gridColumn: "1 / -1" }}>
+            <SectionCard
+              icon={<Users size={14} color={INK6} />}
+              title="Operadores que administran"
+              subtitle={
+                operadores === null
+                  ? "Cargando…"
+                  : operadores.length === 0
+                  ? "Aún ningún operador vinculó su cuenta a esta empresa"
+                  : `${operadores.length} operador${operadores.length === 1 ? "" : "es"} vinculado${operadores.length === 1 ? "" : "s"}`
+              }
+            >
+              {operadores === null ? (
+                <div style={{ fontSize: "0.8125rem", color: INK5 }}>
+                  <Loader2 size={13} style={{ animation: "spin 0.7s linear infinite", marginRight: 6 }} />
+                  Consultando…
+                </div>
+              ) : operadores.length === 0 ? (
+                <div style={{ fontSize: "0.8125rem", color: INK5 }}>
+                  Cuando un operador complete su onboarding con el RUC{" "}
+                  <span style={{ fontFamily: "ui-monospace, monospace" }}>{company.ruc}</span>{" "}
+                  aparecerá aquí.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {operadores.map((o) => (
+                    <div key={o.id} style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "10px 12px", borderRadius: 8,
+                      background: INK1, border: `1px solid ${INK2}`,
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: "0.875rem", color: INK9 }}>{o.name}</div>
+                        <div style={{ fontSize: "0.75rem", color: INK5 }}>{o.email}</div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{
+                          padding: "2px 8px", borderRadius: 5,
+                          background: o.status === "activo" ? GRN_BG : WARN_BG,
+                          color: o.status === "activo" ? GRN : WARN,
+                          border: `1px solid ${o.status === "activo" ? GRN_BD : WARN_BD}`,
+                          fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase",
+                        }}>{o.status}</span>
+                        <Link href={`/usuarios/${o.id}`} style={{ fontSize: "0.75rem", color: INK6, fontWeight: 600, textDecoration: "underline" }}>
+                          Ver ficha
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </SectionCard>
+          </div>
 
           {/* ── ID de soporte ── */}
           <div style={{ gridColumn: "1 / -1" }}>

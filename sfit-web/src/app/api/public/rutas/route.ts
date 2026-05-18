@@ -44,6 +44,13 @@ export async function GET(request: NextRequest) {
   const vehicleTypes = url.searchParams.getAll("vehicleType")
     .map((v) => v.trim().toLowerCase())
     .filter((v) => v.length > 0);
+  // Filtro por modalidad. El feed ciudadano pasa `urbano` para ocultar
+  // rutas interprovinciales del catálogo. Sin valor → no filtra.
+  const serviceScopeParam = (url.searchParams.get("serviceScope") ?? "").trim().toLowerCase();
+  const serviceScope =
+    serviceScopeParam === "urbano" || serviceScopeParam === "interprovincial"
+      ? serviceScopeParam
+      : null;
 
   const userLat = userLatStr != null && userLatStr !== "" ? Number(userLatStr) : null;
   const userLng = userLngStr != null && userLngStr !== "" ? Number(userLngStr) : null;
@@ -75,6 +82,9 @@ export async function GET(request: NextRequest) {
   }
   if (vehicleTypes.length > 0) {
     baseFilter.vehicleTypeKey = { $in: vehicleTypes };
+  }
+  if (serviceScope) {
+    baseFilter.serviceScope = serviceScope;
   }
 
   const routes = await Route.find(baseFilter)

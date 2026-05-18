@@ -65,11 +65,11 @@ function Plate({ p }: { p: string }) {
   );
 }
 
-const TYPES = ["todos", "transporte_publico", "limpieza_residuos", "emergencia", "maquinaria", "municipal_general"];
+const TYPES = ["todos", "transporte_urbano", "transporte_interprovincial"];
 const TYPE_LABELS: Record<string, string> = {
-  todos: "Todos", transporte_publico: "Transporte público",
-  limpieza_residuos: "Limpieza", emergencia: "Emergencia",
-  maquinaria: "Maquinaria", municipal_general: "Municipal",
+  todos: "Todos",
+  transporte_urbano: "Transporte urbano",
+  transporte_interprovincial: "Transporte interprovincial",
 };
 const CAN_EDIT = ["super_admin", "admin_municipal"];
 const CAN_CREATE = ["super_admin", "admin_municipal"];
@@ -92,6 +92,7 @@ export default function VehiculosPage() {
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [items, setItems] = useState<Vehicle[]>([]);
   const [typeFilter, setTypeFilter] = useState("todos");
+  const [verifiedFilter, setVerifiedFilter] = useState<"all" | "verified" | "unverified">("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sel, setSel] = useState<Vehicle | null>(null);
@@ -114,6 +115,8 @@ export default function VehiculosPage() {
       const token = localStorage.getItem("sfit_access_token");
       const qs = new URLSearchParams({ limit: "100" });
       if (typeFilter !== "todos") qs.set("type", typeFilter);
+      if (verifiedFilter === "verified") qs.set("verified", "true");
+      else if (verifiedFilter === "unverified") qs.set("verified", "false");
       const res = await fetch(`/api/vehiculos?${qs}`, {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
@@ -127,7 +130,7 @@ export default function VehiculosPage() {
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, typeFilter, router]);
+  }, [user, typeFilter, verifiedFilter, router]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -289,18 +292,32 @@ export default function VehiculosPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [sel]);
 
+  const selectStyle: React.CSSProperties = {
+    height: 32, padding: "0 10px", borderRadius: 7,
+    border: `1px solid ${INK2}`, fontSize: "0.8125rem",
+    fontFamily: "inherit", background: "#fff", color: INK6, cursor: "pointer",
+  };
   const toolbarEnd = (
-    <select
-      value={typeFilter}
-      onChange={(e) => setTypeFilter(e.target.value)}
-      style={{
-        height: 32, padding: "0 10px", borderRadius: 7,
-        border: `1px solid ${INK2}`, fontSize: "0.8125rem",
-        fontFamily: "inherit", background: "#fff", color: INK6, cursor: "pointer",
-      }}
-    >
-      {TYPES.map(t => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
-    </select>
+    <div style={{ display: "flex", gap: 8 }}>
+      <select
+        value={verifiedFilter}
+        onChange={(e) => setVerifiedFilter(e.target.value as "all" | "verified" | "unverified")}
+        aria-label="Filtrar por verificación"
+        style={selectStyle}
+      >
+        <option value="all">Verificación: todas</option>
+        <option value="verified">Verificados</option>
+        <option value="unverified">Sin verificar</option>
+      </select>
+      <select
+        value={typeFilter}
+        onChange={(e) => setTypeFilter(e.target.value)}
+        aria-label="Filtrar por tipo"
+        style={selectStyle}
+      >
+        {TYPES.map(t => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
+      </select>
+    </div>
   );
 
   if (!user) return null;
@@ -492,7 +509,7 @@ function VehiclePreview({
 
         {/* Acciones — imprimir es la principal (a tamaño real) */}
         <Link
-          href={`/vehiculos/${vehicle.id}/qr/imprimir`}
+          href={`/vehiculos/${vehicle.id}/qr`}
           target="_blank"
           rel="noopener noreferrer"
           style={{ display: "block", marginTop: 14 }}

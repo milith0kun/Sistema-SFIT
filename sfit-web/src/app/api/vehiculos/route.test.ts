@@ -47,7 +47,7 @@ const mockVehicle = {
   companyId: null,
   currentDriverId: null,
   plate: "ABC-123",
-  vehicleTypeKey: "transporte_publico",
+  vehicleTypeKey: "transporte_urbano",
   brand: "Toyota",
   model: "Coaster",
   year: 2020,
@@ -90,10 +90,10 @@ describe("GET /api/vehiculos", () => {
   });
 
   it("filtra por tipo de vehículo", async () => {
-    const res = await GET(req("GET", token(), undefined, "?type=limpieza_residuos"));
+    const res = await GET(req("GET", token(), undefined, "?type=transporte_interprovincial"));
     expect(res.status).toBe(200);
     expect(vi.mocked(Vehicle.find)).toHaveBeenCalledWith(
-      expect.objectContaining({ vehicleTypeKey: "limpieza_residuos" }),
+      expect.objectContaining({ vehicleTypeKey: "transporte_interprovincial" }),
     );
   });
 });
@@ -101,7 +101,7 @@ describe("GET /api/vehiculos", () => {
 describe("POST /api/vehiculos", () => {
   const validBody = {
     plate: "XYZ-999",
-    vehicleTypeKey: "transporte_publico",
+    vehicleTypeKey: "transporte_urbano",
     brand: "Mercedes",
     model: "Sprinter",
     year: 2022,

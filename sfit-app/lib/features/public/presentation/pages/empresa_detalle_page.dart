@@ -265,8 +265,7 @@ class _Content extends StatelessWidget {
   }
 
   String _serviceLabel(String key) => switch (key) {
-        'urbano_distrital' => 'Urbano distrital',
-        'interurbano' => 'Interurbano',
+        'urbano' => 'Urbano',
         'interprovincial' => 'Interprovincial',
         _ => key,
       };

@@ -5,6 +5,7 @@ import { FleetEntry } from "@/models/FleetEntry";
 import { LocationPing } from "@/models/LocationPing";
 import { Route } from "@/models/Route";
 import { Vehicle } from "@/models/Vehicle";
+import { Company } from "@/models/Company";
 import "@/models/Municipality";
 import { apiResponse } from "@/lib/api/response";
 import { haversineMeters } from "@/lib/geo/haversine";
@@ -100,8 +101,8 @@ const BBOX_DELTA_DEG = 0.3;
  *   - `municipalityId` (opcional, mantenido por compat): si viene restringe
  *     al tenant; si no, devuelve buses de cualquier municipio.
  *   - `vehicleType` (opcional, repetible): clave de tipo de vehículo
- *     (`transporte_publico`, `limpieza_residuos`, `emergencia`,
- *     `maquinaria`, `municipal_general`). Filtra la respuesta a esos tipos.
+ *     (`transporte_urbano`, `transporte_interprovincial`). Filtra la
+ *     respuesta a esos tipos.
  *
  * Cada item trae `municipalityName` para que la app muestre la jurisdicción.
  *
@@ -124,6 +125,15 @@ export async function GET(request: NextRequest) {
   const vehicleTypes = url.searchParams.getAll("vehicleType")
     .map((v) => v.trim().toLowerCase())
     .filter((v) => v.length > 0);
+  // Filtro por modalidad de servicio (Company.serviceScope). El feed
+  // ciudadano solo muestra `urbano` para respetar privacidad de las rutas
+  // interprovinciales. Valores válidos: "urbano" | "interprovincial".
+  // Si no se envía, no filtra (compat con clientes antiguos / admin map).
+  const serviceScopeParam = (url.searchParams.get("serviceScope") ?? "").trim().toLowerCase();
+  const serviceScope =
+    serviceScopeParam === "urbano" || serviceScopeParam === "interprovincial"
+      ? (serviceScopeParam as "urbano" | "interprovincial")
+      : null;
 
   const userLat = userLatStr != null && userLatStr !== "" ? Number(userLatStr) : null;
   const userLng = userLngStr != null && userLngStr !== "" ? Number(userLngStr) : null;
@@ -185,6 +195,31 @@ export async function GET(request: NextRequest) {
       filter.vehicleId = { $in: typeIds.filter((id) => prevSet.has(String(id))) };
     } else {
       filter.vehicleId = { $in: typeIds };
+    }
+  }
+
+  // Pre-filtro por modalidad de servicio: resuelve las empresas del scope
+  // pedido y los vehículos asociados. Misma estrategia de intersección que
+  // el filtro por `vehicleType` de arriba.
+  if (serviceScope) {
+    const companiesOfScope = await Company.find({ serviceScope })
+      .select("_id")
+      .lean<Array<{ _id: unknown }>>();
+    const companyIds = companiesOfScope.map((c) => String(c._id));
+    const vehiclesOfScope = await Vehicle.find({
+      companyId: { $in: companyIds },
+    } as Record<string, unknown>)
+      .select("_id")
+      .lean<Array<{ _id: unknown }>>();
+    const scopeVehicleIds = vehiclesOfScope.map((v) => v._id);
+    const prevVehicleFilter = filter.vehicleId as { $in?: unknown[] } | undefined;
+    if (prevVehicleFilter?.$in) {
+      const prevSet = new Set(prevVehicleFilter.$in.map(String));
+      filter.vehicleId = {
+        $in: scopeVehicleIds.filter((id) => prevSet.has(String(id))),
+      };
+    } else {
+      filter.vehicleId = { $in: scopeVehicleIds };
     }
   }
 

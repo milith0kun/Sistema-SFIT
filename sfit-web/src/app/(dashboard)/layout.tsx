@@ -6,6 +6,7 @@ import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { useApprovalsPending } from "@/hooks/useApprovalsPending";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
+import { Footer } from "@/components/layout/Footer";
 import { DashboardStyles } from "@/components/layout/DashboardStyles";
 import { Toaster } from "@/components/ui/Toaster";
 import { MobileOnlyScreen } from "@/components/auth/MobileOnlyScreen";
@@ -124,9 +125,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!user) return null;
 
   // Fiscal, operador, conductor y ciudadano operan desde la app móvil. Sólo
-  // permitimos /perfil en web para que puedan ajustar sus datos básicos.
-  if ((MOBILE_ONLY_ROLES as readonly string[]).includes(user.role) && pathname !== "/perfil") {
-    return <MobileOnlyScreen role={user.role as Role} />;
+  // permitimos algunas rutas en web:
+  //   - /perfil           : todos los móviles ajustan datos básicos.
+  //   - /mi-empresa       : solo operador, ve su empresa, estado de
+  //                          autorizaciones y atajos a conductores/flota/rutas.
+  const mobileAllowedPaths: Record<string, string[]> = {
+    operador: ["/perfil", "/mi-empresa"],
+  };
+  if ((MOBILE_ONLY_ROLES as readonly string[]).includes(user.role)) {
+    const allowed = mobileAllowedPaths[user.role] ?? ["/perfil"];
+    if (!allowed.includes(pathname)) {
+      return <MobileOnlyScreen role={user.role as Role} />;
+    }
   }
 
   return (
@@ -176,12 +186,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           style={{
             flex: 1,
             overflowY: "auto",
-            padding: "20px 24px 28px",
+            padding: "20px 24px 0",
             maxWidth: "100%",
             background: "#FAFAFA",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
-          <div style={{ maxWidth: 1400, margin: "0 auto" }}>{children}</div>
+          <div style={{ maxWidth: 1400, margin: "0 auto", width: "100%", flex: 1 }}>
+            {children}
+          </div>
+          <Footer user={user} />
         </div>
       </main>
 

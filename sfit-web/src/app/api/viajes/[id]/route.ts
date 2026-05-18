@@ -110,6 +110,62 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     parsed.data.status !== previousStatus &&
     ["completado", "auto_cierre"].includes(parsed.data.status);
 
+  // Propagación a CitizenTripRegistration: si el Trip llegó a terminal,
+  // cerramos en cascada los registros del ciudadano que seguían activos
+  // (`endedAt` no seteado). Marcamos `endReason="by_driver"` o `"auto"`
+  // según quién cerró. Best-effort + push a cada ciudadano afectado para
+  // que la UI se actualice sin esperar el siguiente poll.
+  if (becameTerminal) {
+    void (async () => {
+      try {
+        const { CitizenTripRegistration } = await import(
+          "@/models/CitizenTripRegistration"
+        );
+        const endReason =
+          parsed.data.status === "auto_cierre" ? "auto" : "by_driver";
+        const now = new Date();
+        const activeRegs = await CitizenTripRegistration.find({
+          tripId: trip._id,
+          endedAt: { $exists: false },
+        })
+          .select("_id userId vehicleId")
+          .lean<Array<{ _id: unknown; userId: unknown; vehicleId: unknown }>>();
+        if (activeRegs.length === 0) return;
+
+        await CitizenTripRegistration.updateMany(
+          { tripId: trip._id, endedAt: { $exists: false } },
+          { $set: { endedAt: now, endReason } },
+        );
+
+        // Push + notif en bandeja a cada ciudadano. `createNotification`
+        // (singular) ya dispara FCM internamente desde el fix previo.
+        const { createNotification } = await import(
+          "@/lib/notifications/create"
+        );
+        const title = "Tu viaje terminó";
+        const body =
+          endReason === "auto"
+            ? "El sistema cerró automáticamente el viaje por inactividad. Si seguías a bordo, vuelve a registrarte."
+            : "El conductor finalizó el viaje. Si necesitas continuar a bordo, registra un nuevo trayecto.";
+        await Promise.all(
+          activeRegs.map((r) =>
+            createNotification({
+              userId: String(r.userId),
+              title,
+              body,
+              type: "info",
+              category: "asignacion",
+              link: "/ciudadano/mi-viaje",
+              metadata: { tripId: String(trip._id), endReason },
+            }),
+          ),
+        );
+      } catch (e) {
+        console.error("[viajes PATCH] cierre CitizenTripRegistration", e);
+      }
+    })();
+  }
+
   if (becameTerminal && trip.routeId && trip.fleetEntryId) {
     void (async () => {
       try {

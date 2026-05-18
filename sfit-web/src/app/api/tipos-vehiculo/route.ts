@@ -11,8 +11,76 @@ import {
   apiValidationError,
 } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
-import { ROLES } from "@/lib/constants";
+import { ROLES, VEHICLE_TYPES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
+
+const PREDEFINED_KEYS: readonly string[] = Object.values(VEHICLE_TYPES);
+
+/**
+ * Catálogo de tipos predefinidos para auto-seed. Cuando una municipalidad
+ * estrena el sistema y aún no tiene ningún VehicleType creado, el primer
+ * GET dispara la creación silenciosa de estos dos para evitar la pantalla
+ * "No hay tipos de vehículo activos" en el resto del flujo (crear empresa,
+ * asignar vehículo, etc.). Los datos son los mismos que muestra
+ * `/tipos-vehiculo/page.tsx` en sus cards predefinidas.
+ */
+const PREDEFINED_TYPES_SEED = [
+  {
+    key: "transporte_urbano",
+    name: "Transporte urbano",
+    description:
+      "Combis y colectivos que operan dentro de los 6 distritos de Cotabambas. Rutas con paraderos definidos.",
+  },
+  {
+    key: "transporte_interprovincial",
+    name: "Transporte interprovincial",
+    description:
+      "Buses que salen de Cotabambas hacia Cusco, Abancay o Arequipa. Rutas origen-destino sin paraderos intermedios.",
+  },
+] as const;
+
+async function ensurePredefinedTypes(municipalityId: string): Promise<void> {
+  // Antes verificábamos `countDocuments({ municipalityId }) > 0` — eso fallaba
+  // cuando la muni tenía tipos legacy/personalizados pero NO los predefinidos:
+  // el seed nunca corría y la página mostraba "Inicializando tipo…" para
+  // siempre. Ahora chequeamos los keys uno por uno e insertamos los faltantes.
+  const predefKeys = PREDEFINED_TYPES_SEED.map((t) => t.key);
+  const existingDocs = await VehicleType.find(
+    { municipalityId, key: { $in: predefKeys } },
+    { key: 1 },
+  ).lean<{ key: string }[]>();
+  const existingSet = new Set(existingDocs.map((d) => d.key));
+  const missing = PREDEFINED_TYPES_SEED.filter((t) => !existingSet.has(t.key));
+  if (missing.length === 0) return;
+
+  await VehicleType.insertMany(
+    missing.map((t) => ({
+      municipalityId,
+      key: t.key,
+      name: t.name,
+      description: t.description,
+      checklistItems: [],
+      inspectionFields: [],
+      reportCategories: [],
+      isCustom: false,
+      active: true,
+    })),
+    // ordered:false → si una colisiona por la unique {municipalityId, key} las
+    // demás se siguen insertando. Esto evita un race cuando dos requests
+    // disparan el seed casi simultáneamente.
+    { ordered: false },
+  ).catch((err: unknown) => {
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      (err as { code: number }).code === 11000
+    ) {
+      return; // duplicate key — otro request ya sembró, OK.
+    }
+    throw err;
+  });
+}
 
 const InspectionFieldSchema = z.object({
   key: z.string().min(1).max(80),
@@ -65,6 +133,7 @@ export async function GET(request: NextRequest) {
     const municipalityIdParam = url.searchParams.get("municipalityId");
 
     const filter: Record<string, unknown> = {};
+    const isAdminMuni = auth.session.role === ROLES.ADMIN_MUNICIPAL;
 
     if (auth.session.role === ROLES.SUPER_ADMIN) {
       if (municipalityIdParam) {
@@ -73,8 +142,17 @@ export async function GET(request: NextRequest) {
         }
         filter.municipalityId = municipalityIdParam;
       }
+    } else if (isAdminMuni) {
+      // Modelo mono-muni administrativo: Cotabambas Provincial administra
+      // los 6 distritos como un solo tenant. El admin ve los tipos
+      // sembrados en CUALQUIER UBIGEO del sistema; al devolver hacemos
+      // dedupe por `key` para que el catálogo muestre 1 entrada por tipo
+      // predefinido (no 6, una por distrito). Sin esto, en una muni
+      // sembrada sin sus tipos propios el admin veía "0/2 tipos activos"
+      // aunque otras munis sí tenían los predefinidos sembrados.
+      // No fijamos `filter.municipalityId`.
     } else {
-      // Todos los otros roles: scope al tenant. Aceptan override si está autorizado.
+      // Roles operativos (fiscal/operador): scope clásico al tenant.
       const targetMunicipalityId =
         municipalityIdParam ?? auth.session.municipalityId;
       if (!targetMunicipalityId || !isValidObjectId(targetMunicipalityId)) {
@@ -86,7 +164,18 @@ export async function GET(request: NextRequest) {
       filter.municipalityId = targetMunicipalityId;
     }
 
-    const [items, total] = await Promise.all([
+    // Auto-seed: garantizar que existan los predefinidos.
+    //  - admin_municipal: sembramos en SU muni (la del JWT) si la tiene.
+    //    Aunque al listar mostremos también los de otras munis, el admin
+    //    "es dueño" de su muni y debe poder configurar checklists ahí.
+    //  - otros roles con filtro de muni: seed en la muni filtrada.
+    if (isAdminMuni && auth.session.municipalityId) {
+      await ensurePredefinedTypes(auth.session.municipalityId);
+    } else if (filter.municipalityId && typeof filter.municipalityId === "string") {
+      await ensurePredefinedTypes(filter.municipalityId);
+    }
+
+    const [rawItems, rawTotal] = await Promise.all([
       VehicleType.find(filter)
         .sort({ name: 1 })
         .skip((page - 1) * limit)
@@ -94,6 +183,38 @@ export async function GET(request: NextRequest) {
         .lean(),
       VehicleType.countDocuments(filter),
     ]);
+
+    // Dedupe por `key` para admin_municipal. Priorizamos la instancia
+    // sembrada en la muni del JWT (la "propia" del admin) cuando existe,
+    // para que el botón "Configurar" del card lo lleve a configurar SU
+    // muni. Si no hay match en su muni, cae a la primera encontrada.
+    let items = rawItems;
+    let total = rawTotal;
+    if (isAdminMuni) {
+      const ownMuniId = auth.session.municipalityId
+        ? String(auth.session.municipalityId)
+        : null;
+      const byKey = new Map<string, (typeof rawItems)[number]>();
+      for (const t of rawItems) {
+        const prev = byKey.get(t.key);
+        if (!prev) {
+          byKey.set(t.key, t);
+          continue;
+        }
+        // Si la previa NO es de la muni del admin y la nueva SÍ, reemplazar.
+        if (
+          ownMuniId &&
+          String(prev.municipalityId) !== ownMuniId &&
+          String(t.municipalityId) === ownMuniId
+        ) {
+          byKey.set(t.key, t);
+        }
+      }
+      items = Array.from(byKey.values()).sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
+      total = items.length;
+    }
 
     return apiResponse({
       items: items.map((t) => ({
@@ -162,6 +283,17 @@ export async function POST(request: NextRequest) {
 
     if (!(await canAccessMunicipality(auth.session, municipalityId))) {
       return apiForbidden();
+    }
+
+    // Si NO es custom, la key debe coincidir con uno de los predefinidos
+    // declarados en VEHICLE_TYPES. Sin esta verificación un cliente podría
+    // crear `limpieza_residuos` (key obsoleta) como si fuera predefinido.
+    const isCustom = parsed.data.isCustom ?? true;
+    if (!isCustom && !PREDEFINED_KEYS.includes(parsed.data.key)) {
+      return apiError(
+        `Key inválida para tipo predefinido. Permitidos: ${PREDEFINED_KEYS.join(", ")}`,
+        422,
+      );
     }
 
     const duplicate = await VehicleType.findOne({

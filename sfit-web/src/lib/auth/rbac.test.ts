@@ -45,15 +45,23 @@ describe("canAccessMunicipality", () => {
     expect(await canAccessMunicipality(municipal, "muni1")).toBe(true);
   });
 
-  it("admin_municipal no accede a otra municipalidad", async () => {
-    expect(await canAccessMunicipality(municipal, "muni2")).toBe(false);
+  it("admin_municipal accede a CUALQUIER municipalidad (mono-muni administrativo)", async () => {
+    // Cotabambas Provincial administra los 6 distritos como un solo
+    // tenant; las munis distritales sembradas son zonificación operativa.
+    expect(await canAccessMunicipality(municipal, "muni2")).toBe(true);
   });
 
   it("fiscal accede a su municipalidad", async () => {
     expect(await canAccessMunicipality(fiscal, "muni1")).toBe(true);
   });
 
-  it("retorna false si municipalityId está vacío", async () => {
-    expect(await canAccessMunicipality(sa, "")).toBe(false);
+  it("recurso sin municipalityId: super_admin sí accede (global)", async () => {
+    expect(await canAccessMunicipality(sa, "")).toBe(true);
+  });
+
+  it("recurso sin municipalityId: admin_municipal sí accede (legacy en mono-muni)", async () => {
+    // Post cleanup municipal el sistema opera sobre una sola muni; los
+    // recursos sin muni son implícitamente de la muni activa del admin.
+    expect(await canAccessMunicipality(municipal, "")).toBe(true);
   });
 });

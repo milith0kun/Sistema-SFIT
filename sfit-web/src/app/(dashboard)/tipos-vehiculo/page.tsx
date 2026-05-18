@@ -3,11 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Settings, Car, Boxes, Sparkles, ListChecks } from "lucide-react";
+import { Plus, Settings, Car, CheckCircle2, ClipboardList, MessageSquareWarning } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { GroupedSection } from "@/components/dashboard/GroupedSection";
@@ -29,29 +27,16 @@ type StoredUser = { role: string; municipalityId?: string };
 
 const PREDEFINED = [
   {
-    key: "transporte_publico",
-    name: "Transporte público",
-    description: "Buses, combis y colectivos de rutas concesionadas.",
+    key: "transporte_urbano",
+    name: "Transporte urbano",
+    description:
+      "Combis y colectivos que operan dentro de los 6 distritos de Cotabambas. Rutas con paraderos definidos.",
   },
   {
-    key: "limpieza_residuos",
-    name: "Limpieza y residuos",
-    description: "Camiones de basura, barredoras, volquetes de residuos.",
-  },
-  {
-    key: "emergencia",
-    name: "Emergencia",
-    description: "Ambulancias y vehículos de bomberos.",
-  },
-  {
-    key: "maquinaria",
-    name: "Maquinaria municipal",
-    description: "Retroexcavadoras, motoniveladoras, compactadoras.",
-  },
-  {
-    key: "municipal_general",
-    name: "Vehículo municipal general",
-    description: "Camionetas y sedanes de uso administrativo.",
+    key: "transporte_interprovincial",
+    name: "Transporte interprovincial",
+    description:
+      "Buses que salen de Cotabambas hacia Cusco, Abancay o Arequipa. Rutas origen-destino sin paraderos intermedios.",
   },
 ];
 
@@ -165,37 +150,32 @@ export default function TiposVehiculoPage() {
   }
 
   const customs = items.filter((t) => t.isCustom);
-  const predefActive = items.filter((t) => !t.isCustom && t.active).length;
-  const withChecklist = items.filter((t) => t.checklistItems.length > 0).length;
-  const totalActive = items.filter((t) => t.active).length;
+  // Solo cuentan los predefinidos del sistema (los que aparecen en PREDEFINED).
+  // Auto-seed en GET /api/tipos-vehiculo garantiza que existan los 2.
+  const predefItems = items.filter(
+    (t) => !t.isCustom && PREDEFINED.some((p) => p.key === t.key),
+  );
+  const totalActive = predefItems.length;
+  const withChecklist = predefItems.filter((t) => t.checklistItems.length > 0).length;
+  const withInspection = predefItems.filter((t) => t.inspectionFields.length > 0).length;
+  const withReports = predefItems.filter((t) => t.reportCategories.length > 0).length;
+  const total = PREDEFINED.length;
 
   return (
     <div className="flex flex-col gap-3 animate-fade-in">
       <PageHeader
         kicker="Panel municipal · RF-04"
         title="Tipos de vehículo"
-        subtitle={`${totalActive} activos · ${predefActive} predefinidos · ${customs.length} personalizados`}
-        action={
-          <Link href="/tipos-vehiculo/nuevo">
-            <button style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              height: 36, padding: "0 14px", borderRadius: 9,
-              border: "none", background: "#18181b", color: "#fff",
-              fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-            }}>
-              <Plus size={14} />Nuevo tipo
-            </button>
-          </Link>
-        }
+        subtitle={`${totalActive} de ${total} tipos activos · configura sus checklists, inspecciones y reportes`}
       />
 
       <KPIStrip
         cols={4}
         items={[
-          { label: "ACTIVOS", value: totalActive, subtitle: "en uso", icon: Car },
-          { label: "PREDEFINIDOS", value: predefActive, subtitle: `de ${PREDEFINED.length} disponibles`, icon: Boxes },
-          { label: "PERSONALIZADOS", value: customs.length, subtitle: "creados por la municipalidad", icon: Sparkles },
-          { label: "CON CHECKLIST", value: withChecklist, subtitle: "listos para operar", icon: ListChecks },
+          { label: "TIPOS ACTIVOS",  value: `${totalActive}/${total}`,  subtitle: "predefinidos del sistema", icon: Car },
+          { label: "CON CHECKLIST",  value: `${withChecklist}/${total}`,  subtitle: "ítems definidos",          icon: ClipboardList,         accent: withChecklist < total ? "#B45309" : undefined },
+          { label: "CON INSPECCIÓN", value: `${withInspection}/${total}`, subtitle: "campos en la ficha",       icon: CheckCircle2,          accent: withInspection < total ? "#B45309" : undefined },
+          { label: "CON REPORTES",   value: `${withReports}/${total}`,    subtitle: "categorías ciudadanas",    icon: MessageSquareWarning,  accent: withReports < total ? "#B45309" : undefined },
         ]}
       />
 
@@ -217,17 +197,25 @@ export default function TiposVehiculoPage() {
         </div>
       )}
 
-      {/* Predefinidos */}
+      {/* Predefinidos — el sistema garantiza que existan; el admin solo configura. */}
       <GroupedSection color="#6C0606" title="Tipos predefinidos del sistema" count={PREDEFINED.length}>
         <p style={{ color: "#52525b", fontSize: "0.875rem", margin: "0 0 14px" }}>
-          Activa los tipos que su municipalidad maneja. Luego podrás configurar sus checklists, inspecciones y categorías de reporte.
+          Configura checklists, inspecciones y categorías de reporte para cada tipo.
+          Los dos tipos están activos por defecto en la municipalidad.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {loading && items.length === 0 ? (
+          <Card>
+            <div style={{ color: "#71717a" }}>Cargando tipos…</div>
+          </Card>
+        ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {PREDEFINED.map((p) => {
             const existing = items.find((t) => t.key === p.key);
-            const isActive = existing?.active ?? false;
+            const checklistN  = existing?.checklistItems.length  ?? 0;
+            const inspectionN = existing?.inspectionFields.length ?? 0;
+            const reportsN    = existing?.reportCategories.length ?? 0;
             return (
-              <Card key={p.key} accent={isActive ? "gold" : "default"}>
+              <Card key={p.key} accent={existing ? "gold" : "default"}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
                   <div style={{ minWidth: 0 }}>
                     <h3
@@ -245,47 +233,53 @@ export default function TiposVehiculoPage() {
                       {p.description}
                     </p>
                   </div>
-                  {isActive && (
-                    <span style={{
-                      display: "inline-flex", alignItems: "center", gap: 6,
-                      padding: "2px 9px", borderRadius: 6,
-                      background: "#fff", color: "#18181b", border: "1px solid #e4e4e7",
-                      fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
-                      textTransform: "uppercase",
-                    }}>
-                      <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#15803d", flexShrink: 0 }} />
-                      Activo
-                    </span>
-                  )}
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "2px 9px", borderRadius: 6,
+                    background: "#fff", color: "#18181b", border: "1px solid #e4e4e7",
+                    fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
+                    textTransform: "uppercase", flexShrink: 0,
+                  }}>
+                    <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#15803d", flexShrink: 0 }} />
+                    Activo
+                  </span>
                 </div>
-                <div style={{ marginTop: 16, display: "flex", gap: 8, alignItems: "center" }}>
-                  <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={isActive}
-                      disabled={activating === p.key}
-                      onChange={() => togglePredefined(p.key, p.name)}
-                    />
-                    <span style={{ fontSize: "0.875rem", color: "#18181b" }}>
-                      {isActive ? "Activado" : "Activar"}
-                    </span>
-                  </label>
-                  {existing && (
-                    <Link href={`/tipos-vehiculo/${existing.id}`} style={{ marginLeft: "auto" }}>
-                      <Button variant="ghost" size="sm">
+
+                {/* Estado de configuración */}
+                <div style={{
+                  display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: 8, marginTop: 16, paddingTop: 14, borderTop: "1px solid #e4e4e7",
+                }}>
+                  <ConfigStat label="Checklist"  count={checklistN}  unit="ítems" />
+                  <ConfigStat label="Inspección" count={inspectionN} unit="campos" />
+                  <ConfigStat label="Reportes"   count={reportsN}    unit="categorías" />
+                </div>
+
+                <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
+                  {existing ? (
+                    <Link href={`/tipos-vehiculo/${existing.id}`}>
+                      <Button variant="primary" size="sm">
                         <Settings size={14} strokeWidth={1.8} />
                         Configurar
                       </Button>
                     </Link>
+                  ) : (
+                    <span style={{ fontSize: "0.75rem", color: "#71717a" }}>
+                      Inicializando tipo…
+                    </span>
                   )}
                 </div>
               </Card>
             );
           })}
         </div>
+        )}
       </GroupedSection>
 
-      {/* Personalizados */}
+      {/* Personalizados — solo si la municipalidad creó alguno fuera de los
+          2 predefinidos. Si no hay ninguno, no mostramos la sección para no
+          inducir al admin a "crear tipos" que el sistema no espera operar. */}
+      {customs.length > 0 && (
       <GroupedSection color="#0A1628" title="Tipos personalizados" count={customs.length}>
         <div style={{ display: "flex", justifyContent: "flex-end", margin: "-8px 0 14px" }}>
           <Link href="/tipos-vehiculo/nuevo">
@@ -300,16 +294,6 @@ export default function TiposVehiculoPage() {
           <Card>
             <div style={{ color: "#71717a" }}>Cargando tipos…</div>
           </Card>
-        ) : customs.length === 0 ? (
-          <EmptyState
-            title="Sin tipos personalizados"
-            subtitle="Crea un tipo con formularios propios si su municipalidad opera un vehículo distinto a los predefinidos."
-            cta={
-              <Link href="/tipos-vehiculo/nuevo">
-                <Button variant="primary">Nuevo tipo personalizado</Button>
-              </Link>
-            }
-          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {customs.map((t) => (
@@ -374,6 +358,7 @@ export default function TiposVehiculoPage() {
           </div>
         )}
       </GroupedSection>
+      )}
     </div>
   );
 }
@@ -395,6 +380,32 @@ function Stat({ label, value }: { label: string; value: number }) {
         {value}
       </div>
       <div style={{ color: "#71717a", fontSize: "0.6875rem", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 4, fontWeight: 600 }}>
+        {label}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Mini-stat con semántica de "configurado / sin configurar".
+ * - count > 0 → verde, "{count} {unit}"
+ * - count = 0 → ámbar, "Sin {unit}"
+ */
+function ConfigStat({ label, count, unit }: { label: string; count: number; unit: string }) {
+  const hasData = count > 0;
+  return (
+    <div>
+      <div style={{
+        display: "inline-flex", alignItems: "center", gap: 5,
+        padding: "2px 7px", borderRadius: 5,
+        background: hasData ? "#F0FDF4" : "#FFFBEB",
+        color: hasData ? "#15803d" : "#B45309",
+        border: `1px solid ${hasData ? "#86EFAC" : "#FDE68A"}`,
+        fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase",
+      }}>
+        {hasData ? `${count} ${unit}` : `Sin ${unit}`}
+      </div>
+      <div style={{ color: "#71717a", fontSize: "0.625rem", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 4, fontWeight: 700 }}>
         {label}
       </div>
     </div>

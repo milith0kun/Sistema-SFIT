@@ -36,7 +36,7 @@ export default function RegisterPage() {
 
   const [form, setForm] = useState({
     name: "", email: "", password: "",
-    regionId: "", provinceId: "", municipalityId: "", requestedRole: "",
+    requestedRole: "",
     requestMessage: "",
   });
 
@@ -118,7 +118,7 @@ export default function RegisterPage() {
     }
   }
 
-  async function submitRegister(requestedRole: string, municipalityId?: string) {
+  async function submitRegister(requestedRole: string) {
     setLoading(true);
     setError(null);
     try {
@@ -127,7 +127,7 @@ export default function RegisterPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name, email: form.email, password: form.password,
-          requestedRole, municipalityId,
+          requestedRole,
           // Solo enviamos el mensaje si el rol requiere aprobación (no para ciudadano)
           requestMessage: requestedRole !== "ciudadano" && form.requestMessage.trim()
             ? form.requestMessage.trim()
@@ -166,8 +166,8 @@ export default function RegisterPage() {
   }
 
   async function handleUbicacionSubmit() {
-    if (!form.municipalityId || !form.requestedRole) return;
-    await submitRegister(form.requestedRole, form.municipalityId);
+    if (!form.requestedRole) return;
+    await submitRegister(form.requestedRole);
   }
 
   /* ── Progress bar ── */
@@ -462,7 +462,7 @@ export default function RegisterPage() {
 
   /* ── Step: ubicacion (solo operativo) ── */
   if (step === "ubicacion") {
-    const canSubmit = !!form.municipalityId && !!form.requestedRole;
+    const canSubmit = !!form.requestedRole;
     return (
       <div className="animate-fade-in">
         <div className="mb-7">
@@ -514,20 +514,12 @@ export default function RegisterPage() {
             </label>
             <LocationPicker
               scope="public"
-              lockedScope="active-province"
-              value={{
-                regionId:       form.regionId       || null,
-                provinceId:     form.provinceId     || null,
-                municipalityId: form.municipalityId || null,
+              lockedScope="active-municipality"
+              value={{}}
+              onChange={() => {
+                /* el sistema opera sobre una sola municipalidad — el backend
+                   inyecta el ID y aquí no hay nada que persistir. */
               }}
-              onChange={(v) =>
-                setForm((p) => ({
-                  ...p,
-                  regionId:       v.regionId       ?? "",
-                  provinceId:     v.provinceId     ?? "",
-                  municipalityId: v.municipalityId ?? "",
-                }))
-              }
             />
           </div>
 

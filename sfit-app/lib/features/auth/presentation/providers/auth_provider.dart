@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:logger/logger.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/dio_client.dart';
@@ -14,6 +15,10 @@ import '../../domain/repositories/auth_repository.dart';
 
 part 'auth_provider.g.dart';
 
+final _log = Logger(
+  printer: PrettyPrinter(methodCount: 0, errorMethodCount: 0, lineLength: 80),
+);
+
 // Storage keys para guardar la sesión original del super_admin mientras
 // está en modo "preview" como otro rol. Permite revertir sin re-loguear.
 const _kPreviewOriginalAccessKey = 'preview_original_access';
@@ -23,8 +28,7 @@ const _kPreviewOriginalUserKey = 'preview_original_user';
 // ── Providers de infraestructura ─────────────────────────────────
 
 @Riverpod(keepAlive: true)
-FlutterSecureStorage secureStorage(Ref ref) =>
-    const FlutterSecureStorage();
+FlutterSecureStorage secureStorage(Ref ref) => const FlutterSecureStorage();
 
 @Riverpod(keepAlive: true)
 AuthApiService authApiService(Ref ref) =>
@@ -32,9 +36,9 @@ AuthApiService authApiService(Ref ref) =>
 
 @Riverpod(keepAlive: true)
 AuthRepository authRepository(Ref ref) => AuthRepositoryImpl(
-      ref.watch(authApiServiceProvider),
-      ref.watch(secureStorageProvider),
-    );
+  ref.watch(authApiServiceProvider),
+  ref.watch(secureStorageProvider),
+);
 
 // ── Estado ───────────────────────────────────────────────────────
 
@@ -51,25 +55,20 @@ class AuthState {
   final UserEntity? user;
   final String? errorMessage;
 
-  const AuthState({
-    required this.status,
-    this.user,
-    this.errorMessage,
-  });
+  const AuthState({required this.status, this.user, this.errorMessage});
 
   AuthState copyWith({
     AuthStatus? status,
     UserEntity? user,
     String? errorMessage,
-  }) =>
-      AuthState(
-        status: status ?? this.status,
-        user: user ?? this.user,
-        errorMessage: errorMessage,
-      );
+  }) => AuthState(
+    status: status ?? this.status,
+    user: user ?? this.user,
+    errorMessage: errorMessage,
+  );
 
   bool get isAuthenticated => status == AuthStatus.authenticated;
-  bool get isLoading       => status == AuthStatus.loading;
+  bool get isLoading => status == AuthStatus.loading;
 }
 
 // ── Notifier ─────────────────────────────────────────────────────
@@ -78,7 +77,11 @@ class AuthState {
 class Auth extends _$Auth {
   static final _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
-    serverClientId: '378647499793-tbks1mfqq15thpmii1dbirm3o21fkhd3.apps.googleusercontent.com', // Web Client ID
+    serverClientId: const String.fromEnvironment(
+      'SFIT_GOOGLE_CLIENT_ID',
+      defaultValue:
+          '378647499793-tbks1mfqq15thpmii1dbirm3o21fkhd3.apps.googleusercontent.com',
+    ),
   );
 
   @override
@@ -116,10 +119,14 @@ class Auth extends _$Auth {
   /// Mapea user.status → AuthStatus (RF-01-03, RF-01-04)
   AuthStatus _statusFor(UserEntity user) {
     switch (user.status) {
-      case 'activo':     return AuthStatus.authenticated;
-      case 'pendiente':  return AuthStatus.pendingApproval;
-      case 'rechazado':  return AuthStatus.rejected;
-      default:           return AuthStatus.unauthenticated;
+      case 'activo':
+        return AuthStatus.authenticated;
+      case 'pendiente':
+        return AuthStatus.pendingApproval;
+      case 'rechazado':
+        return AuthStatus.rejected;
+      default:
+        return AuthStatus.unauthenticated;
     }
   }
 
@@ -127,8 +134,9 @@ class Auth extends _$Auth {
   Future<bool> login(String email, String password) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
-      final result =
-          await ref.read(authRepositoryProvider).login(email, password);
+      final result = await ref
+          .read(authRepositoryProvider)
+          .login(email, password);
       state = AuthState(status: _statusFor(result.user), user: result.user);
       // RF-18 — Inicializar FCM tras login exitoso (no-bloqueante)
       if (_statusFor(result.user) == AuthStatus.authenticated) {
@@ -142,8 +150,7 @@ class Auth extends _$Auth {
       );
       return false;
     } catch (e, st) {
-      // ignore: avoid_print
-      print('[Auth.login] unexpected error: $e\n$st');
+      _log.e('[Auth.login] unexpected error', error: e, stackTrace: st);
       final msg = _networkErrorMsg(e);
       state = AuthState(status: AuthStatus.unauthenticated, errorMessage: msg);
       return false;
@@ -154,8 +161,7 @@ class Auth extends _$Auth {
   Future<bool> loginWithGoogle() async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
-      // ignore: avoid_print
-      print('[Auth.loginWithGoogle] iniciando Google Sign In...');
+      _log.i('[Auth.loginWithGoogle] iniciando Google Sign In...');
       final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         // signIn() retorna null en dos casos indistinguibles:
@@ -164,8 +170,9 @@ class Auth extends _$Auth {
         //    Play Services desactualizado, etc.)
         // Como no hay forma de diferenciarlos, mostramos un mensaje
         // informativo que cubre ambos casos sin alarmar.
-        // ignore: avoid_print
-        print('[Auth.loginWithGoogle] signIn() retornó null (cancelación o fallo silencioso del plugin)');
+        _log.w(
+          '[Auth.loginWithGoogle] signIn() retornó null (cancelación o fallo silencioso del plugin)',
+        );
         state = const AuthState(
           status: AuthStatus.unauthenticated,
           errorMessage:
@@ -173,23 +180,23 @@ class Auth extends _$Auth {
         );
         return false;
       }
-      // ignore: avoid_print
-      print('[Auth.loginWithGoogle] cuenta seleccionada: ${googleUser.email}');
+      _log.i('[Auth.loginWithGoogle] cuenta seleccionada: ${googleUser.email}');
 
       final googleAuth = await googleUser.authentication;
       final idToken = googleAuth.idToken;
       if (idToken == null) {
-        // ignore: avoid_print
-        print('[Auth.loginWithGoogle] idToken es null — serverClientId probablemente mal configurado');
+        _log.e(
+          '[Auth.loginWithGoogle] idToken es null — serverClientId probablemente mal configurado',
+        );
         throw AuthException(
           'Google no devolvió token de identidad. Revisa la configuración de la cuenta o intenta más tarde.',
         );
       }
-      // ignore: avoid_print
-      print('[Auth.loginWithGoogle] idToken obtenido, enviando al backend...');
+      _log.i('[Auth.loginWithGoogle] idToken obtenido, enviando al backend...');
 
-      final result =
-          await ref.read(authRepositoryProvider).loginWithGoogle(idToken);
+      final result = await ref
+          .read(authRepositoryProvider)
+          .loginWithGoogle(idToken);
       state = AuthState(status: _statusFor(result.user), user: result.user);
       // RF-18 — Inicializar FCM tras login con Google exitoso (no-bloqueante)
       if (_statusFor(result.user) == AuthStatus.authenticated) {
@@ -203,8 +210,7 @@ class Auth extends _$Auth {
       );
       return false;
     } catch (e) {
-      // ignore: avoid_print
-      print('[Auth.loginWithGoogle] error: $e');
+      _log.e('[Auth.loginWithGoogle] error: $e');
       final msg = _networkErrorMsg(e);
       state = AuthState(status: AuthStatus.unauthenticated, errorMessage: msg);
       return false;
@@ -219,7 +225,9 @@ class Auth extends _$Auth {
     required String requestedRole,
     String? municipalityId,
   }) async {
-    await ref.read(authRepositoryProvider).register(
+    await ref
+        .read(authRepositoryProvider)
+        .register(
           name: name,
           email: email,
           password: password,
@@ -239,7 +247,9 @@ class Auth extends _$Auth {
   }) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
-      final result = await ref.read(authRepositoryProvider).registerCiudadano(
+      final result = await ref
+          .read(authRepositoryProvider)
+          .registerCiudadano(
             name: name,
             email: email,
             password: password,
@@ -258,8 +268,7 @@ class Auth extends _$Auth {
       );
       return false;
     } catch (e) {
-      // ignore: avoid_print
-      print('[Auth.registerCiudadano] error: $e');
+      _log.e('[Auth.registerCiudadano] error: $e');
       final msg = _networkErrorMsg(e);
       state = AuthState(status: AuthStatus.unauthenticated, errorMessage: msg);
       return false;
@@ -306,17 +315,18 @@ class Auth extends _$Auth {
     }
     final current = state.user;
     final next = UserEntity(
-      id:             (data['id'] ?? current?.id ?? '').toString(),
-      name:           (data['name'] ?? current?.name ?? '').toString(),
-      email:          (data['email'] ?? current?.email ?? '').toString(),
-      role:           (data['role'] ?? current?.role ?? 'ciudadano').toString(),
-      status:         (data['status'] ?? current?.status ?? 'activo').toString(),
-      image:          data['image'] as String? ?? current?.image,
-      municipalityId: data['municipalityId'] as String? ?? current?.municipalityId,
-      provinceId:     data['provinceId'] as String? ?? current?.provinceId,
-      regionId:       current?.regionId,
-      phone:          data['phone'] as String? ?? current?.phone,
-      dni:            data['dni'] as String? ?? current?.dni,
+      id: (data['id'] ?? current?.id ?? '').toString(),
+      name: (data['name'] ?? current?.name ?? '').toString(),
+      email: (data['email'] ?? current?.email ?? '').toString(),
+      role: (data['role'] ?? current?.role ?? 'ciudadano').toString(),
+      status: (data['status'] ?? current?.status ?? 'activo').toString(),
+      image: data['image'] as String? ?? current?.image,
+      municipalityId:
+          data['municipalityId'] as String? ?? current?.municipalityId,
+      provinceId: data['provinceId'] as String? ?? current?.provinceId,
+      regionId: current?.regionId,
+      phone: data['phone'] as String? ?? current?.phone,
+      dni: data['dni'] as String? ?? current?.dni,
       profileCompleted: data['profileCompleted'] as bool? ?? true,
     );
     state = AuthState(status: _statusFor(next), user: next);
@@ -337,18 +347,20 @@ class Auth extends _$Auth {
       if (data is! Map) return;
       final current = state.user;
       final next = UserEntity(
-        id:             (data['id'] ?? current?.id ?? '').toString(),
-        name:           (data['name'] ?? current?.name ?? '').toString(),
-        email:          (data['email'] ?? current?.email ?? '').toString(),
-        role:           (data['role'] ?? current?.role ?? 'ciudadano').toString(),
-        status:         (data['status'] ?? current?.status ?? 'activo').toString(),
-        image:          data['image'] as String? ?? current?.image,
-        municipalityId: data['municipalityId'] as String? ?? current?.municipalityId,
-        provinceId:     data['provinceId'] as String? ?? current?.provinceId,
-        regionId:       current?.regionId,
-        phone:          data['phone'] as String? ?? current?.phone,
-        dni:            data['dni'] as String? ?? current?.dni,
-        profileCompleted: data['profileCompleted'] as bool? ??
+        id: (data['id'] ?? current?.id ?? '').toString(),
+        name: (data['name'] ?? current?.name ?? '').toString(),
+        email: (data['email'] ?? current?.email ?? '').toString(),
+        role: (data['role'] ?? current?.role ?? 'ciudadano').toString(),
+        status: (data['status'] ?? current?.status ?? 'activo').toString(),
+        image: data['image'] as String? ?? current?.image,
+        municipalityId:
+            data['municipalityId'] as String? ?? current?.municipalityId,
+        provinceId: data['provinceId'] as String? ?? current?.provinceId,
+        regionId: current?.regionId,
+        phone: data['phone'] as String? ?? current?.phone,
+        dni: data['dni'] as String? ?? current?.dni,
+        profileCompleted:
+            data['profileCompleted'] as bool? ??
             current?.profileCompleted ??
             true,
       );
@@ -360,13 +372,15 @@ class Auth extends _$Auth {
 
   // ── Actualizar perfil propio ──────────────────────────────────
   /// Devuelve `null` si tuvo éxito, o el mensaje de error.
-  Future<String?> updatePerfil({String? name, String? phone, String? dni}) async {
+  Future<String?> updatePerfil({
+    String? name,
+    String? phone,
+    String? dni,
+  }) async {
     try {
-      final updated = await ref.read(authRepositoryProvider).updatePerfil(
-            name: name,
-            phone: phone,
-            dni: dni,
-          );
+      final updated = await ref
+          .read(authRepositoryProvider)
+          .updatePerfil(name: name, phone: phone, dni: dni);
       state = state.copyWith(user: updated);
       return null;
     } catch (e) {
@@ -393,7 +407,10 @@ class Auth extends _$Auth {
         await storage.write(key: _kPreviewOriginalAccessKey, value: origAccess);
       }
       if (origRefresh != null) {
-        await storage.write(key: _kPreviewOriginalRefreshKey, value: origRefresh);
+        await storage.write(
+          key: _kPreviewOriginalRefreshKey,
+          value: origRefresh,
+        );
       }
       if (origUser != null) {
         await storage.write(key: _kPreviewOriginalUserKey, value: origUser);
@@ -413,7 +430,10 @@ class Auth extends _$Auth {
 
       await storage.write(key: ApiConstants.accessTokenKey, value: newAccess);
       await storage.write(key: ApiConstants.refreshTokenKey, value: newRefresh);
-      await storage.write(key: ApiConstants.userJsonKey, value: jsonEncode(userJson));
+      await storage.write(
+        key: ApiConstants.userJsonKey,
+        value: jsonEncode(userJson),
+      );
 
       final newUser = UserEntity(
         id: userJson['id'] as String,

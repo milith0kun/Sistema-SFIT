@@ -95,32 +95,13 @@ class _Chip extends StatelessWidget {
   }
 }
 
-/// Mapeo UBIGEO 2-dig → nombre de departamento. Sirve como fallback cuando el
-/// backend no envía nombres y para construir las opciones del chip.
+/// Mapeo UBIGEO 2-dig → nombre de departamento. El sistema opera en
+/// Apurímac (origen Cotabambas) y permite rutas interprovinciales hacia
+/// Cusco, Arequipa y Abancay. El catálogo nacional completo se retiró —
+/// si en el futuro otra municipalidad usa el sistema, este mapa debe
+/// extenderse en el archivo `core/scope.dart` (o equivalente).
 const Map<String, String> kPeruDepartments = <String, String>{
-  '01': 'Amazonas',
-  '02': 'Áncash',
   '03': 'Apurímac',
   '04': 'Arequipa',
-  '05': 'Ayacucho',
-  '06': 'Cajamarca',
-  '07': 'Callao',
   '08': 'Cusco',
-  '09': 'Huancavelica',
-  '10': 'Huánuco',
-  '11': 'Ica',
-  '12': 'Junín',
-  '13': 'La Libertad',
-  '14': 'Lambayeque',
-  '15': 'Lima',
-  '16': 'Loreto',
-  '17': 'Madre de Dios',
-  '18': 'Moquegua',
-  '19': 'Pasco',
-  '20': 'Piura',
-  '21': 'Puno',
-  '22': 'San Martín',
-  '23': 'Tacna',
-  '24': 'Tumbes',
-  '25': 'Ucayali',
 };

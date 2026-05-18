@@ -36,6 +36,8 @@ interface FormData {
   dni: string;
   licenseNumber: string;
   licenseCategory: string;
+  licenseIssuedAt: string;
+  licenseExpiryDate: string;
   companyId: string;
   phone: string;
 }
@@ -45,6 +47,7 @@ interface FieldErrors {
   dni?: string;
   licenseNumber?: string;
   licenseCategory?: string;
+  licenseExpiryDate?: string;
 }
 
 export default function NuevoconductorPage() {
@@ -63,6 +66,8 @@ export default function NuevoconductorPage() {
     dni: "",
     licenseNumber: "",
     licenseCategory: "",
+    licenseIssuedAt: "",
+    licenseExpiryDate: "",
     companyId: "",
     phone: "",
   });
@@ -239,6 +244,12 @@ export default function NuevoconductorPage() {
       next.licenseCategory = "La categoría de licencia es requerida.";
     }
 
+    if (form.licenseIssuedAt && form.licenseExpiryDate) {
+      if (new Date(form.licenseExpiryDate) <= new Date(form.licenseIssuedAt)) {
+        next.licenseExpiryDate = "El vencimiento debe ser posterior a la fecha de emisión.";
+      }
+    }
+
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -257,6 +268,8 @@ export default function NuevoconductorPage() {
       licenseNumber: form.licenseNumber.trim(),
       licenseCategory: form.licenseCategory,
     };
+    if (form.licenseIssuedAt)   payload.licenseIssuedAt   = form.licenseIssuedAt;
+    if (form.licenseExpiryDate) payload.licenseExpiryDate = form.licenseExpiryDate;
     // Defensa en profundidad: el operador siempre envía SU companyId, no
     // dejamos elegir empresa ajena desde la UI.
     const isOperador = role ? FIXED_COMPANY_ROLES.includes(role as Role) : false;
@@ -527,6 +540,47 @@ export default function NuevoconductorPage() {
                   }}
                 >
                   {errors.licenseCategory}
+                </p>
+              )}
+            </div>
+
+            {/* Fecha de emisión */}
+            <div>
+              <label htmlFor="licenseIssuedAt" style={{ display: "block", marginBottom: 8 }}>
+                Fecha de emisión
+                <span style={{ marginLeft: 8, color: "#71717a", fontWeight: 400, fontSize: "0.75rem" }}>
+                  · opcional
+                </span>
+              </label>
+              <input
+                id="licenseIssuedAt"
+                type="date"
+                className="field"
+                value={form.licenseIssuedAt}
+                onChange={(e) => handleChange("licenseIssuedAt", e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+
+            {/* Fecha de vencimiento */}
+            <div>
+              <label htmlFor="licenseExpiryDate" style={{ display: "block", marginBottom: 8 }}>
+                Fecha de vencimiento
+                <span style={{ marginLeft: 8, color: "#71717a", fontWeight: 400, fontSize: "0.75rem" }}>
+                  · opcional pero recomendado
+                </span>
+              </label>
+              <input
+                id="licenseExpiryDate"
+                type="date"
+                className={errors.licenseExpiryDate ? "field field-error" : "field"}
+                value={form.licenseExpiryDate}
+                onChange={(e) => handleChange("licenseExpiryDate", e.target.value)}
+                disabled={submitting}
+              />
+              {errors.licenseExpiryDate && (
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
+                  {errors.licenseExpiryDate}
                 </p>
               )}
             </div>

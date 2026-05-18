@@ -12,9 +12,8 @@ import '../../data/datasources/operator_api_service.dart';
 
 /// Edición de ruta para el OPERADOR — RF-09 (mobile).
 /// Adapta la UI según `serviceScope`:
-///   - urbano_distrital / urbano_provincial → paraderos con GPS y mini-mapa.
-///   - interprovincial_regional / interregional_nacional → origen/destino +
-///     horarios fijos de salida (HH:mm).
+///   - `urbano`: paraderos con GPS y mini-mapa.
+///   - `interprovincial`: origen/destino + horarios fijos de salida (HH:mm).
 class RouteEditPage extends ConsumerStatefulWidget {
   final String routeId;
   const RouteEditPage({super.key, required this.routeId});
@@ -32,7 +31,7 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
   // Comunes
   final _nameCtl = TextEditingController();
   String _code = '';
-  String _scope = 'urbano_distrital';
+  String _scope = 'urbano';
 
   // Urbano: paraderos
   List<_Wp> _wps = [];
@@ -67,7 +66,9 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
   ];
 
   bool get _isUrbano =>
-      _scope == 'urbano_distrital' || _scope == 'urbano_provincial';
+      _scope == 'urbano' ||
+      _scope == 'urbano_distrital' ||
+      _scope == 'urbano_provincial';
 
   @override
   void initState() {
@@ -101,7 +102,7 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
       final r = await service.getRouteDetail(widget.routeId);
       _nameCtl.text = r.name ?? '';
       _code = r.code ?? '';
-      _scope = r.type ?? 'urbano_distrital';
+      _scope = r.type ?? 'urbano';
       _wps = r.waypoints
           .map((m) => _Wp(
                 order: (m['order'] as num?)?.toInt() ?? 0,
@@ -909,10 +910,11 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
 }
 
 String _scopeLabel(String s) => switch (s) {
-      'urbano_distrital' => 'Urbano distrital',
-      'urbano_provincial' => 'Urbano provincial',
-      'interprovincial_regional' => 'Interprovincial regional',
-      'interregional_nacional' => 'Interregional nacional',
+      'urbano' || 'urbano_distrital' || 'urbano_provincial' => 'Urbano',
+      'interprovincial' ||
+      'interprovincial_regional' ||
+      'interregional_nacional' =>
+        'Interprovincial',
       _ => s,
     };
 

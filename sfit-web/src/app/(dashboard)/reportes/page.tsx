@@ -25,9 +25,12 @@ type Report = {
   fraudScore: number;
   fraudLayers: FraudLayer[];
   rejectionReason?: string;
+  qrVerified?: boolean;
+  assignedFiscal?: { _id: string; name: string; email?: string } | null;
   createdAt: string;
 };
 type StatusCounts = Partial<Record<ReportStatus, number>>;
+type FiscalOpt = { id: string; name: string };
 
 const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
 const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB"; const RIESGOBD = "#FCD34D";
@@ -57,6 +60,9 @@ export default function ReportesPage() {
   const [error, setError] = useState<string | null>(null);
   const [counts, setCounts] = useState<StatusCounts>({});
   const [sel, setSel] = useState<Report | null>(null);
+  const [qrFilter, setQrFilter] = useState<"all" | "verified" | "unverified">("all");
+  const [fiscales, setFiscales] = useState<FiscalOpt[]>([]);
+  const [assigningFiscal, setAssigningFiscal] = useState(false);
 
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
@@ -72,6 +78,8 @@ export default function ReportesPage() {
     try {
       const token = localStorage.getItem("sfit_access_token");
       const qs = new URLSearchParams({ status: tab, limit: "50" });
+      if (qrFilter === "verified") qs.set("qrVerified", "true");
+      else if (qrFilter === "unverified") qs.set("qrVerified", "false");
       const res = await fetch(`/api/reportes?${qs}`, { headers: { Authorization: `Bearer ${token ?? ""}` } });
       if (res.status === 401) { router.replace("/login"); return; }
       const data = await res.json();
@@ -89,9 +97,46 @@ export default function ReportesPage() {
       });
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
-  }, [user, tab, router]);
+  }, [user, tab, qrFilter, router]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // Carga lista de fiscales activos de la muni para el dropdown "Asignar fiscal".
+  useEffect(() => {
+    if (!user) return;
+    const token = localStorage.getItem("sfit_access_token");
+    fetch(`/api/admin/usuarios?role=fiscal&status=activo&limit=100`, {
+      headers: { Authorization: `Bearer ${token ?? ""}` },
+    })
+      .then(async (r) => {
+        if (!r.ok) { setFiscales([]); return; }
+        const body = await r.json();
+        const items = (body?.data?.items ?? []) as Array<{ id: string; name: string }>;
+        setFiscales(items.map((u) => ({ id: u.id, name: u.name })));
+      })
+      .catch(() => setFiscales([]));
+  }, [user]);
+
+  const assignFiscal = async (reportId: string, fiscalId: string) => {
+    if (!fiscalId) return;
+    setAssigningFiscal(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/reportes/${reportId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ assignedFiscalId: fiscalId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setError(data.error ?? "No se pudo asignar el fiscal");
+        return;
+      }
+      void load();
+    } catch { setError("Error de conexión"); }
+    finally { setAssigningFiscal(false); }
+  };
 
   const updateStatus = async (id: string, status: ReportStatus) => {
     setError(null);
@@ -245,13 +290,29 @@ export default function ReportesPage() {
         ))}
       </div>
 
-      <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${INK2}`, marginBottom: 18 }}>
-        {(["pendiente","revision","validado","rechazado"] as ReportStatus[]).map(k => (
-          <div key={k} onClick={() => { setTab(k); setSel(null); }}
-            style={{ padding: "10px 14px", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", borderBottom: tab === k ? `2px solid ${G}` : "2px solid transparent", marginBottom: -1, color: tab === k ? INK9 : INK5 }}>
-            {TAB_LABELS[k]} <span style={{ marginLeft: 6, fontSize: "0.6875rem", padding: "1px 6px", borderRadius: 999, background: tab === k ? GBG : INK1, color: tab === k ? GD : INK5, fontWeight: 700 }}>{counts[k] ?? 0}</span>
-          </div>
-        ))}
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-end", borderBottom: `1px solid ${INK2}`, marginBottom: 18 }}>
+        <div style={{ display: "flex", gap: 0, flex: 1 }}>
+          {(["pendiente","revision","validado","rechazado"] as ReportStatus[]).map(k => (
+            <div key={k} onClick={() => { setTab(k); setSel(null); }}
+              style={{ padding: "10px 14px", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", borderBottom: tab === k ? `2px solid ${G}` : "2px solid transparent", marginBottom: -1, color: tab === k ? INK9 : INK5 }}>
+              {TAB_LABELS[k]} <span style={{ marginLeft: 6, fontSize: "0.6875rem", padding: "1px 6px", borderRadius: 999, background: tab === k ? GBG : INK1, color: tab === k ? GD : INK5, fontWeight: 700 }}>{counts[k] ?? 0}</span>
+            </div>
+          ))}
+        </div>
+        <select
+          value={qrFilter}
+          onChange={(e) => { setQrFilter(e.target.value as "all" | "verified" | "unverified"); setSel(null); }}
+          aria-label="Filtrar por verificación QR"
+          style={{
+            height: 32, padding: "0 10px", borderRadius: 7, marginBottom: 6,
+            border: `1px solid ${INK2}`, fontSize: "0.8125rem",
+            fontFamily: "inherit", background: "#fff", color: INK6, cursor: "pointer",
+          }}
+        >
+          <option value="all">QR: todos</option>
+          <option value="verified">Con QR verificado</option>
+          <option value="unverified">Sin QR / inválido</option>
+        </select>
       </div>
 
       {error && <div style={{ padding: "12px 16px", background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 10, color: NO, marginBottom: 16 }}>{error}</div>}
@@ -351,6 +412,39 @@ export default function ReportesPage() {
                     ))}
                   </div>
                 </>
+              )}
+
+              {/* Asignación de fiscal — disponible mientras el reporte está
+                  pendiente o en revisión. Permite delegar a un fiscal específico
+                  para que valide en campo. */}
+              {(sel.status === "pendiente" || sel.status === "revision") && fiscales.length > 0 && (
+                <div style={{ marginTop: 16, padding: "10px 12px", background: INK1, border: `1px solid ${INK2}`, borderRadius: 9 }}>
+                  <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: INK5, marginBottom: 6 }}>
+                    Fiscal asignado
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <select
+                      defaultValue={sel.assignedFiscal?._id ?? ""}
+                      onChange={(e) => { void assignFiscal(sel.id, e.target.value); }}
+                      disabled={assigningFiscal}
+                      style={{
+                        flex: 1, height: 32, padding: "0 10px", borderRadius: 7,
+                        border: `1px solid ${INK2}`, fontSize: "0.8125rem",
+                        background: "#fff", color: INK9, fontFamily: "inherit",
+                      }}
+                    >
+                      <option value="">Seleccionar fiscal…</option>
+                      {fiscales.map((f) => (
+                        <option key={f.id} value={f.id}>{f.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {sel.assignedFiscal?.name && (
+                    <div style={{ marginTop: 6, fontSize: "0.75rem", color: INK6 }}>
+                      Actualmente: <strong>{sel.assignedFiscal.name}</strong>
+                    </div>
+                  )}
+                </div>
               )}
 
               {sel.status === "pendiente" && (

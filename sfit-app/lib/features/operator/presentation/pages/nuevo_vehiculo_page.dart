@@ -35,12 +35,12 @@ class _NuevoVehiculoPageState extends ConsumerState<NuevoVehiculoPage> {
   bool _loadingCompany = true;
   String? _companyError;
 
+  // El sistema solo fiscaliza dos modalidades de transporte público dentro
+  // de Cotabambas. Los tipos legacy (limpieza, emergencia, maquinaria,
+  // municipal general) fueron retirados con el cleanup municipal.
   static const _vehicleTypes = [
-    ('transporte_publico', 'Transporte público'),
-    ('limpieza_residuos',  'Limpieza'),
-    ('emergencia',         'Emergencia'),
-    ('maquinaria',         'Maquinaria'),
-    ('municipal_general',  'Vehículo general'),
+    ('transporte_urbano',          'Transporte urbano'),
+    ('transporte_interprovincial', 'Transporte interprovincial'),
   ];
 
   @override

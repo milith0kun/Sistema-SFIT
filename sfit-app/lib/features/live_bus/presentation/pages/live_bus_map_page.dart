@@ -17,16 +17,25 @@ import 'live_bus_data.dart';
 /// Pantalla "Buses en vivo".
 ///
 /// Modo ciudadano (sin `companyId`): pide GPS al entrar para ordenar los buses
-/// por proximidad y muestra TODA la flota dentro del bounding box.
+/// por proximidad y muestra TODA la flota dentro del bounding box. Por
+/// defecto se filtra a `serviceScope=urbano` para respetar la privacidad de
+/// los viajes interprovinciales (rutas largas con poca afluencia).
 ///
 /// Modo operador (`companyId` no-null): filtra `/public/flota/activas` por
-/// empresa para mostrar SOLO la flota propia del operador en el mapa.
+/// empresa para mostrar SOLO la flota propia del operador en el mapa. NO
+/// filtra por scope — el operador ve sus dos modalidades si aplica.
 class LiveBusMapPage extends ConsumerStatefulWidget {
   /// Si se provee, filtra los buses por empresa. Usado por el dashboard del
   /// operador para ver "su" flota en vivo.
   final String? companyId;
 
-  const LiveBusMapPage({super.key, this.companyId});
+  /// Filtro por modalidad de servicio (`urbano` | `interprovincial`). El
+  /// feed ciudadano pasa `urbano` para ocultar interprovinciales del mapa
+  /// público. `null` o vacío → el backend devuelve cualquier scope (modo
+  /// operador / admin).
+  final String? serviceScope;
+
+  const LiveBusMapPage({super.key, this.companyId, this.serviceScope});
 
   @override
   ConsumerState<LiveBusMapPage> createState() => _LiveBusMapPageState();
@@ -160,6 +169,12 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
       if (widget.companyId != null) {
         qp['companyId'] = widget.companyId;
       }
+      // Privacidad: el feed ciudadano pasa `serviceScope=urbano` para que
+      // los buses interprovinciales no aparezcan en el mapa. Operador/admin
+      // omiten el parámetro y ven cualquier modalidad.
+      if (widget.serviceScope != null && widget.serviceScope!.isNotEmpty) {
+        qp['serviceScope'] = widget.serviceScope;
+      }
       // Para `/public/rutas`: pedimos que incluya candidatas (RouteCapture
       // sin validar generadas al cerrar turno sin ruta). Las mostramos en
       // sección aparte "Rutas sin validar" para diferenciar.
@@ -278,11 +293,8 @@ class _LiveBusMapPageState extends ConsumerState<LiveBusMapPage> {
   /// transmitiendo ahora — y porque la inferencia desde el response no sirve
   /// cuando el filtro server-side ya ocultó los demás.
   static const _vehicleTypeChoices = <({String key, String label, IconData icon})>[
-    (key: 'transporte_publico', label: 'Transporte público', icon: Icons.directions_bus_rounded),
-    (key: 'limpieza_residuos',  label: 'Limpieza',           icon: Icons.delete_sweep_rounded),
-    (key: 'emergencia',         label: 'Emergencia',         icon: Icons.local_hospital_rounded),
-    (key: 'maquinaria',         label: 'Maquinaria',         icon: Icons.construction_rounded),
-    (key: 'municipal_general',  label: 'Municipal',          icon: Icons.account_balance_rounded),
+    (key: 'transporte_urbano',          label: 'Urbano',         icon: Icons.directions_bus_rounded),
+    (key: 'transporte_interprovincial', label: 'Interprovincial', icon: Icons.airport_shuttle_rounded),
   ];
 
   Color _statusColor(String s) => switch (s) {

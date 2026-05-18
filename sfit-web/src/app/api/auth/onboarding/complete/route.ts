@@ -12,6 +12,7 @@ import {
 import { verifyAccessToken } from "@/lib/auth/jwt";
 import { ROLES } from "@/lib/constants";
 import { isValidObjectId } from "mongoose";
+import { getActiveMunicipalityId } from "@/lib/scope-server";
 
 /**
  * POST /api/auth/onboarding/complete
@@ -60,16 +61,10 @@ const Schema = z.object({
     provinceCode:   z.string().regex(/^\d{4}$/).optional(),
     districtCode:   z.string().regex(/^\d{6}$/).optional(),
     // Tipo de servicio que opera la empresa. Determina si las rutas creadas
-    // exigen paraderos (urbano_*) o solo origen/destino UBIGEO
-    // (interprovincial/interregional). El cliente debe enviarlo siempre que
-    // el operador llegue al onboarding desde una versión actualizada del app.
-    // Si no llega, cae al default histórico "urbano_provincial" más abajo.
-    serviceScope: z.enum([
-      "urbano_distrital",
-      "urbano_provincial",
-      "interprovincial_regional",
-      "interregional_nacional",
-    ]).optional(),
+    // exigen paraderos (`urbano`) o solo origen/destino UBIGEO
+    // (`interprovincial`). Si el cliente no lo envía, cae al default
+    // `urbano` más abajo.
+    serviceScope: z.enum(["urbano", "interprovincial"]).optional(),
   }).optional(),
   // Datos de conductor — sólo se aplican si el rol del usuario es conductor.
   // Crea/actualiza el documento Driver vinculado por dni del propio usuario.
@@ -79,10 +74,22 @@ const Schema = z.object({
   // "Editar perfil"). El handler decide qué upsert hacer según los campos
   // que lleguen — al menos uno debe estar presente para crear el Driver.
   driver: z.object({
-    licenseNumber:   z.string().min(4).max(20).trim().optional(),
-    licenseCategory: z.string().min(2).max(10).trim().optional(),
-    companyId:       z.string().optional(),
-  }).optional(),
+    licenseNumber:    z.string().min(4).max(20).trim().optional(),
+    licenseCategory:  z.string().min(2).max(10).trim().optional(),
+    /** Fecha emisión de la licencia (ISO). */
+    licenseIssuedAt:  z.coerce.date().optional(),
+    /** Fecha de vencimiento de la licencia (ISO). */
+    licenseExpiryDate: z.coerce.date().optional(),
+    companyId:        z.string().optional(),
+  })
+    .refine(
+      (d) =>
+        !d.licenseIssuedAt ||
+        !d.licenseExpiryDate ||
+        d.licenseExpiryDate.getTime() > d.licenseIssuedAt.getTime(),
+      { message: "licenseExpiryDate debe ser posterior a licenseIssuedAt" },
+    )
+    .optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -117,6 +124,15 @@ export async function POST(request: NextRequest) {
 
     const user = await User.findById(session.userId).select("+password");
     if (!user) return apiError("Usuario no encontrado", 404);
+
+    // Backfill de muni institucional: el sistema opera sobre una sola muni
+    // (Tambobamba) y todos los usuarios pertenecen a ella. Las cuentas creadas
+    // por flujos legacy (Google antes del cleanup, seed antiguo, etc.) podían
+    // llegar acá sin `municipalityId` — la fijamos antes de cualquier validación
+    // dependiente para que los bloques de company/driver pasen sin friccion.
+    if (!user.municipalityId) {
+      user.municipalityId = await getActiveMunicipalityId();
+    }
 
     // DNI único nacional
     const dupDni = await User.findOne({ dni, _id: { $ne: user._id } });
@@ -201,7 +217,7 @@ export async function POST(request: NextRequest) {
           // El operador elige el tipo de servicio en el onboarding (urbano vs
           // interprovincial). Si el cliente es viejo y no lo manda, caemos al
           // default histórico — el admin puede corregirlo después.
-          serviceScope: company.serviceScope ?? "urbano_provincial",
+          serviceScope: company.serviceScope ?? "urbano",
           coverage: {
             departmentCodes: company.departmentCode ? [company.departmentCode] : [],
             provinceCodes:   company.provinceCode   ? [company.provinceCode]   : [],
@@ -264,6 +280,8 @@ export async function POST(request: NextRequest) {
                     licenseCategory: driver.licenseCategory,
                   }
                 : {}),
+              ...(driver.licenseIssuedAt ? { licenseIssuedAt: driver.licenseIssuedAt } : {}),
+              ...(driver.licenseExpiryDate ? { licenseExpiryDate: driver.licenseExpiryDate } : {}),
               ...(hasCompany ? { companyId: driver.companyId } : {}),
             },
           },

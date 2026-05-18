@@ -55,14 +55,21 @@ export type VehicleStatus =
   (typeof VEHICLE_STATUS)[keyof typeof VEHICLE_STATUS];
 
 /**
- * Tipos de vehículo predefinidos del sistema.
+ * Tipos de vehículo predefinidos del sistema. Cotabambas fiscaliza dos
+ * segmentos de transporte público:
+ *
+ *   - urbano: combis/colectivos que circulan dentro de los 6 distritos
+ *     operativos. Rutas con paraderos.
+ *   - interprovincial: buses que salen de la provincia hacia Cusco,
+ *     Abancay o Arequipa. Rutas origen-destino sin paraderos intermedios.
+ *
+ * Otros segmentos (limpieza, emergencia, maquinaria, municipal general)
+ * fueron retirados en el cleanup municipal — no son competencia del
+ * sistema de fiscalización SFIT.
  */
 export const VEHICLE_TYPES = {
-  TRANSPORTE_PUBLICO: "transporte_publico",
-  LIMPIEZA_RESIDUOS: "limpieza_residuos",
-  EMERGENCIA: "emergencia",
-  MAQUINARIA: "maquinaria",
-  MUNICIPAL_GENERAL: "municipal_general",
+  TRANSPORTE_URBANO: "transporte_urbano",
+  TRANSPORTE_INTERPROVINCIAL: "transporte_interprovincial",
 } as const;
 
 export type VehicleType =

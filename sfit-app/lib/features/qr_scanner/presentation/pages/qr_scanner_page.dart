@@ -10,10 +10,20 @@ import '../../data/services/qr_hmac_service.dart';
 /// Escáner QR de SFIT — verifica la firma HMAC localmente (offline-first).
 ///
 /// [forInspection] = true → navega a nueva inspección (rol fiscal).
-/// [forInspection] = false (default) → navega a vista pública del vehículo.
+/// [forCitizenTrip] = true → registra al ciudadano en un viaje interprov
+///                            (POST `/ciudadano/viajes/registrar`).
+/// Default → navega a vista pública del vehículo.
+///
+/// Solo uno de los flags puede estar activo a la vez; si ambos vienen `true`
+/// gana `forInspection` por compat con el flujo histórico del fiscal.
 class QrScannerPage extends StatefulWidget {
   final bool forInspection;
-  const QrScannerPage({super.key, this.forInspection = false});
+  final bool forCitizenTrip;
+  const QrScannerPage({
+    super.key,
+    this.forInspection = false,
+    this.forCitizenTrip = false,
+  });
 
   @override
   State<QrScannerPage> createState() => _QrScannerPageState();
@@ -82,6 +92,15 @@ class _QrScannerPageState extends State<QrScannerPage> {
         'plate':        payload.pl,
         'vehicleTypeKey': payload.ty,
       });
+    } else if (widget.forCitizenTrip) {
+      // Ciudadano registra el viaje interprovincial: la página
+      // RegistrarViajePage recibe el QR raw, llama al backend y navega a
+      // `/ciudadano/mi-viaje` al éxito. Hacemos `replace` para que al
+      // volver atrás el ciudadano NO regrese al scanner sino a su feed.
+      context.pushReplacement(
+        '/ciudadano/registrar-viaje',
+        extra: {'qrRaw': raw, 'offlineVerified': valid},
+      );
     } else {
       context.push(
         '/vehiculo-publico/${payload.pl}',

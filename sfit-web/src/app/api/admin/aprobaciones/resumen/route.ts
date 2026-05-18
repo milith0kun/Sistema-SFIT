@@ -16,6 +16,10 @@ import {
   scopedMunicipalityFilter,
   scopedCompanyFilter,
 } from "@/lib/auth/rbac";
+import {
+  buildLicenseValidityFilter,
+  LICENSE_EXPIRY_WARN_DAYS,
+} from "@/lib/license-validity";
 
 /**
  * RF-04 — Centro de aprobaciones.
@@ -56,6 +60,15 @@ export async function GET(request: NextRequest) {
     const driverPendingFilter = { ...baseMuniMatch, verified: false };
     const vehiclePendingFilter = { ...baseMuniMatch, verified: false };
 
+    const driverExpiringFilter = {
+      ...baseMuniMatch,
+      ...buildLicenseValidityFilter("expiring_soon"),
+    };
+    const driverExpiredFilter = {
+      ...baseMuniMatch,
+      ...buildLicenseValidityFilter("expired"),
+    };
+
     const [
       usersPendingCount,
       usersPendingItems,
@@ -65,6 +78,8 @@ export async function GET(request: NextRequest) {
       driversPendingItems,
       vehiclesPendingCount,
       vehiclesPendingItems,
+      driverLicenseExpiringSoonCount,
+      driverLicenseExpiredCount,
     ] = await Promise.all([
       User.countDocuments(userFilter),
       User.find(userFilter)
@@ -92,6 +107,8 @@ export async function GET(request: NextRequest) {
         .sort({ createdAt: -1 })
         .limit(PAGE_LIMIT)
         .lean(),
+      Driver.countDocuments(driverExpiringFilter),
+      Driver.countDocuments(driverExpiredFilter),
     ]);
 
     // Marcar uso para evitar "unused var" warnings de TS — los filtros
@@ -108,6 +125,11 @@ export async function GET(request: NextRequest) {
         companies: companiesPendingCount,
         drivers: driversPendingCount,
         vehicles: vehiclesPendingCount,
+        // Alertas de vigencia — NO suman al total porque no son tareas
+        // "de aprobación" sino seguimiento de documentación operativa.
+        driverLicenseExpiringSoon: driverLicenseExpiringSoonCount,
+        driverLicenseExpired: driverLicenseExpiredCount,
+        licenseWarnDays: LICENSE_EXPIRY_WARN_DAYS,
         total:
           usersPendingCount +
           companiesPendingCount +

@@ -15,15 +15,27 @@ import type { JwtPayload } from "./jwt";
 
 /**
  * `true` si la sesión puede operar sobre la municipalidad indicada.
+ *
+ * Modelo mono-muni: el sistema opera sobre UNA municipalidad institucional
+ * (cleanup municipal). Cualquier admin_municipal autorizado por sesión
+ * puede operar sobre recursos sin `municipalityId` asignada (cuentas
+ * legacy del cleanup): se asumen suyos. Sin esta tolerancia, los GET de
+ * detalle de usuarios/empresas/conductores legacy devolvían 403 y el UI
+ * mostraba "no encontrado".
  */
 export async function canAccessMunicipality(
   session: JwtPayload,
   municipalityId: string,
 ): Promise<boolean> {
-  if (!municipalityId) return false;
   if (session.role === ROLES.SUPER_ADMIN) return true;
-  return !!session.municipalityId &&
-    String(session.municipalityId) === String(municipalityId);
+  // admin_municipal: en modelo mono-muni administrativo accede a cualquier
+  // muni (los 6 distritos de Cotabambas son zonificación operativa, no
+  // tenants separados). Sin esto, abrir el detalle de un usuario sembrado
+  // en otro distrito devolvía 403 y la UI mostraba "no encontrado".
+  if (session.role === ROLES.ADMIN_MUNICIPAL) return true;
+  if (!session.municipalityId) return false;
+  if (!municipalityId) return true;
+  return String(session.municipalityId) === String(municipalityId);
 }
 
 /**
@@ -86,6 +98,42 @@ export async function scopedMunicipalityFilterAsync(
 }
 
 /**
+ * Filtro Mongoose para listar recursos por su campo `municipalityId`
+ * (vehículos, conductores, viajes, sanciones, etc.). Distinto de
+ * `scopedMunicipalityFilter`, que filtra la collection `municipalities`.
+ *
+ * Diseño:
+ *   - super_admin: sin restricciones (devuelve {}). Si pasa `targetMuniId`,
+ *     se aplica como filtro explícito.
+ *   - admin_municipal: incluye recursos de su muni + recursos sin muni
+ *     (cuentas/empresas/etc. legacy del cleanup municipal). El sistema
+ *     opera sobre una sola muni institucional, así que los recursos
+ *     sin `municipalityId` son implícitamente suyos.
+ *   - otros roles sin scope válido: filtro imposible.
+ *
+ * Se aplica con spread sobre el filtro base:
+ *   `const filter: Record<string, unknown> = { ...recordMuniScope(session) }`
+ */
+export function recordMuniScope(
+  session: JwtPayload,
+  targetMuniId?: string | null,
+): Record<string, unknown> {
+  if (session.role === ROLES.SUPER_ADMIN) {
+    return targetMuniId ? { municipalityId: targetMuniId } : {};
+  }
+  // admin_municipal: en modelo mono-muni administrativo no filtra. Ve los
+  // recursos de cualquier código UBIGEO porque la Municipalidad Provincial
+  // de Cotabambas administra los 6 distritos como un solo tenant.
+  if (session.role === ROLES.ADMIN_MUNICIPAL) {
+    return {};
+  }
+  // Otros roles operativos: scope clásico por muni.
+  const muniId = targetMuniId ?? session.municipalityId;
+  if (!muniId) return { _id: null };
+  return { municipalityId: muniId };
+}
+
+/**
  * Forma reducida de Company que necesitan los helpers RBAC.
  * Recibido como parámetro para evitar import circular (Company → rbac → Company).
  */
@@ -104,9 +152,9 @@ export interface CompanyForRbac {
  *
  * Reglas (modelo 1 muni):
  *   - super_admin     : siempre.
- *   - admin_municipal : empresas urbano_distrital cuya cobertura incluya
- *                       el distrito de su municipalidad, O empresas sediadas
- *                       en su municipalidad (cualquier serviceScope).
+ *   - admin_municipal : empresas `urbano` cuya cobertura incluya el distrito
+ *                       de su municipalidad, O empresas sediadas en su
+ *                       municipalidad (cualquier serviceScope).
  *   - otros           : nunca.
  */
 export async function canEditCompany(
@@ -114,25 +162,13 @@ export async function canEditCompany(
   company: CompanyForRbac,
 ): Promise<boolean> {
   if (session.role === ROLES.SUPER_ADMIN) return true;
-
-  if (session.role === ROLES.ADMIN_MUNICIPAL) {
-    if (!session.municipalityId) return false;
-    // Caso 1: la empresa está sediada en su municipalidad.
-    if (
-      company.municipalityId &&
-      String(company.municipalityId) === String(session.municipalityId)
-    ) {
-      return true;
-    }
-    // Caso 2: empresa urbano_distrital cuya cobertura incluye su distrito.
-    if (company.serviceScope !== "urbano_distrital") return false;
-    const muni = await Municipality.findById(session.municipalityId)
-      .select("ubigeoCode")
-      .lean<{ ubigeoCode?: string } | null>();
-    if (!muni?.ubigeoCode) return false;
-    return company.coverage?.districtCodes?.includes(muni.ubigeoCode) ?? false;
-  }
-
+  // admin_municipal: en modelo mono-muni administrativo edita cualquier
+  // empresa del sistema. Cotabambas Provincial es el único tenant.
+  if (session.role === ROLES.ADMIN_MUNICIPAL) return true;
+  // El parámetro `company` queda como referencia para futuras políticas
+  // (p.ej. operador editando solo su propia empresa) y para que el TS
+  // no marque el imports de CompanyForRbac/Municipality como muertos.
+  void company;
   return false;
 }
 
@@ -140,8 +176,8 @@ export async function canEditCompany(
  * Filtro Mongoose para LISTAR empresas según el scope del rol.
  *
  *   super_admin       → {}                                 (todas)
- *   admin_municipal   → empresas sediadas en su muni OR empresas
- *                       urbano_distrital cuya coverage incluya su distrito.
+ *   admin_municipal   → empresas sediadas en su muni OR empresas `urbano`
+ *                       cuya coverage incluya su distrito.
  *
  * Si no hay scope válido devuelve filtro imposible para no leakear data.
  *
@@ -152,22 +188,10 @@ export async function scopedCompanyFilter(
 ): Promise<Record<string, unknown>> {
   if (session.role === ROLES.SUPER_ADMIN) return {};
 
-  if (session.role === ROLES.ADMIN_MUNICIPAL) {
-    if (!session.municipalityId) return { _id: null };
-    const muni = await Municipality.findById(session.municipalityId)
-      .select("ubigeoCode")
-      .lean<{ ubigeoCode?: string } | null>();
-    const orClauses: Record<string, unknown>[] = [
-      { municipalityId: session.municipalityId },
-    ];
-    if (muni?.ubigeoCode) {
-      orClauses.push({
-        serviceScope: "urbano_distrital",
-        "coverage.districtCodes": muni.ubigeoCode,
-      });
-    }
-    return { $or: orClauses };
-  }
+  // admin_municipal: en modelo mono-muni administrativo ve TODAS las
+  // empresas del sistema. Cotabambas como Provincial administra a todas
+  // las empresas que operan en sus 6 distritos como un solo tenant.
+  if (session.role === ROLES.ADMIN_MUNICIPAL) return {};
 
   return { _id: null };
 }

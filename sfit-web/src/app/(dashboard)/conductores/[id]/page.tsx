@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeft, Save, Trash2, User, Phone, CreditCard, Award, Clock, TrendingUp,
   AlertTriangle, CheckCircle, Loader2, Hash, Copy, Check, Building2, Pencil, ImageUp,
+  Activity, Shield, MessageSquareWarning,
 } from "lucide-react";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -26,7 +27,10 @@ const LICENSE_CATEGORIES = ["A-I", "A-IIa", "A-IIb", "A-IIIa", "A-IIIb", "A-IIIc
 
 interface Conductor {
   id: string; name: string; dni: string; licenseNumber: string;
-  licenseCategory: string; companyId?: string; companyName?: string;
+  licenseCategory: string;
+  licenseIssuedAt?: string | null;
+  licenseExpiryDate?: string | null;
+  companyId?: string; companyName?: string;
   phone?: string; status: "apto" | "riesgo" | "no_apto";
   continuousHours: number; restHours: number; reputationScore: number;
   active: boolean; createdAt: string; updatedAt: string;
@@ -35,11 +39,15 @@ interface Conductor {
 interface Empresa { id: string; razonSocial: string }
 interface FormData {
   name: string; dni: string; licenseNumber: string;
-  licenseCategory: string; companyId: string; phone: string;
+  licenseCategory: string;
+  licenseIssuedAt: string;
+  licenseExpiryDate: string;
+  companyId: string; phone: string;
   photoUrl: string;
 }
 interface FieldErrors {
   name?: string; dni?: string; licenseNumber?: string; licenseCategory?: string;
+  licenseExpiryDate?: string;
 }
 type DniLookup =
   | { state: "idle" } | { state: "loading" }
@@ -107,8 +115,25 @@ export default function ConductorDetallePage({ params }: Props) {
   const [notFound, setNotFound] = useState(false);
   const [loadingConductor, setLoadingConductor] = useState(true);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [history, setHistory] = useState<Array<{
+    id: string;
+    companyId: string | null;
+    companyName: string | null;
+    companyRuc: string | null;
+    joinedAt: string;
+    leftAt: string | null;
+    leftReason: string | null;
+    isOpen: boolean;
+  }> | null>(null);
+  const [resumen, setResumen] = useState<{
+    trips: { total: number; lastAt: string | null; lastStatus: string | null };
+    inspections: { total: number; aprobadas: number; rechazadas: number; observadas: number };
+    sanctions: { total: number; totalSoles: number; lastAt: string | null; lastAmountSoles: number | null; lastStatus: string | null };
+  } | null>(null);
   const [form, setForm] = useState<FormData>({
-    name: "", dni: "", licenseNumber: "", licenseCategory: "", companyId: "", phone: "", photoUrl: "",
+    name: "", dni: "", licenseNumber: "", licenseCategory: "",
+    licenseIssuedAt: "", licenseExpiryDate: "",
+    companyId: "", phone: "", photoUrl: "",
   });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -151,12 +176,44 @@ export default function ConductorDetallePage({ params }: Props) {
           name: data.name ?? "", dni: data.dni ?? "",
           licenseNumber: data.licenseNumber ?? "",
           licenseCategory: data.licenseCategory ?? "",
+          licenseIssuedAt: data.licenseIssuedAt ? String(data.licenseIssuedAt).slice(0, 10) : "",
+          licenseExpiryDate: data.licenseExpiryDate ? String(data.licenseExpiryDate).slice(0, 10) : "",
           companyId: data.companyId ?? "", phone: data.phone ?? "",
           photoUrl: data.photoUrl ?? "",
         });
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoadingConductor(false));
+  }, [authorized, token, id]);
+
+  // Cargar historial laboral en paralelo al detalle del conductor. No bloquea
+  // el render principal — el SectionCard tiene su propio "cargando".
+  useEffect(() => {
+    if (!authorized || !token) return;
+    fetch(`/api/conductores/${id}/historial`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => {
+        if (!res.ok) { setHistory([]); return; }
+        const body = await res.json();
+        setHistory(body?.data?.items ?? []);
+      })
+      .catch(() => setHistory([]));
+  }, [authorized, token, id]);
+
+  // Resumen operativo (viajes/inspecciones/sanciones). Independiente para no
+  // bloquear el render principal.
+  useEffect(() => {
+    if (!authorized || !token) return;
+    fetch(`/api/conductores/${id}/resumen`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const body = await res.json();
+        if (body?.data) setResumen(body.data);
+      })
+      .catch(() => { /* opcional, no bloquea */ });
   }, [authorized, token, id]);
 
   useEffect(() => {
@@ -270,6 +327,11 @@ export default function ConductorDetallePage({ params }: Props) {
       next.licenseNumber = "Licencia requerida (mínimo 4 caracteres).";
     if (!form.licenseCategory)
       next.licenseCategory = "Seleccione la categoría de licencia.";
+    if (form.licenseIssuedAt && form.licenseExpiryDate) {
+      if (new Date(form.licenseExpiryDate) <= new Date(form.licenseIssuedAt)) {
+        next.licenseExpiryDate = "El vencimiento debe ser posterior a la emisión.";
+      }
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -284,6 +346,8 @@ export default function ConductorDetallePage({ params }: Props) {
       dni: form.dni.trim(),
       licenseNumber: form.licenseNumber.trim(),
       licenseCategory: form.licenseCategory,
+      licenseIssuedAt: form.licenseIssuedAt ? form.licenseIssuedAt : null,
+      licenseExpiryDate: form.licenseExpiryDate ? form.licenseExpiryDate : null,
     };
     // Enviamos companyId siempre: cadena vacía → null (desasignar);
     // valor → ObjectId. Esto permite al admin desligar el conductor.
@@ -771,13 +835,44 @@ export default function ConductorDetallePage({ params }: Props) {
                     onBlur={e => { if (!errors.licenseCategory) e.target.style.borderColor = INK2; }}
                   >
                     <option value="">Seleccionar categoría…</option>
-                    {LICENSE_CATEGORIES.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
+                    {LICENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 ) : (
                   <input style={READ} value={form.licenseCategory} readOnly disabled />
                 )}
+              </Field>
+
+              <Field
+                label="Emitida el"
+                error={undefined}
+                required={false}
+              >
+                <input
+                  type="date"
+                  value={form.licenseIssuedAt}
+                  onChange={e => handleChange("licenseIssuedAt", e.target.value)}
+                  style={canEdit ? FIELD : READ}
+                  disabled={submitting || !canEdit}
+                  readOnly={!canEdit}
+                />
+              </Field>
+
+              <Field
+                label="Vence el"
+                error={errors.licenseExpiryDate}
+                required={false}
+              >
+                <input
+                  type="date"
+                  value={form.licenseExpiryDate}
+                  onChange={e => handleChange("licenseExpiryDate", e.target.value)}
+                  style={{
+                    ...(canEdit ? FIELD : READ),
+                    ...(errors.licenseExpiryDate ? { borderColor: NO } : {}),
+                  }}
+                  disabled={submitting || !canEdit}
+                  readOnly={!canEdit}
+                />
               </Field>
             </div>
           </SectionCard>
@@ -833,6 +928,86 @@ export default function ConductorDetallePage({ params }: Props) {
               label=""
               disabled={!canEdit || submitting}
             />
+          </SectionCard>
+
+          {/* Resumen operativo — viajes / inspecciones / sanciones */}
+          <SectionCard
+            icon={<TrendingUp size={14} color={INK6} />}
+            title="Resumen operativo"
+            subtitle="Actividad acumulada del conductor"
+          >
+            {resumen === null ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8125rem", color: INK5 }}>
+                <Loader2 size={13} style={{ animation: "spin 0.7s linear infinite" }} />
+                Cargando resumen…
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+                {/* Viajes */}
+                <div style={{ padding: "12px 14px", borderRadius: 9, background: INK1, border: `1px solid ${INK2}` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                    <Activity size={13} color={INK6} strokeWidth={1.8} />
+                    <span style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: INK5 }}>
+                      Viajes
+                    </span>
+                  </div>
+                  <div style={{ fontSize: "1.5rem", fontWeight: 800, color: INK9, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+                    {resumen.trips.total}
+                  </div>
+                  <div style={{ fontSize: "0.6875rem", color: INK5, marginTop: 6 }}>
+                    {resumen.trips.lastAt
+                      ? `Último: ${new Date(resumen.trips.lastAt).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}`
+                      : "Sin viajes registrados"}
+                  </div>
+                </div>
+
+                {/* Inspecciones */}
+                <div style={{ padding: "12px 14px", borderRadius: 9, background: INK1, border: `1px solid ${INK2}` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                    <Shield size={13} color={INK6} strokeWidth={1.8} />
+                    <span style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: INK5 }}>
+                      Inspecciones
+                    </span>
+                  </div>
+                  <div style={{ fontSize: "1.5rem", fontWeight: 800, color: INK9, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+                    {resumen.inspections.total}
+                  </div>
+                  <div style={{ fontSize: "0.6875rem", color: INK5, marginTop: 6 }}>
+                    {resumen.inspections.total > 0
+                      ? `${resumen.inspections.aprobadas} aprob. · ${resumen.inspections.rechazadas} rech.`
+                      : "Sin inspecciones"}
+                  </div>
+                </div>
+
+                {/* Sanciones */}
+                <div style={{
+                  padding: "12px 14px", borderRadius: 9,
+                  background: resumen.sanctions.total > 0 ? NO_BG : INK1,
+                  border: `1px solid ${resumen.sanctions.total > 0 ? NO_BD : INK2}`,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                    <MessageSquareWarning size={13} color={resumen.sanctions.total > 0 ? NO : INK6} strokeWidth={1.8} />
+                    <span style={{
+                      fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
+                      color: resumen.sanctions.total > 0 ? NO : INK5,
+                    }}>
+                      Sanciones
+                    </span>
+                  </div>
+                  <div style={{
+                    fontSize: "1.5rem", fontWeight: 800, lineHeight: 1, fontVariantNumeric: "tabular-nums",
+                    color: resumen.sanctions.total > 0 ? NO : INK9,
+                  }}>
+                    {resumen.sanctions.total}
+                  </div>
+                  <div style={{ fontSize: "0.6875rem", color: INK5, marginTop: 6 }}>
+                    {resumen.sanctions.total > 0
+                      ? `S/ ${resumen.sanctions.totalSoles.toLocaleString("es-PE")} acumulado`
+                      : "Sin sanciones"}
+                  </div>
+                </div>
+              </div>
+            )}
           </SectionCard>
         </form>
 
@@ -904,6 +1079,63 @@ export default function ConductorDetallePage({ params }: Props) {
               <MiniRow label="Reputación" value={`${rep}/100`} />
               <MiniRow label="Activo" value={conductor.active ? "Sí" : "No"} />
             </div>
+          </SectionCard>
+
+          {/* Historial laboral — todas las membresías conductor↔empresa,
+              abierta o cerrada. Sirve para auditar rotaciones cuando un
+              admin investiga un conductor con quejas recurrentes. */}
+          <SectionCard
+            icon={<Building2 size={14} color={INK6} />}
+            title="Historial laboral"
+            subtitle="Vinculaciones con empresas de transporte"
+          >
+            {history === null ? (
+              <div style={{ fontSize: "0.8125rem", color: INK5 }}>
+                <Loader2 size={13} style={{ animation: "spin 0.7s linear infinite", marginRight: 6 }} />
+                Cargando historial…
+              </div>
+            ) : history.length === 0 ? (
+              <div style={{ fontSize: "0.8125rem", color: INK5 }}>
+                Sin vinculaciones registradas.
+              </div>
+            ) : (
+              <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+                {history.map((m) => (
+                  <li key={m.id} style={{
+                    padding: "10px 12px", borderRadius: 8,
+                    background: m.isOpen ? APTO_BG : INK1,
+                    border: `1px solid ${m.isOpen ? APTO_BD : INK2}`,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span style={{
+                        fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                        color: m.isOpen ? APTO : INK5,
+                      }}>
+                        {m.isOpen ? "Vigente" : "Cerrada"}
+                      </span>
+                      {m.leftReason && (
+                        <span style={{ fontSize: "0.6875rem", color: INK5 }}>
+                          · {m.leftReason.replace(/_/g, " ")}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontWeight: 600, fontSize: "0.875rem", color: INK9 }}>
+                      {m.companyName ?? "(empresa eliminada)"}
+                    </div>
+                    {m.companyRuc && (
+                      <div style={{ fontSize: "0.6875rem", color: INK5, fontFamily: "ui-monospace, monospace" }}>
+                        RUC {m.companyRuc}
+                      </div>
+                    )}
+                    <div style={{ fontSize: "0.6875rem", color: INK6, marginTop: 4 }}>
+                      Desde {new Date(m.joinedAt).toLocaleDateString("es-PE")}
+                      {m.leftAt && ` · Hasta ${new Date(m.leftAt).toLocaleDateString("es-PE")}`}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
           </SectionCard>
 
           {/* Información del registro */}

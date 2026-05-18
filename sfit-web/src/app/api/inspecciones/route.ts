@@ -203,10 +203,9 @@ export async function POST(request: NextRequest) {
 
     // Política de inspecciones (Etapa 2/3 — RF derivado del marco legal):
     //   El fiscal municipal solo puede inspeccionar vehículos cuya empresa
-    //   tiene cobertura sobre su distrito (urbano_distrital), o su provincia
-    //   (urbano_provincial). Las empresas interprovinciales/nacionales son
-    //   inspeccionables por cualquier fiscal en su jurisdicción.
-    //   super_admin queda exento de la validación.
+    //   tiene cobertura sobre su provincia (modalidad `urbano`). Las
+    //   empresas `interprovincial` son inspeccionables por cualquier fiscal
+    //   en su jurisdicción. super_admin queda exento de la validación.
     if (auth.session.role !== ROLES.SUPER_ADMIN) {
       const vehicle = await Vehicle.findById(parsed.data.vehicleId)
         .select("companyId plate")
@@ -235,18 +234,22 @@ export async function POST(request: NextRequest) {
           } | null>();
 
         if (company && fiscalMuni) {
-          const scope = company.serviceScope ?? "urbano_distrital";
+          const scope = company.serviceScope ?? "urbano";
           const cov = company.coverage ?? {};
 
           let allowed = false;
-          if (scope === "urbano_distrital") {
-            allowed = !!fiscalMuni.ubigeoCode &&
-              (cov.districtCodes ?? []).includes(fiscalMuni.ubigeoCode);
-          } else if (scope === "urbano_provincial") {
-            allowed = !!fiscalMuni.provinceCode &&
-              (cov.provinceCodes ?? []).includes(fiscalMuni.provinceCode);
+          if (scope === "urbano") {
+            // Urbano: la empresa debe operar en la provincia del fiscal
+            // (o, en su defecto, en su distrito si la cobertura solo
+            // declara distritos). Cotabambas Provincial cubre los 6
+            // distritos como un solo tenant.
+            allowed =
+              (!!fiscalMuni.provinceCode &&
+                (cov.provinceCodes ?? []).includes(fiscalMuni.provinceCode)) ||
+              (!!fiscalMuni.ubigeoCode &&
+                (cov.districtCodes ?? []).includes(fiscalMuni.ubigeoCode));
           } else {
-            // interprovincial_regional / interregional_nacional
+            // interprovincial: cualquier fiscal en su jurisdicción.
             allowed = true;
           }
 

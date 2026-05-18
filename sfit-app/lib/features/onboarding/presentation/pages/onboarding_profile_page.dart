@@ -783,30 +783,16 @@ class _ScopeSelector extends StatelessWidget {
 
   static const _options = <({String value, String title, String subtitle, IconData icon, bool isUrban})>[
     (
-      value: 'urbano_distrital',
-      title: 'Urbano distrital',
-      subtitle: 'Paraderos dentro de un distrito',
+      value: 'urbano',
+      title: 'Urbano',
+      subtitle: 'Rutas con paraderos dentro de los 6 distritos de Cotabambas',
       icon: Icons.directions_bus_filled_rounded,
       isUrban: true,
     ),
     (
-      value: 'urbano_provincial',
-      title: 'Urbano provincial',
-      subtitle: 'Paraderos en varios distritos',
-      icon: Icons.directions_bus_filled_rounded,
-      isUrban: true,
-    ),
-    (
-      value: 'interprovincial_regional',
+      value: 'interprovincial',
       title: 'Interprovincial',
-      subtitle: 'Sin paraderos, varias provincias',
-      icon: Icons.alt_route_rounded,
-      isUrban: false,
-    ),
-    (
-      value: 'interregional_nacional',
-      title: 'Interregional',
-      subtitle: 'Sin paraderos, varias regiones',
+      subtitle: 'Rutas a Cusco / Abancay / Arequipa, sin paraderos intermedios',
       icon: Icons.alt_route_rounded,
       isUrban: false,
     ),

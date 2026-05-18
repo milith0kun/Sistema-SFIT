@@ -3,25 +3,28 @@ import '../../../reports/data/datasources/reports_api_service.dart';
 import '../../data/models/feed_report_model.dart';
 
 class FeedFilters {
-  final FeedRegion region;
   final FeedOrder order;
   final String? category;
+  /// Cuando es true, el feed muestra solo los reportes del propio
+  /// ciudadano en cualquier estado (pendiente / en_revision / validado /
+  /// rechazado). Permite ver el historial sin tener que ir a otra pantalla.
+  final bool mine;
 
   const FeedFilters({
-    this.region = FeedRegion.municipality,
     this.order = FeedOrder.recent,
     this.category,
+    this.mine = false,
   });
 
   FeedFilters copyWith({
-    FeedRegion? region,
     FeedOrder? order,
     Object? category = _kSentinel,
+    bool? mine,
   }) =>
       FeedFilters(
-        region: region ?? this.region,
         order: order ?? this.order,
         category: category == _kSentinel ? this.category : category as String?,
+        mine: mine ?? this.mine,
       );
 
   static const _kSentinel = Object();
@@ -107,9 +110,9 @@ class FeedNotifier extends StateNotifier<FeedState> {
     final nextPage = reset ? 1 : state.page + 1;
     try {
       final result = await _api.getFeed(
-        region: state.filters.region.apiValue,
         category: state.filters.category,
         order: state.filters.order.apiValue,
+        mine: state.filters.mine,
         page: nextPage,
         limit: _pageSize,
       );

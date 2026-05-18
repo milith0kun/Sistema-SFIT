@@ -48,7 +48,7 @@ const mockRuta = {
   stops: 12,
   length: "8.5 km",
   area: null,
-  vehicleTypeKey: "transporte_publico",
+  vehicleTypeKey: "transporte_urbano",
   companyId: null,
   vehicleCount: 5,
   status: "activa",
@@ -96,7 +96,7 @@ describe("POST /api/rutas", () => {
     code: "R-05",
     name: "Ruta Mercado - Hospital",
     type: "ruta",
-    vehicleTypeKey: "transporte_publico",
+    vehicleTypeKey: "transporte_urbano",
     stops: 8,
     length: "5.2 km",
   };

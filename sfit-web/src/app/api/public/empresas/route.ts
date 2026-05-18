@@ -28,7 +28,15 @@ export async function GET(request: NextRequest) {
 
   await connectDB();
 
-  const filter: Record<string, unknown> = { status: "activo" };
+  // El conductor (y cualquier consumidor del endpoint público) solo debe
+  // ver empresas que el admin_municipal ya APROBÓ: `active: true` y con
+  // `approvedAt` registrado. Antes el filtro decía `status: "activo"` pero
+  // el modelo `Company` no tiene ese campo — devolvía SIEMPRE 0 resultados
+  // y el picker "Mi empresa" del conductor aparecía vacío.
+  const filter: Record<string, unknown> = {
+    active: true,
+    approvedAt: { $exists: true, $ne: null },
+  };
   if (q.length > 0) {
     // Si q es solo dígitos, prioridad RUC; si tiene letras, prefijo razón social.
     const isAllDigits = /^\d+$/.test(q);

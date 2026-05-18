@@ -20,11 +20,7 @@ import {
 } from "@/lib/scope";
 type RouteType = "ruta" | "zona";
 type RouteStatus = "activa" | "suspendida";
-type ServiceScope =
-  | "urbano_distrital"
-  | "urbano_provincial"
-  | "interprovincial_regional"
-  | "interregional_nacional";
+type ServiceScope = "urbano" | "interprovincial";
 
 type Route = {
   id: string; code: string; name: string; type: RouteType;
@@ -40,13 +36,11 @@ type Route = {
 };
 
 const SCOPE_LABEL: Record<ServiceScope, string> = {
-  urbano_distrital: "Urbano distrital",
-  urbano_provincial: "Urbano provincial",
-  interprovincial_regional: "Interprovincial / regional",
-  interregional_nacional: "Interregional / nacional",
+  urbano: "Urbano",
+  interprovincial: "Interprovincial",
 };
-const URBAN_SCOPES = new Set<ServiceScope>(["urbano_distrital", "urbano_provincial"]);
-const INTERPROV_SCOPES = new Set<ServiceScope>(["interprovincial_regional", "interregional_nacional"]);
+const URBAN_SCOPES = new Set<ServiceScope>(["urbano"]);
+const INTERPROV_SCOPES = new Set<ServiceScope>(["interprovincial"]);
 
 /**
  * Catálogo de distritos para edición de rutas (mismo modelo que `nueva`).
@@ -110,7 +104,7 @@ export default function RutaDetallePage({ params }: Props) {
   const [notFound, setNotFound] = useState(false);
   const [user, setUser] = useState<StoredUser | null>(null);
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
-  const [serviceScope, setServiceScope] = useState<ServiceScope>("urbano_distrital");
+  const [serviceScope, setServiceScope] = useState<ServiceScope>("urbano");
   const [originDistrictCode, setOriginDistrictCode] = useState("");
   const [destinationDistrictCode, setDestinationDistrictCode] = useState("");
   const [traversedDistrictCodes, setTraversedDistrictCodes] = useState<string[]>([]);
@@ -142,7 +136,7 @@ export default function RutaDetallePage({ params }: Props) {
       if (!res.ok || !data.success) { setError(data.error ?? "No se pudo cargar la ruta."); return; }
       setRoute(data.data);
       setWaypoints(data.data.waypoints ?? []);
-      setServiceScope((data.data.serviceScope ?? "urbano_distrital") as ServiceScope);
+      setServiceScope((data.data.serviceScope ?? "urbano") as ServiceScope);
       setOriginDistrictCode(data.data.originDistrictCode ?? "");
       setDestinationDistrictCode(data.data.destinationDistrictCode ?? "");
       setTraversedDistrictCodes(data.data.traversedDistrictCodes ?? []);
@@ -286,7 +280,7 @@ export default function RutaDetallePage({ params }: Props) {
       }
       setRoute(data.data);
       setWaypoints(data.data.waypoints ?? []);
-      setServiceScope((data.data.serviceScope ?? "urbano_distrital") as ServiceScope);
+      setServiceScope((data.data.serviceScope ?? "urbano") as ServiceScope);
       setOriginDistrictCode(data.data.originDistrictCode ?? "");
       setDestinationDistrictCode(data.data.destinationDistrictCode ?? "");
       setTraversedDistrictCodes(data.data.traversedDistrictCodes ?? []);

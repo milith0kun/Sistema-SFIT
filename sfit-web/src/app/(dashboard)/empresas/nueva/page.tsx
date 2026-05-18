@@ -7,6 +7,27 @@ import { CheckCircle, AlertTriangle, Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ACTIVE_DISTRICTS, INTERPROV_DESTINATIONS } from "@/lib/scope";
+
+type ServiceScope = "urbano" | "interprovincial";
+
+type AuthorityLevel =
+  | "municipal_distrital"
+  | "municipal_provincial"
+  | "regional"
+  | "mtc";
+
+const SCOPE_OPTIONS: Array<{ value: ServiceScope; label: string }> = [
+  { value: "urbano",          label: "Urbano — dentro de los 6 distritos de Cotabambas" },
+  { value: "interprovincial", label: "Interprovincial — a Cusco / Abancay / Arequipa" },
+];
+
+const LEVEL_OPTIONS: Array<{ value: AuthorityLevel; label: string }> = [
+  { value: "municipal_distrital",  label: "Municipal distrital" },
+  { value: "municipal_provincial", label: "Municipal provincial" },
+  { value: "regional",             label: "Gobierno regional" },
+  { value: "mtc",                  label: "MTC" },
+];
 
 type VehicleType = { id: string; key: string; name: string; active: boolean };
 type StoredUser = { role: string };
@@ -42,6 +63,18 @@ export default function NuevaEmpresaPage() {
   const [dniLookup, setDniLookup] = useState<DniLookup>({ state: "idle" });
   const rucTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dniTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Ámbito de servicio + cobertura geográfica
+  const [serviceScope, setServiceScope] = useState<ServiceScope>("urbano");
+  const [districtCodes, setDistrictCodes] = useState<string[]>([]);
+
+  // Autorización inicial (opcional pero recomendada)
+  const [authLevel, setAuthLevel] = useState<AuthorityLevel>("municipal_provincial");
+  const [authScope, setAuthScope] = useState<ServiceScope>("urbano");
+  const [authResolution, setAuthResolution] = useState("");
+  const [authIssuedBy, setAuthIssuedBy] = useState("");
+  const [authIssuedAt, setAuthIssuedAt] = useState("");
+  const [authExpiresAt, setAuthExpiresAt] = useState("");
 
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
@@ -169,7 +202,22 @@ export default function NuevaEmpresaPage() {
     setFieldErrors({});
 
     const formEl = new FormData(e.currentTarget);
-    const payload = {
+
+    // Construir authorizations[]: solo si hay al menos resolución o fechas.
+    const hasAuthData =
+      authResolution.trim() || authIssuedAt || authExpiresAt || authIssuedBy.trim();
+    const authorizations = hasAuthData
+      ? [{
+          level: authLevel,
+          scope: authScope,
+          ...(authResolution.trim() ? { resolutionNumber: authResolution.trim() } : {}),
+          ...(authIssuedBy.trim()  ? { issuedBy: authIssuedBy.trim() } : {}),
+          ...(authIssuedAt  ? { issuedAt:  authIssuedAt  } : {}),
+          ...(authExpiresAt ? { expiresAt: authExpiresAt } : {}),
+        }]
+      : undefined;
+
+    const payload: Record<string, unknown> = {
       razonSocial: razonSocial.trim(),
       ruc: ruc.trim(),
       representanteLegal: {
@@ -178,16 +226,25 @@ export default function NuevaEmpresaPage() {
         phone: ((formEl.get("repPhone") as string) || "").trim() || undefined,
       },
       vehicleTypeKeys: selectedKeys,
+      serviceScope,
+      coverage: { districtCodes },
+      ...(authorizations ? { authorizations } : {}),
     };
 
     const localErrors: Record<string, string> = {};
     if (!payload.razonSocial) localErrors.razonSocial = "La razón social es obligatoria.";
     if (!payload.ruc) localErrors.ruc = "El RUC es obligatorio.";
-    else if (!/^\d{11}$/.test(payload.ruc)) localErrors.ruc = "El RUC debe tener 11 dígitos.";
-    if (!payload.representanteLegal.name) localErrors.repName = "El nombre del representante es obligatorio.";
-    if (!payload.representanteLegal.dni) localErrors.repDni = "El DNI es obligatorio.";
-    else if (!/^\d{8}$/.test(payload.representanteLegal.dni)) localErrors.repDni = "El DNI debe tener 8 dígitos.";
+    else if (!/^\d{11}$/.test(String(payload.ruc))) localErrors.ruc = "El RUC debe tener 11 dígitos.";
+    if (!repName.trim()) localErrors.repName = "El nombre del representante es obligatorio.";
+    if (!repDni.trim()) localErrors.repDni = "El DNI es obligatorio.";
+    else if (!/^\d{8}$/.test(repDni.trim())) localErrors.repDni = "El DNI debe tener 8 dígitos.";
     if (selectedKeys.length === 0) localErrors.vehicleTypeKeys = "Seleccione al menos un tipo de flota.";
+    if (districtCodes.length === 0) localErrors.coverage = "Seleccione al menos un distrito de cobertura.";
+    if (authIssuedAt && authExpiresAt) {
+      if (new Date(authExpiresAt) <= new Date(authIssuedAt)) {
+        localErrors.authExpiresAt = "El vencimiento debe ser posterior a la fecha de emisión.";
+      }
+    }
 
     if (Object.keys(localErrors).length > 0) {
       setFieldErrors(localErrors);
@@ -444,6 +501,173 @@ export default function NuevaEmpresaPage() {
               {fieldErrors.vehicleTypeKeys}
             </p>
           )}
+        </Card>
+
+        {/* Ámbito + cobertura */}
+        <Card>
+          <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 8 }}>
+            Ámbito de servicio
+          </h3>
+          <p style={{ color: "#52525b", fontSize: "0.875rem", marginBottom: 16 }}>
+            Modalidad legal según el alcance de operación y los distritos cubiertos.
+          </p>
+
+          <div style={{ maxWidth: 720, marginBottom: 16 }}>
+            <label htmlFor="serviceScope" style={{ display: "block", marginBottom: 8 }}>
+              Modalidad
+            </label>
+            <select
+              id="serviceScope"
+              className="field"
+              value={serviceScope}
+              onChange={(e) => setServiceScope(e.target.value as ServiceScope)}
+            >
+              {SCOPE_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: "block", marginBottom: 8 }}>
+              Cobertura — distritos atendidos
+            </label>
+            <div style={{
+              display: "grid", gap: 6,
+              gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+              padding: 8, border: "1.5px solid #e4e4e7", borderRadius: 8, background: "#fff",
+            }}>
+              {[...ACTIVE_DISTRICTS, ...INTERPROV_DESTINATIONS].map(d => {
+                const checked = districtCodes.includes(d.code);
+                const isInterprov = "province" in d;
+                return (
+                  <label key={d.code} style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "6px 10px", borderRadius: 6,
+                    border: `1px solid ${checked ? "#86EFAC" : "#e4e4e7"}`,
+                    background: checked ? "#F0FDF4" : "#fff",
+                    cursor: "pointer", fontSize: "0.8125rem",
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => setDistrictCodes(prev =>
+                        checked ? prev.filter(c => c !== d.code) : [...prev, d.code]
+                      )}
+                      style={{ accentColor: "#15803d" }}
+                    />
+                    <span style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, color: "#18181b" }}>{d.name}</div>
+                      <div style={{ fontSize: "0.6875rem", color: "#71717a", fontFamily: "ui-monospace, monospace" }}>
+                        {d.code}{isInterprov ? ` · ${(d as { province: string }).province}` : ""}
+                      </div>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            {fieldErrors.coverage && (
+              <p style={{ marginTop: 8, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
+                {fieldErrors.coverage}
+              </p>
+            )}
+          </div>
+        </Card>
+
+        {/* Autorización inicial — opcional pero recomendada */}
+        <Card>
+          <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 8 }}>
+            Autorización inicial <span style={{ color: "#71717a", fontWeight: 400, fontSize: "0.8125rem" }}>· opcional</span>
+          </h3>
+          <p style={{ color: "#52525b", fontSize: "0.875rem", marginBottom: 16 }}>
+            Resolución de operación. Sin una autorización vigente la empresa no podrá crear rutas ni iniciar viajes.
+          </p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 720 }}>
+            <div>
+              <label htmlFor="authLevel" style={{ display: "block", marginBottom: 8 }}>
+                Autoridad emisora
+              </label>
+              <select
+                id="authLevel"
+                className="field"
+                value={authLevel}
+                onChange={(e) => setAuthLevel(e.target.value as AuthorityLevel)}
+              >
+                {LEVEL_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="authScope" style={{ display: "block", marginBottom: 8 }}>
+                Modalidad autorizada
+              </label>
+              <select
+                id="authScope"
+                className="field"
+                value={authScope}
+                onChange={(e) => setAuthScope(e.target.value as ServiceScope)}
+              >
+                {SCOPE_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="authResolution" style={{ display: "block", marginBottom: 8 }}>
+                N° de resolución
+              </label>
+              <input
+                id="authResolution"
+                className="field"
+                placeholder="Ej. R.A. 045-2026-MPC"
+                value={authResolution}
+                onChange={(e) => setAuthResolution(e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="authIssuedBy" style={{ display: "block", marginBottom: 8 }}>
+                Emitida por
+              </label>
+              <input
+                id="authIssuedBy"
+                className="field"
+                placeholder="Ej. Municipalidad Provincial de Cotabambas"
+                value={authIssuedBy}
+                onChange={(e) => setAuthIssuedBy(e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="authIssuedAt" style={{ display: "block", marginBottom: 8 }}>
+                Fecha de emisión
+              </label>
+              <input
+                id="authIssuedAt"
+                type="date"
+                className="field"
+                value={authIssuedAt}
+                onChange={(e) => setAuthIssuedAt(e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="authExpiresAt" style={{ display: "block", marginBottom: 8 }}>
+                Fecha de vencimiento
+              </label>
+              <input
+                id="authExpiresAt"
+                type="date"
+                className={`field${fieldErrors.authExpiresAt ? " field-error" : ""}`}
+                value={authExpiresAt}
+                onChange={(e) => setAuthExpiresAt(e.target.value)}
+              />
+              {fieldErrors.authExpiresAt && (
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
+                  {fieldErrors.authExpiresAt}
+                </p>
+              )}
+            </div>
+          </div>
         </Card>
 
         <div style={{ display: "flex", gap: 10 }}>

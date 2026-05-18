@@ -115,7 +115,7 @@ export async function POST(
     status: "activa",
     companyId: parsed.data.companyId ?? cap.proposedCompanyId,
     vehicleTypeKey: parsed.data.vehicleTypeKey,
-    serviceScope: parsed.data.serviceScope ?? "urbano_distrital",
+    serviceScope: parsed.data.serviceScope ?? "urbano",
   });
 
   // Marcar la captura como validada y enlazar.

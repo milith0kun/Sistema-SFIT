@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
       active: company.active,
       suspendedAt: company.suspendedAt,
       reputationScore: company.reputationScore,
-      serviceScope: company.serviceScope ?? "urbano_distrital",
+      serviceScope: company.serviceScope ?? "urbano",
       coverage: company.coverage ?? { departmentCodes: [], provinceCodes: [], districtCodes: [] },
       createdAt: company.createdAt,
       updatedAt: company.updatedAt,

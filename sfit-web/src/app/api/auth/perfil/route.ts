@@ -9,6 +9,12 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
+// Imports side-effect: el populate de municipalityId/provinceId falla con
+// "Schema hasn't been registered" si estos modelos no se cargaron en este
+// code path antes de ejecutarse. En el dev server (HMR) cada handler tiene
+// su propio cache de modelos.
+import "@/models/Municipality";
+import "@/models/Province";
 import {
   apiResponse,
   apiError,

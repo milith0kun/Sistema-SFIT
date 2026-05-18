@@ -228,8 +228,12 @@ export default function FlotaDetallePage({ params }: Props) {
     else payload.observations = null;
 
     try {
+      // El endpoint expone PATCH (no PUT) — el método correcto para
+      // actualizaciones parciales. Antes este fetch enviaba PUT y devolvía
+      // 405, por lo que los cambios de observations/checklistComplete no
+      // persistían.
       const res = await fetch(`/api/flota/${id}`, {
-        method: "PUT",
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,

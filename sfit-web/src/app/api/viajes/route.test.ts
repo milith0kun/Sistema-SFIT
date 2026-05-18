@@ -15,6 +15,10 @@ vi.mock("@/models/Trip", () => ({
     countDocuments: vi.fn(),
     create: vi.fn(),
     updateMany: vi.fn(),
+    // Adopción de Trip "auto" creado por ciudadano: por defecto NO hay
+    // adoptable, así que retorna null y el POST cae al `Trip.create`. Cada
+    // test puede sobrescribir el mock para forzar la adopción.
+    findOneAndUpdate: vi.fn().mockResolvedValue(null),
   },
 }));
 vi.mock("@/models/Vehicle", () => ({
@@ -22,6 +26,25 @@ vi.mock("@/models/Vehicle", () => ({
     findById: vi.fn(() => ({
       select: vi.fn(() => ({
         lean: vi.fn().mockResolvedValue({ companyId: "664f0000000000000000004d" }),
+      })),
+    })),
+  },
+}));
+// Company.findById usado por F2.2 para validar autorización vigente.
+// Devolvemos una empresa con autorización lejana (no vencida) para que
+// los tests existentes sigan pasando.
+vi.mock("@/models/Company", () => ({
+  Company: {
+    findById: vi.fn(() => ({
+      select: vi.fn(() => ({
+        lean: vi.fn().mockResolvedValue({
+          razonSocial: "Mock S.A.",
+          authorizations: [{
+            level: "municipal_provincial",
+            scope: "urbano",
+            expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+          }],
+        }),
       })),
     })),
   },

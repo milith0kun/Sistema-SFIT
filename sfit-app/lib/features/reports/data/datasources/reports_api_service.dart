@@ -167,19 +167,25 @@ class ReportsApiService {
   }
 
   /// GET /reportes/feed — feed público de reportes validados con filtros.
-  /// [region] = 'all' | 'province' | 'municipality'
-  /// [order] = 'recent' | 'supported' | 'nearby'
+  /// [order] = 'recent' | 'supported'
+  /// [mine] = true → solo reportes del propio ciudadano (cualquier estado).
+  ///
+  /// El parámetro `region` quedó retirado del UI desde el cleanup municipal:
+  /// el sistema opera sobre una sola municipalidad institucional así que
+  /// los 3 alcances devolvían el mismo resultado. El backend sigue
+  /// aceptándolo como compat pero por defecto fijamos 'municipality'.
   Future<Map<String, dynamic>> getFeed({
-    String region = 'municipality',
     String? category,
     String order = 'recent',
+    bool mine = false,
     int page = 1,
     int limit = 20,
   }) async {
     final resp = await _dio.get('/reportes/feed', queryParameters: {
-      'region': region,
+      'region': 'municipality',
       if (category != null && category.isNotEmpty) 'category': category,
       'order': order,
+      if (mine) 'mine': 'true',
       'page': page,
       'limit': limit,
     });

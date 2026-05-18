@@ -94,16 +94,10 @@ class FeedReport {
       );
 }
 
-enum FeedRegion {
-  municipality('municipality', 'Mi distrito'),
-  province('province', 'Mi provincia'),
-  all('all', 'Todo Perú');
-
-  const FeedRegion(this.apiValue, this.label);
-  final String apiValue;
-  final String label;
-}
-
+/// Ordenamiento del feed ciudadano. Antes existía un `FeedRegion` con
+/// 3 niveles (distrito/provincia/Perú) que se retiró con el cleanup
+/// municipal: el sistema opera sobre una sola muni y los 3 valores
+/// devolvían lo mismo. El UI quedó más limpio sin esa fila.
 enum FeedOrder {
   recent('recent', 'Recientes'),
   supported('supported', 'Más apoyados');

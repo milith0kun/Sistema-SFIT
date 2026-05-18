@@ -54,7 +54,7 @@ class OperatorCompanyBrief {
       id: json['id'] as String,
       razonSocial: json['razonSocial'] as String? ?? '',
       ruc: json['ruc'] as String? ?? '',
-      serviceScope: json['serviceScope'] as String? ?? 'urbano_distrital',
+      serviceScope: json['serviceScope'] as String? ?? 'urbano',
       departmentCodes: (json['departmentCodes'] as List? ?? const []).cast<String>(),
       provinceCodes:   (json['provinceCodes']   as List? ?? const []).cast<String>(),
       districtCodes:   (json['districtCodes']   as List? ?? const []).cast<String>(),

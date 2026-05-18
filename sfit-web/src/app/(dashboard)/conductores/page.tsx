@@ -15,9 +15,15 @@ import { useMobileOverlayBack } from "@/hooks/useMobileOverlayBack";
 
 import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
+import {
+  getLicenseValidity,
+  licenseValidityLabel,
+  type LicenseValidityState,
+} from "@/lib/license-validity";
 type DriverStatus = "apto" | "riesgo" | "no_apto";
 type Driver = {
   id: string; name: string; dni: string; licenseNumber: string; licenseCategory: string;
+  licenseIssuedAt?: string | null; licenseExpiryDate?: string | null;
   companyName?: string; phone?: string; status: DriverStatus;
   continuousHours: number; restHours: number; reputationScore: number; active: boolean;
   verified?: boolean;
@@ -86,6 +92,7 @@ export default function ConductoresPage() {
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [items, setItems] = useState<Driver[]>([]);
   const [filter, setFilter] = useState<"todos" | DriverStatus>("todos");
+  const [validityFilter, setValidityFilter] = useState<"all" | LicenseValidityState>("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -109,6 +116,7 @@ export default function ConductoresPage() {
       const token = localStorage.getItem("sfit_access_token");
       const qs = new URLSearchParams({ limit: "100" });
       if (filter !== "todos") qs.set("status", filter);
+      if (validityFilter !== "all") qs.set("validity", validityFilter);
       const res = await fetch(`/api/conductores?${qs}`, {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
@@ -119,7 +127,7 @@ export default function ConductoresPage() {
       setCounts(data.data.statusCounts ?? {});
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
-  }, [user, filter, router]);
+  }, [user, filter, validityFilter, router]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -202,6 +210,37 @@ export default function ConductoresPage() {
       ),
     },
     {
+      id: "vigencia",
+      header: "Licencia",
+      accessorFn: (d) => d.licenseExpiryDate ?? "",
+      cell: ({ row: r }) => {
+        const v = getLicenseValidity(r.original.licenseExpiryDate);
+        const palette =
+          v.state === "valid"          ? { color: "#15803d", bd: "#86EFAC", bg: "#F0FDF4" }
+          : v.state === "expiring_soon" ? { color: "#B45309", bd: "#FDE68A", bg: "#FFFBEB" }
+          : v.state === "expired"       ? { color: "#DC2626", bd: "#FCA5A5", bg: "#FFF5F5" }
+          : { color: INK5, bd: INK2, bg: "#fff" };
+        const detail =
+          v.state === "missing" ? "Sin fecha"
+          : v.state === "expired" ? `Vencida hace ${Math.abs(v.daysToExpiry ?? 0)} d`
+          : v.state === "expiring_soon" ? `Vence en ${v.daysToExpiry} d`
+          : `Vigente · ${v.expiresAt!.toLocaleDateString("es-PE")}`;
+        return (
+          <div style={{ cursor: "pointer" }} onClick={() => setSel(r.original)}>
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              padding: "2px 8px", borderRadius: 5,
+              background: palette.bg, color: palette.color, border: `1px solid ${palette.bd}`,
+              fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase",
+            }}>
+              {licenseValidityLabel(v.state)}
+            </span>
+            <div style={{ fontSize: "0.6875rem", color: INK5, marginTop: 3 }}>{detail}</div>
+          </div>
+        );
+      },
+    },
+    {
       id: "estado",
       header: "Estado",
       accessorFn: (d) => STATUS_META(d.status ?? "apto").label,
@@ -260,21 +299,37 @@ export default function ConductoresPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [sel]);
 
+  const selectStyle: React.CSSProperties = {
+    height: 32, padding: "0 10px", borderRadius: 7,
+    border: `1px solid ${INK2}`, fontSize: "0.8125rem",
+    fontFamily: "inherit", background: "#fff", color: INK6, cursor: "pointer",
+  };
   const toolbarEnd = (
-    <select
-      value={filter}
-      onChange={(e) => setFilter(e.target.value as "todos" | DriverStatus)}
-      style={{
-        height: 32, padding: "0 10px", borderRadius: 7,
-        border: `1px solid ${INK2}`, fontSize: "0.8125rem",
-        fontFamily: "inherit", background: "#fff", color: INK6, cursor: "pointer",
-      }}
-    >
-      <option value="todos">Todos ({total})</option>
-      <option value="apto">Apto ({counts.apto ?? 0})</option>
-      <option value="riesgo">Riesgo ({counts.riesgo ?? 0})</option>
-      <option value="no_apto">No apto ({counts.no_apto ?? 0})</option>
-    </select>
+    <div style={{ display: "flex", gap: 8 }}>
+      <select
+        value={validityFilter}
+        onChange={(e) => setValidityFilter(e.target.value as "all" | LicenseValidityState)}
+        aria-label="Filtrar por vigencia de licencia"
+        style={selectStyle}
+      >
+        <option value="all">Licencia: todas</option>
+        <option value="valid">Vigentes</option>
+        <option value="expiring_soon">Por vencer (≤30 d)</option>
+        <option value="expired">Vencidas</option>
+        <option value="missing">Sin fecha</option>
+      </select>
+      <select
+        value={filter}
+        onChange={(e) => setFilter(e.target.value as "todos" | DriverStatus)}
+        aria-label="Filtrar por estado"
+        style={selectStyle}
+      >
+        <option value="todos">Todos ({total})</option>
+        <option value="apto">Apto ({counts.apto ?? 0})</option>
+        <option value="riesgo">Riesgo ({counts.riesgo ?? 0})</option>
+        <option value="no_apto">No apto ({counts.no_apto ?? 0})</option>
+      </select>
+    </div>
   );
 
   if (!user) return null;

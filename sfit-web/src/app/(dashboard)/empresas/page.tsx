@@ -14,8 +14,8 @@ const INK6 = "#52525b"; const INK9 = "#18181b";
 
 /**
  * Convierte un key técnico (snake_case) a un label humano legible.
- * "limpieza_residuos" → "Limpieza residuos"
- * "municipal_general" → "Municipal general"
+ * "transporte_urbano"          → "Transporte urbano"
+ * "transporte_interprovincial" → "Transporte interprovincial"
  */
 function humanizeKey(key: string): string {
   if (!key) return "";
@@ -23,11 +23,7 @@ function humanizeKey(key: string): string {
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
-type ServiceScope =
-  | "urbano_distrital"
-  | "urbano_provincial"
-  | "interprovincial_regional"
-  | "interregional_nacional";
+type ServiceScope = "urbano" | "interprovincial";
 
 type Authorization = { scope: ServiceScope; [k: string]: unknown };
 
@@ -64,8 +60,8 @@ function modalityOf(c: Company): Modality {
   for (const a of c.authorizations ?? []) {
     if (a.scope) scopes.add(a.scope);
   }
-  const hasUrban = [...scopes].some((s) => s === "urbano_distrital" || s === "urbano_provincial");
-  const hasInter = [...scopes].some((s) => s === "interprovincial_regional" || s === "interregional_nacional");
+  const hasUrban = scopes.has("urbano");
+  const hasInter = scopes.has("interprovincial");
   if (hasUrban && hasInter) return "mixta";
   if (hasInter) return "interprovincial";
   return "urbano";

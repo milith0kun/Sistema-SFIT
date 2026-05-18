@@ -20,18 +20,23 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await consultarDni(parsed.data.dni);
-    return apiResponse(data);
+    return apiResponse({ ...data, source: "reniec" as const });
   } catch (err) {
-    // DEV FALLBACK: Si estamos en localhost y falla por origen/token, damos datos mockeados
-    // para no bloquear el desarrollo.
-    if (process.env.NODE_ENV === "development" && err instanceof ApiPeruError && (err.kind === "origin" || err.kind === "auth" || err.kind === "network")) {
-      console.warn(`[DEV] apiperu.dev falló (${err.kind}). Usando MOCK para DNI.`);
+    // Mock opt-in: solo si ENABLE_DNI_MOCK=true en .env.local. La respuesta
+    // marca `source: "mock"` para que el frontend muestre un badge ámbar y
+    // NO el check verde de RENIEC. Anteriormente este fallback se activaba
+    // automáticamente en NODE_ENV=development cuando apiperu.dev fallaba, lo
+    // que pintaba datos inventados como si estuvieran verificados.
+    const mockEnabled = process.env.ENABLE_DNI_MOCK === "true";
+    if (mockEnabled && err instanceof ApiPeruError && (err.kind === "origin" || err.kind === "auth" || err.kind === "network")) {
+      console.warn(`[mock] apiperu.dev falló (${err.kind}). Devolviendo mock de DNI (ENABLE_DNI_MOCK=true).`);
       return apiResponse({
         nombres: "USUARIO MOCK",
         apellido_paterno: "DE",
         apellido_materno: "PRUEBA",
         nombre_completo: "USUARIO MOCK DE PRUEBA",
-        codigo_verificacion: "1"
+        codigo_verificacion: "1",
+        source: "mock" as const,
       });
     }
 

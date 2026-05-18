@@ -20,7 +20,16 @@ import type { Role } from "@/lib/constants";
 type StoredUser = { role: string };
 
 type ResumenResponse = {
-  counts: { users: number; companies: number; drivers: number; vehicles: number; total: number };
+  counts: {
+    users: number;
+    companies: number;
+    drivers: number;
+    vehicles: number;
+    driverLicenseExpiringSoon?: number;
+    driverLicenseExpired?: number;
+    licenseWarnDays?: number;
+    total: number;
+  };
   users: Array<{
     id: string;
     name: string;
@@ -159,11 +168,16 @@ export default function AprobacionesPage() {
 
   const kpis: KPIItem[] = useMemo(() => {
     const c = data?.counts;
+    const expiringSoon = c?.driverLicenseExpiringSoon ?? 0;
+    const expired = c?.driverLicenseExpired ?? 0;
+    const warnDays = c?.licenseWarnDays ?? 30;
     return [
       { label: "USUARIOS",    value: c?.users    ?? "…", subtitle: "pendientes",      icon: Users,     accent: c && c.users > 0 ? WARN : undefined },
       { label: "EMPRESAS",    value: c?.companies ?? "…", subtitle: "por aprobar",    icon: Building2, accent: c && c.companies > 0 ? WARN : undefined },
       { label: "CONDUCTORES", value: c?.drivers  ?? "…", subtitle: "sin verificar",   icon: IdCard,    accent: c && c.drivers > 0 ? WARN : undefined },
       { label: "VEHÍCULOS",   value: c?.vehicles ?? "…", subtitle: "sin verificar",   icon: Truck,     accent: c && c.vehicles > 0 ? WARN : undefined },
+      { label: "LIC. POR VENCER", value: expiringSoon, subtitle: `≤${warnDays} días`, icon: IdCard, accent: expiringSoon > 0 ? WARN : undefined },
+      { label: "LIC. VENCIDAS",   value: expired,      subtitle: "requieren renovar", icon: IdCard, accent: expired > 0 ? RED : undefined },
     ];
   }, [data]);
 
@@ -195,7 +209,7 @@ export default function AprobacionesPage() {
         action={action}
       />
 
-      <KPIStrip items={kpis} cols={4} />
+      <KPIStrip items={kpis} cols={6} />
 
       {error && (
         <div role="alert" style={{ padding: "11px 16px", background: RED_BG, border: `1px solid ${RED_BD}`, borderRadius: 10, color: RED, fontSize: "0.8125rem", display: "flex", alignItems: "center", gap: 8 }}>

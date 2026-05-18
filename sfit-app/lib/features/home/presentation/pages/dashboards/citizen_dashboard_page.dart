@@ -152,6 +152,16 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
                         subtitle: 'Info vehicular',
                         onTap: () => context.push('/qr'),
                       ),
+                      // Interprov: registro auto-servicio del ciudadano.
+                      // Por privacidad no aparece en el mapa público — el
+                      // ciudadano lo "sigue" desde acá con velocidad y datos
+                      // del bus, sin posición geográfica.
+                      SfitFeatureCard(
+                        icon: Icons.airport_shuttle_outlined,
+                        title: 'Mi viaje interprov',
+                        subtitle: 'Registra por QR o placa',
+                        onTap: () => context.push('/ciudadano/mi-viaje'),
+                      ),
                       SfitFeatureCard(
                         icon: Icons.list_alt_outlined,
                         title: 'Mis reportes',

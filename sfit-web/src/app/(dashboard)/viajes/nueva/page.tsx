@@ -11,7 +11,14 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PassengerTable, type PassengerRow } from "@/components/ui/PassengerTable";
 import { useToast } from "@/hooks/useToast";
 
-type VehicleItem = { id: string; plate: string; brand: string; model: string };
+type VehicleItem = {
+  id: string;
+  plate: string;
+  brand: string;
+  model: string;
+  currentDriverId?: string | null;
+  currentDriverName?: string | null;
+};
 type DriverItem  = { id: string; name: string };
 type RouteItem   = {
   id: string;
@@ -23,10 +30,7 @@ type RouteItem   = {
 const ALLOWED_CREATE = ["super_admin", "admin_municipal"];
 
 /* Modalidades que requieren manifiesto nominal de pasajeros (RNF de Track A). */
-const SCOPES_REQUIRING_LIST = new Set([
-  "interprovincial_regional",
-  "interregional_nacional",
-]);
+const SCOPES_REQUIRING_LIST = new Set(["interprovincial"]);
 
 /* Paleta */
 const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
@@ -107,6 +111,19 @@ function NuevoViajeWizard() {
     } catch { router.replace("/login"); return; }
     void loadAll();
   }, [router, loadAll]);
+
+  // El operador del día designa el conductor de cada vehículo vía FleetEntry
+  // (queda persistido en `Vehicle.currentDriverId`). Cuando el admin elige un
+  // vehículo en este wizard, auto-rellenamos el conductor con esa designación
+  // para no obligarlo a re-seleccionar lo que el operador ya decidió.
+  useEffect(() => {
+    if (!vehicleId) return;
+    const v = vehicles.find(x => x.id === vehicleId);
+    if (v?.currentDriverId) setDriverId(v.currentDriverId);
+  }, [vehicleId, vehicles]);
+
+  const selectedVehicle = vehicles.find(v => v.id === vehicleId);
+  const hasAssignedDriver = !!selectedVehicle?.currentDriverId;
 
   // Cuando se elige una ruta, resolvemos su `serviceScope` con un GET a /api/rutas/[id]
   // (el listado /api/rutas no devuelve el campo).
@@ -274,6 +291,7 @@ function NuevoViajeWizard() {
           requiresPassengerList={requiresPassengerList}
           resolvingScope={resolvingScope}
           routeScope={routeScope}
+          assignedDriverName={hasAssignedDriver ? selectedVehicle?.currentDriverName ?? null : null}
         />
       ) : (
         <Step2 passengers={passengers} setPassengers={setPassengers} />
@@ -391,6 +409,7 @@ function Step1({
   vehicleId, setVehicleId, driverId, setDriverId, routeId, setRouteId,
   startTime, setStartTime, passengersCount, setPassengersCount,
   fieldErrors, requiresPassengerList, resolvingScope, routeScope,
+  assignedDriverName,
 }: {
   vehicles: VehicleItem[]; drivers: DriverItem[]; routes: RouteItem[];
   vehicleId: string; setVehicleId: (s: string) => void;
@@ -402,6 +421,7 @@ function Step1({
   requiresPassengerList: boolean;
   resolvingScope: boolean;
   routeScope: string | null;
+  assignedDriverName: string | null;
 }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }} className="cols-2-responsive">
@@ -425,12 +445,30 @@ function Step1({
           <div>
             <label htmlFor="driverId" style={LABEL}>
               Conductor <span style={{ color: RED, marginLeft: 3 }}>*</span>
+              {assignedDriverName && (
+                <span style={{
+                  color: APTO, marginLeft: 6, fontWeight: 600, fontSize: "0.625rem",
+                  letterSpacing: "0.04em",
+                }}>
+                  · designado por operador
+                </span>
+              )}
             </label>
-            <select id="driverId" value={driverId} onChange={e => setDriverId(e.target.value)}
-              style={{ ...FIELD, borderColor: fieldErrors.driverId ? RED : INK2, appearance: "none", paddingRight: 30 }}>
-              <option value="">— Seleccionar conductor —</option>
-              {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
+            {assignedDriverName ? (
+              <div style={{
+                ...FIELD, display: "flex", alignItems: "center", gap: 6,
+                background: APTO_BG, borderColor: APTO_BD, color: INK9, fontWeight: 600,
+              }}>
+                <CheckCircle size={13} color={APTO} />
+                <span>{assignedDriverName}</span>
+              </div>
+            ) : (
+              <select id="driverId" value={driverId} onChange={e => setDriverId(e.target.value)}
+                style={{ ...FIELD, borderColor: fieldErrors.driverId ? RED : INK2, appearance: "none", paddingRight: 30 }}>
+                <option value="">— Seleccionar conductor —</option>
+                {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            )}
             {fieldErrors.driverId && <p style={{ marginTop: 5, fontSize: "0.75rem", color: RED, fontWeight: 500 }}>{fieldErrors.driverId}</p>}
           </div>
         </div>

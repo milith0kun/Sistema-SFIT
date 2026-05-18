@@ -48,7 +48,9 @@ class _NuevaRutaPageState extends ConsumerState<NuevaRutaPage> {
   }
 
   bool _isUrbano(String scope) =>
-      scope == 'urbano_distrital' || scope == 'urbano_provincial';
+      scope == 'urbano' ||
+      scope == 'urbano_distrital' ||
+      scope == 'urbano_provincial';
 
   Future<void> _save(String scope) async {
     if (!_formKey.currentState!.validate()) return;

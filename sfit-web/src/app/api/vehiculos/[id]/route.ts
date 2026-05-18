@@ -6,8 +6,9 @@ import { Vehicle } from "@/models/Vehicle";
 import { apiResponse, apiError, apiForbidden, apiNotFound, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
-import { canAccessMunicipality } from "@/lib/auth/rbac";
+import { canAccessMunicipality, scopedCompanyFilter } from "@/lib/auth/rbac";
 import { rolesFor } from "@/lib/auth/roleMatrix";
+import { Company } from "@/models/Company";
 
 const UpdateSchema = z.object({
   companyId: z.string().refine(isValidObjectId).optional().nullable(),
@@ -58,6 +59,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     reputationScore: v.reputationScore,
     soatExpiry: v.soatExpiry,
     qrHmac: v.qrHmac,
+    verified: v.verified ?? false,
+    verifiedAt: v.verifiedAt ?? null,
+    verifiedBy: v.verifiedBy ? String(v.verifiedBy) : null,
     active: v.active,
     createdAt: v.createdAt,
     updatedAt: v.updatedAt,
@@ -86,6 +90,22 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const vehicle = await Vehicle.findById(id);
   if (!vehicle) return apiNotFound("Vehículo no encontrado");
   if (!(await canAccessMunicipality(auth.session, String(vehicle.municipalityId)))) return apiForbidden();
+
+  // Si se cambia companyId, validar que la empresa esté dentro del scope del
+  // usuario. Sin esto un admin podría reasignar el vehículo a una empresa de
+  // otra muni metiéndole el _id por API.
+  if (parsed.data.companyId !== undefined && parsed.data.companyId !== null && parsed.data.companyId !== "") {
+    const filter = await scopedCompanyFilter(auth.session);
+    const match = await Company.findOne({ _id: parsed.data.companyId, ...filter })
+      .select("_id active")
+      .lean<{ _id: unknown; active?: boolean } | null>();
+    if (!match) {
+      return apiForbidden("La empresa indicada no es accesible en tu scope.");
+    }
+    if (!match.active) {
+      return apiError("La empresa indicada está inactiva o pendiente de aprobación.", 422);
+    }
+  }
 
   const updateData = { ...parsed.data };
   if (updateData.soatExpiry) (updateData as Record<string, unknown>).soatExpiry = new Date(updateData.soatExpiry);

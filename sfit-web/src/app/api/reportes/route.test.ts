@@ -77,10 +77,10 @@ function req(method: "GET" | "POST", tok: string, body?: unknown, search = "") {
 const mockReport = {
   _id: { toString: () => "rep1" },
   municipalityId: { toString: () => MUNI_ID },
-  vehicleId: { plate: "ABC-123", vehicleTypeKey: "transporte_publico" },
+  vehicleId: { plate: "ABC-123", vehicleTypeKey: "transporte_urbano" },
   citizenId: { name: "María Torres" },
   category: "Exceso de velocidad",
-  vehicleTypeKey: "transporte_publico",
+  vehicleTypeKey: "transporte_urbano",
   citizenReputationLevel: "regular",
   status: "pendiente",
   description: "El vehículo iba a exceso de velocidad por la av. principal.",

@@ -19,26 +19,18 @@ type Company = { id: string; razonSocial: string };
 type VehicleType = { id: string; key: string; name: string; active: boolean };
 type StoredUser = { role: string };
 
-type ServiceScope =
-  | "urbano_distrital"
-  | "urbano_provincial"
-  | "interprovincial_regional"
-  | "interregional_nacional";
+type ServiceScope = "urbano" | "interprovincial";
 
 const SCOPE_LABEL: Record<ServiceScope, string> = {
-  urbano_distrital: "Urbano distrital",
-  urbano_provincial: "Urbano provincial",
-  interprovincial_regional: "Interprovincial / regional",
-  interregional_nacional: "Interregional / nacional",
+  urbano: "Urbano",
+  interprovincial: "Interprovincial",
 };
 const SCOPE_DESC: Record<ServiceScope, string> = {
-  urbano_distrital: "Dentro de un distrito · autoridad municipal distrital",
-  urbano_provincial: "Entre distritos de la misma provincia · municipal provincial",
-  interprovincial_regional: "Entre provincias del mismo o distinto departamento · regional + MTC",
-  interregional_nacional: "Entre departamentos · MTC",
+  urbano: "Rutas dentro de los 6 distritos de Cotabambas · con paraderos",
+  interprovincial: "Rutas a otras provincias / regiones (Cusco, Abancay, Arequipa)",
 };
-const URBAN_SCOPES = new Set<ServiceScope>(["urbano_distrital", "urbano_provincial"]);
-const INTERPROV_SCOPES = new Set<ServiceScope>(["interprovincial_regional", "interregional_nacional"]);
+const URBAN_SCOPES = new Set<ServiceScope>(["urbano"]);
+const INTERPROV_SCOPES = new Set<ServiceScope>(["interprovincial"]);
 
 /**
  * Catálogo de distritos para el form de rutas.
@@ -90,7 +82,7 @@ export default function NuevaRutaPage() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const [serviceScope, setServiceScope] = useState<ServiceScope>("urbano_provincial");
+  const [serviceScope, setServiceScope] = useState<ServiceScope>("urbano");
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
   const [originDistrictCode, setOriginDistrictCode] = useState("");
   const [destinationDistrictCode, setDestinationDistrictCode] = useState("");

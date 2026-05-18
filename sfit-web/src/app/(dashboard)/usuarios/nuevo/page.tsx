@@ -5,15 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, UserPlus, Eye, EyeOff, RefreshCw, Loader2, CheckCircle, AlertTriangle, Search } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
-import {
-  LocationPicker,
-  type LocationValue,
-} from "@/components/location-picker";
+import { LocationPicker } from "@/components/location-picker";
 
 type DniLookup =
   | { state: "idle" }
   | { state: "loading" }
-  | { state: "ok"; nombreCompleto: string }
+  | { state: "ok"; nombreCompleto: string; source: "reniec" | "mock" }
   | { state: "not_found" }
   | { state: "error"; message: string };
 
@@ -45,20 +42,20 @@ const BTN_PRIMARY: React.CSSProperties = {
   fontFamily: "inherit", transition: "opacity 0.15s",
 };
 
-// showProv/showMuni → ¿se ofrecen los selectores?
-// requireProv/requireMuni → ¿son obligatorios al guardar?
-// Para fiscal/operador/conductor el territorio es opcional: el admin puede asignarlo después.
+// El sistema opera sobre una única municipalidad (Tambobamba — sede provincial
+// de Cotabambas). Ya no hay que elegir muni al crear: el backend la inyecta.
+// `showLocation` controla si renderizamos el banner informativo de ámbito
+// para roles operativos.
 const ROLE_META: Record<string, {
   label: string; desc: string;
-  showProv: boolean; showMuni: boolean;
-  requireProv: boolean; requireMuni: boolean;
+  showLocation: boolean;
 }> = {
-  super_admin:      { label: "Super Administrador",      desc: "Acceso total al sistema — puede crear y gestionar todo", showProv: false, showMuni: false, requireProv: false, requireMuni: false },
-  admin_municipal:  { label: "Administrador Municipal",  desc: "Administra una municipalidad específica",                showProv: true,  showMuni: true,  requireProv: true,  requireMuni: true  },
-  fiscal:           { label: "Fiscal / Inspector",       desc: "Realiza inspecciones en campo",                          showProv: true,  showMuni: true,  requireProv: false, requireMuni: false },
-  operador:         { label: "Operador",                 desc: "Administra la flota de una empresa de transporte",       showProv: true,  showMuni: true,  requireProv: false, requireMuni: false },
-  conductor:        { label: "Conductor",                desc: "Conductor registrado en una empresa",                    showProv: true,  showMuni: true,  requireProv: false, requireMuni: false },
-  ciudadano:        { label: "Ciudadano",                desc: "Ciudadano reportador — acceso global, sin municipio",     showProv: false, showMuni: false, requireProv: false, requireMuni: false },
+  super_admin:      { label: "Super Administrador",      desc: "Acceso total al sistema — puede crear y gestionar todo", showLocation: false },
+  admin_municipal:  { label: "Administrador Municipal",  desc: "Administra la municipalidad institucional",              showLocation: true  },
+  fiscal:           { label: "Fiscal / Inspector",       desc: "Realiza inspecciones en campo",                          showLocation: true  },
+  operador:         { label: "Operador",                 desc: "Administra la flota de una empresa de transporte",       showLocation: true  },
+  conductor:        { label: "Conductor",                desc: "Conductor registrado en una empresa",                    showLocation: true  },
+  ciudadano:        { label: "Ciudadano",                desc: "Ciudadano reportador — acceso global",                   showLocation: false },
 };
 
 function generatePassword(): string {
@@ -89,7 +86,6 @@ export default function NuevoUsuarioPage() {
   const [password, setPassword] = useState(() => generatePassword());
   const [showPass, setShowPass] = useState(false);
   const [selRole,  setSelRole]  = useState<string>("conductor");
-  const [location, setLocation] = useState<LocationValue>({});
   const [selStatus, setSelStatus] = useState<"activo" | "pendiente">("activo");
   // Asignación de empresa — sólo visible cuando role === "operador"
   const [companyId, setCompanyId] = useState<string>("");
@@ -138,7 +134,8 @@ export default function NuevoUsuarioPage() {
           setDniLookup({ state: "not_found" });
           return;
         }
-        setDniLookup({ state: "ok", nombreCompleto: data.data.nombre_completo });
+        const source: "reniec" | "mock" = data.data?.source === "mock" ? "mock" : "reniec";
+        setDniLookup({ state: "ok", nombreCompleto: data.data.nombre_completo, source });
       } catch {
         setDniLookup({ state: "error", message: "No se pudo verificar el DNI." });
       }
@@ -149,30 +146,29 @@ export default function NuevoUsuarioPage() {
 
   const meta = ROLE_META[selRole] ?? ROLE_META.admin_municipal;
 
-  // Carga las empresas del municipio elegido cuando se está creando un
-  // operador. Si no hay muni o el rol no es operador, limpiamos.
+  // Carga las empresas activas cuando se está creando un operador. Todas
+  // las empresas pertenecen a la municipalidad institucional única, así que
+  // no se filtra por muni desde el cliente — el backend valida al crear.
   useEffect(() => {
-    if (selRole !== "operador" || !location.municipalityId) {
+    if (selRole !== "operador") {
       setCompanies([]);
       setCompanyId("");
       return;
     }
     setLoadingCompanies(true);
-    fetch(
-      `/api/empresas?municipalityId=${encodeURIComponent(location.municipalityId)}&limit=100`,
-      { headers: { Authorization: `Bearer ${getToken()}` } },
-    )
+    fetch(`/api/empresas?limit=100`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
       .then((r) => r.json())
       .then((body) => {
         const items: { id: string; razonSocial: string }[] = body?.data?.items ?? [];
         setCompanies(items);
-        // Si la empresa seleccionada ya no está en la nueva lista, la limpiamos.
         if (companyId && !items.some((c) => c.id === companyId)) setCompanyId("");
       })
       .catch(() => setCompanies([]))
       .finally(() => setLoadingCompanies(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selRole, location.municipalityId]);
+  }, [selRole]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -182,8 +178,7 @@ export default function NuevoUsuarioPage() {
     if (!name.trim())    errs.name     = "El nombre es requerido";
     if (!email.trim())   errs.email    = "El correo es requerido";
     if (password.length < 8) errs.password = "Mínimo 8 caracteres";
-    if (meta.requireProv && !location.provinceId)     errs.provinceId     = "Seleccione la provincia";
-    if (meta.requireMuni && !location.municipalityId) errs.municipalityId = "Seleccione la municipalidad";
+    if (selRole === "operador" && !companyId) errs.companyId = "Selecciona la empresa";
     if (completeNow) {
       if (!/^\d{6,12}$/.test(dni.trim()))   errs.dni   = "DNI debe tener entre 6 y 12 dígitos";
       if (phone.trim().length < 7)          errs.phone = "Teléfono requerido";
@@ -202,9 +197,6 @@ export default function NuevoUsuarioPage() {
           password,
           role:           selRole,
           status:         selStatus,
-          regionId:       meta.showProv && location.regionId       ? location.regionId       : undefined,
-          provinceId:     meta.showProv && location.provinceId     ? location.provinceId     : undefined,
-          municipalityId: meta.showMuni && location.municipalityId ? location.municipalityId : undefined,
           // companyId solo se envía si el rol es operador y se eligió una empresa.
           ...(selRole === "operador" && companyId ? { companyId } : {}),
           // Flujo híbrido: password siempre temporal (el usuario la cambia al primer login).
@@ -266,10 +258,6 @@ export default function NuevoUsuarioPage() {
     display: "flex", alignItems: "center", justifyContent: "space-between",
   };
   const cardBody: React.CSSProperties = { padding: "22px 24px" };
-  const optionalTag: React.CSSProperties = {
-    fontSize: "0.6875rem", fontWeight: 700, color: INK5,
-    letterSpacing: "0.08em", textTransform: "uppercase",
-  };
 
   return (
     <div className="flex flex-col gap-4 animate-fade-in">
@@ -306,7 +294,7 @@ export default function NuevoUsuarioPage() {
                     const selected = selRole === role;
                     return (
                       <button key={role} type="button"
-                        onClick={() => { setSelRole(role); setLocation({}); }}
+                        onClick={() => { setSelRole(role); }}
                         style={{
                           padding: "12px 16px", borderRadius: 10, cursor: "pointer",
                           textAlign: "left", fontFamily: "inherit",
@@ -323,31 +311,23 @@ export default function NuevoUsuarioPage() {
               </div>
             </div>
 
-            {/* 2 · Asignación territorial — sólo si el rol la usa */}
-            {meta.showProv && (
+            {/* 2 · Ámbito institucional — banner informativo para roles ligados a la muni */}
+            {meta.showLocation && (
               <div style={card}>
                 <div style={cardHead}>
-                  <span>2 · Asignación territorial</span>
-                  {!meta.requireProv && <span style={optionalTag}>Opcional</span>}
+                  <span>2 · Ámbito institucional</span>
                 </div>
                 <div style={cardBody}>
-                  {!meta.requireProv && (
-                    <p style={{ fontSize: "0.8125rem", color: INK6, marginBottom: 14, lineHeight: 1.5 }}>
-                      Podés dejar esto en blanco y asignarlo más tarde desde la ficha del usuario.
-                    </p>
-                  )}
+                  <p style={{ fontSize: "0.8125rem", color: INK6, marginBottom: 14, lineHeight: 1.5 }}>
+                    El usuario quedará registrado en la municipalidad institucional del sistema.
+                  </p>
                   <LocationPicker
-                    value={location}
-                    onChange={setLocation}
-                    levels={meta.showMuni ? ["region", "province", "municipality"] : ["region", "province"]}
-                    lockedScope="active-province"
+                    value={{}}
+                    onChange={() => { /* fijado por el sistema */ }}
+                    lockedScope="active-municipality"
                   />
-                  <div style={{ marginTop: 8 }}>
-                    <FieldErr k="provinceId" />
-                    <FieldErr k="municipalityId" />
-                  </div>
 
-                  {/* Empresa — sólo cuando el rol es operador y hay municipio elegido */}
+                  {/* Empresa — sólo cuando el rol es operador */}
                   {selRole === "operador" && (
                     <div style={{ marginTop: 18, paddingTop: 16, borderTop: `1px solid ${INK1}` }}>
                       <label style={LABEL}>
@@ -356,11 +336,7 @@ export default function NuevoUsuarioPage() {
                           (el operador podrá administrar solo esta empresa)
                         </span>
                       </label>
-                      {!location.municipalityId ? (
-                        <p style={{ fontSize: "0.8125rem", color: INK5, marginTop: 4 }}>
-                          Elegí primero la municipalidad para listar empresas.
-                        </p>
-                      ) : loadingCompanies ? (
+                      {loadingCompanies ? (
                         <div style={{ ...FIELD, display: "flex", alignItems: "center", color: INK5 }}>
                           <Loader2 size={14} style={{ animation: "spin 0.7s linear infinite", marginRight: 8 }} />
                           Cargando empresas…
@@ -374,7 +350,7 @@ export default function NuevoUsuarioPage() {
                         }}>
                           <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
                             <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 2 }} />
-                            <span>No hay empresas registradas en este municipio. Crea una empresa primero.</span>
+                            <span>No hay empresas registradas. Crea una empresa primero.</span>
                           </div>
                           <Link href="/empresas/nueva"
                             style={{ alignSelf: "flex-start", color: "#92400E", fontWeight: 700, textDecoration: "underline", fontSize: "0.75rem" }}>
@@ -385,7 +361,7 @@ export default function NuevoUsuarioPage() {
                         <select
                           value={companyId}
                           onChange={(e) => setCompanyId(e.target.value)}
-                          style={{ ...FIELD, height: 42 }}
+                          style={{ ...FIELD, height: 42, borderColor: fieldErrors.companyId ? RED : INK2 }}
                         >
                           <option value="">Sin asignar</option>
                           {companies.map((c) => (
@@ -393,6 +369,7 @@ export default function NuevoUsuarioPage() {
                           ))}
                         </select>
                       )}
+                      <FieldErr k="companyId" />
                     </div>
                   )}
                 </div>
@@ -402,7 +379,7 @@ export default function NuevoUsuarioPage() {
             {/* 3 · Datos del usuario */}
             <div style={card}>
               <div style={cardHead}>
-                <span>{meta.showProv ? "3" : "2"} · Datos del usuario</span>
+                <span>{meta.showLocation ? "3" : "2"} · Datos del usuario</span>
               </div>
               <div style={cardBody}>
                 <div className="cols-2-responsive">
@@ -475,14 +452,17 @@ export default function NuevoUsuarioPage() {
                                        fontFamily: "ui-monospace,monospace",
                                        paddingRight: 40,
                                        borderColor: fieldErrors.dni ? RED
-                                                  : dniLookup.state === "ok" ? GRN : INK2 }}
+                                                  : dniLookup.state === "ok"
+                                                    ? (dniLookup.source === "mock" ? "#F59E0B" : GRN)
+                                                    : INK2 }}
                             />
                             <div style={{
                               position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
                               pointerEvents: "none",
                             }}>
                               {dniLookup.state === "loading" && <Loader2 size={16} color={INK5} style={{ animation: "spin 0.7s linear infinite" }} />}
-                              {dniLookup.state === "ok"      && <CheckCircle size={16} color={GRN} />}
+                              {dniLookup.state === "ok" && dniLookup.source === "reniec" && <CheckCircle size={16} color={GRN} />}
+                              {dniLookup.state === "ok" && dniLookup.source === "mock"   && <AlertTriangle size={16} color="#F59E0B" />}
                               {dniLookup.state === "not_found" && <Search size={16} color={INK5} />}
                               {dniLookup.state === "error"   && <AlertTriangle size={16} color={RED} />}
                             </div>
@@ -501,7 +481,7 @@ export default function NuevoUsuarioPage() {
                         </div>
                       </div>
 
-                      {dniLookup.state === "ok" && (
+                      {dniLookup.state === "ok" && dniLookup.source === "reniec" && (
                         <div style={{
                           marginTop: 10, padding: "10px 14px",
                           background: GRN_BG, border: `1.5px solid ${GRN_BD}`, borderRadius: 9,
@@ -534,6 +514,23 @@ export default function NuevoUsuarioPage() {
                           )}
                         </div>
                       )}
+                      {dniLookup.state === "ok" && dniLookup.source === "mock" && (
+                        <div style={{
+                          marginTop: 10, padding: "10px 14px",
+                          background: "#FFFBEB", border: "1.5px solid #FDE68A", borderRadius: 9,
+                          display: "flex", alignItems: "flex-start", gap: 10,
+                        }}>
+                          <AlertTriangle size={14} color="#92400E" style={{ flexShrink: 0, marginTop: 2 }} />
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: "0.6875rem", fontWeight: 700, color: "#92400E", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                              Datos de prueba — RENIEC no disponible
+                            </div>
+                            <div style={{ fontSize: "0.75rem", color: "#92400E", marginTop: 4, lineHeight: 1.5 }}>
+                              El servicio RENIEC no respondió. Ingresa el nombre real manualmente antes de guardar.
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       {dniLookup.state === "not_found" && (
                         <div style={{
                           marginTop: 10, padding: "10px 14px",
@@ -554,7 +551,7 @@ export default function NuevoUsuarioPage() {
             {/* 4 · Acceso a la cuenta */}
             <div style={card}>
               <div style={cardHead}>
-                <span>{meta.showProv ? "4" : "3"} · Acceso a la cuenta</span>
+                <span>{meta.showLocation ? "4" : "3"} · Acceso a la cuenta</span>
               </div>
               <div style={cardBody}>
                 <div>

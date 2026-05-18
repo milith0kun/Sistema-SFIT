@@ -22,6 +22,8 @@ import {
 import {
   ACTIVE_DEPARTMENT_CODE,
   ACTIVE_DEPARTMENT_NAME,
+  ACTIVE_MUNICIPALITY_CODE,
+  ACTIVE_MUNICIPALITY_NAME,
   ACTIVE_PROVINCE_CODE,
   ACTIVE_PROVINCE_NAME,
 } from "@/lib/scope";
@@ -55,13 +57,16 @@ export type LocationPickerProps = {
   /** Deshabilita los 3 dropdowns. */
   disabled?: boolean;
   /**
-   * Restringe el alcance del selector al ámbito operativo activo de SFIT
-   * (Apurímac · Cotabambas). Con "active-province" la región y la provincia
-   * quedan fijas como texto informativo y solo se permite escoger distrito.
-   * Útil para flujos donde el alcance ya está definido por política
-   * (registro público, alta de usuarios por admin_municipal, etc.).
+   * Restringe el alcance del selector al ámbito operativo activo de SFIT.
+   *
+   * - "active-province": fija región (Apurímac) y provincia (Cotabambas);
+   *   permite elegir distrito.
+   * - "active-municipality": fija los 3 niveles (Apurímac · Cotabambas ·
+   *   Tambobamba). No hay dropdowns; sólo banner informativo. Usado cuando
+   *   el sistema opera sobre una única municipalidad institucional y el
+   *   usuario no debe poder cambiarla.
    */
-  lockedScope?: "active-province";
+  lockedScope?: "active-province" | "active-municipality";
   /**
    * Nombres opcionales para mostrar mientras se carga el catálogo —
    * evita el "flicker" de mostrar el id crudo entre el mount y el fetch.
@@ -91,12 +96,15 @@ export function LocationPicker({
   lockedScope,
   initialNames,
 }: LocationPickerProps) {
-  const isLocked = lockedScope === "active-province";
-  // Con lockedScope mostramos región y provincia como texto fijo (no selectores)
-  // y dejamos disponible solo el selector de distrito.
+  const isLockedProvince = lockedScope === "active-province";
+  const isLockedMunicipality = lockedScope === "active-municipality";
+  const isLocked = isLockedProvince || isLockedMunicipality;
+  // Con lockedScope mostramos los niveles fijos como banner informativo y
+  // dejamos disponibles los selectores que aún tienen libertad. Si el scope
+  // es "active-municipality" no hay ningún combobox.
   const showRegion = !isLocked && levels.includes("region");
   const showProvince = !isLocked && levels.includes("province");
-  const showMunicipality = levels.includes("municipality");
+  const showMunicipality = !isLockedMunicipality && levels.includes("municipality");
 
   // Selección "ad-hoc" mientras el usuario navega (override del value pasado
   // por el padre — útil para que la cascada responda inmediato sin esperar a
@@ -213,17 +221,37 @@ export function LocationPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLocked, provinces, province]);
 
+  // En modo "active-municipality" también fijamos la municipalidad sede
+  // (Tambobamba) en cuanto carga el catálogo de munis de Cotabambas.
+  useEffect(() => {
+    if (!isLockedMunicipality) return;
+    if (municipality) return;
+    const target = municipalities.find(
+      (m) => m.ubigeoCode === ACTIVE_MUNICIPALITY_CODE,
+    );
+    if (target) handleMunicipalitySelect(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLockedMunicipality, municipalities, municipality]);
+
+  // Span del banner: full-width cuando no hay ningún combo a la derecha
+  // (modo "active-municipality"), 2/3 cuando todavía falta elegir distrito.
+  const bannerSpanClass = isLockedMunicipality ? "sm:col-span-3" : "sm:col-span-2";
+  const bannerLabel = isLockedMunicipality ? "Municipalidad" : "Ámbito";
+  const bannerValue = isLockedMunicipality
+    ? `${ACTIVE_DEPARTMENT_NAME} · ${ACTIVE_PROVINCE_NAME} · ${ACTIVE_MUNICIPALITY_NAME}`
+    : `${ACTIVE_DEPARTMENT_NAME} · ${ACTIVE_PROVINCE_NAME}`;
+
   return (
     <div className="grid gap-3 sm:grid-cols-3">
       {isLocked && (
-        <div className="sm:col-span-2 flex items-center gap-2 rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2.5">
+        <div className={`${bannerSpanClass} flex items-center gap-2 rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2.5`}>
           <MapPin className="h-3.5 w-3.5 shrink-0 text-[#71717A]" />
           <div className="min-w-0">
             <div className="text-[10.5px] font-semibold uppercase tracking-wider text-[#71717A]">
-              Ámbito
+              {bannerLabel}
             </div>
             <div className="truncate text-[13.5px] font-medium text-[#0A1628]">
-              {ACTIVE_DEPARTMENT_NAME} · {ACTIVE_PROVINCE_NAME}
+              {bannerValue}
             </div>
           </div>
         </div>

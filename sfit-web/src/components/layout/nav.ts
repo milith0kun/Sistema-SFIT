@@ -71,6 +71,7 @@ export const NAV: NavItem[] = [
   // `/perfil` también es accesible para roles móviles (fiscal, operador,
   // conductor, ciudadano) como excepción en (dashboard)/layout.tsx, para
   // que puedan ajustar su perfil sin caer en MobileOnlyScreen.
+  { href: "/mi-empresa",      label: "Mi empresa",          icon: Building2,             section: "MI CUENTA",      roles: ["operador"] },
   { href: "/perfil",          label: "Mi perfil",           icon: CircleUserRound,       section: "MI CUENTA",      roles: ["super_admin","admin_municipal","fiscal","operador","conductor","ciudadano"] },
 ];
 

@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase mobile configs — NUNCA commitear (regenerar desde Firebase Console)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist

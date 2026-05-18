@@ -9,6 +9,19 @@ export interface IDriver extends Document {
   dni: string;
   licenseNumber: string;
   licenseCategory: string;
+  /**
+   * Fecha de emisión de la licencia (MTC). Opcional porque los conductores
+   * que migran desde flujos legacy no necesariamente la traen — se completa
+   * en la siguiente edición desde el panel admin o desde el onboarding.
+   */
+  licenseIssuedAt?: Date;
+  /**
+   * Fecha de vencimiento de la licencia. Crítica para validar que un
+   * conductor pueda operar: TripsEngine y la asignación a rutas la
+   * consultan. Si está vacía la licencia se trata como "sin fecha"
+   * (warning visible) — no se bloquea hasta capturarla.
+   */
+  licenseExpiryDate?: Date;
   phone?: string;
   /**
    * Foto referencial del conductor (subida via POST /api/uploads/photos
@@ -47,6 +60,8 @@ const DriverSchema = new Schema<IDriver>(
     dni: { type: String, required: true, trim: true },
     licenseNumber: { type: String, required: true, trim: true },
     licenseCategory: { type: String, required: true, trim: true, default: "A-IIB" },
+    licenseIssuedAt: { type: Date },
+    licenseExpiryDate: { type: Date },
     phone: { type: String, trim: true },
     photoUrl: { type: String, trim: true },
     status: { type: String, enum: Object.values(DRIVER_STATUS), default: DRIVER_STATUS.APTO },
@@ -68,6 +83,9 @@ DriverSchema.index({ dni: 1 }, { unique: true });
 DriverSchema.index({ municipalityId: 1, status: 1 });
 DriverSchema.index({ companyId: 1, status: 1 });
 DriverSchema.index({ municipalityId: 1, verified: 1 });
+// Para queries de vencimiento ("conductores con licencia vencida o por
+// vencer en 30 días"). Sparse porque la fecha es opcional.
+DriverSchema.index({ licenseExpiryDate: 1 }, { sparse: true });
 
 export const Driver: Model<IDriver> =
   (mongoose.models.Driver as Model<IDriver> | undefined) ||

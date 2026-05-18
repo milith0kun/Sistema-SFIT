@@ -108,10 +108,17 @@ export async function GET(request: NextRequest) {
 
     if (statusParam) filter.status = statusParam;
 
+    // Filtro de QR. "true" → solo reportes con QR HMAC verificado (GPS válido).
+    // "false" → reportes sin escaneo de QR. Cualquier otro valor ignora.
+    const qrParam = url.searchParams.get("qrVerified");
+    if (qrParam === "true") filter.qrVerified = true;
+    else if (qrParam === "false") filter.qrVerified = { $ne: true };
+
     const [items, total] = await Promise.all([
       CitizenReport.find(filter)
         .populate("vehicleId", "plate vehicleTypeKey brand model")
         .populate("citizenId", "name")
+        .populate("assignedFiscalId", "name email")
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
@@ -144,6 +151,8 @@ export async function GET(request: NextRequest) {
         imageUrls: r.imageUrls ?? [],
         fraudScore: r.fraudScore,
         fraudLayers: r.fraudLayers,
+        qrVerified: r.qrVerified ?? false,
+        assignedFiscal: r.assignedFiscalId as unknown as Record<string, unknown> | null,
         createdAt: r.createdAt,
       })),
       total,

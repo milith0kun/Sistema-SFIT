@@ -12,7 +12,7 @@ import {
 } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
-import { canAccessMunicipality } from "@/lib/auth/rbac";
+import { canAccessMunicipality, recordMuniScope } from "@/lib/auth/rbac";
 import { Municipality } from "@/models/Municipality";
 import { rolesFor } from "@/lib/auth/roleMatrix";
 
@@ -27,6 +27,35 @@ const DocumentSchema = z.object({
   url: z.string().url(),
 });
 
+const SERVICE_SCOPE_ENUM = ["urbano", "interprovincial"] as const;
+const AUTHORITY_LEVEL_ENUM = [
+  "municipal_distrital",
+  "municipal_provincial",
+  "regional",
+  "mtc",
+] as const;
+
+const CoverageSchema = z.object({
+  departmentCodes: z.array(z.string().regex(/^\d{2}$/)).max(30).optional(),
+  provinceCodes:   z.array(z.string().regex(/^\d{4}$/)).max(60).optional(),
+  districtCodes:   z.array(z.string().regex(/^\d{6}$/)).max(200).optional(),
+});
+
+const AuthorizationSchema = z
+  .object({
+    level: z.enum(AUTHORITY_LEVEL_ENUM),
+    scope: z.enum(SERVICE_SCOPE_ENUM),
+    issuedBy: z.string().max(200).optional(),
+    resolutionNumber: z.string().max(80).optional(),
+    issuedAt: z.coerce.date().optional(),
+    expiresAt: z.coerce.date().optional(),
+    documentUrl: z.string().url().optional(),
+  })
+  .refine(
+    (a) => !a.issuedAt || !a.expiresAt || a.expiresAt.getTime() > a.issuedAt.getTime(),
+    { message: "expiresAt debe ser posterior a issuedAt", path: ["expiresAt"] },
+  );
+
 const CreateCompanySchema = z.object({
   municipalityId: z
     .string()
@@ -38,6 +67,13 @@ const CreateCompanySchema = z.object({
   vehicleTypeKeys: z.array(z.string().min(1).max(80)).optional(),
   documents: z.array(DocumentSchema).optional(),
   active: z.boolean().optional(),
+  /** Modalidad de servicio. Default `urbano` cuando no se envía. */
+  serviceScope: z.enum(SERVICE_SCOPE_ENUM).optional(),
+  /** Cobertura geográfica. Si no se envía, se infiere desde la sede municipal. */
+  coverage: CoverageSchema.optional(),
+  /** Autorizaciones iniciales. Si no se envían, se crea una autorización
+   *  base municipal sin fecha de vencimiento (vigente indefinida). */
+  authorizations: z.array(AuthorizationSchema).max(10).optional(),
 });
 
 /**
@@ -73,7 +109,16 @@ export async function GET(request: NextRequest) {
         }
         filter.municipalityId = municipalityIdParam;
       }
+    } else if (auth.session.role === ROLES.ADMIN_MUNICIPAL) {
+      // Modelo mono-muni administrativo: Cotabambas Provincial administra
+      // los 6 distritos como un solo tenant. El admin debe ver TODAS las
+      // empresas del sistema (mismo criterio que `/api/public/empresas`
+      // usado por el app del conductor para elegir empresa).
+      // `recordMuniScope` devuelve {} para admin_municipal.
+      Object.assign(filter, recordMuniScope(auth.session));
     } else {
+      // Otros roles operativos (fiscal/operador, si llegasen acá): scope
+      // clásico por su propia municipalidad.
       const targetMunicipalityId =
         municipalityIdParam ?? auth.session.municipalityId;
       if (!targetMunicipalityId || !isValidObjectId(targetMunicipalityId)) {
@@ -178,7 +223,7 @@ export async function POST(request: NextRequest) {
 
     // Para empresas creadas por este endpoint (admin_municipal o super_admin
     // operando sobre una municipalidad concreta), inferimos serviceScope =
-    // urbano_distrital y poblamos coverage desde el ubigeoCode de la sede.
+    // urbano y poblamos coverage desde el ubigeoCode de la sede.
     const muniDoc = await Municipality.findById(municipalityId)
       .select("ubigeoCode provinceCode departmentCode name")
       .lean<{
@@ -188,6 +233,29 @@ export async function POST(request: NextRequest) {
         name?: string;
       } | null>();
 
+    // serviceScope: respeta el del cliente, default urbano.
+    const serviceScope = parsed.data.serviceScope ?? "urbano";
+
+    // coverage: respeta el del cliente; en su defecto infiere desde la sede.
+    const coverage = parsed.data.coverage ?? {
+      districtCodes:   muniDoc?.ubigeoCode     ? [muniDoc.ubigeoCode]     : [],
+      provinceCodes:   muniDoc?.provinceCode   ? [muniDoc.provinceCode]   : [],
+      departmentCodes: muniDoc?.departmentCode ? [muniDoc.departmentCode] : [],
+    };
+
+    // authorizations: respeta las del cliente; en su defecto crea una base
+    // municipal vigente indefinida (compat con flujo anterior).
+    const authorizations =
+      parsed.data.authorizations && parsed.data.authorizations.length > 0
+        ? parsed.data.authorizations
+        : [
+            {
+              level: "municipal_distrital",
+              scope: serviceScope,
+              issuedBy: muniDoc?.name ? `Municipalidad de ${muniDoc.name}` : undefined,
+            },
+          ];
+
     const created = await Company.create({
       municipalityId,
       razonSocial: parsed.data.razonSocial,
@@ -196,19 +264,9 @@ export async function POST(request: NextRequest) {
       vehicleTypeKeys: parsed.data.vehicleTypeKeys ?? [],
       documents: parsed.data.documents ?? [],
       active: parsed.data.active ?? true,
-      serviceScope: "urbano_distrital",
-      coverage: {
-        districtCodes:   muniDoc?.ubigeoCode    ? [muniDoc.ubigeoCode]    : [],
-        provinceCodes:   muniDoc?.provinceCode  ? [muniDoc.provinceCode]  : [],
-        departmentCodes: muniDoc?.departmentCode ? [muniDoc.departmentCode] : [],
-      },
-      authorizations: [
-        {
-          level: "municipal_distrital",
-          scope: "urbano_distrital",
-          issuedBy: muniDoc?.name ? `Municipalidad de ${muniDoc.name}` : undefined,
-        },
-      ],
+      serviceScope,
+      coverage,
+      authorizations,
     });
 
     return apiResponse(

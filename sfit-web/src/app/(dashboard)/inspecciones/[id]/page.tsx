@@ -33,6 +33,7 @@ type Inspection = {
   result: InspectionResult;
   observations?: string;
   evidenceUrls: string[];
+  qrCode?: string | null;
   date: string;
   createdAt: string;
 };
@@ -58,6 +59,13 @@ const LABEL_S: React.CSSProperties = {
   display: "block", fontSize: "0.6875rem", fontWeight: 700,
   letterSpacing: "0.06em", textTransform: "uppercase", color: INK5, marginBottom: 6,
 };
+
+function isImageUrl(url: string) {
+  return (
+    /\.(jpg|jpeg|png|webp|gif|bmp)(\?.*)?$/i.test(url) ||
+    /\/api\/uploads\/files\//i.test(url)
+  );
+}
 
 /* ── Helpers ── */
 function scoreColor(s: number) {
@@ -135,6 +143,7 @@ export default function InspeccionDetallePage({ params }: { params: Promise<{ id
   const [inspection, setInspection] = useState<Inspection | null>(null);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
@@ -328,21 +337,85 @@ export default function InspeccionDetallePage({ params }: { params: Promise<{ id
             </SectionCard>
           )}
 
-          {/* Evidencias */}
+          {/* Evidencia fotográfica — galería con lightbox */}
           {insp.evidenceUrls.length > 0 && (
             <SectionCard
               icon={<FileText size={14} color={INK6} />}
-              title="Evidencias adjuntas"
-              subtitle={`${insp.evidenceUrls.length} archivo${insp.evidenceUrls.length !== 1 ? "s" : ""}`}
+              title="Evidencia fotográfica"
+              subtitle={`${insp.evidenceUrls.length} archivo${insp.evidenceUrls.length !== 1 ? "s" : ""} capturado${insp.evidenceUrls.length !== 1 ? "s" : ""} por el fiscal`}
             >
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {insp.evidenceUrls.map((url, i) => (
-                  <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                    style={{ fontSize: "0.8125rem", color: INK9, textDecoration: "underline", fontWeight: 500 }}>
-                    Evidencia {i + 1}
-                  </a>
-                ))}
+              <div style={{
+                display: "grid", gap: 10,
+                gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+              }}>
+                {insp.evidenceUrls.map((url, i) => {
+                  const isImg = isImageUrl(url);
+                  if (isImg) {
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setLightboxUrl(url)}
+                        style={{
+                          padding: 0, border: `1px solid ${INK2}`, borderRadius: 8,
+                          background: INK1, cursor: "pointer", overflow: "hidden",
+                          aspectRatio: "1 / 1", position: "relative",
+                        }}
+                        aria-label={`Ver evidencia ${i + 1}`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt={`Evidencia ${i + 1}`}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <span style={{
+                          position: "absolute", left: 6, bottom: 6,
+                          padding: "1px 6px", borderRadius: 4,
+                          background: "rgba(0,0,0,0.65)", color: "#fff",
+                          fontSize: "0.625rem", fontWeight: 700,
+                        }}>
+                          {i + 1}
+                        </span>
+                      </button>
+                    );
+                  }
+                  return (
+                    <a
+                      key={i}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                        padding: 14, border: `1px solid ${INK2}`, borderRadius: 8,
+                        background: "#fff", color: INK9,
+                        textDecoration: "none", aspectRatio: "1 / 1", gap: 6,
+                      }}
+                    >
+                      <FileText size={22} strokeWidth={1.6} />
+                      <span style={{ fontSize: "0.75rem", fontWeight: 600 }}>Archivo {i + 1}</span>
+                    </a>
+                  );
+                })}
               </div>
+            </SectionCard>
+          )}
+
+          {/* QR firmado — sello criptográfico del momento de la inspección */}
+          {insp.qrCode && (
+            <SectionCard
+              icon={<Hash size={14} color={INK6} />}
+              title="QR firmado"
+              subtitle="Sello HMAC emitido por el fiscal al cerrar la inspección"
+            >
+              <div style={{
+                padding: "12px 14px", background: INK1, border: `1px solid ${INK2}`,
+                borderRadius: 8, fontFamily: "ui-monospace, monospace",
+                fontSize: "0.75rem", color: INK6, wordBreak: "break-all", lineHeight: 1.5,
+              }}>
+                {insp.qrCode}
+              </div>
+              <p style={{ fontSize: "0.75rem", color: INK5, marginTop: 8 }}>
+                La inspección queda asociada a este código firmado. Para verificar la firma, contacta a soporte.
+              </p>
             </SectionCard>
           )}
 
@@ -462,6 +535,46 @@ export default function InspeccionDetallePage({ params }: { params: Promise<{ id
           </Link>
         </div>
       </div>
+
+      {/* Lightbox de evidencia — modal full-screen al click en una thumbnail. */}
+      {lightboxUrl && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setLightboxUrl(null)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 100,
+            background: "rgba(9,9,11,0.85)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 40, cursor: "zoom-out",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setLightboxUrl(null)}
+            aria-label="Cerrar"
+            style={{
+              position: "absolute", top: 18, right: 18,
+              width: 36, height: 36, borderRadius: 18,
+              border: "none", background: "rgba(255,255,255,0.15)", color: "#fff",
+              cursor: "pointer", fontSize: "1.25rem", fontWeight: 700, fontFamily: "inherit",
+            }}
+          >
+            ×
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxUrl}
+            alt="Evidencia ampliada"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: "100%", maxHeight: "100%",
+              borderRadius: 10, cursor: "default",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

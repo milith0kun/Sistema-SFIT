@@ -64,6 +64,10 @@ export async function GET(request: NextRequest) {
 
     if (statusParam && Object.values(VEHICLE_STATUS).includes(statusParam as never)) filter.status = statusParam;
     if (typeParam) filter.vehicleTypeKey = typeParam;
+    // Filtro de verificación admin. "true" o "false" — cualquier otro valor ignora el filtro.
+    const verifiedParam = url.searchParams.get("verified");
+    if (verifiedParam === "true") filter.verified = true;
+    else if (verifiedParam === "false") filter.verified = { $ne: true };
     if (search) {
       filter.$or = [
         { plate: { $regex: search, $options: "i" } },
@@ -95,6 +99,9 @@ export async function GET(request: NextRequest) {
         model: v.model,
         year: v.year,
         status: v.status,
+        currentDriverId: v.currentDriverId
+          ? String((v.currentDriverId as { _id?: unknown })._id ?? v.currentDriverId)
+          : null,
         currentDriverName: (v.currentDriverId as { name?: string } | null)?.name,
         lastInspectionStatus: v.lastInspectionStatus,
         reputationScore: v.reputationScore,

@@ -67,6 +67,8 @@ import '../../features/reports/presentation/pages/mis_reportes_page.dart';
 import '../../features/reports/presentation/pages/submit_report_page.dart';
 import '../../features/live_bus/presentation/pages/live_bus_map_page.dart';
 import '../../features/live_bus/presentation/pages/bus_detail_page.dart';
+import '../../features/citizen_trip/presentation/pages/registrar_viaje_page.dart';
+import '../../features/citizen_trip/presentation/pages/mi_viaje_curso_page.dart';
 import '../../features/fiscal/presentation/pages/resolve_appeal_page.dart';
 import '../../features/fiscal/presentation/pages/my_appeals_page.dart';
 import '../../features/fiscal/presentation/pages/create_sanction_page.dart';
@@ -468,7 +470,12 @@ GoRouter router(Ref ref) {
       ),
 
       // ── Buses en vivo (ciudadano) ─────────────────────────────
-      GoRoute(path: '/buses-en-vivo', builder: (_, __) => const LiveBusMapPage()),
+      // Por privacidad, el ciudadano solo ve modalidad `urbano` en el mapa
+      // público. Los interprov se "siguen" individualmente vía QR/placa.
+      GoRoute(
+        path: '/buses-en-vivo',
+        builder: (_, __) => const LiveBusMapPage(serviceScope: 'urbano'),
+      ),
       GoRoute(
         path: '/buses-en-vivo/:id',
         builder: (_, state) => BusDetailPage(busId: state.pathParameters['id']!),
@@ -536,8 +543,31 @@ GoRouter router(Ref ref) {
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
           final forInspection = extra?['forInspection'] as bool? ?? false;
-          return QrScannerPage(forInspection: forInspection);
+          final forCitizenTrip = extra?['forCitizenTrip'] as bool? ?? false;
+          return QrScannerPage(
+            forInspection: forInspection,
+            forCitizenTrip: forCitizenTrip,
+          );
         },
+      ),
+
+      // ── Ciudadano: registro auto-servicio en viaje interprovincial ──
+      // El registro NUNCA muestra mapa (privacidad). Si el ciudadano llega
+      // desde QrScannerPage con `forCitizenTrip:true`, el extra trae el
+      // payload del QR; en caso contrario muestra el formulario de placa.
+      GoRoute(
+        path: '/ciudadano/registrar-viaje',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return RegistrarViajePage(
+            qrRaw: extra?['qrRaw'],
+            offlineVerified: extra?['offlineVerified'] as bool? ?? false,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/ciudadano/mi-viaje',
+        builder: (_, __) => const MiViajeCursoPage(),
       ),
       GoRoute(
         path: '/vehiculo-publico/:plate',

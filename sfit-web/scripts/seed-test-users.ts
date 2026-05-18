@@ -166,7 +166,7 @@ async function main() {
 
   // 3. Empresa de transporte de prueba — asignada al operador.
   // RUC único nacional → upsert por RUC. La empresa cubre Cusco (depto 08,
-  // provincia 0801, distrito 080101) con scope urbano_provincial.
+  // provincia 0801, distrito 080101) con scope urbano.
   const companyDoc = await Company.findOneAndUpdate(
     { ruc: TEST_COMPANY_RUC },
     {
@@ -179,11 +179,11 @@ async function main() {
           dni: "00000001",
           phone: "+51 999 000 001",
         },
-        vehicleTypeKeys: ["omnibus", "minibus", "microbus"],
+        vehicleTypeKeys: ["transporte_urbano"],
         documents: [],
         active: true,
         reputationScore: 100,
-        serviceScope: "urbano_provincial",
+        serviceScope: "urbano",
         coverage: {
           departmentCodes: [TEST_DEPARTMENT_UBIGEO],
           provinceCodes: [TEST_PROVINCE_UBIGEO],

@@ -29,12 +29,7 @@ const DocumentSchema = z.object({
   url: z.string().url(),
 });
 
-const ServiceScopeEnum = z.enum([
-  "urbano_distrital",
-  "urbano_provincial",
-  "interprovincial_regional",
-  "interregional_nacional",
-]);
+const ServiceScopeEnum = z.enum(["urbano", "interprovincial"]);
 
 const AuthorityLevelEnum = z.enum([
   "municipal_distrital",

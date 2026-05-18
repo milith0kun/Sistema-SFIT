@@ -27,23 +27,33 @@ class ApiConstants {
   static const int receiveTimeout = 10000;
 
   // Auth endpoints
-  static const String login        = '/auth/login';
-  static const String register     = '/auth/register';
+  static const String login = '/auth/login';
+  static const String register = '/auth/register';
   static const String refreshToken = '/auth/refresh';
-  static const String googleAuth   = '/auth/google';
-  static const String logout       = '/auth/logout';
+  static const String googleAuth = '/auth/google';
+  static const String logout = '/auth/logout';
 
   // Notifications (RF-18)
   static const String fcmToken = '/notificaciones/token';
 
+  // Ciudadano: registro auto-servicio a viajes interprovinciales
+  static const String ciudadanoViajesRegistrar = '/ciudadano/viajes/registrar';
+  static const String ciudadanoViajesEnCurso = '/ciudadano/viajes/en-curso';
+  static String ciudadanoViajeFinalizar(String registrationId) =>
+      '/ciudadano/viajes/$registrationId/finalizar';
+
   // Storage keys
-  static const String accessTokenKey  = 'access_token';
+  static const String accessTokenKey = 'access_token';
   static const String refreshTokenKey = 'refresh_token';
-  static const String userJsonKey     = 'sfit_user';
+  static const String userJsonKey = 'sfit_user';
 
   /// Header y token compartido con la WAF de Cloudflare.
   /// La regla "Skip Bot Fight Mode" en Cloudflare exige que la request a /api/*
   /// traiga este header con este valor; cualquier otra fuente recibe challenge.
+  /// Sobrescribir con: --dart-define=SFIT_CLIENT_TOKEN=<valor>
   static const String clientHeader = 'X-Sfit-Client';
-  static const String clientToken  = 'sfit-mob-7f3a9b2c4d6e8f1a3b5c7d9e0f2a4b6c';
+  static const String clientToken = String.fromEnvironment(
+    'SFIT_CLIENT_TOKEN',
+    defaultValue: 'sfit-mob-7f3a9b2c4d6e8f1a3b5c7d9e0f2a4b6c',
+  );
 }

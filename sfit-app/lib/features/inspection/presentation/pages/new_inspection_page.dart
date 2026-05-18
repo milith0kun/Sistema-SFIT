@@ -314,11 +314,9 @@ class _NewInspectionPageState extends ConsumerState<NewInspectionPage> {
   }
 
   String _vehicleTypeLabel(String key) => switch (key) {
-        'transporte_publico' => 'Transporte público',
-        'limpieza_residuos'  => 'Limpieza',
-        'emergencia'         => 'Emergencia',
-        'maquinaria'         => 'Maquinaria',
-        _                    => 'Vehículo municipal',
+        'transporte_urbano'          => 'Transporte urbano',
+        'transporte_interprovincial' => 'Transporte interprovincial',
+        _                            => key,
       };
 
   String _resultLabel(String r) => switch (r) {

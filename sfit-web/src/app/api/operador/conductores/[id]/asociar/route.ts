@@ -1,10 +1,11 @@
 import { NextRequest } from "next/server";
-import { isValidObjectId } from "mongoose";
+import mongoose, { isValidObjectId } from "mongoose";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { Driver } from "@/models/Driver";
 import { User } from "@/models/User";
 import { Company } from "@/models/Company";
+import { DriverMembership } from "@/models/DriverMembership";
 import {
   apiResponse,
   apiError,
@@ -98,8 +99,32 @@ export async function POST(
     return apiForbidden();
   }
 
-  driver.companyId = company._id as never;
+  // Cerrar cualquier membresía abierta previa (típicamente del operador
+  // anterior). Por contrato de negocio sólo puede haber UNA abierta por
+  // conductor — el índice partial unique en DriverMembership lo garantiza.
+  const newCompanyObjectId = company._id as mongoose.Types.ObjectId;
+  await DriverMembership.updateMany(
+    { driverId: driver._id, leftAt: { $exists: false } },
+    {
+      $set: {
+        leftAt: new Date(),
+        leftBy: auth.session.userId,
+        leftReason: "unlinked_by_operator",
+      },
+    },
+  );
+
+  driver.companyId = newCompanyObjectId as never;
   await driver.save();
+
+  // Abrir nueva membresía.
+  await DriverMembership.create({
+    driverId: driver._id,
+    companyId: newCompanyObjectId,
+    municipalityId: driver.municipalityId,
+    joinedAt: new Date(),
+    joinedBy: auth.session.userId,
+  });
 
   return apiResponse({
     id: String(driver._id),
@@ -156,6 +181,18 @@ export async function DELETE(
 
   driver.companyId = undefined;
   await driver.save();
+
+  // Cerrar la membresía abierta para que quede el rastro en el historial.
+  await DriverMembership.updateMany(
+    { driverId: driver._id, leftAt: { $exists: false } },
+    {
+      $set: {
+        leftAt: new Date(),
+        leftBy: auth.session.userId,
+        leftReason: "unlinked_by_operator",
+      },
+    },
+  );
 
   try {
     const { logAuditRaw } = await import("@/lib/audit/log");

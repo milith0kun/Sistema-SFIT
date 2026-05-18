@@ -101,6 +101,8 @@ export default function SancionesPage() {
   const [error, setError] = useState<string | null>(null);
   const [sel, setSel] = useState<Sanction | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [reenviandoId, setReenviandoId] = useState<string | null>(null);
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -218,6 +220,40 @@ export default function SancionesPage() {
     } catch { setActionError("Error de conexión"); }
   };
 
+  /**
+   * Reenvía la notificación de la sanción. El endpoint deriva canal y
+   * destinatario automáticamente (email al operador por defecto) y agrega
+   * una entrada en `notifications[]`. Si el status estaba "emitida", pasa
+   * a "notificada" cuando se confirma la entrega.
+   */
+  const handleReenviar = async (id: string) => {
+    if (reenviandoId) return;
+    setReenviandoId(id);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/sanciones/${id}/notificar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ channel: "email" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setActionError(data.error ?? "No se pudo enviar la notificación");
+        return;
+      }
+      setActionSuccess(
+        data.data?.lastDelivery === "enviado"
+          ? "Notificación enviada correctamente."
+          : "Notificación registrada (entrega pendiente).",
+      );
+      setTimeout(() => setActionSuccess(null), 3500);
+      void load();
+    } catch { setActionError("Error de conexión"); }
+    finally { setReenviandoId(null); }
+  };
+
   const exportCSV = () => {
     if (items.length === 0) return;
     const header = ["ID", "Placa", "Conductor", "Empresa", "Infracción", "Monto S/", "UIT", "Estado", "Fecha"];
@@ -322,13 +358,33 @@ export default function SancionesPage() {
       id: "acciones",
       header: "",
       enableSorting: false,
-      cell: ({ row }) => (
-        <div onClick={(e) => e.stopPropagation()}>
-          <Link href={`/sanciones/${row.original.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const isReenviando = reenviandoId === row.original.id;
+        const canReenviar = row.original.status !== "anulada";
+        return (
+          <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 6 }}>
+            {canReenviar && (
+              <button
+                onClick={() => { void handleReenviar(row.original.id); }}
+                disabled={isReenviando}
+                title="Reenviar notificación"
+                style={{
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  width: 30, height: 30, borderRadius: 7,
+                  border: `1.5px solid ${INK2}`, background: "#fff", color: INK6,
+                  cursor: isReenviando ? "not-allowed" : "pointer",
+                  opacity: isReenviando ? 0.5 : 1, fontFamily: "inherit",
+                }}
+              >
+                <Bell size={14} />
+              </button>
+            )}
+            <Link href={`/sanciones/${row.original.id}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontSize: "1rem", textDecoration: "none", fontWeight: 700 }}>⋯</Link>
+          </div>
+        );
+      },
     },
-  ], []);
+  ], [reenviandoId]);
 
   if (!user) return null;
 
@@ -346,6 +402,27 @@ export default function SancionesPage() {
           <button style={{ ...btnOut, opacity: items.length === 0 ? 0.5 : 1, cursor: items.length === 0 ? "not-allowed" : "pointer" }} onClick={exportCSV} disabled={items.length === 0}><Download size={16} />Exportar CSV</button>
           {canCreate && <button style={btnInk} onClick={openModal}><Plus size={16} />Emitir sanción</button>}
         </div>} />
+
+      {actionSuccess && (
+        <div role="status" style={{
+          padding: "8px 14px", borderRadius: 8,
+          background: APTOBG, border: `1px solid ${APTOBD}`, color: APTO,
+          fontSize: "0.8125rem", fontWeight: 600,
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <Check size={14} /> {actionSuccess}
+        </div>
+      )}
+      {actionError && (
+        <div role="alert" style={{
+          padding: "8px 14px", borderRadius: 8,
+          background: NOBG, border: `1px solid ${NOBD}`, color: NO,
+          fontSize: "0.8125rem", fontWeight: 600,
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <AlertTriangle size={14} /> {actionError}
+        </div>
+      )}
 
       <div className="cols-4-responsive">
         {[

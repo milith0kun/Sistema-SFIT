@@ -319,8 +319,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         'fiscal'            => 'Fiscal / Inspector',
         'operador'          => 'Operador de Empresa',
         'admin_municipal'   => 'Administrador Municipal',
-        'admin_provincial'  => 'Administrador Provincial',
-        'admin_regional'    => 'Administrador Regional',
         'super_admin'       => 'Super Admin',
         _                   => role,
       };
@@ -846,8 +844,6 @@ class _ProfileHeroCard extends StatelessWidget {
         'fiscal'            => 'Fiscal',
         'operador'          => 'Operador',
         'admin_municipal'   => 'Admin Municipal',
-        'admin_provincial'  => 'Admin Provincial',
-        'admin_regional'    => 'Admin Regional',
         'super_admin'       => 'Super Admin',
         _                   => role,
       };

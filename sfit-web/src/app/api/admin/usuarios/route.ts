@@ -18,11 +18,17 @@ import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
 import { Company } from "@/models/Company";
+// Imports side-effect para el populate de municipalityId/provinceId.
+// Sin estos imports, mongoose tira "Schema hasn't been registered for
+// model 'Municipality' / 'Province'" en el dev server (HMR aísla caches).
+import "@/models/Municipality";
+import "@/models/Province";
 import { signAccessToken, signRefreshToken } from "@/lib/auth/jwt";
 import { apiResponse, apiError, apiUnauthorized, apiForbidden, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { logAction } from "@/lib/audit/logAction";
+import { getActiveMunicipalityId } from "@/lib/scope-server";
 
 const ALLOWED_ROLES = [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL];
 
@@ -36,7 +42,11 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url);
 
   const page  = Math.max(1, Number(url.searchParams.get("page")  ?? 1));
-  const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") ?? 20)));
+  // El panel `/usuarios` pide limit=200 para mostrar la grilla completa.
+  // El cap a 100 dejaba truncada la lista cuando la muni superaba ese
+  // número de cuentas; lo subimos a 500 — suficiente para los tamaños
+  // operativos esperados y aún acotado para no abusar de la DB.
+  const limit = Math.min(500, Math.max(1, Number(url.searchParams.get("limit") ?? 20)));
   const roleFilter   = url.searchParams.get("role");
   const statusFilter = url.searchParams.get("status");
 
@@ -46,7 +56,20 @@ export async function GET(request: NextRequest) {
     if (!session.municipalityId) {
       return apiError("El admin municipal no tiene municipalidad asignada", 400);
     }
-    filter.municipalityId = session.municipalityId;
+    // El sistema opera con UNA municipalidad institucional única (cleanup
+    // municipal). El admin_municipal debe ver:
+    //   - Usuarios con `municipalityId` igual al suyo (nuevos).
+    //   - Usuarios SIN `municipalityId` (cuentas legacy de Google/registro
+    //     antes del cleanup que aún no fueron tocadas). Estos también
+    //     pertenecen implícitamente a la muni activa porque no existen
+    //     otras munis institucionales que los reclamen.
+    // Sin esto, el filtro estricto `municipalityId === session.muni` dejaba
+    // fuera a la mayoría de usuarios legacy y el panel mostraba ~2-3.
+    filter.$or = [
+      { municipalityId: session.municipalityId },
+      { municipalityId: null },
+      { municipalityId: { $exists: false } },
+    ];
   }
   // super_admin: sin filtro (ve todos los usuarios).
 
@@ -123,8 +146,6 @@ const CreateSchema = z.object({
     "super_admin", "admin_municipal",
     "fiscal", "operador", "conductor", "ciudadano",
   ]),
-  provinceId:     z.string().refine(v => !v || isValidObjectId(v), "provinceId inválido").optional(),
-  municipalityId: z.string().refine(v => !v || isValidObjectId(v), "municipalityId inválido").optional(),
   companyId:      z.string().refine(v => !v || isValidObjectId(v), "companyId inválido").optional(),
   status:         z.enum(["activo", "pendiente"]).default("activo"),
 
@@ -155,26 +176,25 @@ export async function POST(request: NextRequest) {
   }
 
   const {
-    name, email, password, role, provinceId, municipalityId, companyId, status,
+    name, email, password, role, companyId, status,
     dni, phone, completeProfileNow, passwordIsTemporary,
   } = parsed.data;
 
   try {
     await connectDB();
 
-    // Validación tenant para OPERADOR: exige companyId no nulo y que la
-    // empresa pertenezca al mismo muni que el operador. Sin esto, la cuenta
-    // queda huérfana y termina viendo datos de la competencia vía fallback.
+    // Todos los usuarios del sistema viven en la municipalidad institucional
+    // activa (Tambobamba). No se acepta input — el flujo legacy multi-tenant
+    // se eliminó en el cleanup municipal de mayo 2026.
+    const activeMunicipalityId = await getActiveMunicipalityId();
+
+    // Validación tenant para OPERADOR: exige companyId y que la empresa
+    // pertenezca a la muni activa. Sin esto, la cuenta queda huérfana y
+    // termina viendo datos de la competencia vía fallback.
     if (role === "operador") {
       if (!companyId) {
         return apiError(
           "El rol operador requiere asignar una empresa (companyId).",
-          422,
-        );
-      }
-      if (!municipalityId) {
-        return apiError(
-          "El rol operador requiere municipalidad asignada.",
           422,
         );
       }
@@ -184,9 +204,9 @@ export async function POST(request: NextRequest) {
       if (!company) {
         return apiError("La empresa asignada no existe.", 422);
       }
-      if (String(company.municipalityId) !== String(municipalityId)) {
+      if (String(company.municipalityId) !== String(activeMunicipalityId)) {
         return apiError(
-          "La empresa asignada no pertenece a la misma municipalidad que el operador.",
+          "La empresa asignada no pertenece a la municipalidad activa.",
           422,
         );
       }
@@ -214,11 +234,10 @@ export async function POST(request: NextRequest) {
       role,
       requestedRole: role,
       status,
-      provinceId:     provinceId     || undefined,
-      municipalityId: municipalityId || undefined,
-      companyId:      companyId      || undefined,
-      dni:            dni            || undefined,
-      phone:          phone          || undefined,
+      municipalityId: activeMunicipalityId,
+      companyId:      companyId || undefined,
+      dni:            dni       || undefined,
+      phone:          phone     || undefined,
       profileCompleted,
       mustChangePassword: passwordIsTemporary,
     });

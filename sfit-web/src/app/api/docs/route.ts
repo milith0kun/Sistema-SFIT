@@ -192,7 +192,7 @@ export async function GET() {
                           result: "aprobada",
                           score: 95,
                           date: "2026-04-18T10:00:00Z",
-                          vehicleTypeKey: "transporte_publico",
+                          vehicleTypeKey: "transporte_urbano",
                         },
                       ],
                       total: 1,
@@ -221,7 +221,7 @@ export async function GET() {
                   properties: {
                     vehicleId: { type: "string", description: "ObjectId del vehículo" },
                     driverId: { type: "string", description: "ObjectId del conductor (opcional)" },
-                    vehicleTypeKey: { type: "string", example: "transporte_publico" },
+                    vehicleTypeKey: { type: "string", example: "transporte_urbano" },
                     checklistResults: {
                       type: "array",
                       items: {

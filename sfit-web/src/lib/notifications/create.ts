@@ -42,6 +42,24 @@ export async function createNotification(
       link: params.link,
       metadata: params.metadata,
     });
+
+    // Push FCM best-effort. Importación dinámica para no inicializar
+    // Firebase Admin en tests. Mismo patrón que `createNotificationForRoles`
+    // más abajo. `sendPushToUser` ya hace el lookup de `fcmTokens` del
+    // usuario y captura sus propios errores; el try/catch acá solo cubre
+    // el `import` por si Firebase Admin no está instalado en el entorno.
+    try {
+      const { sendPushToUser } = await import("@/lib/notifications/fcm");
+      // FCM `data` solo admite strings; convertimos metadata.
+      const data: Record<string, string> | undefined = params.metadata
+        ? Object.fromEntries(
+            Object.entries(params.metadata).map(([k, v]) => [k, String(v)]),
+          )
+        : undefined;
+      void sendPushToUser(params.userId, params.title, params.body, data);
+    } catch {
+      // Silencioso — push es best-effort, la notif ya quedó en BD.
+    }
   } catch (error) {
     console.error("[createNotification]", error);
   }

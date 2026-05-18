@@ -48,3 +48,9 @@ next-env.d.ts
 
 # backups locales de MongoDB — pueden contener PII; nunca commitear
 /backups/
+
+# Firebase service account (Admin SDK) — NUNCA commitear
+/secrets/
+*firebase-adminsdk*.json
+google-services.json
+GoogleService-Info.plist

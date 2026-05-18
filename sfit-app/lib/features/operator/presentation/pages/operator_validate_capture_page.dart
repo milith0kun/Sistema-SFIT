@@ -55,12 +55,10 @@ class _OperatorValidateCapturePageState
   ];
 
   // Alcance del servicio
-  String _serviceScope = 'urbano_distrital';
+  String _serviceScope = 'urbano';
   static const _scopes = <_KV>[
-    _KV('urbano_distrital', 'Urbano distrital'),
-    _KV('urbano_provincial', 'Urbano provincial'),
-    _KV('interprovincial_regional', 'Interprovincial regional'),
-    _KV('interregional_nacional', 'Interregional nacional'),
+    _KV('urbano', 'Urbano'),
+    _KV('interprovincial', 'Interprovincial'),
   ];
 
   bool _autoDetectStops = true;

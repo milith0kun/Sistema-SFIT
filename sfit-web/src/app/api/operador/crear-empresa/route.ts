@@ -34,16 +34,9 @@ const Schema = z.object({
     dni:   z.string().regex(/^\d{8}$/, "DNI del representante debe tener 8 dígitos"),
     phone: z.string().min(7).max(30).optional(),
   }),
-  // Por defecto entran como urbano_distrital (la modalidad más restrictiva).
-  // El admin puede ampliar el scope al aprobar la empresa.
-  serviceScope: z
-    .enum([
-      "urbano_distrital",
-      "urbano_provincial",
-      "interprovincial_regional",
-      "interregional_nacional",
-    ])
-    .default("urbano_distrital"),
+  // Por defecto entran como `urbano`. El admin puede cambiar a
+  // `interprovincial` al aprobar si la empresa opera rutas largas.
+  serviceScope: z.enum(["urbano", "interprovincial"]).default("urbano"),
 });
 
 export async function POST(request: NextRequest) {
