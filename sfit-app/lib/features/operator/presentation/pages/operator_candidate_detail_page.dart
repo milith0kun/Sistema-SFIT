@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../../../shared/models/route_candidate_model.dart';
 import '../../../../shared/models/route_model.dart';
 import '../../data/datasources/operator_api_service.dart';
@@ -564,11 +565,7 @@ class _OperatorCandidateDetailPageState
                 if (_loading && meta == null)
                   const Padding(
                     padding: EdgeInsets.all(36),
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.primary,
-                      ),
-                    ),
+                    child: SfitLoading.page(color: AppColors.primary),
                   )
                 else
                   Padding(
@@ -940,11 +937,7 @@ class _AssignRouteSheetState extends ConsumerState<_AssignRouteSheet> {
             child: _loading
                 ? const Padding(
                     padding: EdgeInsets.all(28),
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.primary,
-                      ),
-                    ),
+                    child: SfitLoading.page(color: AppColors.primary),
                   )
                 : _routes.isEmpty
                     ? Padding(

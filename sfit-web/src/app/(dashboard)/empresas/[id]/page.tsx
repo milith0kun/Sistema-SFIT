@@ -5,39 +5,29 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Pencil, Save, X, TrendingUp, Building2, Users, Car,
-  Loader2, CheckCircle, AlertTriangle, Hash, Copy, Check, FileText, Plus,
+  Loader2, CheckCircle, AlertTriangle, FileText, Plus,
   Briefcase,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { SystemIdRow } from "@/components/ui/KeyValueRow";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 import { ACTIVE_DISTRICTS, INTERPROV_DESTINATIONS } from "@/lib/scope";
 import {
   getCompanyAuthorizationStatus,
   AUTHORIZATION_WARN_DAYS,
 } from "@/lib/company-authorization";
+import { INK1, INK2, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBG, GRNBD, AMBER, AMBER_BG, AMBER_BD } from "@/lib/design-tokens";
+import { FIELD, READ, LABEL } from "@/lib/form-styles";
 
-/* ── Tokens — paleta sobria ── */
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK3 = "#d4d4d8";
-const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const RED = "#DC2626"; const RED_BG = "#FFF5F5"; const RED_BD = "#FCA5A5";
-const GRN = "#15803d"; const GRN_BG = "#F0FDF4"; const GRN_BD = "#86EFAC";
-const WARN = "#B45309"; const WARN_BG = "#FFFBEB"; const WARN_BD = "#FDE68A";
-
-const FIELD: React.CSSProperties = {
-  width: "100%", height: 38, padding: "0 12px", borderRadius: 8,
-  border: `1px solid ${INK2}`, fontSize: "0.875rem", color: INK9,
-  background: "#fff", outline: "none", boxSizing: "border-box",
-  fontFamily: "var(--font-inter), Inter, sans-serif",
-  transition: "border-color 150ms",
-};
-const READ: React.CSSProperties = {
-  ...FIELD, background: INK1, color: INK6, border: `1px solid ${INK2}`,
-};
-const LABEL: React.CSSProperties = {
-  fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em",
-  textTransform: "uppercase", color: INK5, marginBottom: 6,
-};
+const WARN = AMBER;
+const WARN_BG = AMBER_BG;
+const WARN_BD = AMBER_BD;
+const RED_BG = REDBG;
+const RED_BD = REDBD;
+const GRN_BG = GRNBG;
+const GRN_BD = GRNBD;
 
 type ServiceScope = "urbano" | "interprovincial";
 
@@ -84,7 +74,6 @@ const AUTHORITY_LABEL: Record<AuthorityLevel, string> = {
   regional: "Gobierno regional",
   mtc: "MTC",
 };
-type VehicleType = { id: string; key: string; name: string };
 type StoredUser = { role: string };
 interface FormState {
   razonSocial: string; ruc: string;
@@ -109,20 +98,12 @@ function scoreColor(s: number): { color: string; bg: string; bd: string } {
   return { color: RED, bg: RED_BG, bd: RED_BD };
 }
 
-/** Convierte una key técnica (snake_case) en un label legible. */
-function humanizeKey(key: string): string {
-  if (!key) return "";
-  const cleaned = key.replace(/_/g, " ").trim().toLowerCase();
-  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-}
-
 interface Props { params: Promise<{ id: string }> }
 
 export default function EmpresaDetallePage({ params }: Props) {
   const { id } = usePromise(params);
   const router = useRouter();
   const [company, setCompany] = useState<Company | null>(null);
-  const [types, setTypes] = useState<VehicleType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -139,7 +120,6 @@ export default function EmpresaDetallePage({ params }: Props) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<"suspend" | "reactivate" | null>(null);
   const [toggling, setToggling] = useState(false);
-  const [togglingType, setTogglingType] = useState<string | null>(null);
 
   // Operadores que administran esta empresa (tab F5.2)
   const [operadores, setOperadores] = useState<Array<{
@@ -169,7 +149,6 @@ export default function EmpresaDetallePage({ params }: Props) {
     }
     setUser(u);
     void load();
-    void loadTypes();
     void loadOperadores();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, router]);
@@ -215,17 +194,6 @@ export default function EmpresaDetallePage({ params }: Props) {
       });
     } catch { setError("Error de conexión."); }
     finally { setLoading(false); }
-  }
-
-  async function loadTypes() {
-    try {
-      const token = localStorage.getItem("sfit_access_token");
-      const res = await fetch("/api/tipos-vehiculo", {
-        headers: { Authorization: `Bearer ${token ?? ""}` },
-      });
-      const data = await res.json();
-      if (res.ok && data.success) setTypes(data.data.items ?? []);
-    } catch { /* silent */ }
   }
 
   // Auto-lookup RUC con doble proveedor (apiperu+factiliza vía /api/validar/ruc)
@@ -384,31 +352,6 @@ export default function EmpresaDetallePage({ params }: Props) {
     finally { setToggling(false); setConfirm(null); }
   }
 
-  /** Agrega o quita un tipo de vehículo del catálogo autorizado de la empresa. */
-  async function toggleVehicleType(key: string) {
-    if (!company) return;
-    const current = company.vehicleTypeKeys ?? [];
-    const next = current.includes(key)
-      ? current.filter(k => k !== key)
-      : [...current, key];
-    setTogglingType(key); setError(null);
-    try {
-      const token = localStorage.getItem("sfit_access_token");
-      const res = await fetch(`/api/empresas/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
-        body: JSON.stringify({ vehicleTypeKeys: next }),
-      });
-      if (res.status === 401) return router.replace("/login");
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setError(data.error ?? "No se pudo actualizar la flota."); return;
-      }
-      setCompany(data.data);
-    } catch { setError("Error de conexión."); }
-    finally { setTogglingType(null); }
-  }
-
   const backBtnPlain = (
     <Link href="/empresas">
       <button style={{
@@ -464,7 +407,6 @@ export default function EmpresaDetallePage({ params }: Props) {
   }
 
   const sc = scoreColor(company.reputationScore);
-  const typeMap = new Map(types.map(t => [t.key, t.name]));
   const canManage = !!user?.role && ["super_admin", "admin_municipal"].includes(user.role);
   const isSuspended = !company.active || company.status === "suspendido";
 
@@ -577,9 +519,9 @@ export default function EmpresaDetallePage({ params }: Props) {
           accent: sc.color,
         },
         {
-          label: "TIPOS AUTORIZADOS",
-          value: company.vehicleTypeKeys.length,
-          subtitle: "modelos en flota",
+          label: "MODALIDAD",
+          value: SCOPE_LABEL[company.serviceScope ?? "urbano"],
+          subtitle: "tipo de servicio",
           icon: Car,
         },
       ]} />
@@ -890,137 +832,6 @@ export default function EmpresaDetallePage({ params }: Props) {
                 )}
               </div>
             </div>
-          </SectionCard>
-
-          {/* ── Tipos de vehículo autorizados ── */}
-          <SectionCard
-            icon={<Car size={14} color={INK6} />}
-            title="Tipos de vehículo autorizados"
-            subtitle={canManage
-              ? "Marca los tipos que esta empresa puede operar"
-              : `${company.vehicleTypeKeys.length} tipo${company.vehicleTypeKeys.length === 1 ? "" : "s"} autorizado${company.vehicleTypeKeys.length === 1 ? "" : "s"}`}
-          >
-            {(() => {
-              const selected = new Set(company.vehicleTypeKeys);
-              // Deduplicar el catálogo por key — el backend puede devolver el mismo
-              // tipo dos veces (uno global predefinido + uno municipal del mismo key).
-              const seenKeys = new Set<string>();
-              const uniqueTypes = types.filter(t => {
-                if (seenKeys.has(t.key)) return false;
-                seenKeys.add(t.key);
-                return true;
-              });
-              // Tipos que la empresa tiene pero ya no están en el catálogo activo:
-              // los mostramos igual marcados como obsoletos. Deduplicamos también
-              // por si vehicleTypeKeys tiene la misma key repetida.
-              const orphanKeys = Array.from(new Set(
-                company.vehicleTypeKeys.filter(k => !seenKeys.has(k))
-              ));
-
-              if (!canManage) {
-                // Vista de solo lectura para roles sin permisos de gestión
-                if (company.vehicleTypeKeys.length === 0) {
-                  return (
-                    <EmptyBlock
-                      icon={<Car size={20} color={INK5} strokeWidth={1.5} />}
-                      title="Sin tipos asignados"
-                      subtitle="No se han autorizado tipos de vehículo para esta empresa."
-                    />
-                  );
-                }
-                return (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {Array.from(new Set(company.vehicleTypeKeys)).map(k => (
-                      <span key={k} style={{
-                        display: "inline-flex", alignItems: "center", gap: 5,
-                        padding: "4px 10px", borderRadius: 6,
-                        background: INK1, border: `1px solid ${INK2}`, color: INK9,
-                        fontSize: "0.75rem", fontWeight: 600,
-                      }}>
-                        <Car size={11} color={INK6} />
-                        {typeMap.get(k) ?? humanizeKey(k)}
-                      </span>
-                    ))}
-                  </div>
-                );
-              }
-
-              // Vista interactiva: toggle por chip
-              if (types.length === 0 && company.vehicleTypeKeys.length === 0) {
-                return (
-                  <EmptyBlock
-                    icon={<Car size={20} color={INK5} strokeWidth={1.5} />}
-                    title="Catálogo vacío"
-                    subtitle="Aún no hay tipos de vehículo en el catálogo de la municipalidad."
-                  />
-                );
-              }
-              return (
-                <>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {uniqueTypes.map(t => {
-                      const isOn = selected.has(t.key);
-                      const loading = togglingType === t.key;
-                      return (
-                        <button
-                          key={`type-${t.key}`}
-                          type="button"
-                          onClick={() => { void toggleVehicleType(t.key); }}
-                          disabled={loading}
-                          aria-pressed={isOn}
-                          style={{
-                            display: "inline-flex", alignItems: "center", gap: 6,
-                            padding: "5px 11px", borderRadius: 6,
-                            background: isOn ? INK9 : "#fff",
-                            color: isOn ? "#fff" : INK6,
-                            border: `1px solid ${isOn ? INK9 : INK2}`,
-                            fontSize: "0.75rem", fontWeight: 600,
-                            cursor: loading ? "not-allowed" : "pointer",
-                            opacity: loading ? 0.6 : 1,
-                            fontFamily: "inherit", transition: "background 120ms, color 120ms, border-color 120ms",
-                          }}
-                        >
-                          {loading
-                            ? <Loader2 size={11} style={{ animation: "spin 0.7s linear infinite" }} />
-                            : isOn ? <Check size={11} /> : <Plus size={11} />}
-                          {t.name}
-                        </button>
-                      );
-                    })}
-                    {orphanKeys.map(k => {
-                      const loading = togglingType === k;
-                      return (
-                        <button
-                          key={`orphan-${k}`}
-                          type="button"
-                          onClick={() => { void toggleVehicleType(k); }}
-                          disabled={loading}
-                          title="Tipo fuera del catálogo activo — clic para quitar"
-                          style={{
-                            display: "inline-flex", alignItems: "center", gap: 6,
-                            padding: "5px 11px", borderRadius: 6,
-                            background: WARN_BG, color: WARN,
-                            border: `1px dashed ${WARN_BD}`,
-                            fontSize: "0.75rem", fontWeight: 600,
-                            cursor: loading ? "not-allowed" : "pointer",
-                            opacity: loading ? 0.6 : 1,
-                            fontFamily: "inherit",
-                          }}
-                        >
-                          {loading
-                            ? <Loader2 size={11} style={{ animation: "spin 0.7s linear infinite" }} />
-                            : <X size={11} />}
-                          {humanizeKey(k)}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div style={{ marginTop: 10, fontSize: "0.6875rem", color: INK5, lineHeight: 1.5 }}>
-                    Cada cambio se guarda automáticamente. Los chips negros están autorizados; los blancos disponibles para agregar.
-                  </div>
-                </>
-              );
-            })()}
           </SectionCard>
 
           {/* ── Modalidad y cobertura operativa ── */}
@@ -1379,45 +1190,6 @@ export default function EmpresaDetallePage({ params }: Props) {
 
 /* ─────────── Subcomponentes ─────────── */
 
-function SectionCard({
-  icon, title, subtitle, children,
-}: {
-  icon: React.ReactNode; title: string; subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div style={{
-      background: "#fff", border: `1px solid ${INK2}`,
-      borderRadius: 12, overflow: "hidden",
-    }}>
-      <div style={{
-        padding: "10px 16px", borderBottom: `1px solid ${INK1}`,
-        display: "flex", alignItems: "center", gap: 10,
-      }}>
-        <div style={{
-          width: 26, height: 26, borderRadius: 6,
-          background: INK1, border: `1px solid ${INK2}`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          flexShrink: 0,
-        }}>
-          {icon}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9, lineHeight: 1.25 }}>
-            {title}
-          </div>
-          {subtitle && (
-            <div style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.3, marginTop: 1 }}>
-              {subtitle}
-            </div>
-          )}
-        </div>
-      </div>
-      <div style={{ padding: "14px 16px" }}>{children}</div>
-    </div>
-  );
-}
-
 function EmptyBlock({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle: string }) {
   return (
     <div style={{
@@ -1535,50 +1307,6 @@ function LookupPopover({
           )}
         </>
       )}
-    </div>
-  );
-}
-
-function SystemIdRow({ id }: { id: string }) {
-  const [copied, setCopied] = useState(false);
-  const shortId = id.slice(-8).toUpperCase();
-  return (
-    <div style={{
-      background: "#fff", border: `1px dashed ${INK2}`, borderRadius: 8,
-      padding: "8px 12px",
-      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <Hash size={12} color={INK5} />
-        <span style={{
-          fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em",
-          textTransform: "uppercase", color: INK5,
-        }}>
-          ID de soporte
-        </span>
-        <code title={id} style={{
-          fontFamily: "ui-monospace, monospace", fontSize: "0.75rem",
-          color: INK9, fontWeight: 600, letterSpacing: "0.04em",
-          fontVariantNumeric: "tabular-nums", marginLeft: 6,
-        }}>
-          {shortId}
-        </code>
-      </div>
-      <button type="button" onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(id);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1400);
-        } catch { /* clipboard blocked */ }
-      }} style={{
-        display: "inline-flex", alignItems: "center", gap: 4,
-        height: 22, padding: "0 8px", borderRadius: 5,
-        border: `1px solid ${INK2}`, background: "#fff", color: INK6,
-        fontSize: "0.6875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-      }}>
-        {copied ? <Check size={11} color={GRN} /> : <Copy size={11} />}
-        {copied ? "Copiado" : "Copiar ID completo"}
-      </button>
     </div>
   );
 }

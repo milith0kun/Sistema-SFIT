@@ -77,10 +77,10 @@ const ROLES = [
 ];
 
 const STATS = [
-  { n: "50k+", label: "Inspecciones digitales", icon: CheckCircle2 },
-  { n: "100%", label: "Trazabilidad legal", icon: ShieldCheck },
+  { n: "RF-19", label: "Módulos operativos", icon: CheckCircle2 },
+  { n: "8", label: "Roles jerárquicos", icon: ShieldCheck },
   { n: "24/7", label: "Disponibilidad garantizada", icon: Zap },
-  { n: "0ms",  label: "Latencia de sincronización", icon: Globe },
+  { n: "100%", label: "Multi-tenant nativo", icon: Globe },
 ];
 
 export default function HomePage() {
@@ -492,12 +492,12 @@ export default function HomePage() {
                     </div>
                     <span className="font-bold">soporte@sfit.pe</span>
                  </a>
-                 <div className="flex items-center gap-3 text-[#52525B] text-sm group w-fit">
-                    <div className="w-8 h-8 rounded-full bg-white border border-[#E4E4E7] flex items-center justify-center">
-                      <Phone size={14} />
-                    </div>
-                    <span className="font-bold">+51 (01) 345-6789</span>
-                 </div>
+                  <div className="flex items-center gap-3 text-[#52525B] text-sm group w-fit">
+                     <div className="w-8 h-8 rounded-full bg-white border border-[#E4E4E7] flex items-center justify-center">
+                       <Phone size={14} />
+                     </div>
+                     <span className="font-bold">+51 984 000 000</span>
+                  </div>
                  <div className="flex items-center gap-3 text-[#52525B] text-sm group w-fit">
                     <div className="w-8 h-8 rounded-full bg-white border border-[#E4E4E7] flex items-center justify-center">
                       <Clock size={14} />
@@ -512,8 +512,8 @@ export default function HomePage() {
               <h5 className="text-[#0A1628] font-black text-[11px] uppercase tracking-[0.25em] mb-6 sm:mb-8">Plataforma</h5>
               <ul className="space-y-4 sm:space-y-5">
                 <li><a href="/login" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[14px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Portal Administrativo</a></li>
-                <li><a href="/app" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[14px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> App Móvil (Fiscales)</a></li>
-                <li><a href="/reportes" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[14px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Buzón de Denuncias</a></li>
+                <li><a href="/consulta-publica" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[14px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Consulta Pública</a></li>
+                <li><a href="/register" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[14px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Registro Ciudadano</a></li>
               </ul>
             </div>
 
@@ -521,8 +521,8 @@ export default function HomePage() {
             <div className="lg:col-span-1">
               <h5 className="text-[#0A1628] font-black text-[11px] uppercase tracking-[0.25em] mb-6 sm:mb-8">Marco Legal</h5>
               <ul className="space-y-4 sm:space-y-5">
-                <li><a href="/normativa" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[14px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Ley Transp. 27181</a></li>
-                <li><a href="/directivas" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[14px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Resoluciones MTC</a></li>
+                <li><a href="https://www.gob.pe/mtc" target="_blank" rel="noopener noreferrer" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[14px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Ley Transp. 27181</a></li>
+                <li><a href="https://www.gob.pe/mtc" target="_blank" rel="noopener noreferrer" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[14px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Resoluciones MTC</a></li>
                 <li><a href="/terminos" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[14px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Términos de Servicio</a></li>
                 <li><a href="/privacidad" className="text-[#71717A] hover:text-[#0A1628] font-bold text-[14px] transition-colors flex items-center gap-2 group"><span className="w-0 overflow-hidden group-hover:w-2 transition-all duration-300 text-[#8B1414]">-</span> Datos Personales</a></li>
               </ul>

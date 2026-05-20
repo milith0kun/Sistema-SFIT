@@ -235,6 +235,10 @@ export async function POST(request: NextRequest) {
 
     // serviceScope: respeta el del cliente, default urbano.
     const serviceScope = parsed.data.serviceScope ?? "urbano";
+    const canonicalVehicleTypeKey =
+      serviceScope === "interprovincial"
+        ? "transporte_interprovincial"
+        : "transporte_urbano";
 
     // coverage: respeta el del cliente; en su defecto infiere desde la sede.
     const coverage = parsed.data.coverage ?? {
@@ -261,7 +265,7 @@ export async function POST(request: NextRequest) {
       razonSocial: parsed.data.razonSocial,
       ruc: parsed.data.ruc,
       representanteLegal: parsed.data.representanteLegal,
-      vehicleTypeKeys: parsed.data.vehicleTypeKeys ?? [],
+      vehicleTypeKeys: [canonicalVehicleTypeKey],
       documents: parsed.data.documents ?? [],
       active: parsed.data.active ?? true,
       serviceScope,

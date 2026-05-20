@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 /// RF-16: Ranking de ciudadanos por SFITCoins.
@@ -121,7 +122,7 @@ class _RankingPageState extends ConsumerState<RankingPage>
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
+          ? const SfitLoading.page(color: AppColors.gold)
           : TabBarView(
               controller: _tabCtrl,
               children: [
@@ -199,7 +200,7 @@ class _RankingTile extends StatelessWidget {
   });
 
   (Color bg, Color border) get _rowColors {
-    if (isMe) return (const Color(0xFFFBEAEA), AppColors.goldBorder);
+    if (isMe) return (AppColors.primaryBg, AppColors.goldBorder);
     if (position <= 3) return (Colors.white, AppColors.ink2);
     return (Colors.white, AppColors.ink2);
   }
@@ -214,11 +215,11 @@ class _RankingTile extends StatelessWidget {
 
   Widget _positionWidget() {
     if (position == 1) {
-      return const Icon(Icons.looks_one, size: 28, color: Color(0xFFFFD700));
+      return const Icon(Icons.looks_one, size: 28, color: AppColors.medalGold);
     } else if (position == 2) {
-      return const Icon(Icons.looks_two, size: 28, color: Color(0xFFB0B0B0));
+      return const Icon(Icons.looks_two, size: 28, color: AppColors.medalSilver);
     } else if (position == 3) {
-      return const Icon(Icons.looks_3, size: 28, color: Color(0xFFCD7F32));
+      return const Icon(Icons.looks_3, size: 28, color: AppColors.medalBronze);
     }
     return SizedBox(
       width: 28,

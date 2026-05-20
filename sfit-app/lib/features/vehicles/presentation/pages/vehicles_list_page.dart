@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../data/datasources/vehicle_api_service.dart';
 
 /// Tab de vehículos para el rol Operador — RF-06.
@@ -42,7 +43,7 @@ class _VehiclesListPageState extends ConsumerState<VehiclesListPage> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.gold));
+      return const SfitLoading.page(color: AppColors.gold);
     }
     if (_error != null) {
       return Center(

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../../../shared/widgets/widgets.dart';
 
 class RouteEditPage extends ConsumerStatefulWidget {
@@ -85,11 +86,11 @@ class _RouteEditPageState extends ConsumerState<RouteEditPage> {
           Padding(padding: const EdgeInsets.only(right: 12), child: FilledButton(
             onPressed: _saving ? null : _save,
             style: FilledButton.styleFrom(backgroundColor: AppColors.gold, minimumSize: const Size(80, 36), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-            child: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text('Guardar', style: AppTheme.inter(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+            child: _saving ? const SfitLoading.inline(strokeWidth: 2, color: Colors.white) : Text('Guardar', style: AppTheme.inter(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
           )),
         ],
       ),
-      body: _loading ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
+      body: _loading ? const SfitLoading.page(color: AppColors.gold)
           : _error != null ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Text(_error!, style: AppTheme.inter(fontSize: 13, color: AppColors.ink5)), const SizedBox(height: 12), FilledButton(onPressed: _load, child: const Text('Reintentar'))]))
           : _form(),
     );

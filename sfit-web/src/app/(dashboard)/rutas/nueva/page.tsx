@@ -8,7 +8,11 @@ import {
   Clock, Plus, X, Globe,
 } from "lucide-react";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { SectionCard } from "@/components/ui/SectionCard";
 import { WaypointsEditor, type Waypoint } from "@/components/ui/WaypointsEditor";
+import { fmtDate, fmtAgo } from "@/lib/format";
+import { INK1, INK2, INK3, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBG, GRNBD, AMBER, AMBER_BG, AMBER_BD, INFO, INFO_BG, INFO_BD } from "@/lib/design-tokens";
+import { FIELD, READ, LABEL, BTN_PRIMARY, BTN_OUTLINE } from "@/lib/form-styles";
 import {
   ACTIVE_DISTRICTS,
   ACTIVE_PROVINCE_NAME,
@@ -55,22 +59,8 @@ const DESTINATION_DISTRICTS = INTERPROV_DESTINATIONS.map((d) => ({
 
 const ALLOWED_CREATE = ["super_admin", "admin_municipal"];
 
-/* Paleta */
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
-const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const RED = "#DC2626"; const RED_BG = "#FFF5F5"; const RED_BD = "#FCA5A5";
-const APTO = "#15803d"; const APTO_BG = "#F0FDF4"; const APTO_BD = "#86EFAC";
-
-const FIELD: React.CSSProperties = {
-  width: "100%", height: 38, padding: "0 12px", borderRadius: 8,
-  border: `1px solid ${INK2}`, fontSize: "0.875rem", color: INK9,
-  background: "#fff", outline: "none", boxSizing: "border-box",
-  fontFamily: "var(--font-inter), Inter, sans-serif",
-};
-const LABEL: React.CSSProperties = {
-  display: "block", fontSize: "0.6875rem", fontWeight: 700,
-  letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, marginBottom: 6,
-};
+const APTO = GRN; const APTO_BG = GRNBG; const APTO_BD = GRNBD;
+const RED_BG = REDBG; const RED_BD = REDBD;
 
 const TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -679,45 +669,6 @@ export default function NuevaRutaPage() {
           )}
         </SectionCard>
       </form>
-    </div>
-  );
-}
-
-function SectionCard({
-  icon, title, subtitle, children,
-}: {
-  icon: React.ReactNode; title: string; subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div style={{
-      background: "#fff", border: `1px solid ${INK2}`,
-      borderRadius: 12, overflow: "hidden",
-    }}>
-      <div style={{
-        padding: "10px 16px", borderBottom: `1px solid ${INK1}`,
-        display: "flex", alignItems: "center", gap: 10,
-      }}>
-        <div style={{
-          width: 26, height: 26, borderRadius: 6,
-          background: INK1, border: `1px solid ${INK2}`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          flexShrink: 0,
-        }}>
-          {icon}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9, lineHeight: 1.25 }}>
-            {title}
-          </div>
-          {subtitle && (
-            <div style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.3, marginTop: 1 }}>
-              {subtitle}
-            </div>
-          )}
-        </div>
-      </div>
-      <div style={{ padding: "14px 16px" }}>{children}</div>
     </div>
   );
 }

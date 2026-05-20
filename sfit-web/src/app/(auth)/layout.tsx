@@ -82,13 +82,6 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
                     <div className="text-[12px] text-white font-semibold leading-none">Google Play</div>
                   </div>
                 </a>
-                <a href="#" className="flex items-center gap-3 bg-white/[0.03] px-4 py-2.5 rounded-xl border border-white/5 opacity-40 cursor-default">
-                  <Apple size={18} className="text-white/70" />
-                  <div className="text-left">
-                    <div className="text-[8px] text-white/40 uppercase tracking-tight leading-none mb-1">Próximamente</div>
-                    <div className="text-[12px] text-white/70 font-semibold leading-none">App Store</div>
-                  </div>
-                </a>
               </div>
             </div>
           </div>

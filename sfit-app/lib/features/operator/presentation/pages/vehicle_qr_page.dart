@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/sfit_loading.dart';
+import '../../../../core/widgets/sfit_brand_loading.dart';
 import '../../data/datasources/operator_api_service.dart';
 
 /// Pantalla de QR firmado HMAC-SHA256 para un vehículo — rol OPERADOR.
@@ -96,7 +96,7 @@ class _VehicleQrPageState extends ConsumerState<VehicleQrPage> {
         ),
       ),
       body: _loading
-          ? const SfitLoading()
+          ? const SfitBrandLoading()
           : _error != null
               ? _ErrorView(message: _error!, onRetry: _load)
               : _QrView(
@@ -177,11 +177,11 @@ class _QrView extends StatelessWidget {
                   errorCorrectionLevel: QrErrorCorrectLevel.H,
                   eyeStyle: const QrEyeStyle(
                     eyeShape: QrEyeShape.square,
-                    color: Color(0xFF0A1628), // AppColors.panel
+                    color: AppColors.panel,
                   ),
                   dataModuleStyle: const QrDataModuleStyle(
                     dataModuleShape: QrDataModuleShape.square,
-                    color: Color(0xFF0A1628),
+                    color: AppColors.panel,
                   ),
                 ),
               ),

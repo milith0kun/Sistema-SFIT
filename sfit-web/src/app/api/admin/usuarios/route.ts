@@ -31,6 +31,14 @@ import { logAction } from "@/lib/audit/logAction";
 import { getActiveMunicipalityId } from "@/lib/scope-server";
 
 const ALLOWED_ROLES = [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL];
+const EXCLUDED_FROM_USERS_PANEL = [ROLES.CONDUCTOR] as const;
+const ROLES_REQUIRE_IDENTITY = new Set([
+  ROLES.SUPER_ADMIN,
+  ROLES.ADMIN_MUNICIPAL,
+  ROLES.CONDUCTOR,
+  ROLES.OPERADOR,
+  ROLES.FISCAL,
+]);
 
 // ── GET ──────────────────────────────────────────────────────────────────────
 
@@ -78,6 +86,13 @@ export async function GET(request: NextRequest) {
     filter.role = roleFilter;
   }
 
+  // La gestión operativa de conductores vive en /conductores (modelo Driver).
+  // Para evitar duplicidad/confusión, el panel /usuarios no lista cuentas con
+  // rol conductor.
+  if (filter.role === ROLES.CONDUCTOR) {
+    return apiResponse({ items: [], total: 0, page, limit });
+  }
+
   // admin_municipal nunca debe ver super_admins (no son parte de su jerarquía).
   // Aplicar después del roleFilter para que no se pueda saltar pidiendo
   // role=super_admin desde el cliente.
@@ -86,8 +101,17 @@ export async function GET(request: NextRequest) {
       return apiResponse({ items: [], total: 0, page, limit });
     }
     if (!filter.role) {
-      filter.role = { $ne: ROLES.SUPER_ADMIN };
+      filter.role = { $nin: [ROLES.SUPER_ADMIN, ...EXCLUDED_FROM_USERS_PANEL] };
+    } else if (
+      typeof filter.role === "object" &&
+      filter.role !== null &&
+      "$ne" in (filter.role as Record<string, unknown>)
+    ) {
+      const ne = (filter.role as { $ne?: string }).$ne;
+      filter.role = { $nin: [ne, ...EXCLUDED_FROM_USERS_PANEL].filter(Boolean) };
     }
+  } else if (!filter.role) {
+    filter.role = { $nin: [...EXCLUDED_FROM_USERS_PANEL] };
   }
 
   const validStatuses = ["activo", "pendiente", "suspendido", "rechazado"];
@@ -180,6 +204,24 @@ export async function POST(request: NextRequest) {
     dni, phone, completeProfileNow, passwordIsTemporary,
   } = parsed.data;
 
+  const normalizedDni = dni?.trim();
+  const normalizedPhone = phone?.trim();
+
+  const identityRequiredByRole = ROLES_REQUIRE_IDENTITY.has(role);
+
+  if (identityRequiredByRole && !completeProfileNow) {
+    return apiError("Para este rol, debe completar DNI y teléfono al crear la cuenta.", 422);
+  }
+
+  if (completeProfileNow || identityRequiredByRole) {
+    if (!normalizedDni || !/^\d{6,12}$/.test(normalizedDni)) {
+      return apiError("DNI inválido para el rol seleccionado.", 422);
+    }
+    if (!normalizedPhone || normalizedPhone.length < 7) {
+      return apiError("Teléfono inválido para el rol seleccionado.", 422);
+    }
+  }
+
   try {
     await connectDB();
 
@@ -215,16 +257,17 @@ export async function POST(request: NextRequest) {
     const existing = await User.findOne({ email });
     if (existing) return apiError("El correo ya está registrado", 409);
 
-    if (dni) {
-      const dupDni = await User.findOne({ dni });
+    if (normalizedDni) {
+      const dupDni = await User.findOne({ dni: normalizedDni });
       if (dupDni) return apiError("El DNI ya está registrado en otra cuenta", 409);
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Si el super_admin marcó "completar perfil ahora" Y aportó DNI → perfil completo.
-    // Si no, queda incompleto y el usuario lo cierra al primer login.
-    const profileCompleted = completeProfileNow && !!dni;
+    // Si el rol exige identidad o el admin marcó "completar perfil ahora"
+    // (con DNI válido), el perfil queda completo desde el alta.
+    const shouldCompleteProfileNow = completeProfileNow || identityRequiredByRole;
+    const profileCompleted = shouldCompleteProfileNow && !!normalizedDni;
 
     const user = await User.create({
       name,
@@ -236,8 +279,8 @@ export async function POST(request: NextRequest) {
       status,
       municipalityId: activeMunicipalityId,
       companyId:      companyId || undefined,
-      dni:            dni       || undefined,
-      phone:          phone     || undefined,
+      dni:            normalizedDni   || undefined,
+      phone:          normalizedPhone || undefined,
       profileCompleted,
       mustChangePassword: passwordIsTemporary,
     });

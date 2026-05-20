@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:async';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../data/datasources/operator_api_service.dart';
 import '../../../../shared/models/conductor_model.dart';
 
@@ -15,34 +17,68 @@ class ConductoresTabPage extends ConsumerStatefulWidget {
 }
 
 class _ConductoresTabPageState extends ConsumerState<ConductoresTabPage> {
-  List<ConductorModel> _all = [];
-  List<ConductorModel> _filtered = [];
+  List<ConductorModel> _items = [];
   bool _loading = true;
   String? _error;
-  String _filter = 'todos';
+  String _statusFilter = 'todos';
+  String _validityFilter = 'all';
+  String _search = '';
+  final _searchCtrl = TextEditingController();
+  Timer? _debounce;
 
-  static const _filters = [
+  static const _statusFilters = [
     ('todos',    'Todos'),
     ('apto',     'Aptos'),
     ('riesgo',   'En riesgo'),
     ('no_apto',  'No aptos'),
   ];
 
+  static const _validityFilters = [
+    ('all',            'Todas'),
+    ('valid',          'Vigente'),
+    ('expiring_soon',  'Por vencer'),
+    ('expired',        'Vencida'),
+    ('missing',        'Sin fecha'),
+  ];
+
   @override
   void initState() {
     super.initState();
+    _searchCtrl.addListener(_onSearchChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _load(); });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.removeListener(_onSearchChanged);
+    _searchCtrl.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      if (mounted) {
+        setState(() => _search = _searchCtrl.text.trim());
+        _load();
+      }
+    });
   }
 
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
       final svc = ref.read(operatorApiServiceProvider);
-      final items = await svc.getConductores(limit: 50);
+      final items = await svc.getConductores(
+        q: _search.isEmpty ? null : _search,
+        status: _statusFilter == 'todos' ? null : _statusFilter,
+        validity: _validityFilter == 'all' ? null : _validityFilter,
+        limit: 100,
+      );
       if (mounted) {
         setState(() {
-          _all = items;
-          _applyFilter();
+          _items = items;
           _loading = false;
         });
       }
@@ -56,17 +92,20 @@ class _ConductoresTabPageState extends ConsumerState<ConductoresTabPage> {
     }
   }
 
-  void _applyFilter() {
-    _filtered = _filter == 'todos'
-        ? List.of(_all)
-        : _all.where((c) => c.status == _filter).toList();
+  void _setStatusFilter(String value) {
+    setState(() => _statusFilter = value);
+    _load();
   }
 
-  void _setFilter(String value) {
-    setState(() {
-      _filter = value;
-      _applyFilter();
-    });
+  void _setValidityFilter(String value) {
+    setState(() => _validityFilter = value);
+    _load();
+  }
+
+  void _clearSearch() {
+    _searchCtrl.clear();
+    setState(() => _search = '');
+    _load();
   }
 
   @override
@@ -81,9 +120,6 @@ class _ConductoresTabPageState extends ConsumerState<ConductoresTabPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // ── Header ─────────────────────────────────────────
-                // Tipografía canónica: headlineSmall (18 / w700 /
-                // letterSpacing -0.01). El count badge entra a la
-                // derecha del título para refuerzo numérico.
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
                   child: Row(
@@ -99,27 +135,62 @@ class _ConductoresTabPageState extends ConsumerState<ConductoresTabPage> {
                       ),
                       const SizedBox(width: 8),
                       if (!_loading && _error == null)
-                        _CountBadge(count: _all.length),
+                        _CountBadge(count: _items.length),
                     ],
                   ),
                 ),
 
-                // ── Filtros ────────────────────────────────────────
+                // ── Búsqueda ───────────────────────────────────────
+                if (!_loading && _error == null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    child: TextField(
+                      controller: _searchCtrl,
+                      decoration: InputDecoration(
+                        hintText: 'Buscar por nombre, DNI o licencia…',
+                        prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.ink5),
+                        suffixIcon: _searchCtrl.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 18),
+                                onPressed: _clearSearch,
+                              )
+                            : null,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: AppColors.ink3),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: AppColors.ink3),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: AppColors.primary),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                      style: AppTheme.inter(fontSize: 13, color: AppColors.ink9),
+                    ),
+                  ),
+
+                // ── Filtros estado ─────────────────────────────────
                 if (!_loading && _error == null)
                   SizedBox(
                     height: 36,
                     child: ListView(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       scrollDirection: Axis.horizontal,
-                      children: _filters.map((f) {
+                      children: _statusFilters.map((f) {
                         final (key, label) = f;
-                        final selected = _filter == key;
+                        final selected = _statusFilter == key;
                         return Padding(
-                          padding: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.only(right: 6),
                           child: FilterChip(
                             label: Text(label),
                             selected: selected,
-                            onSelected: (_) => _setFilter(key),
+                            onSelected: (_) => _setStatusFilter(key),
                             showCheckmark: false,
                             selectedColor: AppColors.panel,
                             backgroundColor: Colors.white,
@@ -127,7 +198,41 @@ class _ConductoresTabPageState extends ConsumerState<ConductoresTabPage> {
                               color: selected ? AppColors.panel : AppColors.ink3,
                             ),
                             labelStyle: AppTheme.inter(
-                              fontSize: 12.5,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: selected ? Colors.white : AppColors.ink7,
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+
+                // ── Filtros vigencia licencia ─────────────────────
+                if (!_loading && _error == null)
+                  SizedBox(
+                    height: 36,
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      scrollDirection: Axis.horizontal,
+                      children: _validityFilters.map((f) {
+                        final (key, label) = f;
+                        final selected = _validityFilter == key;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: FilterChip(
+                            label: Text(label),
+                            selected: selected,
+                            onSelected: (_) => _setValidityFilter(key),
+                            showCheckmark: false,
+                            selectedColor: AppColors.gold,
+                            backgroundColor: Colors.white,
+                            side: BorderSide(
+                              color: selected ? AppColors.gold : AppColors.ink3,
+                            ),
+                            labelStyle: AppTheme.inter(
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: selected ? Colors.white : AppColors.ink7,
                             ),
@@ -143,32 +248,28 @@ class _ConductoresTabPageState extends ConsumerState<ConductoresTabPage> {
                 // ── Contenido ──────────────────────────────────────
                 Expanded(
                   child: _loading
-                      ? const Center(
-                          child: CircularProgressIndicator(color: AppColors.gold))
+                      ? const SfitLoading.page(color: AppColors.gold)
                       : _error != null
                           ? _ErrorState(message: _error!, onRetry: _load)
-                          : _filtered.isEmpty
-                              ? _EmptyState(filter: _filter)
+                          : _items.isEmpty
+                              ? _EmptyState(
+                                  search: _search,
+                                  statusFilter: _statusFilter,
+                                  validityFilter: _validityFilter,
+                                )
                               : RefreshIndicator(
                                   onRefresh: _load,
                                   color: AppColors.gold,
                                   child: ListView.separated(
                                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 88),
-                                    itemCount: _filtered.length,
+                                    itemCount: _items.length,
                                     separatorBuilder: (_, __) =>
                                         const SizedBox(height: 8),
                                     itemBuilder: (_, i) {
-                                      final item = _filtered[i];
+                                      final item = _items[i];
                                       return _ConductorCard(
                                         item: item,
                                         onTap: () async {
-                                          // Navegamos al detalle pasando el
-                                          // modelo como seed para mostrar
-                                          // datos inmediatamente mientras
-                                          // recarga el detalle completo. Si
-                                          // el detalle reportó un cambio
-                                          // (desasociar, desactivar, editar)
-                                          // refrescamos la lista al volver.
                                           final changed =
                                               await context.push<bool>(
                                             '/operador/conductores/${item.id}',
@@ -403,14 +504,25 @@ class _CountBadge extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  final String filter;
-  const _EmptyState({required this.filter});
+  final String search;
+  final String statusFilter;
+  final String validityFilter;
+  const _EmptyState({
+    required this.search,
+    required this.statusFilter,
+    required this.validityFilter,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final msg = filter == 'todos'
-        ? 'No hay conductores registrados'
-        : 'No hay conductores con este estado';
+    String msg;
+    if (search.isNotEmpty) {
+      msg = 'No se encontraron resultados para "$search"';
+    } else if (statusFilter != 'todos' || validityFilter != 'all') {
+      msg = 'No hay conductores con estos filtros';
+    } else {
+      msg = 'No hay conductores registrados';
+    }
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -441,10 +553,10 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              filter == 'todos'
-                  ? 'Usa "Asociar existente" para vincular conductores '
-                      'a tu empresa, o "+" para crear uno nuevo.'
-                  : 'Cambia el filtro o actualiza la lista.',
+              search.isNotEmpty
+                  ? 'Intenta con otro término de búsqueda.'
+                  : 'Usa "Asociar existente" para vincular conductores '
+                      'a tu empresa, o "+" para crear uno nuevo.',
               textAlign: TextAlign.center,
               style: AppTheme.inter(
                 fontSize: 12.5,

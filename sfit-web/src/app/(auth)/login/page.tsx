@@ -169,7 +169,7 @@ export default function LoginPage() {
     localStorage.setItem("sfit_access_token", data.accessToken);
     localStorage.setItem("sfit_refresh_token", data.refreshToken);
     localStorage.setItem("sfit_user", JSON.stringify(data.user));
-    document.cookie = `sfit_access_token=${data.accessToken}; path=/; max-age=7200; SameSite=Lax`;
+    document.cookie = `sfit_access_token=${data.accessToken}; path=/; max-age=7200; SameSite=Strict; Secure`;
     window.location.replace(destForStatus(data.user.status));
   }
 
@@ -184,28 +184,21 @@ export default function LoginPage() {
     credentialInFlightRef.current = true;
     setGoogleLoading(true);
     setError(null);
-    // Logs explícitos para debug — el callback de GIS a veces no dispara
-    // o la respuesta del backend trae shape distinto al esperado.
-    console.log("[google-login] credential received, length:", response.credential?.length);
     try {
       const res = await fetch("/api/auth/google", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken: response.credential }),
       });
-      console.log("[google-login] response status:", res.status);
       const data = await res.json();
-      console.log("[google-login] response body:", data);
       if (!res.ok) {
         setError(data.error ?? `Error al iniciar sesión con Google (HTTP ${res.status})`);
         return;
       }
       if (!data?.data?.accessToken || !data?.data?.user) {
-        console.error("[google-login] response shape inválida:", data);
-        setError("Respuesta inesperada del servidor. Revisa la consola.");
+        setError("Respuesta inesperada del servidor.");
         return;
       }
-      console.log("[google-login] redirecting to:", destForStatus(data.data.user.status));
       persistSessionAndRedirect(data.data);
     } catch (err) {
       console.error("[google-login] fetch threw:", err);

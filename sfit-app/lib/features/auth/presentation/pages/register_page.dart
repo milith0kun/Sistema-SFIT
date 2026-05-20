@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -209,6 +210,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
               Form(
                 key: _formKey,
+                child: AutofillGroup(
+                onDisposeAction: AutofillContextAction.commit,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -257,6 +260,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       controller: _nameCtrl,
                       textCapitalization: TextCapitalization.words,
                       textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.name],
                       decoration: const InputDecoration(
                         hintText: 'Juan Pérez',
                         prefixIcon: Icon(Icons.person_outlined, size: 20),
@@ -278,6 +282,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.email, AutofillHints.username],
                       decoration: const InputDecoration(
                         hintText: 'nombre@correo.com',
                         prefixIcon: Icon(Icons.email_outlined, size: 20),

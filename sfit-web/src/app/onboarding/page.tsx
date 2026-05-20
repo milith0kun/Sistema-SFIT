@@ -93,7 +93,7 @@ export default function OnboardingPage() {
     const u = JSON.parse(raw) as StoredUser;
     setUser(u);
     if (typeof document !== "undefined") {
-      document.cookie = "sfit_onboarding_pending=1; path=/; max-age=86400";
+      document.cookie = "sfit_onboarding_pending=1; path=/; max-age=86400; SameSite=Strict; Secure";
     }
     // Si ya está todo completo, ir directo al dashboard.
     if (u.profileCompleted && !u.mustChangePassword) {
@@ -210,7 +210,7 @@ export default function OnboardingPage() {
       };
       localStorage.setItem("sfit_user", JSON.stringify(merged));
       if (typeof document !== "undefined") {
-        document.cookie = "sfit_onboarding_pending=; path=/; max-age=0";
+        document.cookie = "sfit_onboarding_pending=; path=/; max-age=0; SameSite=Strict; Secure";
       }
       router.replace("/dashboard");
     } catch {

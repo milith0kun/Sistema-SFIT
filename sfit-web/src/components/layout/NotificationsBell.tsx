@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   useUnreadCount,
   decrementUnreadCount,
@@ -41,6 +42,7 @@ function timeAgo(iso: string): string {
 }
 
 export function NotificationsBell() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const unread = useUnreadCount();
   const [items, setItems] = useState<NotificationItem[]>([]);
@@ -143,7 +145,7 @@ export function NotificationsBell() {
         aria-label="Notificaciones"
         aria-expanded={open}
         aria-haspopup="dialog"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => router.push("/notificaciones")}
         style={{
           position: "relative",
           width: 38,

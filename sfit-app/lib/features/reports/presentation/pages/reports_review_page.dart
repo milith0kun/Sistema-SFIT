@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../data/datasources/reports_api_service.dart';
 import '../../data/models/report_model.dart';
 
@@ -157,8 +158,7 @@ class _ReportsReviewPageState extends ConsumerState<ReportsReviewPage> {
           // ── Lista ───────────────────────────────────────────────
           Expanded(
             child: _loading
-                ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.gold))
+                ? const SfitLoading.page(color: AppColors.gold)
                 : _error != null
                     ? _ErrorState(message: _error!, onRetry: _load)
                     : _items.isEmpty

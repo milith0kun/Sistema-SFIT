@@ -54,7 +54,7 @@ class SfitQuickActionCard extends StatelessWidget {
                   colors: [
                     Colors.white,
                     AppColors.primaryBg,
-                    Color(0xFFF4D5D5),
+                    AppColors.gradientEnd,
                   ],
                   stops: [0.0, 0.6, 1.0],
                 ),

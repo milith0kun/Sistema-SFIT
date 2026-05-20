@@ -11,6 +11,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/map/sfit_map_markers.dart';
 import '../../../../shared/widgets/map/sfit_map_tiles.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import 'live_bus_data.dart';
 
 /// Pantalla completa de detalle de un bus en vivo.
@@ -237,7 +238,7 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
     if (_loading) {
       return const Scaffold(
         backgroundColor: AppColors.paper,
-        body: Center(child: CircularProgressIndicator(color: AppColors.gold)),
+        body: const Center(child: SfitLoading.inline(color: AppColors.gold)),
       );
     }
     final bus = _bus;
@@ -465,7 +466,7 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
                       alignment: Alignment.center,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2563EB),
+                          color: AppColors.blueBus,
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: myLocSize < 18 ? 2 : 3),
                           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 4)],
@@ -556,7 +557,7 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
                                   : 'actualizado ${_ago(_lastSeen!)}',
                               style: AppTheme.inter(
                                 fontSize: 10,
-                                color: _stale ? const Color(0xFFB45309) : AppColors.ink5,
+                                color: _stale ? AppColors.riesgo : AppColors.ink5,
                                 fontWeight: FontWeight.w600),
                             ),
                           ]),
@@ -676,12 +677,12 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
       );
 
   Widget _staleBannerContent() => Row(children: [
-        const Icon(Icons.signal_cellular_alt_1_bar, size: 16, color: Color(0xFFB45309)),
+        const Icon(Icons.signal_cellular_alt_1_bar, size: 16, color: AppColors.riesgo),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             'Sin transmisión reciente · última señal ${_lastSeen != null ? _ago(_lastSeen!) : "hace un rato"}',
-            style: AppTheme.inter(fontSize: 11.5, color: const Color(0xFF92400E), fontWeight: FontWeight.w600),
+            style: AppTheme.inter(fontSize: 11.5, color: AppColors.riesgoText, fontWeight: FontWeight.w600),
           ),
         ),
       ]);
@@ -780,16 +781,16 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF8E1),
-                  border: Border.all(color: const Color(0xFFB45309)),
+                  color: AppColors.riesgoBg,
+                  border: Border.all(color: AppColors.riesgo),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.warning_amber_rounded, size: 12, color: Color(0xFFB45309)),
+                  const Icon(Icons.warning_amber_rounded, size: 12, color: AppColors.riesgo),
                   const SizedBox(width: 4),
                   Text(
                     'Desviado',
-                    style: AppTheme.inter(fontSize: 10, fontWeight: FontWeight.w700, color: const Color(0xFF92400E)),
+                    style: AppTheme.inter(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.riesgoText),
                   ),
                 ]),
               ),
@@ -1024,7 +1025,7 @@ class _LivePulseDotState extends State<_LivePulseDot>
 
   @override
   Widget build(BuildContext context) {
-    final color = widget.active ? AppColors.apto : const Color(0xFFB45309);
+    final color = widget.active ? AppColors.apto : AppColors.riesgo;
     return AnimatedBuilder(
       animation: _ctl,
       builder: (_, __) => Container(

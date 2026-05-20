@@ -71,6 +71,55 @@ class AppColors {
   static const Color infoBg      = Color(0xFFEFF6FF);
   static const Color infoBorder  = Color(0xFFBFDBFE);
 
+  // ── Purple (interprovincial badges) ──────────────────────────
+  static const Color purple       = Color(0xFF7C3AED);
+  static const Color purpleBg     = Color(0xFFF5F3FF);
+  static const Color purpleBorder = Color(0xFFDDD6FE);
+
+  // ── Riesgo variants (naranja/ámbar) ──────────────────────────
+  static const Color riesgoDark   = Color(0xFF92400E);
+  static const Color riesgoDarker = Color(0xFF78350F);
+  static const Color riesgoAmber  = Color(0xFFD97706);
+  static const Color riesgoAltBg  = Color(0xFFFFF4E5);
+  static const Color riesgoAltBg2 = Color(0xFFFFFBEB);
+  static const Color riesgoAltBg3 = Color(0xFFFFF5F5);
+  static const Color riesgoAltBg4 = Color(0xFFFFF8E1);
+
+  // ── Medal colors (ranking) ───────────────────────────────────
+  static const Color goldMedal    = Color(0xFFFFD700);
+  static const Color silverMedal  = Color(0xFFB0B0B0);
+  static const Color bronzeMedal  = Color(0xFFCD7F32);
+
+  // ── Misc ─────────────────────────────────────────────────────
+  static const Color blueLink     = Color(0xFF2563EB);
+  static const Color blueBus      = Color(0xFF3B82F6);
+  static const Color warmBg       = Color(0xFFFFF4E5);
+  static const Color warningBg    = Color(0xFFFFF8E1);
+  static const Color noAptoBgAlt  = Color(0xFFFFF5F5);
+  static const Color aptoAltBg    = Color(0xFFF0FDF4);
+  static const Color aptoMid      = Color(0xFF16A34A);
+  static const Color score60Green = Color(0xFF16A34A);
+
+  /// Light primary bg for pressed state (rgba(108,6,6,0.03) ≈ #FDF8F8)
+  static const Color primaryBgLight = Color(0xFFFDF8F8);
+
+  /// Gradient end for quick action card (matches primaryBg tinted lighter)
+  static const Color gradientEnd    = Color(0xFFF4D5D5);
+
+  /// Warn state colors (hero card, alerts)
+  static const Color warnBg         = Color(0x1FEF4444); // rgba(239,68,68,0.12)
+  static const Color warnBorder     = Color(0x66EF4444); // rgba(239,68,68,0.4)
+  static const Color warnLabel      = Color(0xFFFCA5A5);
+
+  /// Medal colors for ranking/podium
+  static const Color medalGold      = Color(0xFFFFD700);
+  static const Color medalSilver    = Color(0xFFB0B0B0);
+  static const Color medalBronze    = Color(0xFFCD7F32);
+
+  /// Riesgo text variants for critical points banners
+  static const Color riesgoText     = Color(0xFF92400E);
+  static const Color riesgoTextDark = Color(0xFF78350F);
+
   // ── Legacy aliases (compatibilidad con código existente) ─────
   static const Color success          = apto;
   static const Color warning          = riesgo;

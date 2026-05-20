@@ -10,10 +10,9 @@ import { PageHeader } from "@/components/ui/PageHeader";
 
 import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
-// Tokens consistentes con el resto del dashboard
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a";
-const INK6 = "#52525b"; const INK9 = "#18181b";
-const APTO = "#15803d"; const RIESGO = "#b45309"; const NO = "#DC2626";
+import { fmtDateTime } from "@/lib/format";
+import { INK1, INK2, INK3, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBG, GRNBD, AMBER, AMBER_BG, AMBER_BD, INFO, INFO_BG, INFO_BD } from "@/lib/design-tokens";
+import { FIELD, READ, LABEL, BTN_PRIMARY, BTN_OUTLINE } from "@/lib/form-styles";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 type ApelacionStatus = "pendiente" | "aprobada" | "rechazada";
@@ -38,15 +37,15 @@ const STATUS_LABEL: Record<ApelacionStatus, string> = {
 };
 
 const STATUS_DOT: Record<ApelacionStatus, string> = {
-  pendiente: RIESGO,
-  aprobada:  APTO,
-  rechazada: NO,
+  pendiente: AMBER,
+  aprobada:  GRN,
+  rechazada: RED,
 };
 
 const INSPECTION_DOT: Record<string, string> = {
-  aprobada:  APTO,
-  observada: RIESGO,
-  rechazada: NO,
+  aprobada:  GRN,
+  observada: AMBER,
+  rechazada: RED,
 };
 
 function fmtDate(d: string) {

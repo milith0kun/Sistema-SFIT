@@ -680,7 +680,6 @@ function buildTabsFor(role: string, stats: GlobalStats | null): TabConfig[] {
   if (role === "admin_municipal") return [
     { key: "operacion",  label: "Operación",  items: [
       { title: "Empresas",          subtitle: "De transporte",     href: "/empresas",       icon: Truck     },
-      { title: "Tipos de vehículo", subtitle: "Catálogo local",    href: "/tipos-vehiculo", icon: Car       },
       { title: "Conductores",       subtitle: "Registro",          href: "/conductores",    icon: Users     },
       { title: "Vehículos / QR",    subtitle: "Emisión",           href: "/vehiculos",      icon: Car       },
       { title: "Rutas y zonas",     subtitle: "Urbanas e interp.", href: "/rutas",          icon: Route     },

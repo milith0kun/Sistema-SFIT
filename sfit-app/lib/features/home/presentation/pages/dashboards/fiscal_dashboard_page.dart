@@ -20,8 +20,6 @@ class _FiscalDashboardPageState extends ConsumerState<FiscalDashboardPage> {
   int? _inspectionsThisMonth;
   int? _inspectionsPending;
   int? _reportsPending;
-  // ignore: unused_field
-  int? _reportsNewThisMonth;
 
   bool _loadingStats = true;
 
@@ -47,8 +45,6 @@ class _FiscalDashboardPageState extends ConsumerState<FiscalDashboardPage> {
           _inspectionsPending =
               (data['inspectionsPending'] as num?)?.toInt() ?? 0;
           _reportsPending = (data['reportsPending'] as num?)?.toInt() ?? 0;
-          _reportsNewThisMonth =
-              (data['reportsNewThisMonth'] as num?)?.toInt() ?? 0;
           _loadingStats = false;
         });
       }

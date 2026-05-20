@@ -7,10 +7,8 @@ import { Plus, Truck, Star, ChevronRight, Car } from "lucide-react";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
-
-// Tokens (mismos que el resto del dashboard)
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a";
-const INK6 = "#52525b"; const INK9 = "#18181b";
+import { INK1, INK2, INK5, INK6, INK9, RED, AMBER_BG, AMBER_BD, AMBER } from "@/lib/design-tokens";
+import { BTN_PRIMARY } from "@/lib/form-styles";
 
 /**
  * Convierte un key técnico (snake_case) a un label humano legible.
@@ -205,7 +203,7 @@ export default function EmpresasPage() {
                 <span style={{
                   fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
                   textTransform: "uppercase", padding: "2px 7px", borderRadius: 6,
-                  background: "#FEFCE8", color: "#92400E", border: "1px solid #FDE68A",
+                  background: AMBER_BG, color: AMBER, border: `1px solid ${AMBER_BD}`,
                 }}>
                   Pendiente
                 </span>
@@ -359,7 +357,7 @@ export default function EmpresasPage() {
       </select>
       {canCreate && (
         <Link href="/empresas/nueva">
-          <button style={{ display:"inline-flex", alignItems:"center", gap:6, height:34, padding:"0 14px", borderRadius:8, border:"1.5px solid #6C0606", background:"#6C0606", color:"#fff", fontSize:"0.8125rem", fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+          <button style={{ ...BTN_PRIMARY, height: 34, padding: "0 14px", background: "#6C0606", border: "1.5px solid #6C0606", fontWeight: 700 }}>
             <Plus size={13}/>Nueva empresa
           </button>
         </Link>

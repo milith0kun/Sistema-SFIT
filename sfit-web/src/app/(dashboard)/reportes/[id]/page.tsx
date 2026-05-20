@@ -8,6 +8,11 @@ import {
   Flag, FileText, User as UserIcon, Hash, Car, Eye, BarChart3,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { MetaRow } from "@/components/ui/MetaRow";
+import { fmtDate, fmtDateTime } from "@/lib/format";
+import { INK1, INK2, INK3, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBG, GRNBD, AMBER, AMBER_BG, AMBER_BD, INFO, INFO_BG, INFO_BD } from "@/lib/design-tokens";
 
 import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
@@ -40,17 +45,9 @@ type CitizenReport = {
 
 type FiscalItem = { id: string; name: string };
 
-/* ── Tokens ── */
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
-const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const RED  = "#DC2626"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
-const GRN  = "#15803d"; const GRNBG = "#F0FDF4"; const GRNBD = "#86EFAC";
-const AMB  = "#b45309"; const AMBBG = "#FFFBEB"; const AMBBD = "#FCD34D";
-const G    = "#6C0606"; const GD = "#4A0303";
-
 const STATUS_META: Record<ReportStatus, { label: string; color: string; bg: string; bd: string }> = {
   pendiente: { label: "Pendiente",   color: INK5, bg: INK1,  bd: INK2  },
-  revision:  { label: "En revisión", color: AMB,  bg: AMBBG, bd: AMBBD },
+  revision:  { label: "En revisión", color: AMBER,  bg: AMBER_BG, bd: AMBER_BD },
   validado:  { label: "Validado",    color: GRN,  bg: GRNBG, bd: GRNBD },
   rechazado: { label: "Rechazado",   color: RED,  bg: REDBG, bd: REDBD },
 };
@@ -79,7 +76,7 @@ const BTN_PRIMARY: React.CSSProperties = {
 /* ── Helpers ── */
 function fraudColor(score: number) {
   if (score < 40) return GRN;
-  if (score <= 70) return AMB;
+  if (score <= 70) return AMBER;
   return RED;
 }
 function fraudLabel(score: number) {
@@ -95,65 +92,6 @@ function isImageUrl(url: string) {
     /\/api\/uploads\/files\//i.test(url)
   );
 }
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" });
-}
-function fmtDateShort(iso: string) {
-  return new Date(iso).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" });
-}
-/* ── SectionCard ── */
-function SectionCard({ icon, title, subtitle, children, action }: {
-  icon: React.ReactNode; title: string; subtitle?: string;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
-      <div style={{ padding: "10px 16px", borderBottom: `1px solid ${INK1}`, display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 26, height: 26, borderRadius: 6, background: INK1, border: `1px solid ${INK2}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          {icon}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9, lineHeight: 1.25 }}>{title}</div>
-          {subtitle && <div style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.3, marginTop: 1 }}>{subtitle}</div>}
-        </div>
-        {action && <div style={{ flexShrink: 0 }}>{action}</div>}
-      </div>
-      <div style={{ padding: "16px 18px" }}>{children}</div>
-    </div>
-  );
-}
-
-function StatusBadge({ s }: { s: ReportStatus }) {
-  const m = STATUS_META[s];
-  return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 6,
-      padding: "3px 10px", borderRadius: 6,
-      fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
-      background: "#fff", color: INK9, border: `1px solid ${INK2}`,
-      textTransform: "uppercase",
-    }}>
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
-      {m.label}
-    </span>
-  );
-}
-
-function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div style={{
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-      gap: 12, padding: "9px 14px", borderTop: `1px solid ${INK1}`,
-    }}>
-      <span style={{ fontSize: "0.75rem", color: INK5, fontWeight: 500 }}>{label}</span>
-      <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: INK9, textAlign: "right", wordBreak: "break-word" }}>
-        {value}
-      </span>
-    </div>
-  );
-}
-
 interface Props { params: Promise<{ id: string }> }
 
 export default function ReporteDetallePage({ params }: Props) {
@@ -477,17 +415,17 @@ export default function ReporteDetallePage({ params }: Props) {
           {/* Apelación del ciudadano — sólo si la presentó */}
           {report.appealReason && (
             <SectionCard
-              icon={<ShieldAlert size={14} color={AMB} />}
+              icon={<ShieldAlert size={14} color={AMBER} />}
               title="Apelación del ciudadano"
               subtitle={
                 report.appealedAt
-                  ? `Presentada el ${fmtDateShort(report.appealedAt)}`
+                  ? `Presentada el ${fmtDate(report.appealedAt)}`
                   : "Presentada por el ciudadano"
               }
             >
               <div style={{
                 padding: "12px 14px", borderRadius: 9,
-                background: AMBBG, border: `1px solid ${AMBBD}`,
+                background: AMBER_BG, border: `1px solid ${AMBER_BD}`,
                 color: "#92400E", fontSize: "0.875rem", lineHeight: 1.55,
                 whiteSpace: "pre-wrap",
               }}>
@@ -698,7 +636,7 @@ export default function ReporteDetallePage({ params }: Props) {
                   Reporte ciudadano
                 </div>
                 <div style={{ marginTop: 8 }}>
-                  <StatusBadge s={report.status} />
+                  <StatusBadge status={report.status} statusMap={STATUS_META} />
                 </div>
               </div>
             </div>
@@ -714,7 +652,7 @@ export default function ReporteDetallePage({ params }: Props) {
               <MetaRow label="Score fraude" value={
                 <span style={{ color: fColor, fontWeight: 800 }}>{report.fraudScore}/100</span>
               } />
-              <MetaRow label="Reportado" value={fmtDateShort(report.createdAt)} />
+              <MetaRow label="Reportado" value={fmtDate(report.createdAt)} />
             </div>
           </div>
 

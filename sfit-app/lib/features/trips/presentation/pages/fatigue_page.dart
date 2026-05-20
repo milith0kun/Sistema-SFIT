@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../data/datasources/trips_api_service.dart';
 
@@ -114,12 +115,7 @@ class _LoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 60),
-        child: CircularProgressIndicator(),
-      ),
-    );
+    return const SfitLoading.page();
   }
 }
 

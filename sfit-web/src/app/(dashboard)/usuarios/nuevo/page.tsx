@@ -6,6 +6,16 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, UserPlus, Eye, EyeOff, RefreshCw, Loader2, CheckCircle, AlertTriangle, Search } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LocationPicker } from "@/components/location-picker";
+import { INK1, INK2, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBG, GRNBD, GOLD_RED, GOLD_RED_BG, GOLD_RED_BD, AMBER_BG, AMBER_BD } from "@/lib/design-tokens";
+import { FIELD } from "@/lib/form-styles";
+
+const RED_BG = REDBG;
+const RED_BD = REDBD;
+const GRN_BG = GRNBG;
+const GRN_BD = GRNBD;
+const GOLD_BG = GOLD_RED_BG;
+const GOLD_BD = GOLD_RED_BD;
+const GOLD_C = GOLD_RED;
 
 type DniLookup =
   | { state: "idle" }
@@ -16,14 +26,16 @@ type DniLookup =
 
 type StoredUser = { role: string };
 
-/* ── Tokens ── */
-const INK9 = "#18181b"; const INK6 = "#52525b"; const INK5 = "#71717a";
-const INK2 = "#e4e4e7"; const INK1 = "#f4f4f5";
-const RED  = "#DC2626"; const RED_BG  = "#FFF5F5"; const RED_BD  = "#FCA5A5";
-const GRN  = "#15803d"; const GRN_BG  = "#F0FDF4"; const GRN_BD  = "#86EFAC";
-const GOLD_BG = "#FBEAEA"; const GOLD_BD = "#D9B0B0"; const GOLD_C = "#4A0303";
+const ROLES_REQUIRE_IDENTITY = new Set([
+  "super_admin",
+  "admin_municipal",
+  "conductor",
+  "operador",
+  "fiscal",
+]);
 
-const FIELD: React.CSSProperties = {
+/* ── Tokens locales (variaciones de height/border vs form-styles) ── */
+const INPUT_STYLE: React.CSSProperties = {
   width: "100%", height: 44, padding: "0 14px",
   border: `1.5px solid ${INK2}`, borderRadius: 10,
   fontSize: "0.9375rem", color: INK9, fontFamily: "inherit",
@@ -145,6 +157,8 @@ export default function NuevoUsuarioPage() {
   }, [dni, completeNow]);
 
   const meta = ROLE_META[selRole] ?? ROLE_META.admin_municipal;
+  const identityRequiredByRole = ROLES_REQUIRE_IDENTITY.has(selRole);
+  const shouldCompleteNow = completeNow || identityRequiredByRole;
 
   // Carga las empresas activas cuando se está creando un operador. Todas
   // las empresas pertenecen a la municipalidad institucional única, así que
@@ -179,7 +193,7 @@ export default function NuevoUsuarioPage() {
     if (!email.trim())   errs.email    = "El correo es requerido";
     if (password.length < 8) errs.password = "Mínimo 8 caracteres";
     if (selRole === "operador" && !companyId) errs.companyId = "Selecciona la empresa";
-    if (completeNow) {
+    if (shouldCompleteNow) {
       if (!/^\d{6,12}$/.test(dni.trim()))   errs.dni   = "DNI debe tener entre 6 y 12 dígitos";
       if (phone.trim().length < 7)          errs.phone = "Teléfono requerido";
     }
@@ -201,8 +215,8 @@ export default function NuevoUsuarioPage() {
           ...(selRole === "operador" && companyId ? { companyId } : {}),
           // Flujo híbrido: password siempre temporal (el usuario la cambia al primer login).
           passwordIsTemporary: true,
-          completeProfileNow:  completeNow,
-          ...(completeNow ? { dni: dni.trim(), phone: phone.trim() } : {}),
+          completeProfileNow:  shouldCompleteNow,
+          ...(shouldCompleteNow ? { dni: dni.trim(), phone: phone.trim() } : {}),
         }),
       });
       const data = await res.json() as {
@@ -411,14 +425,15 @@ export default function NuevoUsuarioPage() {
                   <label style={{
                     display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer",
                     padding: "10px 12px", borderRadius: 9,
-                    border: `1.5px solid ${completeNow ? INK9 : INK2}`,
-                    background: completeNow ? INK1 : "#fff",
+                    border: `1.5px solid ${shouldCompleteNow ? INK9 : INK2}`,
+                    background: shouldCompleteNow ? INK1 : "#fff",
                     transition: "all 0.15s",
                   }}>
                     <input
                       type="checkbox"
-                      checked={completeNow}
+                      checked={shouldCompleteNow}
                       onChange={(e) => setCompleteNow(e.target.checked)}
+                      disabled={identityRequiredByRole}
                       style={{ marginTop: 2, accentColor: INK9, cursor: "pointer" }}
                     />
                     <div>
@@ -426,13 +441,14 @@ export default function NuevoUsuarioPage() {
                         Completar DNI y teléfono ahora
                       </div>
                       <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 2, lineHeight: 1.4 }}>
-                        Si lo dejás desmarcado, el usuario completará DNI y teléfono en su primer ingreso.
-                        Marcalo solo si vos ya tenés esos datos a mano.
+                        {identityRequiredByRole
+                          ? "Para este rol, DNI y teléfono son obligatorios al crear la cuenta."
+                          : "Si lo dejás desmarcado, el usuario completará DNI y teléfono en su primer ingreso. Marcalo solo si vos ya tenés esos datos a mano."}
                       </div>
                     </div>
                   </label>
 
-                  {completeNow && (
+                  {shouldCompleteNow && (
                     <div style={{ marginTop: 16 }}>
                       <div className="cols-2-responsive">
                         <div>

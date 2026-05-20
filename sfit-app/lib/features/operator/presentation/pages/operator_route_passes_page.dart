@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../data/datasources/operator_api_service.dart';
 
 /// Listado de pasadas (FleetEntry cerradas) de una ruta para que el operador
@@ -154,20 +155,20 @@ class _OperatorRoutePassesPageState
       ),
       body: SafeArea(
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const SfitLoading.page()
             : Column(
                 children: [
                   if (_error != null)
                     _BannerMessage(
                       text: _error!,
                       color: AppColors.danger,
-                      bg: const Color(0xFFFFF5F5),
+                      bg: AppColors.riesgoBg,
                     ),
                   if (_success != null)
                     _BannerMessage(
                       text: _success!,
-                      color: const Color(0xFF15803D),
-                      bg: const Color(0xFFF0FDF4),
+                      color: AppColors.apto,
+                      bg: AppColors.aptoBg,
                     ),
                   if (_preferredId != null)
                     _PreferredHeader(
@@ -253,13 +254,13 @@ class _PreferredHeader extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0FDF4),
-        border: Border.all(color: const Color(0xFF86EFAC)),
+        color: AppColors.aptoBg,
+        border: Border.all(color: AppColors.aptoBorder),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          const Icon(Icons.star, color: Color(0xFF15803D), size: 16),
+          const Icon(Icons.star, color: AppColors.apto, size: 16),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -267,7 +268,7 @@ class _PreferredHeader extends StatelessWidget {
               'Quitarla NO restaura el promedio convergente automáticamente.',
               style: AppTheme.inter(
                 fontSize: 11.5,
-                color: const Color(0xFF15803D),
+                color: AppColors.apto,
               ),
             ),
           ),
@@ -278,12 +279,12 @@ class _PreferredHeader extends StatelessWidget {
                 ? const SizedBox(
                     width: 12,
                     height: 12,
-                    child: CircularProgressIndicator(strokeWidth: 1.5),
+                    child: SfitLoading.inline(strokeWidth: 1.5),
                   )
                 : const Icon(Icons.close, size: 14),
             label: const Text('Quitar'),
             style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF15803D),
+              foregroundColor: AppColors.apto,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               minimumSize: const Size(0, 28),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -326,9 +327,9 @@ class _PassCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isPreferred ? const Color(0xFFF0FDF4) : Colors.white,
+        color: isPreferred ? AppColors.aptoBg : Colors.white,
         border: Border.all(
-          color: isPreferred ? const Color(0xFF86EFAC) : AppColors.ink2,
+          color: isPreferred ? AppColors.aptoBorder : AppColors.ink2,
         ),
         borderRadius: BorderRadius.circular(10),
       ),
@@ -341,14 +342,14 @@ class _PassCard extends StatelessWidget {
                 const _Badge(
                   label: 'RECOMENDADA',
                   color: Colors.white,
-                  bg: Color(0xFF15803D),
+                  bg: AppColors.apto,
                   icon: Icons.star,
                 )
               else if (isBest)
                 const _Badge(
                   label: 'MEJOR AUTO',
-                  color: Color(0xFFB45309),
-                  bg: Color(0xFFFFFBEB),
+                  color: AppColors.riesgo,
+                  bg: AppColors.riesgoBg,
                   icon: Icons.auto_awesome,
                 ),
               const SizedBox(width: 6),
@@ -411,10 +412,7 @@ class _PassCard extends StatelessWidget {
                     ? const SizedBox(
                         width: 14,
                         height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 1.5,
-                          color: Colors.white,
-                        ),
+                        child: SfitLoading.inline(strokeWidth: 1.5, color: Colors.white),
                       )
                     : const Icon(Icons.star, size: 16),
                 label: const Text('Marcar como recomendada'),
@@ -489,15 +487,15 @@ class _ScorePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = score >= 80
-        ? const Color(0xFF15803D)
+        ? AppColors.apto
         : score >= 60
-            ? const Color(0xFFB45309)
-            : const Color(0xFFDC2626);
+            ? AppColors.riesgo
+            : AppColors.noApto;
     final bg = score >= 80
-        ? const Color(0xFFF0FDF4)
+        ? AppColors.aptoBg
         : score >= 60
-            ? const Color(0xFFFFFBEB)
-            : const Color(0xFFFFF5F5);
+            ? AppColors.riesgoBg
+            : AppColors.riesgoBg;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

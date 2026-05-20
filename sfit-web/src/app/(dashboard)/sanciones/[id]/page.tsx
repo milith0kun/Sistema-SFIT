@@ -8,9 +8,25 @@ import {
   Car, User as UserIcon, Building2, Hash, CheckCircle, XCircle, Ban,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { MetaRow } from "@/components/ui/MetaRow";
+import { fmtDate as fmtDateShared } from "@/lib/format";
+import {
+  INK1, INK2, INK5, INK6, INK9,
+  RED, REDBG, REDBD,
+  GRN, GRNBG, GRNBD,
+  AMBER_BG as AMBBG,
+  INFO, INFO_BG as INFOBG,
+  GOLD_RED_BG as GBG, GOLD_RED_BD as GBR,
+} from "@/lib/design-tokens";
 
 import { hasWebPermission, SANCION_ANULAR_ROLES } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
+/* ── Tokens locales (hex difieren de design-tokens) ── */
+const G    = "#6C0606";
+const AMB  = "#b45309";
+const AMBBD = "#FCD34D";
+const INFOBD = "#93C5FD";
 /* ── Tipos ── */
 type SanctionStatus = "emitida" | "notificada" | "apelada" | "confirmada" | "anulada";
 type Notification = { channel: string; target: string; status: string; sentAt?: string };
@@ -31,15 +47,6 @@ type Sanction = {
   resolvedAt?: string;
   createdAt: string;
 };
-
-/* ── Tokens ── */
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
-const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const RED  = "#DC2626"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
-const GRN  = "#15803d"; const GRNBG = "#F0FDF4"; const GRNBD = "#86EFAC";
-const AMB  = "#b45309"; const AMBBG = "#FFFBEB"; const AMBBD = "#FCD34D";
-const INFO = "#1d4ed8"; const INFOBG = "#EFF6FF"; const INFOBD = "#93C5FD";
-const G    = "#6C0606"; const GBG = "#FBEAEA"; const GBR = "#D9B0B0";
 
 const STATUS_META: Record<SanctionStatus, { label: string; color: string; bg: string; bd: string }> = {
   emitida:    { label: "Emitida",    color: G,    bg: GBG,    bd: GBR    },
@@ -74,11 +81,8 @@ const BTN_PRIMARY: React.CSSProperties = {
 };
 
 /* ── Helpers ── */
-function fmtDate(iso: string) {
+function fmtDateLong(iso: string) {
   return new Date(iso).toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" });
-}
-function fmtDateShort(iso: string) {
-  return new Date(iso).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" });
 }
 function faultLabel(t: string) {
   return FAULT_LABELS[t] ?? t;
@@ -94,29 +98,7 @@ function notifChannelLabel(ch: string) {
   return "Push al conductor";
 }
 
-/* ── SectionCard ── */
-function SectionCard({ icon, title, subtitle, children, action }: {
-  icon: React.ReactNode; title: string; subtitle?: string;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
-      <div style={{ padding: "10px 16px", borderBottom: `1px solid ${INK1}`, display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 26, height: 26, borderRadius: 6, background: INK1, border: `1px solid ${INK2}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          {icon}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9, lineHeight: 1.25 }}>{title}</div>
-          {subtitle && <div style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.3, marginTop: 1 }}>{subtitle}</div>}
-        </div>
-        {action && <div style={{ flexShrink: 0 }}>{action}</div>}
-      </div>
-      <div style={{ padding: "16px 18px" }}>{children}</div>
-    </div>
-  );
-}
-
+/* ── StatusBadge (local: interface específica de sanciones) ── */
 function StatusBadge({ s }: { s: SanctionStatus }) {
   const m = STATUS_META[s];
   return (
@@ -130,20 +112,6 @@ function StatusBadge({ s }: { s: SanctionStatus }) {
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
       {m.label}
     </span>
-  );
-}
-
-function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div style={{
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-      gap: 12, padding: "9px 14px", borderTop: `1px solid ${INK1}`,
-    }}>
-      <span style={{ fontSize: "0.75rem", color: INK5, fontWeight: 500 }}>{label}</span>
-      <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: INK9, textAlign: "right", wordBreak: "break-word" }}>
-        {value}
-      </span>
-    </div>
   );
 }
 
@@ -300,7 +268,7 @@ export default function SancionDetallePage({ params }: Props) {
       <PageHeader
         kicker={`Sanción · ${sanction.vehicle?.plate ?? "—"}`}
         title={faultLabel(sanction.faultType)}
-        subtitle={`Emitida el ${fmtDate(sanction.createdAt)}`}
+        subtitle={`Emitida el ${fmtDateLong(sanction.createdAt)}`}
         action={backBtn}
       />
 
@@ -577,8 +545,8 @@ export default function SancionDetallePage({ params }: Props) {
               } />
               <MetaRow label="Monto" value={`S/ ${sanction.amountSoles.toLocaleString("es-PE")}`} />
               <MetaRow label="UIT" value={sanction.amountUIT} />
-              <MetaRow label="Emitida" value={fmtDateShort(sanction.createdAt)} />
-              {sanction.resolvedAt && <MetaRow label="Resuelta" value={fmtDateShort(sanction.resolvedAt)} />}
+              <MetaRow label="Emitida" value={fmtDateShared(sanction.createdAt)} />
+              {sanction.resolvedAt && <MetaRow label="Resuelta" value={fmtDateShared(sanction.resolvedAt)} />}
             </div>
           </div>
 

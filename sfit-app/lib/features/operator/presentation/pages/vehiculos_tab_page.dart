@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:async';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/sfit_loading.dart';
+import '../../../../core/widgets/sfit_brand_loading.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../data/datasources/operator_api_service.dart';
 import '../../data/models/vehicle_model.dart';
 
@@ -16,34 +18,66 @@ class VehiculosTabPage extends ConsumerStatefulWidget {
 }
 
 class _VehiculosTabPageState extends ConsumerState<VehiculosTabPage> {
-  List<VehicleModel> _all = [];
-  List<VehicleModel> _filtered = [];
+  List<VehicleModel> _items = [];
   bool _loading = true;
   String? _error;
-  String _filter = 'todos';
+  String _statusFilter = 'todos';
+  String _typeFilter = 'todos';
+  String _search = '';
+  final _searchCtrl = TextEditingController();
+  Timer? _debounce;
 
-  static const _filters = [
+  static const _statusFilters = [
     ('todos',          'Todos'),
     ('disponible',     'Disponible'),
     ('en_ruta',        'En ruta'),
     ('mantenimiento',  'Mantenimiento'),
   ];
 
+  static const _typeFilters = [
+    ('todos',                     'Todos'),
+    ('transporte_urbano',         'Urbano'),
+    ('transporte_interprovincial', 'Interprovincial'),
+  ];
+
   @override
   void initState() {
     super.initState();
+    _searchCtrl.addListener(_onSearchChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _load(); });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.removeListener(_onSearchChanged);
+    _searchCtrl.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      if (mounted) {
+        setState(() => _search = _searchCtrl.text.trim());
+        _load();
+      }
+    });
   }
 
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
       final svc = ref.read(operatorApiServiceProvider);
-      final items = await svc.getVehiculos(limit: 50);
+      final items = await svc.getVehiculos(
+        q: _search.isEmpty ? null : _search,
+        status: _statusFilter == 'todos' ? null : _statusFilter,
+        type: _typeFilter == 'todos' ? null : _typeFilter,
+        limit: 100,
+      );
       if (mounted) {
         setState(() {
-          _all = items;
-          _applyFilter();
+          _items = items;
           _loading = false;
         });
       }
@@ -57,17 +91,20 @@ class _VehiculosTabPageState extends ConsumerState<VehiculosTabPage> {
     }
   }
 
-  void _applyFilter() {
-    _filtered = _filter == 'todos'
-        ? List.of(_all)
-        : _all.where((v) => v.status == _filter).toList();
+  void _setStatusFilter(String value) {
+    setState(() => _statusFilter = value);
+    _load();
   }
 
-  void _setFilter(String value) {
-    setState(() {
-      _filter = value;
-      _applyFilter();
-    });
+  void _setTypeFilter(String value) {
+    setState(() => _typeFilter = value);
+    _load();
+  }
+
+  void _clearSearch() {
+    _searchCtrl.clear();
+    setState(() => _search = '');
+    _load();
   }
 
   @override
@@ -97,27 +134,62 @@ class _VehiculosTabPageState extends ConsumerState<VehiculosTabPage> {
                       ),
                       const SizedBox(width: 8),
                       if (!_loading && _error == null)
-                        _CountBadge(count: _all.length),
+                        _CountBadge(count: _items.length),
                     ],
                   ),
                 ),
 
-                // ── Filtros ────────────────────────────────────────
+                // ── Búsqueda ───────────────────────────────────────
+                if (!_loading && _error == null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    child: TextField(
+                      controller: _searchCtrl,
+                      decoration: InputDecoration(
+                        hintText: 'Buscar por placa, marca o modelo…',
+                        prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.ink5),
+                        suffixIcon: _searchCtrl.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 18),
+                                onPressed: _clearSearch,
+                              )
+                            : null,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: AppColors.ink3),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: AppColors.ink3),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: AppColors.primary),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                      style: AppTheme.inter(fontSize: 13, color: AppColors.ink9),
+                    ),
+                  ),
+
+                // ── Filtros estado ─────────────────────────────────
                 if (!_loading && _error == null)
                   SizedBox(
                     height: 36,
                     child: ListView(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       scrollDirection: Axis.horizontal,
-                      children: _filters.map((f) {
+                      children: _statusFilters.map((f) {
                         final (key, label) = f;
-                        final selected = _filter == key;
+                        final selected = _statusFilter == key;
                         return Padding(
-                          padding: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.only(right: 6),
                           child: FilterChip(
                             label: Text(label),
                             selected: selected,
-                            onSelected: (_) => _setFilter(key),
+                            onSelected: (_) => _setStatusFilter(key),
                             showCheckmark: false,
                             selectedColor: AppColors.panel,
                             backgroundColor: Colors.white,
@@ -125,7 +197,41 @@ class _VehiculosTabPageState extends ConsumerState<VehiculosTabPage> {
                               color: selected ? AppColors.panel : AppColors.ink3,
                             ),
                             labelStyle: AppTheme.inter(
-                              fontSize: 12.5,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: selected ? Colors.white : AppColors.ink7,
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+
+                // ── Filtros tipo ───────────────────────────────────
+                if (!_loading && _error == null)
+                  SizedBox(
+                    height: 36,
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      scrollDirection: Axis.horizontal,
+                      children: _typeFilters.map((f) {
+                        final (key, label) = f;
+                        final selected = _typeFilter == key;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: FilterChip(
+                            label: Text(label),
+                            selected: selected,
+                            onSelected: (_) => _setTypeFilter(key),
+                            showCheckmark: false,
+                            selectedColor: AppColors.gold,
+                            backgroundColor: Colors.white,
+                            side: BorderSide(
+                              color: selected ? AppColors.gold : AppColors.ink3,
+                            ),
+                            labelStyle: AppTheme.inter(
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: selected ? Colors.white : AppColors.ink7,
                             ),
@@ -141,28 +247,32 @@ class _VehiculosTabPageState extends ConsumerState<VehiculosTabPage> {
                 // ── Contenido ──────────────────────────────────────
                 Expanded(
                   child: _loading
-                      ? const SfitLoading()
+                      ? const SfitBrandLoading()
                       : _error != null
                           ? _ErrorState(message: _error!, onRetry: _load)
-                          : _filtered.isEmpty
-                              ? _EmptyState(filter: _filter)
+                          : _items.isEmpty
+                              ? _EmptyState(
+                                  search: _search,
+                                  statusFilter: _statusFilter,
+                                  typeFilter: _typeFilter,
+                                )
                               : RefreshIndicator(
                                   onRefresh: _load,
                                   color: AppColors.gold,
                                   child: ListView.separated(
                                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 88),
-                                    itemCount: _filtered.length,
+                                    itemCount: _items.length,
                                     separatorBuilder: (_, __) =>
                                         const SizedBox(height: 8),
                                     itemBuilder: (_, i) => _VehicleCard(
-                                          item: _filtered[i],
+                                          item: _items[i],
                                           onTap: () => context.push(
-                                              '/inspecciones?vehicleId=${_filtered[i].id}'),
+                                              '/inspecciones?vehicleId=${_items[i].id}'),
                                           onQrTap: () => context.push(
                                             '/vehiculo-qr',
                                             extra: {
-                                              'id':    _filtered[i].id,
-                                              'plate': _filtered[i].plate,
+                                              'id':    _items[i].id,
+                                              'plate': _items[i].plate,
                                             },
                                           ),
                                         ),
@@ -351,14 +461,25 @@ class _CountBadge extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  final String filter;
-  const _EmptyState({required this.filter});
+  final String search;
+  final String statusFilter;
+  final String typeFilter;
+  const _EmptyState({
+    required this.search,
+    required this.statusFilter,
+    required this.typeFilter,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final msg = filter == 'todos'
-        ? 'No hay vehículos registrados'
-        : 'No hay vehículos con este estado';
+    String msg;
+    if (search.isNotEmpty) {
+      msg = 'No se encontraron resultados para "$search"';
+    } else if (statusFilter != 'todos' || typeFilter != 'todos') {
+      msg = 'No hay vehículos con estos filtros';
+    } else {
+      msg = 'No hay vehículos registrados';
+    }
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -379,7 +500,9 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Ajusta el filtro o actualiza la lista',
+              search.isNotEmpty
+                  ? 'Intenta con otro término de búsqueda.'
+                  : 'Ajusta los filtros o actualiza la lista',
               textAlign: TextAlign.center,
               style: AppTheme.inter(fontSize: 13, color: AppColors.ink5),
             ),

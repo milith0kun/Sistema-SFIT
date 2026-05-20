@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays, ChevronDown, LogOut, Menu, Settings,
-  Wifi, Search, ArrowLeft,
+  Search, ArrowLeft,
 } from "lucide-react";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { CommandPalette } from "@/components/layout/CommandPalette";
@@ -31,21 +31,7 @@ function useNow() {
   return now;
 }
 
-/** Hook que obtiene el nombre de la municipalidad del usuario logueado. */
-function useMunicipalityName(): string | null {
-  const [name, setName] = useState<string | null>(null);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = localStorage.getItem("sfit_user");
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (parsed.municipalityName) { setName(parsed.municipalityName); return; }
-      if (parsed.provinceName) { setName(parsed.provinceName); return; }
-    } catch { /* silent */ }
-  }, []);
-  return name;
-}
+
 
 export function Topbar({
   user,
@@ -65,7 +51,6 @@ export function Topbar({
   const pillRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
-  const municipalityName = useMunicipalityName();
 
   // Atajo Cmd/Ctrl+K para abrir el palette desde cualquier parte del dashboard.
   useEffect(() => {
@@ -122,10 +107,11 @@ export function Topbar({
     return () => document.removeEventListener("mousedown", handle);
   }, [open]);
 
-  // Cerrar dropdown en navegación
+  // Cerrar dropdown en navegacion
   useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+    if (!open) return;
+    queueMicrotask(() => setOpen(false));
+  }, [pathname, open]);
 
   const baseCrumbs = useMemo(() => buildCrumbs(pathname), [pathname]);
   const dynamicTitle = useBreadcrumbTitle();
@@ -176,14 +162,7 @@ export function Topbar({
     fontFamily: "inherit",
   };
 
-  // Contexto territorial del usuario
-  const contextLabel = useMemo(() => {
-    if (user.role === "super_admin") return "Plataforma";
-    if (user.role === "admin_municipal") return municipalityName ?? "Municipalidad";
-    if (user.role === "fiscal") return municipalityName ?? "Jurisdicción";
-    if (user.role === "operador") return municipalityName ?? "Empresa";
-    return null;
-  }, [user.role, municipalityName]);
+
 
   return (
     <div
@@ -323,37 +302,6 @@ export function Topbar({
 
       {/* ── Right ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-        {/* Contexto territorial */}
-        {contextLabel && (
-          <div
-            className="hidden-mobile"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              padding: "4px 10px",
-              borderRadius: 7,
-              background: "#FBEAEA",
-              border: "1px solid #D9B0B0",
-              maxWidth: 180,
-            }}
-          >
-            <Wifi size={10} color="#6C0606" strokeWidth={2.5} />
-            <span
-              style={{
-                fontSize: "0.6875rem",
-                color: "#4A0303",
-                fontWeight: 600,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {contextLabel}
-            </span>
-          </div>
-        )}
-
         {/* Date/time */}
         <div
           style={{

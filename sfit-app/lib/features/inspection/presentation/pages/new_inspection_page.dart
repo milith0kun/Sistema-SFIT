@@ -336,8 +336,8 @@ class _SugerenciasIABanner extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(0, 0, 0, 6),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF7ED),
-        border: Border.all(color: const Color(0xFFFED7AA)),
+        color: AppColors.riesgoBg,
+        border: Border.all(color: AppColors.riesgoBorder),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -345,13 +345,13 @@ class _SugerenciasIABanner extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.auto_awesome_outlined, size: 16, color: Color(0xFFD97706)),
+              const Icon(Icons.auto_awesome_outlined, size: 16, color: AppColors.riesgo),
               const SizedBox(width: 8),
               Text(
                 'PUNTOS CRÍTICOS DETECTADOS',
                 style: AppTheme.inter(
                   fontSize: 10, fontWeight: FontWeight.w700,
-                  color: const Color(0xFFD97706), letterSpacing: 1.2,
+                  color: AppColors.riesgo, letterSpacing: 1.2,
                 ),
               ),
             ],
@@ -359,7 +359,7 @@ class _SugerenciasIABanner extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Basado en el historial, este vehículo ha fallado frecuentemente en:',
-            style: AppTheme.inter(fontSize: 12, color: const Color(0xFF92400E), height: 1.4),
+            style: AppTheme.inter(fontSize: 12, color: AppColors.riesgoText, height: 1.4),
           ),
           const SizedBox(height: 6),
           ...sugerencias.map((item) => Padding(
@@ -367,10 +367,10 @@ class _SugerenciasIABanner extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.warning_amber_outlined, size: 14, color: Color(0xFFD97706)),
+                const Icon(Icons.warning_amber_outlined, size: 14, color: AppColors.riesgo),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: Text(item, style: AppTheme.inter(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF78350F))),
+                  child: Text(item, style: AppTheme.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.riesgoTextDark)),
                 ),
               ],
             ),

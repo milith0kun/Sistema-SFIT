@@ -12,6 +12,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/geo.dart';
 import '../../../../shared/widgets/map/sfit_map_markers.dart';
 import '../../../../shared/widgets/map/sfit_map_tiles.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import 'live_bus_data.dart';
 
 /// Pantalla "Buses en vivo".
@@ -910,7 +911,7 @@ class _MapViewState extends State<_MapView> {
                 LatLng(highlight.stop.lat, highlight.stop.lng),
               ],
               strokeWidth: SfitMapStyle.plannedStroke(zoom) + 0.6,
-              color: const Color(0xFF2563EB).withValues(alpha: 0.75),
+              color: AppColors.blueBus.withValues(alpha: 0.75),
               pattern: const StrokePattern.dotted(),
             ),
           ]),
@@ -982,7 +983,7 @@ class _MapViewState extends State<_MapView> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2563EB),
+                  color: AppColors.blueBus,
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
@@ -2120,7 +2121,7 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.gold)),
+              const SizedBox(width: 22, height: 22, child: SfitLoading.inline(strokeWidth: 2.2, color: AppColors.gold)),
               const SizedBox(height: 12),
               Text(
                 'Cargando mapa…',

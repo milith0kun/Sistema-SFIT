@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../data/datasources/fiscal_api_service.dart';
 
 /// Lista y resolucion de apelaciones pendientes — RF-15 (rol fiscal).
@@ -148,9 +149,7 @@ class ResolveAppealPage extends ConsumerWidget {
         ),
       ),
       body: appealsAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.gold),
-        ),
+        loading: () => const SfitLoading.page(color: AppColors.gold),
         error: (_, __) => _ErrorState(
           message: 'No se pudieron cargar las apelaciones.',
           onRetry: () => ref.invalidate(appealsToResolveProvider),

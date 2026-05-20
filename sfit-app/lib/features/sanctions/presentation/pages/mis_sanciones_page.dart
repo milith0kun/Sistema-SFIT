@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../data/sanctions_api_service.dart';
 
 /// Pantalla "Mis sanciones" del conductor.
@@ -62,7 +63,7 @@ class _MisSancionesPageState extends ConsumerState<MisSancionesPage> {
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
+          ? const SfitLoading.page(color: AppColors.gold)
           : _error != null
               ? _ErrorState(message: _error!, onRetry: _load)
               : _MisSancionesContent(data: _data!, onRefresh: _load),

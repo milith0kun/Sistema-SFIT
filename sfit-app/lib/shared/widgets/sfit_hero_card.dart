@@ -18,15 +18,9 @@ class SfitHeroPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = warn
-        ? const Color(0x1FEF4444) // rgba(239,68,68,0.12)
-        : Colors.white.withValues(alpha: 0.08);
-    final border = warn
-        ? const Color(0x66EF4444) // rgba(239,68,68,0.4)
-        : Colors.white.withValues(alpha: 0.12);
-    final labelColor = warn
-        ? const Color(0xFFFCA5A5)
-        : Colors.white.withValues(alpha: 0.55);
+    final bg = warn ? AppColors.warnBg : Colors.white.withValues(alpha: 0.08);
+    final border = warn ? AppColors.warnBorder : Colors.white.withValues(alpha: 0.12);
+    final labelColor = warn ? AppColors.warnLabel : Colors.white.withValues(alpha: 0.55);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

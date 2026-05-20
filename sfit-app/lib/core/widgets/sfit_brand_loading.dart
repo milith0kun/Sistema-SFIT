@@ -5,20 +5,20 @@ import '../theme/app_theme.dart';
 /// Widget de carga con branding SFIT.
 /// La letra "S" del logotipo pulsa suavemente con Curves.easeInOut.
 /// Reemplaza el CircularProgressIndicator genérico en pantallas clave.
-class SfitLoading extends StatefulWidget {
+class SfitBrandLoading extends StatefulWidget {
   /// Mensaje opcional bajo el logo.
   final String? message;
 
   /// Tamaño del círculo con la "S". Por defecto 64.
   final double size;
 
-  const SfitLoading({super.key, this.message, this.size = 64});
+  const SfitBrandLoading({super.key, this.message, this.size = 64});
 
   @override
-  State<SfitLoading> createState() => _SfitLoadingState();
+  State<SfitBrandLoading> createState() => _SfitBrandLoadingState();
 }
 
-class _SfitLoadingState extends State<SfitLoading>
+class _SfitBrandLoadingState extends State<SfitBrandLoading>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _scale;

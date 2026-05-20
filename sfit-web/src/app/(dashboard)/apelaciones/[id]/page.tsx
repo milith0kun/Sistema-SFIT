@@ -8,10 +8,16 @@ import {
   Car, Shield, Calendar, User as UserIcon, Hash,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { MetaRow } from "@/components/ui/MetaRow";
+import { fmtDate } from "@/lib/format";
 import {
-  INK1, INK2, INK5, INK6, INK9,
+  INK1, INK2, INK3, INK5, INK6, INK9,
   RED, REDBG, REDBD,
   GRN, GRNBG, GRNBD,
+  AMBER, AMBER_BG, AMBER_BD,
+  INFO, INFO_BG, INFO_BD,
 } from "@/lib/design-tokens";
 
 /* ── Tipos ── */
@@ -36,17 +42,13 @@ type Apelacion = {
   createdAt: string;
 };
 
-/* Tokens locales únicos a esta pantalla — los grises y rojos/verdes vienen
-   del módulo central design-tokens; el ámbar AMB está sólo aquí. */
-const AMB  = "#b45309"; const AMBBG = "#FFFBEB"; const AMBBD = "#FCD34D";
-
 // Los 4 admins jerárquicos resuelven desde web; el scope geográfico se
 // valida en el handler PATCH /api/apelaciones/[id]/resolver.
 const ALLOWED_VIEW = ["super_admin", "admin_municipal"];
 const CAN_RESOLVE  = ["super_admin", "admin_municipal"];
 
 const STATUS_META: Record<ApelacionStatus, { label: string; color: string; bg: string; bd: string }> = {
-  pendiente: { label: "Pendiente", color: AMB, bg: AMBBG, bd: AMBBD },
+  pendiente: { label: "Pendiente", color: AMBER, bg: AMBER_BG, bd: AMBER_BD },
   aprobada:  { label: "Aprobada",  color: GRN, bg: GRNBG, bd: GRNBD },
   rechazada: { label: "Rechazada", color: RED, bg: REDBG, bd: REDBD },
 };
@@ -68,63 +70,6 @@ const BTN_PRIMARY: React.CSSProperties = {
   fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
   fontFamily: "inherit", transition: "opacity 0.15s",
 };
-
-/* ── SectionCard (idéntica a usuarios/[id]) ── */
-function SectionCard({ icon, title, subtitle, children, action }: {
-  icon: React.ReactNode; title: string; subtitle?: string;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
-      <div style={{ padding: "10px 16px", borderBottom: `1px solid ${INK1}`, display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 26, height: 26, borderRadius: 6, background: INK1, border: `1px solid ${INK2}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          {icon}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9, lineHeight: 1.25 }}>{title}</div>
-          {subtitle && <div style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.3, marginTop: 1 }}>{subtitle}</div>}
-        </div>
-        {action && <div style={{ flexShrink: 0 }}>{action}</div>}
-      </div>
-      <div style={{ padding: "16px 18px" }}>{children}</div>
-    </div>
-  );
-}
-
-function StatusBadge({ s }: { s: ApelacionStatus }) {
-  const m = STATUS_META[s];
-  return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 6,
-      padding: "3px 10px", borderRadius: 6,
-      fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
-      background: "#fff", color: INK9, border: `1px solid ${INK2}`,
-      textTransform: "uppercase",
-    }}>
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
-      {m.label}
-    </span>
-  );
-}
-
-function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div style={{
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-      gap: 12, padding: "9px 14px", borderTop: `1px solid ${INK1}`,
-    }}>
-      <span style={{ fontSize: "0.75rem", color: INK5, fontWeight: 500 }}>{label}</span>
-      <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: INK9, textAlign: "right", wordBreak: "break-word" }}>
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" });
-}
 
 export default function ApelacionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = usePromise(params);
@@ -262,7 +207,7 @@ export default function ApelacionDetailPage({ params }: { params: Promise<{ id: 
             icon={<Shield size={14} color={INK6} />}
             title="Estado de apelación"
             subtitle="Estado actual y datos de presentación"
-            action={<StatusBadge s={apel.status} />}
+            action={<StatusBadge status={apel.status} statusMap={STATUS_META} />}
           >
             <div className="cols-3-responsive" style={{ gap: 12 }}>
               <div style={{ padding: 12, background: INK1, borderRadius: 8, border: `1px solid ${INK2}` }}>
@@ -385,12 +330,12 @@ export default function ApelacionDetailPage({ params }: { params: Promise<{ id: 
           {/* Aviso si pendiente y no tiene permisos */}
           {!canResolve && apel.status === "pendiente" && (
             <div style={{
-              background: AMBBG, border: `1px solid ${AMBBD}`, borderRadius: 10,
+              background: AMBER_BG, border: `1px solid ${AMBER_BD}`, borderRadius: 10,
               padding: "14px 16px", display: "flex", alignItems: "center", gap: 12,
             }}>
-              <Clock size={18} color={AMB} />
+              <Clock size={18} color={AMBER} />
               <div>
-                <div style={{ fontWeight: 700, color: AMB, fontSize: "0.875rem" }}>En revisión</div>
+                <div style={{ fontWeight: 700, color: AMBER, fontSize: "0.875rem" }}>En revisión</div>
                 <div style={{ fontSize: "0.8125rem", color: INK6, marginTop: 2 }}>
                   Esta apelación está siendo revisada por el equipo competente.
                 </div>
@@ -424,7 +369,7 @@ export default function ApelacionDetailPage({ params }: { params: Promise<{ id: 
                   </div>
                 )}
                 <div style={{ marginTop: 8 }}>
-                  <StatusBadge s={apel.status} />
+                  <StatusBadge status={apel.status} statusMap={STATUS_META} />
                 </div>
               </div>
             </div>

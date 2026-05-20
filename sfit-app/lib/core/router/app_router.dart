@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -164,7 +165,8 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: '/nueva-inspeccion',
         builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>;
+          final extra = state.extra as Map<String, dynamic>?;
+          if (extra == null) return const HomePage();
           return NewInspectionPage(
             vehicleId: extra['vehicleId'] as String,
             plate: extra['plate'] as String,
@@ -190,10 +192,13 @@ GoRouter router(Ref ref) {
         },
       ),
       GoRoute(
-        path: '/apelacion-nueva',
+        path: '/acta-inspeccion',
         builder: (context, state) {
-          final inspectionId = state.uri.queryParameters['inspectionId']!;
-          return NewAppealPage(inspectionId: inspectionId);
+          final inspection = state.extra as InspectionModel?;
+          if (inspection == null) {
+            return const Scaffold(body: Center(child: Text('Datos requeridos')));
+          }
+          return ActaInspeccionPage(inspection: inspection);
         },
       ),
 
@@ -205,15 +210,21 @@ GoRouter router(Ref ref) {
 
       // ── RF-17: OCR de placas vehiculares ──────────────────────
       GoRoute(
-        path: '/ocr-placa',
-        builder: (context, state) => const PlateScannerPage(),
+        path: '/ocr-documento',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return DocumentOcrPage(
+            docType: extra?['docType'] as OcrDocType? ?? OcrDocType.dni,
+          );
+        },
       ),
 
       // ── RF-17: OCR de documentos (DNI, licencia, SOAT, tarjeta) ──
       GoRoute(
         path: '/ocr-documento',
         builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>;
+          final extra = state.extra as Map<String, dynamic>?;
+          if (extra == null) return const HomePage();
           return DocumentOcrPage(
             docType: extra['docType'] as OcrDocType,
           );
@@ -221,6 +232,19 @@ GoRouter router(Ref ref) {
       ),
 
       // ── Turno de conductor ────────────────────────────────────
+      GoRoute(
+        path: '/vehiculo-qr',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          if (extra == null) {
+            return const Scaffold(body: Center(child: Text('Datos requeridos')));
+          }
+          return VehicleQrPage(
+            vehicleId: extra['id'] as String,
+            plate: extra['plate'] as String,
+          );
+        },
+      ),
       GoRoute(
         path: '/viaje-checkin',
         builder: (context, state) {
@@ -311,7 +335,8 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: '/vehiculo-qr',
         builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>;
+          final extra = state.extra as Map<String, dynamic>?;
+          if (extra == null) return const HomePage();
           return VehicleQrPage(
             vehicleId: extra['id'] as String,
             plate: extra['plate'] as String,
@@ -437,7 +462,8 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: '/acta-inspeccion',
         builder: (context, state) {
-          final inspection = state.extra as InspectionModel;
+          final inspection = state.extra as InspectionModel?;
+          if (inspection == null) return const HomePage();
           return ActaInspeccionPage(inspection: inspection);
         },
       ),
@@ -446,7 +472,8 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: '/ruta-detalle',
         builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>;
+          final extra = state.extra as Map<String, dynamic>?;
+          if (extra == null) return const HomePage();
           return RouteDetailPage(
             routeId:   extra['routeId']   as String,
             routeName: extra['routeName'] as String? ?? 'Ruta',
@@ -461,10 +488,10 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: '/ruta-editar',
         builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>;
+          final extra = state.extra as Map<String, dynamic>?;
           return RouteEditPage(
-            routeId: extra['routeId'] as String,
-            routeName: extra['routeName'] as String? ?? 'Ruta',
+            routeId: extra?['routeId'] as String? ?? '',
+            routeName: extra?['routeName'] as String? ?? 'Ruta',
           );
         },
       ),
@@ -503,12 +530,17 @@ GoRouter router(Ref ref) {
         builder: (_, __) => const FatigaConductorPage(),
       ),
       GoRoute(
-        path: '/fiscal/nueva-sancion',
+        path: '/nueva-inspeccion',
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
-          return CreateSanctionPage(
-            presetVehicleId: extra?['vehicleId'] as String?,
-            presetPlate: extra?['plate'] as String?,
+          if (extra == null) {
+            return const Scaffold(body: Center(child: Text('Datos requeridos')));
+          }
+          return NewInspectionPage(
+            vehicleId: extra['vehicleId'] as String,
+            plate: extra['plate'] as String,
+            vehicleTypeKey: extra['vehicleTypeKey'] as String,
+            driverId: extra['driverId'] as String?,
           );
         },
       ),
@@ -520,7 +552,10 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: '/feed/:id',
         builder: (context, state) {
-          final report = state.extra as FeedReport;
+          final report = state.extra as FeedReport?;
+          if (report == null) {
+            return const Scaffold(body: Center(child: Text('Datos requeridos')));
+          }
           return FeedDetailPage(report: report);
         },
       ),

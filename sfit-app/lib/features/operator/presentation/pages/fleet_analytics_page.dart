@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/sfit_loading.dart';
+import '../../../../core/widgets/sfit_brand_loading.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../../../shared/models/fleet_entry_model.dart';
 import '../../data/datasources/operator_api_service.dart';
 
@@ -178,7 +179,7 @@ class FleetAnalyticsPage extends ConsumerWidget {
 
           Expanded(
             child: fleetAsync.when(
-              loading: () => const SfitLoading(message: 'Calculando métricas…'),
+              loading: () => const SfitBrandLoading(message: 'Calculando métricas…'),
               error: (_, __) => _ErrorView(
                 message: 'No se pudieron cargar los datos de flota.',
                 onRetry: () => ref.invalidate(myFleetProvider),

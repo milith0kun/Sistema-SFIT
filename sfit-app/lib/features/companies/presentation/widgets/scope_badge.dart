@@ -24,12 +24,6 @@ class ScopeBadge extends StatelessWidget {
     this.compact = false,
   });
 
-  /// Color púrpura para empresas interprovinciales/interregionales. No está
-  /// en `AppColors` porque es exclusivo de este badge y no se reutiliza.
-  static const _interprovColor = Color(0xFF7C3AED);
-  static const _interprovBg = Color(0xFFF5F3FF);
-  static const _interprovBorder = Color(0xFFDDD6FE);
-
   ({IconData icon, Color color, Color bg, Color border, String text}) _resolve() {
     final s = scope ?? '';
     if (s == 'urbano' || s.startsWith('urbano_')) {
@@ -46,9 +40,9 @@ class ScopeBadge extends StatelessWidget {
         s == 'interregional_nacional') {
       return (
         icon: Icons.alt_route_rounded,
-        color: _interprovColor,
-        bg: _interprovBg,
-        border: _interprovBorder,
+        color: AppColors.purple,
+        bg: AppColors.purpleBg,
+        border: AppColors.purpleBorder,
         text: 'Interprovincial · sin paraderos',
       );
     }

@@ -18,6 +18,9 @@ class AppConstants {
     defaultValue: 'SFIT_QR_SECRET_KEY',
   );
 
+  // URLs
+  static const String webLoginUrl = 'https://sfit.ecosdelseo.com/login';
+
   // Estados del conductor
   static const String estadoApto = 'APTO';
   static const String estadoRiesgo = 'RIESGO';

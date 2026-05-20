@@ -9,6 +9,10 @@ import {
   Calendar, Hash,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { MetaRow } from "@/components/ui/MetaRow";
+import { fmtDate, fmtDateTime } from "@/lib/format";
+import { INK1, INK2, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBG, GRNBD, AMBER, AMBER_BG, AMBER_BD } from "@/lib/design-tokens";
 
 /* ── Tipos ── */
 type InspectionResult = "aprobada" | "observada" | "rechazada";
@@ -40,18 +44,11 @@ type Inspection = {
 
 type StoredUser = { role: string };
 
-/* ── Tokens ── */
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
-const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const RED  = "#DC2626"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
-const GRN  = "#15803d"; const GRNBG = "#F0FDF4"; const GRNBD = "#86EFAC";
-const AMB  = "#b45309"; const AMBBG = "#FFFBEB"; const AMBBD = "#FCD34D";
-
 const ALLOWED_VIEW = ["super_admin", "admin_municipal"];
 
 const RESULT_META: Record<InspectionResult, { label: string; color: string; bg: string; bd: string }> = {
   aprobada:  { label: "Aprobada",  color: GRN, bg: GRNBG, bd: GRNBD },
-  observada: { label: "Observada", color: AMB, bg: AMBBG, bd: AMBBD },
+  observada: { label: "Observada", color: AMBER, bg: AMBER_BG, bd: AMBER_BD },
   rechazada: { label: "Rechazada", color: RED, bg: REDBG, bd: REDBD },
 };
 
@@ -70,40 +67,8 @@ function isImageUrl(url: string) {
 /* ── Helpers ── */
 function scoreColor(s: number) {
   if (s >= 80) return GRN;
-  if (s >= 50) return AMB;
+  if (s >= 50) return AMBER;
   return RED;
-}
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("es-PE", {
-    day: "2-digit", month: "long", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-}
-function fmtDateShort(iso: string) {
-  return new Date(iso).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-/* ── SectionCard (idéntica a usuarios/[id]) ── */
-function SectionCard({ icon, title, subtitle, children, action }: {
-  icon: React.ReactNode; title: string; subtitle?: string;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
-      <div style={{ padding: "10px 16px", borderBottom: `1px solid ${INK1}`, display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 26, height: 26, borderRadius: 6, background: INK1, border: `1px solid ${INK2}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          {icon}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9, lineHeight: 1.25 }}>{title}</div>
-          {subtitle && <div style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.3, marginTop: 1 }}>{subtitle}</div>}
-        </div>
-        {action && <div style={{ flexShrink: 0 }}>{action}</div>}
-      </div>
-      <div style={{ padding: "16px 18px" }}>{children}</div>
-    </div>
-  );
 }
 
 function ResultBadge({ r }: { r: InspectionResult }) {
@@ -119,20 +84,6 @@ function ResultBadge({ r }: { r: InspectionResult }) {
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
       {m.label}
     </span>
-  );
-}
-
-function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div style={{
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-      gap: 12, padding: "9px 14px", borderTop: `1px solid ${INK1}`,
-    }}>
-      <span style={{ fontSize: "0.75rem", color: INK5, fontWeight: 500 }}>{label}</span>
-      <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: INK9, textAlign: "right", wordBreak: "break-word" }}>
-        {value}
-      </span>
-    </div>
   );
 }
 
@@ -466,7 +417,7 @@ export default function InspeccionDetallePage({ params }: { params: Promise<{ id
                 ) : <span style={{ color: INK5 }}>—</span>
               } />
               <MetaRow label="Tipo" value={insp.vehicleTypeKey} />
-              <MetaRow label="Fecha" value={fmtDateShort(insp.date)} />
+              <MetaRow label="Fecha" value={fmtDate(insp.date)} />
             </div>
           </div>
 
@@ -502,7 +453,7 @@ export default function InspeccionDetallePage({ params }: { params: Promise<{ id
               <div>
                 <div style={LABEL_S}>Registrado</div>
                 <div style={{ fontSize: "0.8125rem", color: INK9, fontWeight: 600 }}>
-                  {fmtDate(insp.createdAt)}
+                  {fmtDateTime(insp.createdAt)}
                 </div>
               </div>
               <div>

@@ -164,6 +164,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 // contraseña como un par. Sin esto el SO trata cada campo de
                 // forma aislada y no ofrece guardar.
                 child: AutofillGroup(
+                onDisposeAction: AutofillContextAction.commit,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

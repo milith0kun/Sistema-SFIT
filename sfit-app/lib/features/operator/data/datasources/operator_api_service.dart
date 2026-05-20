@@ -80,8 +80,20 @@ class OperatorApiService {
 
   // CRUD básico (legacy, usado por conductores_tab y vehiculos_tab) ─────────
 
-  Future<List<ConductorModel>> getConductores({int limit = 50}) async {
-    final resp = await _dio.get('/conductores', queryParameters: {'limit': limit});
+  Future<List<ConductorModel>> getConductores({
+    String? q,
+    String? status,
+    String? validity,
+    int page = 1,
+    int limit = 50,
+  }) async {
+    final resp = await _dio.get('/conductores', queryParameters: {
+      if (q != null && q.trim().isNotEmpty) 'q': q.trim(),
+      if (status != null && status != 'todos') 'status': status,
+      if (validity != null && validity != 'all') 'validity': validity,
+      'page': page,
+      'limit': limit,
+    });
     final data = (resp.data as Map)['data'] as Map;
     final items = data['items'] as List;
     return items
@@ -89,8 +101,22 @@ class OperatorApiService {
         .toList();
   }
 
-  Future<List<VehicleModel>> getVehiculos({int limit = 50}) async {
-    final resp = await _dio.get('/vehiculos', queryParameters: {'limit': limit});
+  Future<List<VehicleModel>> getVehiculos({
+    String? q,
+    String? status,
+    String? type,
+    String? verified,
+    int page = 1,
+    int limit = 50,
+  }) async {
+    final resp = await _dio.get('/vehiculos', queryParameters: {
+      if (q != null && q.trim().isNotEmpty) 'q': q.trim(),
+      if (status != null && status != 'todos') 'status': status,
+      if (type != null && type != 'todos') 'type': type,
+      if (verified != null && verified != 'all') 'verified': verified,
+      'page': page,
+      'limit': limit,
+    });
     final data = (resp.data as Map)['data'] as Map;
     final items = data['items'] as List;
     return items

@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../../../shared/models/passenger_model.dart';
 import '../../data/datasources/operator_api_service.dart';
 
@@ -213,9 +214,7 @@ class _PassengerListPageState extends ConsumerState<PassengerListPage> {
         color: AppColors.primary,
         onRefresh: _load,
         child: _loading
-            ? const Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              )
+            ? const SfitLoading.page(color: AppColors.primary)
             : _items.isEmpty
                 ? ListView(children: [
                     const SizedBox(height: 80),

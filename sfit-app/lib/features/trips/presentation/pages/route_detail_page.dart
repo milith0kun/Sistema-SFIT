@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
@@ -134,9 +135,7 @@ class _RouteDetailPageState extends ConsumerState<RouteDetailPage> {
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.gold),
-      );
+      return const SfitLoading.page(color: AppColors.gold);
     }
 
     if (_error != null) {

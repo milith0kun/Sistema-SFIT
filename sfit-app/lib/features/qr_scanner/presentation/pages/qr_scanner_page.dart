@@ -5,6 +5,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../data/services/qr_hmac_service.dart';
 
 /// Escáner QR de SFIT — verifica la firma HMAC localmente (offline-first).
@@ -149,7 +150,7 @@ class _QrScannerPageState extends State<QrScannerPage> {
       ),
       body: !_permChecked
           // Esperando respuesta del sistema
-          ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
+          ? const SfitLoading.page(color: AppColors.gold)
           : _permDenied
               // Permiso denegado — mostrar pantalla explicativa
               ? _PermissionDeniedView(onRetry: _checkCameraPermission)

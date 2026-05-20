@@ -14,6 +14,7 @@ export 'sfit_hero_card.dart';
 export 'sfit_item_card.dart';
 export 'sfit_kpi_card.dart';
 export 'sfit_kpi_strip.dart';
+export 'sfit_loading.dart';
 export 'sfit_primary_button.dart';
 export 'sfit_section_header.dart';
 export 'sfit_status_pill.dart';

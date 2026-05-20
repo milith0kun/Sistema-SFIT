@@ -7,6 +7,7 @@ import { Download, Plus, Pencil, Eye, MapPin, Map, AlertTriangle, Users } from "
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { GoogleMapView } from "@/components/ui/GoogleMapView";
+import { INK1, INK2, INK5, INK6, INK9, GRN, GRNBD, RED, REDBG, REDBD } from "@/lib/design-tokens";
 
 import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
@@ -41,11 +42,6 @@ type RouteItem = {
   waypoints?: Waypoint[];
 };
 
-/* Paleta sobria */
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
-const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const APTO = "#15803d"; const APTO_BD = "#86EFAC";
-const NO = "#DC2626"; const NO_BG = "#FFF5F5"; const NO_BD = "#FCA5A5";
 // Los 4 admins jerárquicos editan y crean rutas dentro de su scope geográfico.
 // El operador gestiona las rutas de su empresa desde la app móvil.
 const CAN_CREATE = ["super_admin", "admin_municipal"];
@@ -56,8 +52,8 @@ function StatusBadge({ active }: { active: boolean }) {
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 5,
       padding: "2px 9px", borderRadius: 999,
-      background: "#fff", color: active ? APTO : NO,
-      border: `1px solid ${active ? APTO_BD : NO_BD}`,
+      background: "#fff", color: active ? GRN : RED,
+      border: `1px solid ${active ? GRNBD : REDBD}`,
       fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
     }}>
       <span style={{ width: 5, height: 5, borderRadius: "50%", background: "currentColor" }} />
@@ -281,8 +277,8 @@ export default function RutasPage() {
 
       {error && (
         <div role="alert" style={{
-          padding: "10px 14px", background: NO_BG, border: `1px solid ${NO_BD}`,
-          borderRadius: 8, color: NO, fontSize: "0.8125rem",
+          padding: "10px 14px", background: REDBG, border: `1px solid ${REDBD}`,
+          borderRadius: 8, color: RED, fontSize: "0.8125rem",
           display: "flex", alignItems: "center", gap: 8,
         }}>
           <AlertTriangle size={14} />{error}

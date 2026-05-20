@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/datasources/public_api_service.dart';
 import '../../data/models/public_vehicle_model.dart';
@@ -67,7 +68,7 @@ class _VehiclePublicPageState extends ConsumerState<VehiclePublicPage> {
         foregroundColor: Colors.white,
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
+          ? const SfitLoading.page(color: AppColors.gold)
           : _error != null
               ? _ErrorView(message: _error!)
               : _data == null
@@ -452,10 +453,7 @@ class _SuspendButton extends ConsumerWidget {
                   ? const SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
+                      child: SfitLoading.inline(strokeWidth: 2, color: Colors.white),
                     )
                   : const Text('Confirmar'),
             ),
@@ -607,7 +605,7 @@ class _ReputationRow extends StatelessWidget {
   /// Devuelve el color del texto/icono según el nivel de reputación.
   Color get _color {
     if (score >= 80) return AppColors.apto;       // verde
-    if (score >= 60) return const Color(0xFF16A34A); // verde medio
+    if (score >= 60) return AppColors.apto; // verde medio
     if (score >= 40) return AppColors.riesgo;     // naranja
     return AppColors.noApto;                       // rojo
   }

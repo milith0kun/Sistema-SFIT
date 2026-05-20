@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  House, UserCheck, Users, Building2, Car, Boxes,
+  House, UserCheck, Users, Building2, Car,
   Route, Shield, Flag, TriangleAlert, ChartColumn, Bell,
   MessageSquareWarning, Gift, CircleUserRound,
 } from "lucide-react";
@@ -50,7 +50,6 @@ export const NAV: NavItem[] = [
   //     auditoría puntual, pero NO va en el sidebar para no inducir al
   //     admin_municipal a "operar" desde la web — su rol es supervisar.
   { href: "/empresas",        label: "Empresas",            icon: Building2,             section: "OPERACIÓN",      roles: ["admin_municipal"] },
-  { href: "/tipos-vehiculo",  label: "Tipos de vehículo",   icon: Boxes,                 section: "OPERACIÓN",      roles: ["admin_municipal"] },
   { href: "/conductores",     label: "Conductores",         icon: Users,                 section: "OPERACIÓN",      roles: ["admin_municipal"] },
   { href: "/vehiculos",       label: "Vehículos / QR",      icon: Car,                   section: "OPERACIÓN",      roles: ["admin_municipal"] },
   { href: "/rutas",           label: "Rutas y zonas",       icon: Route,                 section: "OPERACIÓN",      roles: ["admin_municipal"] },

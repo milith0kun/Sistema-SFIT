@@ -189,13 +189,23 @@ class ReportsApiService {
       'page': page,
       'limit': limit,
     });
-    final data = (resp.data as Map)['data'] as Map;
+    // Defensivo: algunos perfiles/tenants pueden recibir `data: null`.
+    // Evitamos romper el feed por casts rígidos.
+    final body = resp.data;
+    final data = (body is Map && body['data'] is Map)
+        ? Map<String, dynamic>.from(body['data'] as Map)
+        : <String, dynamic>{};
+    final rawItems = data['items'];
+    final items = (rawItems is List)
+        ? rawItems
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList()
+        : <Map<String, dynamic>>[];
     return {
-      'items': (data['items'] as List)
-          .map((e) => e as Map<String, dynamic>)
-          .toList(),
-      'total': data['total'] ?? 0,
-      'hasMore': data['hasMore'] ?? false,
+      'items': items,
+      'total': data['total'] ?? items.length,
+      'hasMore': data['hasMore'] == true,
     };
   }
 

@@ -84,6 +84,8 @@ export async function GET(request: NextRequest) {
       filter.companyId = companyId;
     }
 
+    const scopeFilter: Record<string, unknown> = { ...filter };
+
     if (statusParam && Object.values(DRIVER_STATUS).includes(statusParam as never)) {
       filter.status = statusParam;
     }
@@ -119,7 +121,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     const counts = await Driver.aggregate([
-      { $match: { municipalityId: items[0]?.municipalityId } },
+      { $match: scopeFilter },
       { $group: { _id: "$status", count: { $sum: 1 } } },
     ]).catch(() => []);
 

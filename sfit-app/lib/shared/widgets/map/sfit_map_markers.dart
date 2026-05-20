@@ -195,7 +195,7 @@ Marker sfitBusMarker({
                   width: size * 0.30,
                   height: size * 0.30,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFB45309),
+                    color: AppColors.riesgo,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 1.4),
                   ),
@@ -266,7 +266,7 @@ Marker sfitMyLocationMarker({
           width: size * 2.2,
           height: size * 2.2,
           decoration: BoxDecoration(
-            color: const Color(0xFF3B82F6).withValues(alpha: 0.18),
+            color: AppColors.blueBus.withValues(alpha: 0.18),
             shape: BoxShape.circle,
           ),
         ),
@@ -275,7 +275,7 @@ Marker sfitMyLocationMarker({
           width: size,
           height: size,
           decoration: BoxDecoration(
-            color: const Color(0xFF3B82F6),
+            color: AppColors.blueBus,
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: size * 0.12),
             boxShadow: const [

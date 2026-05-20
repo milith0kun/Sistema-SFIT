@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/sfit_mark.dart';
@@ -34,7 +35,6 @@ import 'dashboards/operator_dashboard_page.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/offline/outbox_banner.dart';
 import '../../../../core/widgets/connectivity_banner.dart';
-import '../../../../core/widgets/sfit_loading.dart';
 
 /// Pantalla principal — adapta el contenido al rol del usuario (RF-05 a RF-16).
 ///
@@ -130,7 +130,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             'Como ${_roleLabel(user.role)}, las gestiones se hacen desde '
             'el panel web de SFIT con tus mismas credenciales.',
         onPrimary: () async {
-          final url = Uri.parse('https://sfit.ecosdelseo.com/login');
+          final url = Uri.parse(AppConstants.webLoginUrl);
           if (await canLaunchUrl(url)) {
             await launchUrl(url, mode: LaunchMode.externalApplication);
           }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { clearSession } from "@/components/layout/user-storage";
 
 type User = { name: string; email: string; status: string };
 
@@ -20,10 +21,7 @@ export default function RejectedPage() {
   }, [router]);
 
   function logout() {
-    localStorage.removeItem("sfit_access_token");
-    localStorage.removeItem("sfit_refresh_token");
-    localStorage.removeItem("sfit_user");
-    document.cookie = "sfit_access_token=; path=/; max-age=0";
+    clearSession();
     router.replace("/login");
   }
 

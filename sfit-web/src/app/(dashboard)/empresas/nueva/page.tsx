@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ACTIVE_DISTRICTS, INTERPROV_DESTINATIONS } from "@/lib/scope";
+import { INK2, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBG, GRNBD, AMBER, AMBER_BG, AMBER_BD } from "@/lib/design-tokens";
+import { LABEL } from "@/lib/form-styles";
 
 type ServiceScope = "urbano" | "interprovincial";
 
@@ -29,7 +31,6 @@ const LEVEL_OPTIONS: Array<{ value: AuthorityLevel; label: string }> = [
   { value: "mtc",                  label: "MTC" },
 ];
 
-type VehicleType = { id: string; key: string; name: string; active: boolean };
 type StoredUser = { role: string };
 
 type RucLookup =
@@ -48,8 +49,6 @@ type DniLookup =
 
 export default function NuevaEmpresaPage() {
   const router = useRouter();
-  const [types, setTypes] = useState<VehicleType[]>([]);
-  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -70,7 +69,6 @@ export default function NuevaEmpresaPage() {
 
   // Autorización inicial (opcional pero recomendada)
   const [authLevel, setAuthLevel] = useState<AuthorityLevel>("municipal_provincial");
-  const [authScope, setAuthScope] = useState<ServiceScope>("urbano");
   const [authResolution, setAuthResolution] = useState("");
   const [authIssuedBy, setAuthIssuedBy] = useState("");
   const [authIssuedAt, setAuthIssuedAt] = useState("");
@@ -84,8 +82,6 @@ export default function NuevaEmpresaPage() {
       router.replace("/dashboard");
       return;
     }
-    void loadTypes();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   // Lookup del RUC: catálogo MTC primero (gratis + datos de servicio),
@@ -177,24 +173,6 @@ export default function NuevaEmpresaPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repDni]);
 
-  async function loadTypes() {
-    try {
-      const token = localStorage.getItem("sfit_access_token");
-      const res = await fetch("/api/tipos-vehiculo", {
-        headers: { Authorization: `Bearer ${token ?? ""}` },
-      });
-      if (res.status === 401) return router.replace("/login");
-      const data = await res.json();
-      if (res.ok && data.success) setTypes((data.data.items ?? []).filter((t: VehicleType) => t.active));
-    } catch {
-      // silent
-    }
-  }
-
-  function toggleKey(k: string) {
-    setSelectedKeys((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]));
-  }
-
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
@@ -207,9 +185,9 @@ export default function NuevaEmpresaPage() {
     const hasAuthData =
       authResolution.trim() || authIssuedAt || authExpiresAt || authIssuedBy.trim();
     const authorizations = hasAuthData
-      ? [{
+        ? [{
           level: authLevel,
-          scope: authScope,
+          scope: serviceScope,
           ...(authResolution.trim() ? { resolutionNumber: authResolution.trim() } : {}),
           ...(authIssuedBy.trim()  ? { issuedBy: authIssuedBy.trim() } : {}),
           ...(authIssuedAt  ? { issuedAt:  authIssuedAt  } : {}),
@@ -225,7 +203,11 @@ export default function NuevaEmpresaPage() {
         dni: repDni.trim(),
         phone: ((formEl.get("repPhone") as string) || "").trim() || undefined,
       },
-      vehicleTypeKeys: selectedKeys,
+      vehicleTypeKeys: [
+        serviceScope === "interprovincial"
+          ? "transporte_interprovincial"
+          : "transporte_urbano",
+      ],
       serviceScope,
       coverage: { districtCodes },
       ...(authorizations ? { authorizations } : {}),
@@ -238,7 +220,6 @@ export default function NuevaEmpresaPage() {
     if (!repName.trim()) localErrors.repName = "El nombre del representante es obligatorio.";
     if (!repDni.trim()) localErrors.repDni = "El DNI es obligatorio.";
     else if (!/^\d{8}$/.test(repDni.trim())) localErrors.repDni = "El DNI debe tener 8 dígitos.";
-    if (selectedKeys.length === 0) localErrors.vehicleTypeKeys = "Seleccione al menos un tipo de flota.";
     if (districtCodes.length === 0) localErrors.coverage = "Seleccione al menos un distrito de cobertura.";
     if (authIssuedAt && authExpiresAt) {
       if (new Date(authExpiresAt) <= new Date(authIssuedAt)) {
@@ -456,53 +437,6 @@ export default function NuevaEmpresaPage() {
           </div>
         </Card>
 
-        <Card>
-          <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 8 }}>
-            Tipos de flota
-          </h3>
-          <p style={{ color: "#52525b", fontSize: "0.875rem", marginBottom: 16 }}>
-            Seleccione los tipos de vehículo que la empresa operará.
-          </p>
-          {types.length === 0 ? (
-            <p style={{ color: "#a1a1aa" }}>
-              No hay tipos de vehículo activos. Actívalos primero en{" "}
-              <Link href="/tipos-vehiculo" style={{ color: "#6C0606", fontWeight: 600 }}>
-                Tipos de vehículo
-              </Link>
-              .
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {types.map((t) => {
-                const checked = selectedKeys.includes(t.key);
-                return (
-                  <label
-                    key={t.key}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "12px 14px",
-                      borderRadius: 10,
-                      border: checked ? "1.5px solid #D9B0B0" : "1.5px solid #e4e4e7",
-                      background: checked ? "#FBEAEA" : "#ffffff",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <input type="checkbox" checked={checked} onChange={() => toggleKey(t.key)} />
-                    <span style={{ fontWeight: 500 }}>{t.name}</span>
-                  </label>
-                );
-              })}
-            </div>
-          )}
-          {fieldErrors.vehicleTypeKeys && (
-            <p style={{ marginTop: 12, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
-              {fieldErrors.vehicleTypeKeys}
-            </p>
-          )}
-        </Card>
-
         {/* Ámbito + cobertura */}
         <Card>
           <h3 style={{ fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700, marginBottom: 8 }}>
@@ -603,16 +537,12 @@ export default function NuevaEmpresaPage() {
               <label htmlFor="authScope" style={{ display: "block", marginBottom: 8 }}>
                 Modalidad autorizada
               </label>
-              <select
+              <input
                 id="authScope"
                 className="field"
-                value={authScope}
-                onChange={(e) => setAuthScope(e.target.value as ServiceScope)}
-              >
-                {SCOPE_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
+                value={serviceScope === "interprovincial" ? "Interprovincial" : "Urbano"}
+                readOnly
+              />
             </div>
             <div>
               <label htmlFor="authResolution" style={{ display: "block", marginBottom: 8 }}>

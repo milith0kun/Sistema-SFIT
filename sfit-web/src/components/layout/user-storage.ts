@@ -48,6 +48,10 @@ export function getServerUser(): StoredUser | null {
 
 export function clearSession(): void {
   if (typeof window === "undefined") return;
-  localStorage.clear();
-  document.cookie = "sfit_access_token=; path=/; max-age=0";
+  localStorage.removeItem("sfit_access_token");
+  localStorage.removeItem("sfit_refresh_token");
+  localStorage.removeItem("sfit_user");
+  localStorage.removeItem("sfit_onboarding_pending");
+  document.cookie = "sfit_access_token=; path=/; max-age=0; SameSite=Strict; Secure";
+  document.cookie = "sfit_onboarding_pending=; path=/; max-age=0; SameSite=Strict; Secure";
 }

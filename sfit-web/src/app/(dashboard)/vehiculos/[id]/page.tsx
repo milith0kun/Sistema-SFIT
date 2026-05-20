@@ -4,14 +4,19 @@ import { use as usePromise, useCallback, useEffect, useRef, useState } from "rea
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, Save, Trash2, AlertTriangle, CheckCircle, Loader2, Hash, Copy, Check,
+  ArrowLeft, Save, Trash2, AlertTriangle, CheckCircle, Loader2,
   Car, TrendingUp, ClipboardCheck, ShieldCheck, Building2, Calendar, ShieldOff,
   BadgeCheck,
 } from "lucide-react";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { KeyValueRow, SystemIdRow } from "@/components/ui/KeyValueRow";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 import { hasWebPermission, SUSPEND_ROLES } from "@/lib/auth/roleMatrix";
+import { fmtDate } from "@/lib/format";
+import { INK1, INK2, INK3, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBG, GRNBD, AMBER, AMBER_BG, AMBER_BD, INFO_BG, INFO_BD } from "@/lib/design-tokens";
+import { BTN_PRIMARY, BTN_OUTLINE } from "@/lib/form-styles";
 import type { Role } from "@/lib/constants";
 
 type PlacaLookup =
@@ -21,14 +26,7 @@ type PlacaLookup =
   | { state: "not_found" }
   | { state: "error"; message: string };
 
-/* Paleta sobria */
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
-const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const APTO = "#15803d"; const APTO_BG = "#F0FDF4"; const APTO_BD = "#86EFAC";
-const RIESGO = "#B45309"; const RIESGO_BG = "#FFFBEB"; const RIESGO_BD = "#FDE68A";
-const NO = "#DC2626"; const NO_BG = "#FFF5F5"; const NO_BD = "#FCA5A5";
-const INFO = "#1E40AF"; const INFO_BD = "#BFDBFE";
-
+const INFO = "#1E40AF";
 const CURRENT_YEAR = new Date().getFullYear();
 
 type VehicleStatus = "disponible" | "en_ruta" | "en_mantenimiento" | "fuera_de_servicio";
@@ -91,16 +89,16 @@ const LABEL: React.CSSProperties = {
 };
 
 const VEHICLE_STATUS_META: Record<VehicleStatus, { color: string; bd: string; label: string }> = {
-  disponible:        { color: APTO, bd: APTO_BD, label: "Disponible" },
+  disponible:        { color: GRN, bd: GRNBD, label: "Disponible" },
   en_ruta:           { color: INFO, bd: INFO_BD, label: "En ruta" },
-  en_mantenimiento:  { color: RIESGO, bd: RIESGO_BD, label: "Mantenimiento" },
-  fuera_de_servicio: { color: NO, bd: NO_BD, label: "Fuera de servicio" },
+  en_mantenimiento:  { color: AMBER, bd: AMBER_BD, label: "Mantenimiento" },
+  fuera_de_servicio: { color: RED, bd: REDBD, label: "Fuera de servicio" },
 };
 
 const INSPECTION_META: Record<InspectionStatus, { color: string; bg: string; bd: string; label: string }> = {
-  aprobada:  { color: APTO, bg: APTO_BG, bd: APTO_BD, label: "Aprobada" },
-  observada: { color: RIESGO, bg: RIESGO_BG, bd: RIESGO_BD, label: "Observada" },
-  rechazada: { color: NO, bg: NO_BG, bd: NO_BD, label: "Rechazada" },
+  aprobada:  { color: GRN, bg: GRNBG, bd: GRNBD, label: "Aprobada" },
+  observada: { color: AMBER, bg: AMBER_BG, bd: AMBER_BD, label: "Observada" },
+  rechazada: { color: RED, bg: REDBG, bd: REDBD, label: "Rechazada" },
   pendiente: { color: INK6, bg: INK1, bd: INK2, label: "Pendiente" },
 };
 
@@ -434,7 +432,7 @@ export default function VehiculoDetallePage({ params }: Props) {
   }
 
   const tipoNombre = tipos.find(t => t.key === vehicle.vehicleTypeKey)?.name ?? vehicle.vehicleTypeKey;
-  const repColor = vehicle.reputationScore >= 80 ? APTO : vehicle.reputationScore >= 50 ? RIESGO : NO;
+  const repColor = vehicle.reputationScore >= 80 ? GRN : vehicle.reputationScore >= 50 ? AMBER : RED;
   const inspMeta = INSPECTION_META[vehicle.lastInspectionStatus ?? "pendiente"];
   const stMeta = VEHICLE_STATUS_META[vehicle.status] ?? VEHICLE_STATUS_META.disponible;
   const soatDays = daysUntil(vehicle.soatExpiry);
@@ -454,8 +452,8 @@ export default function VehiculoDetallePage({ params }: Props) {
           style={{
             display: "inline-flex", alignItems: "center", gap: 6,
             height: 36, padding: "0 14px", borderRadius: 9,
-            border: `1.5px solid ${APTO_BD}`, background: APTO_BG,
-            color: APTO, fontWeight: 700, fontSize: "0.875rem",
+            border: `1.5px solid ${GRNBD}`, background: GRNBG,
+            color: GRN, fontWeight: 700, fontSize: "0.875rem",
             cursor: verifying ? "not-allowed" : "pointer", fontFamily: "inherit",
             opacity: verifying ? 0.7 : 1,
           }}
@@ -474,8 +472,8 @@ export default function VehiculoDetallePage({ params }: Props) {
           style={{
             display: "inline-flex", alignItems: "center", gap: 6,
             height: 36, padding: "0 14px", borderRadius: 9,
-            border: `1.5px solid ${NO_BD}`, background: NO_BG,
-            color: NO, fontWeight: 700, fontSize: "0.875rem",
+            border: `1.5px solid ${REDBD}`, background: REDBG,
+            color: RED, fontWeight: 700, fontSize: "0.875rem",
             cursor: "pointer", fontFamily: "inherit",
           }}
         >
@@ -514,20 +512,20 @@ export default function VehiculoDetallePage({ params }: Props) {
       {vehicle.verified ? (
         <div style={{
           padding: "8px 14px", borderRadius: 8,
-          background: APTO_BG, border: `1px solid ${APTO_BD}`,
-          color: APTO, fontSize: "0.8125rem", fontWeight: 600,
+          background: GRNBG, border: `1px solid ${GRNBD}`,
+          color: GRN, fontSize: "0.8125rem", fontWeight: 600,
           display: "flex", alignItems: "center", gap: 8,
         }}>
           <BadgeCheck size={14} />
           Vehículo verificado{vehicle.verifiedAt
-            ? ` el ${new Date(vehicle.verifiedAt).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}`
+            ? ` el ${fmtDate(vehicle.verifiedAt)}`
             : ""}.
         </div>
       ) : (
         <div role="alert" style={{
           padding: "10px 14px", borderRadius: 8,
-          background: RIESGO_BG, border: `1px solid ${RIESGO_BD}`,
-          color: RIESGO, fontSize: "0.8125rem", fontWeight: 600,
+          background: AMBER_BG, border: `1px solid ${AMBER_BD}`,
+          color: AMBER, fontSize: "0.8125rem", fontWeight: 600,
           display: "flex", alignItems: "center", gap: 8,
         }}>
           <AlertTriangle size={14} />
@@ -560,8 +558,8 @@ export default function VehiculoDetallePage({ params }: Props) {
 
       {soatExpired && (
         <div role="alert" style={{
-          padding: "10px 14px", background: NO_BG, border: `1px solid ${NO_BD}`,
-          borderRadius: 8, color: NO, fontSize: "0.8125rem", fontWeight: 600,
+          padding: "10px 14px", background: REDBG, border: `1px solid ${REDBD}`,
+          borderRadius: 8, color: RED, fontSize: "0.8125rem", fontWeight: 600,
           display: "flex", alignItems: "center", gap: 8,
         }}>
           <AlertTriangle size={14} />
@@ -570,8 +568,8 @@ export default function VehiculoDetallePage({ params }: Props) {
       )}
       {soatWarn && !soatExpired && (
         <div role="status" style={{
-          padding: "10px 14px", background: RIESGO_BG, border: `1px solid ${RIESGO_BD}`,
-          borderRadius: 8, color: RIESGO, fontSize: "0.8125rem", fontWeight: 500,
+          padding: "10px 14px", background: AMBER_BG, border: `1px solid ${AMBER_BD}`,
+          borderRadius: 8, color: AMBER, fontSize: "0.8125rem", fontWeight: 500,
           display: "flex", alignItems: "center", gap: 8,
         }}>
           <AlertTriangle size={14} />
@@ -581,8 +579,8 @@ export default function VehiculoDetallePage({ params }: Props) {
 
       {(loadError || serverError) && (
         <div role="alert" style={{
-          padding: "10px 14px", background: NO_BG, border: `1px solid ${NO_BD}`,
-          borderRadius: 8, color: NO, fontSize: "0.8125rem", fontWeight: 500,
+          padding: "10px 14px", background: REDBG, border: `1px solid ${REDBD}`,
+          borderRadius: 8, color: RED, fontSize: "0.8125rem", fontWeight: 500,
           display: "flex", alignItems: "center", gap: 8,
         }}>
           <AlertTriangle size={14} />{loadError ?? serverError}
@@ -590,8 +588,8 @@ export default function VehiculoDetallePage({ params }: Props) {
       )}
       {saveSuccess && (
         <div role="status" style={{
-          padding: "10px 14px", background: APTO_BG, border: `1px solid ${APTO_BD}`,
-          borderRadius: 8, color: APTO, fontSize: "0.8125rem", fontWeight: 600,
+          padding: "10px 14px", background: GRNBG, border: `1px solid ${GRNBD}`,
+          borderRadius: 8, color: GRN, fontSize: "0.8125rem", fontWeight: 600,
           display: "flex", alignItems: "center", gap: 8,
         }}>
           <CheckCircle size={14} />Vehículo actualizado correctamente.
@@ -613,7 +611,7 @@ export default function VehiculoDetallePage({ params }: Props) {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
                   <label htmlFor="plate" style={LABEL}>
-                    Placa <span style={{ color: NO, marginLeft: 3 }}>*</span>
+                    Placa <span style={{ color: RED, marginLeft: 3 }}>*</span>
                     {canEdit && (
                       <span style={{
                         color: INK5, fontWeight: 500, textTransform: "none",
@@ -639,19 +637,19 @@ export default function VehiculoDetallePage({ params }: Props) {
                           fontFamily: "ui-monospace, monospace", letterSpacing: "0.05em",
                           paddingRight: 36,
                           borderColor:
-                            fieldErrors.plate ? NO
-                            : placaLookup.state === "ok" ? APTO
+                            fieldErrors.plate ? RED
+                            : placaLookup.state === "ok" ? GRN
                             : placaLookup.state === "not_found" ? "#F59E0B"
-                            : placaLookup.state === "error" ? NO
+                            : placaLookup.state === "error" ? RED
                             : INK2,
                         }}
                         onFocus={e => { if (!fieldErrors.plate) e.target.style.borderColor = INK9; }}
                         onBlur={e => {
                           e.target.style.borderColor =
-                            fieldErrors.plate ? NO
-                            : placaLookup.state === "ok" ? APTO
+                            fieldErrors.plate ? RED
+                            : placaLookup.state === "ok" ? GRN
                             : placaLookup.state === "not_found" ? "#F59E0B"
-                            : placaLookup.state === "error" ? NO
+                            : placaLookup.state === "error" ? RED
                             : INK2;
                         }}
                       />
@@ -660,9 +658,9 @@ export default function VehiculoDetallePage({ params }: Props) {
                         transform: "translateY(-50%)", pointerEvents: "none",
                       }}>
                         {placaLookup.state === "loading" && <Loader2 size={14} color={INK5} style={{ animation: "spin 0.7s linear infinite" }} />}
-                        {placaLookup.state === "ok" && <CheckCircle size={14} color={APTO} />}
+                        {placaLookup.state === "ok" && <CheckCircle size={14} color={GRN} />}
                         {placaLookup.state === "not_found" && <AlertTriangle size={14} color="#F59E0B" />}
-                        {placaLookup.state === "error" && <AlertTriangle size={14} color={NO} />}
+                        {placaLookup.state === "error" && <AlertTriangle size={14} color={RED} />}
                       </div>
 
                       {placaHover && placaLookup.state !== "idle" && (
@@ -690,7 +688,7 @@ export default function VehiculoDetallePage({ params }: Props) {
                       }}
                     />
                   )}
-                  {fieldErrors.plate && <p style={{ marginTop: 5, fontSize: "0.75rem", color: NO, fontWeight: 500 }}>{fieldErrors.plate}</p>}
+                  {fieldErrors.plate && <p style={{ marginTop: 5, fontSize: "0.75rem", color: RED, fontWeight: 500 }}>{fieldErrors.plate}</p>}
                   {/* Feedback inline OK — con botón "Aplicar" si difiere */}
                   {canEdit && placaLookup.state === "ok" && (() => {
                     const differsBrand = form.brand.trim().toLowerCase() !== placaLookup.marca.toLowerCase();
@@ -700,7 +698,7 @@ export default function VehiculoDetallePage({ params }: Props) {
                     if (!differs) {
                       // Campos ya coinciden con SUNARP — solo confirmación discreta
                       return (
-                        <p style={{ marginTop: 5, fontSize: "0.75rem", color: APTO, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
+                        <p style={{ marginTop: 5, fontSize: "0.75rem", color: GRN, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
                           <CheckCircle size={11} />Verificado: {placaLookup.marca} {placaLookup.modelo}
                           {placaLookup.color && (
                             <span style={{ color: INK5, fontWeight: 500 }}>· {placaLookup.color}</span>
@@ -709,16 +707,16 @@ export default function VehiculoDetallePage({ params }: Props) {
                       );
                     }
 
-                    // Campos NO coinciden — banner accionable
+                    // Campos RED coinciden — banner accionable
                     return (
                       <div style={{
                         marginTop: 8, padding: "8px 10px", borderRadius: 8,
-                        border: `1px solid ${APTO_BD}`, background: APTO_BG,
+                        border: `1px solid ${GRNBD}`, background: GRNBG,
                         display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
                       }}>
-                        <CheckCircle size={13} color={APTO} style={{ flexShrink: 0 }} />
+                        <CheckCircle size={13} color={GRN} style={{ flexShrink: 0 }} />
                         <div style={{ flex: 1, minWidth: 0, fontSize: "0.75rem" }}>
-                          <div style={{ fontWeight: 700, color: APTO, letterSpacing: "0.04em", textTransform: "uppercase", fontSize: "0.625rem" }}>
+                          <div style={{ fontWeight: 700, color: GRN, letterSpacing: "0.04em", textTransform: "uppercase", fontSize: "0.625rem" }}>
                             SUNARP
                           </div>
                           <div style={{ color: INK9, fontWeight: 600, marginTop: 1, wordBreak: "break-word" }}>
@@ -735,7 +733,7 @@ export default function VehiculoDetallePage({ params }: Props) {
                           style={{
                             display: "inline-flex", alignItems: "center", gap: 4,
                             height: 28, padding: "0 12px", borderRadius: 6,
-                            border: `1px solid ${APTO}`, background: "#fff", color: APTO,
+                            border: `1px solid ${GRN}`, background: "#fff", color: GRN,
                             fontSize: "0.75rem", fontWeight: 700,
                             cursor: "pointer", fontFamily: "inherit", flexShrink: 0,
                           }}
@@ -746,18 +744,18 @@ export default function VehiculoDetallePage({ params }: Props) {
                     );
                   })()}
                   {canEdit && placaLookup.state === "not_found" && (
-                    <p style={{ marginTop: 5, fontSize: "0.75rem", color: RIESGO, fontWeight: 500, display: "flex", alignItems: "center", gap: 5 }}>
+                    <p style={{ marginTop: 5, fontSize: "0.75rem", color: AMBER, fontWeight: 500, display: "flex", alignItems: "center", gap: 5 }}>
                       <AlertTriangle size={11} />Placa no encontrada en SUNARP.
                     </p>
                   )}
                   {canEdit && placaLookup.state === "error" && (
-                    <p style={{ marginTop: 5, fontSize: "0.75rem", color: NO, fontWeight: 500, display: "flex", alignItems: "center", gap: 5 }}>
+                    <p style={{ marginTop: 5, fontSize: "0.75rem", color: RED, fontWeight: 500, display: "flex", alignItems: "center", gap: 5 }}>
                       <AlertTriangle size={11} />{placaLookup.message}
                     </p>
                   )}
                 </div>
                 <div>
-                  <label htmlFor="vehicleTypeKey" style={LABEL}>Tipo de vehículo <span style={{ color: NO, marginLeft: 3 }}>*</span></label>
+                  <label htmlFor="vehicleTypeKey" style={LABEL}>Tipo de vehículo <span style={{ color: RED, marginLeft: 3 }}>*</span></label>
                   <select
                     id="vehicleTypeKey" value={form.vehicleTypeKey}
                     onChange={e => handleChange("vehicleTypeKey", e.target.value)}
@@ -765,13 +763,13 @@ export default function VehiculoDetallePage({ params }: Props) {
                     style={{
                       ...(canEdit ? FIELD : READ),
                       appearance: "none", paddingRight: 30, cursor: canEdit ? "pointer" : "default",
-                      borderColor: fieldErrors.vehicleTypeKey ? NO : INK2,
+                      borderColor: fieldErrors.vehicleTypeKey ? RED : INK2,
                     }}
                   >
                     <option value="">Seleccionar tipo…</option>
                     {tipos.map(t => <option key={t.id} value={t.key}>{t.name}</option>)}
                   </select>
-                  {fieldErrors.vehicleTypeKey && <p style={{ marginTop: 5, fontSize: "0.75rem", color: NO, fontWeight: 500 }}>{fieldErrors.vehicleTypeKey}</p>}
+                  {fieldErrors.vehicleTypeKey && <p style={{ marginTop: 5, fontSize: "0.75rem", color: RED, fontWeight: 500 }}>{fieldErrors.vehicleTypeKey}</p>}
                 </div>
               </div>
             </SectionCard>
@@ -784,33 +782,33 @@ export default function VehiculoDetallePage({ params }: Props) {
             >
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
-                  <label htmlFor="brand" style={LABEL}>Marca <span style={{ color: NO, marginLeft: 3 }}>*</span></label>
+                  <label htmlFor="brand" style={LABEL}>Marca <span style={{ color: RED, marginLeft: 3 }}>*</span></label>
                   <input
                     id="brand" type="text" value={form.brand}
                     onChange={e => handleChange("brand", e.target.value)}
                     placeholder="Ej. Toyota" maxLength={80}
                     disabled={submitting || !canEdit}
-                    style={{ ...(canEdit ? FIELD : READ), borderColor: fieldErrors.brand ? NO : INK2 }}
+                    style={{ ...(canEdit ? FIELD : READ), borderColor: fieldErrors.brand ? RED : INK2 }}
                     onFocus={e => { if (canEdit && !fieldErrors.brand) e.target.style.borderColor = INK9; }}
                     onBlur={e => { if (!fieldErrors.brand) e.target.style.borderColor = INK2; }}
                   />
-                  {fieldErrors.brand && <p style={{ marginTop: 5, fontSize: "0.75rem", color: NO, fontWeight: 500 }}>{fieldErrors.brand}</p>}
+                  {fieldErrors.brand && <p style={{ marginTop: 5, fontSize: "0.75rem", color: RED, fontWeight: 500 }}>{fieldErrors.brand}</p>}
                 </div>
                 <div>
-                  <label htmlFor="model" style={LABEL}>Modelo <span style={{ color: NO, marginLeft: 3 }}>*</span></label>
+                  <label htmlFor="model" style={LABEL}>Modelo <span style={{ color: RED, marginLeft: 3 }}>*</span></label>
                   <input
                     id="model" type="text" value={form.model}
                     onChange={e => handleChange("model", e.target.value)}
                     placeholder="Ej. Hiace" maxLength={80}
                     disabled={submitting || !canEdit}
-                    style={{ ...(canEdit ? FIELD : READ), borderColor: fieldErrors.model ? NO : INK2 }}
+                    style={{ ...(canEdit ? FIELD : READ), borderColor: fieldErrors.model ? RED : INK2 }}
                     onFocus={e => { if (canEdit && !fieldErrors.model) e.target.style.borderColor = INK9; }}
                     onBlur={e => { if (!fieldErrors.model) e.target.style.borderColor = INK2; }}
                   />
-                  {fieldErrors.model && <p style={{ marginTop: 5, fontSize: "0.75rem", color: NO, fontWeight: 500 }}>{fieldErrors.model}</p>}
+                  {fieldErrors.model && <p style={{ marginTop: 5, fontSize: "0.75rem", color: RED, fontWeight: 500 }}>{fieldErrors.model}</p>}
                 </div>
                 <div>
-                  <label htmlFor="year" style={LABEL}>Año <span style={{ color: NO, marginLeft: 3 }}>*</span></label>
+                  <label htmlFor="year" style={LABEL}>Año <span style={{ color: RED, marginLeft: 3 }}>*</span></label>
                   <input
                     id="year" type="number" value={form.year}
                     onChange={e => handleChange("year", e.target.value)}
@@ -819,12 +817,12 @@ export default function VehiculoDetallePage({ params }: Props) {
                     style={{
                       ...(canEdit ? FIELD : READ),
                       fontVariantNumeric: "tabular-nums",
-                      borderColor: fieldErrors.year ? NO : INK2,
+                      borderColor: fieldErrors.year ? RED : INK2,
                     }}
                     onFocus={e => { if (canEdit && !fieldErrors.year) e.target.style.borderColor = INK9; }}
                     onBlur={e => { if (!fieldErrors.year) e.target.style.borderColor = INK2; }}
                   />
-                  {fieldErrors.year && <p style={{ marginTop: 5, fontSize: "0.75rem", color: NO, fontWeight: 500 }}>{fieldErrors.year}</p>}
+                  {fieldErrors.year && <p style={{ marginTop: 5, fontSize: "0.75rem", color: RED, fontWeight: 500 }}>{fieldErrors.year}</p>}
                 </div>
                 <div>
                   <label htmlFor="status" style={LABEL}>Estado operativo</label>
@@ -868,7 +866,7 @@ export default function VehiculoDetallePage({ params }: Props) {
                     Vencimiento SOAT
                     {soatDays != null && (
                       <span style={{
-                        color: soatExpired ? NO : soatWarn ? RIESGO : INK5,
+                        color: soatExpired ? RED : soatWarn ? AMBER : INK5,
                         fontWeight: 500, textTransform: "none", letterSpacing: 0, marginLeft: 6,
                       }}>
                         ({soatExpired ? `vencido hace ${Math.abs(soatDays)}d`
@@ -888,7 +886,7 @@ export default function VehiculoDetallePage({ params }: Props) {
                       disabled={submitting || !canEdit}
                       style={{
                         ...(canEdit ? FIELD : READ), paddingLeft: 32,
-                        borderColor: soatExpired ? NO : soatWarn ? RIESGO : INK2,
+                        borderColor: soatExpired ? RED : soatWarn ? AMBER : INK2,
                       }}
                     />
                   </div>
@@ -926,11 +924,11 @@ export default function VehiculoDetallePage({ params }: Props) {
               </div>
               <div style={{ padding: "0 16px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
                 <SystemIdRow id={vehicle.id} />
-                <Row k="Tipo" v={tipoNombre} />
-                <Row k="Empresa" v={vehicle.companyName?.trim() || "—"} />
-                <Row k="Año" v={String(vehicle.year)} mono />
-                <Row k="Registrado" v={new Date(vehicle.createdAt).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })} />
-                <Row k="Activo" v={vehicle.active ? "Sí" : "No"} />
+                <KeyValueRow k="Tipo" v={tipoNombre} />
+                <KeyValueRow k="Empresa" v={vehicle.companyName?.trim() || "—"} />
+                <KeyValueRow k="Año" v={String(vehicle.year)} mono />
+                <KeyValueRow k="Registrado" v={fmtDate(vehicle.createdAt)} />
+                <KeyValueRow k="Activo" v={vehicle.active ? "Sí" : "No"} />
               </div>
             </div>
 
@@ -990,7 +988,7 @@ export default function VehiculoDetallePage({ params }: Props) {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-              <ShieldOff size={22} color={NO} />
+              <ShieldOff size={22} color={RED} />
               <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 800, color: INK9 }}>
                 Suspender vehículo
               </h3>
@@ -1031,7 +1029,7 @@ export default function VehiculoDetallePage({ params }: Props) {
                 disabled={suspending || suspendReason.trim().length < 5}
                 style={{
                   height: 36, padding: "0 16px", borderRadius: 8,
-                  border: "none", background: NO, color: "#fff",
+                  border: "none", background: RED, color: "#fff",
                   fontSize: "0.875rem", fontWeight: 700,
                   cursor: suspending || suspendReason.trim().length < 5 ? "not-allowed" : "pointer",
                   opacity: suspending || suspendReason.trim().length < 5 ? 0.5 : 1,
@@ -1049,104 +1047,6 @@ export default function VehiculoDetallePage({ params }: Props) {
   );
 }
 
-/* ─── Subcomponentes ─── */
-
-function SectionCard({
-  icon, title, subtitle, children,
-}: {
-  icon: React.ReactNode; title: string; subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div style={{
-      background: "#fff", border: `1px solid ${INK2}`,
-      borderRadius: 12, overflow: "hidden",
-    }}>
-      <div style={{
-        padding: "10px 16px", borderBottom: `1px solid ${INK1}`,
-        display: "flex", alignItems: "center", gap: 10,
-      }}>
-        <div style={{
-          width: 26, height: 26, borderRadius: 6,
-          background: INK1, border: `1px solid ${INK2}`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          flexShrink: 0,
-        }}>
-          {icon}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9, lineHeight: 1.25 }}>
-            {title}
-          </div>
-          {subtitle && (
-            <div style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.3, marginTop: 1 }}>
-              {subtitle}
-            </div>
-          )}
-        </div>
-      </div>
-      <div style={{ padding: "14px 16px" }}>{children}</div>
-    </div>
-  );
-}
-
-function Row({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
-  return (
-    <div style={{
-      display: "flex", justifyContent: "space-between", alignItems: "center",
-      padding: "6px 10px", borderRadius: 6, background: INK1, gap: 8,
-    }}>
-      <span style={{ fontSize: "0.75rem", color: INK5, flexShrink: 0 }}>{k}</span>
-      <span style={{
-        fontSize: "0.8125rem", fontWeight: 600, color: INK9,
-        textAlign: "right",
-        fontFamily: mono ? "ui-monospace, monospace" : "inherit",
-        letterSpacing: mono ? "0.04em" : 0,
-        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-      }}>{v}</span>
-    </div>
-  );
-}
-
-function SystemIdRow({ id }: { id: string }) {
-  const [copied, setCopied] = useState(false);
-  const shortId = id.slice(-8).toUpperCase();
-  return (
-    <div style={{
-      background: "#fff", border: `1px dashed ${INK2}`, borderRadius: 7,
-      padding: "7px 10px",
-      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-        <Hash size={11} color={INK5} />
-        <span style={{
-          fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.08em",
-          textTransform: "uppercase", color: INK5,
-        }}>ID</span>
-        <code title={id} style={{
-          fontFamily: "ui-monospace, monospace", fontSize: "0.75rem",
-          color: INK9, fontWeight: 600, letterSpacing: "0.04em",
-          fontVariantNumeric: "tabular-nums",
-        }}>{shortId}</code>
-      </div>
-      <button type="button" onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(id);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1400);
-        } catch { /* */ }
-      }} title="Copiar ID completo" style={{
-        display: "inline-flex", alignItems: "center", gap: 3,
-        height: 22, padding: "0 7px", borderRadius: 5,
-        border: `1px solid ${INK2}`, background: "#fff", color: INK6,
-        fontSize: "0.625rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-      }}>
-        {copied ? <Check size={10} color={APTO} /> : <Copy size={10} />}
-        {copied ? "Copiado" : "Copiar"}
-      </button>
-    </div>
-  );
-}
 
 function PlacaPopover({
   lookup, currentBrand, currentModel, onApply, onRetry,
@@ -1162,9 +1062,9 @@ function PlacaPopover({
       position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0,
       zIndex: 50, background: "#fff",
       border: `1px solid ${
-        lookup.state === "ok" ? APTO_BD
+        lookup.state === "ok" ? GRNBD
         : lookup.state === "not_found" ? "#FDE68A"
-        : lookup.state === "error" ? NO_BD : INK2
+        : lookup.state === "error" ? REDBD : INK2
       }`,
       borderRadius: 8, padding: "10px 12px",
       boxShadow: "0 8px 24px rgba(9,9,11,0.10), 0 1px 2px rgba(9,9,11,0.06)",
@@ -1179,8 +1079,8 @@ function PlacaPopover({
       {lookup.state === "ok" && (
         <>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-            <CheckCircle size={12} color={APTO} />
-            <span style={{ fontSize: "0.625rem", fontWeight: 800, color: APTO, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            <CheckCircle size={12} color={GRN} />
+            <span style={{ fontSize: "0.625rem", fontWeight: 800, color: GRN, letterSpacing: "0.08em", textTransform: "uppercase" }}>
               SUNARP verificado
             </span>
           </div>
@@ -1194,7 +1094,7 @@ function PlacaPopover({
             || currentModel.trim().toLowerCase() !== lookup.modelo.toLowerCase()) && (
             <button type="button" onClick={onApply} style={{
               marginTop: 8, width: "100%", height: 28, borderRadius: 6,
-              border: `1px solid ${APTO}`, background: APTO_BG, color: APTO,
+              border: `1px solid ${GRN}`, background: GRNBG, color: GRN,
               fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
             }}>
               Usar marca y modelo de SUNARP
@@ -1218,8 +1118,8 @@ function PlacaPopover({
       {lookup.state === "error" && (
         <>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-            <AlertTriangle size={12} color={NO} />
-            <span style={{ fontSize: "0.625rem", fontWeight: 800, color: NO, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            <AlertTriangle size={12} color={RED} />
+            <span style={{ fontSize: "0.625rem", fontWeight: 800, color: RED, letterSpacing: "0.08em", textTransform: "uppercase" }}>
               Servicio no disponible
             </span>
           </div>
@@ -1252,14 +1152,14 @@ function DangerZoneSidebar({
 }) {
   return (
     <div style={{
-      background: "#fff", border: `1px solid ${NO_BD}`, borderRadius: 12,
+      background: "#fff", border: `1px solid ${REDBD}`, borderRadius: 12,
       padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10,
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <Trash2 size={13} color={NO} />
+        <Trash2 size={13} color={RED} />
         <div style={{
           fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em",
-          textTransform: "uppercase", color: NO,
+          textTransform: "uppercase", color: RED,
         }}>Zona de peligro</div>
       </div>
 
@@ -1271,15 +1171,15 @@ function DangerZoneSidebar({
           <button onClick={() => setConfirmDelete(true)} style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
             height: 32, padding: "0 12px", borderRadius: 7,
-            border: `1px solid ${NO_BD}`, background: NO_BG, color: NO,
+            border: `1px solid ${REDBD}`, background: REDBG, color: RED,
             fontSize: "0.8125rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
           }}>
             <Trash2 size={12} />Eliminar vehículo
           </button>
         </>
       ) : (
-        <div style={{ background: NO_BG, border: `1px solid ${NO_BD}`, borderRadius: 8, padding: "10px 12px" }}>
-          <div style={{ fontWeight: 700, color: NO, marginBottom: 4, fontSize: "0.8125rem" }}>¿Confirmar?</div>
+        <div style={{ background: REDBG, border: `1px solid ${REDBD}`, borderRadius: 8, padding: "10px 12px" }}>
+          <div style={{ fontWeight: 700, color: RED, marginBottom: 4, fontSize: "0.8125rem" }}>¿Confirmar?</div>
           <p style={{ fontSize: "0.75rem", color: INK6, marginBottom: 10, lineHeight: 1.5 }}>
             Eliminarás <strong style={{ fontFamily: "ui-monospace, monospace" }}>{plate}</strong>. Acción irreversible.
           </p>
@@ -1287,7 +1187,7 @@ function DangerZoneSidebar({
             <button onClick={onDelete} disabled={deleting}
               style={{
                 flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
-                height: 30, borderRadius: 7, border: "none", background: NO, color: "#fff",
+                height: 30, borderRadius: 7, border: "none", background: RED, color: "#fff",
                 fontSize: "0.75rem", fontWeight: 700, cursor: deleting ? "not-allowed" : "pointer",
                 fontFamily: "inherit", opacity: deleting ? 0.7 : 1,
               }}>

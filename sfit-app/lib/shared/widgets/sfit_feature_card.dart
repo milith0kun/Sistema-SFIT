@@ -60,7 +60,7 @@ class _SfitFeatureCardState extends State<SfitFeatureCard> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: Material(
-          color: _pressed ? const Color(0xFFFDF8F8) : Colors.white,
+          color: _pressed ? AppColors.primaryBgLight : Colors.white,
           child: InkWell(
             onTap: widget.onTap,
             onTapDown: (_) => _setPressed(true),

@@ -5,19 +5,23 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, MapPin, Clock, User, Truck, CheckCircle, Save, AlertTriangle,
-  Loader2, Hash, Copy, Check, Calendar, Activity, Users as UsersIcon, Gauge,
+  Loader2, Calendar, Activity, Users as UsersIcon, Gauge,
   Route as RouteIcon,
 } from "lucide-react";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { GoogleMapView, type MapPolyline } from "@/components/ui/GoogleMapView";
+import { KeyValueRow, SystemIdRow } from "@/components/ui/KeyValueRow";
 import { PassengerTable, type PassengerRow } from "@/components/ui/PassengerTable";
 import { ManifestUploader } from "@/components/ui/ManifestUploader";
+import { SectionCard } from "@/components/ui/SectionCard";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 import { useToast } from "@/hooks/useToast";
 
 import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
+import { INK1, INK2, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBG, GRNBD, AMBER, AMBER_BG, AMBER_BD, INFO, INFO_BD } from "@/lib/design-tokens";
+import { FIELD, LABEL } from "@/lib/form-styles";
 type TripStatus = "en_curso" | "completado" | "auto_cierre";
 
 type Trip = {
@@ -37,31 +41,14 @@ type Trip = {
   manifestPhotoUrls?: string[];
 };
 
-/* Paleta sobria */
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
-const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const APTO = "#15803d"; const APTO_BG = "#F0FDF4"; const APTO_BD = "#86EFAC";
-const INFO = "#1E40AF"; const INFO_BD = "#BFDBFE";
-const RIESGO = "#B45309"; const RIESGO_BG = "#FFFBEB"; const RIESGO_BD = "#FDE68A";
-const NO = "#DC2626"; const NO_BG = "#FFF5F5"; const NO_BD = "#FCA5A5";
+
 
 const STATUS_META: Record<TripStatus, { color: string; bg: string; bd: string; label: string }> = {
   en_curso:           { color: INFO, bg: "#fff", bd: INFO_BD, label: "En curso" },
-  completado:         { color: APTO, bg: APTO_BG, bd: APTO_BD, label: "Completado" },
-  auto_cierre:        { color: RIESGO, bg: RIESGO_BG, bd: RIESGO_BD, label: "Auto-cierre" },
+  completado:         { color: GRN, bg: GRNBG, bd: GRNBD, label: "Completado" },
+  auto_cierre:        { color: AMBER, bg: AMBER_BG, bd: AMBER_BD, label: "Auto-cierre" },
 };
 
-const FIELD: React.CSSProperties = {
-  width: "100%", height: 38, padding: "0 12px", borderRadius: 8,
-  border: `1px solid ${INK2}`, fontSize: "0.875rem", color: INK9,
-  background: "#fff", outline: "none", boxSizing: "border-box",
-  fontFamily: "var(--font-inter), Inter, sans-serif",
-  transition: "border-color 150ms",
-};
-const LABEL: React.CSSProperties = {
-  display: "block", fontSize: "0.6875rem", fontWeight: 700,
-  letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, marginBottom: 6,
-};
 const CAN_EDIT = ["super_admin", "admin_municipal"];
 
 interface Props { params: Promise<{ id: string }> }
@@ -492,8 +479,8 @@ export default function ViajeDetallePage({ params }: Props) {
 
       {trip.status === "auto_cierre" && trip.autoClosedReason && (
         <div role="status" style={{
-          padding: "10px 14px", background: RIESGO_BG, border: `1px solid ${RIESGO_BD}`,
-          borderRadius: 8, color: RIESGO, fontSize: "0.8125rem", fontWeight: 500,
+          padding: "10px 14px", background: AMBER_BG, border: `1px solid ${AMBER_BD}`,
+          borderRadius: 8, color: AMBER, fontSize: "0.8125rem", fontWeight: 500,
           display: "flex", alignItems: "center", gap: 8,
         }}>
           <AlertTriangle size={14} />
@@ -503,8 +490,8 @@ export default function ViajeDetallePage({ params }: Props) {
 
       {error && (
         <div role="alert" style={{
-          padding: "10px 14px", background: NO_BG, border: `1px solid ${NO_BD}`,
-          borderRadius: 8, color: NO, fontSize: "0.8125rem", fontWeight: 500,
+          padding: "10px 14px", background: REDBG, border: `1px solid ${REDBD}`,
+          borderRadius: 8, color: RED, fontSize: "0.8125rem", fontWeight: 500,
           display: "flex", alignItems: "center", gap: 8,
         }}>
           <AlertTriangle size={14} />{error}
@@ -512,8 +499,8 @@ export default function ViajeDetallePage({ params }: Props) {
       )}
       {success && (
         <div role="status" style={{
-          padding: "10px 14px", background: APTO_BG, border: `1px solid ${APTO_BD}`,
-          borderRadius: 8, color: APTO, fontSize: "0.8125rem", fontWeight: 600,
+          padding: "10px 14px", background: GRNBG, border: `1px solid ${GRNBD}`,
+          borderRadius: 8, color: GRN, fontSize: "0.8125rem", fontWeight: 600,
           display: "flex", alignItems: "center", gap: 8,
         }}>
           <CheckCircle size={14} />{success}
@@ -729,9 +716,9 @@ export default function ViajeDetallePage({ params }: Props) {
             </div>
             <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
               <SystemIdRow id={trip.id} />
-              <Row k="Registrado" v={fmtDateTime(trip.createdAt)} />
+              <KeyValueRow k="Registrado" v={fmtDateTime(trip.createdAt)} />
               {trip.fleetEntryId && (
-                <Row k="Flota del día" v={trip.fleetEntryId.slice(-8).toUpperCase()} mono />
+                <KeyValueRow k="Flota del día" v={trip.fleetEntryId.slice(-8).toUpperCase()} mono />
               )}
             </div>
           </div>
@@ -751,45 +738,6 @@ export default function ViajeDetallePage({ params }: Props) {
 }
 
 /* ─── Subcomponentes ─── */
-
-function SectionCard({
-  icon, title, subtitle, children,
-}: {
-  icon: React.ReactNode; title: string; subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div style={{
-      background: "#fff", border: `1px solid ${INK2}`,
-      borderRadius: 12, overflow: "hidden",
-    }}>
-      <div style={{
-        padding: "10px 16px", borderBottom: `1px solid ${INK1}`,
-        display: "flex", alignItems: "center", gap: 10,
-      }}>
-        <div style={{
-          width: 26, height: 26, borderRadius: 6,
-          background: INK1, border: `1px solid ${INK2}`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          flexShrink: 0,
-        }}>
-          {icon}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9, lineHeight: 1.25 }}>
-            {title}
-          </div>
-          {subtitle && (
-            <div style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.3, marginTop: 1 }}>
-              {subtitle}
-            </div>
-          )}
-        </div>
-      </div>
-      <div style={{ padding: "14px 16px" }}>{children}</div>
-    </div>
-  );
-}
 
 function InfoBlock({ icon, label, value, sub, accent, mono }: {
   icon: React.ReactNode; label: string; value: string; sub?: string;
@@ -818,64 +766,6 @@ function InfoBlock({ icon, label, value, sub, accent, mono }: {
           {sub}
         </div>
       )}
-    </div>
-  );
-}
-
-function Row({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
-  return (
-    <div style={{
-      display: "flex", justifyContent: "space-between", alignItems: "center",
-      padding: "6px 10px", borderRadius: 6, background: INK1, gap: 8,
-    }}>
-      <span style={{ fontSize: "0.75rem", color: INK5, flexShrink: 0 }}>{k}</span>
-      <span style={{
-        fontSize: "0.8125rem", fontWeight: 600, color: INK9,
-        textAlign: "right",
-        fontFamily: mono ? "ui-monospace, monospace" : "inherit",
-        letterSpacing: mono ? "0.04em" : 0,
-        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-      }}>{v}</span>
-    </div>
-  );
-}
-
-function SystemIdRow({ id }: { id: string }) {
-  const [copied, setCopied] = useState(false);
-  const shortId = id.slice(-8).toUpperCase();
-  return (
-    <div style={{
-      background: "#fff", border: `1px dashed ${INK2}`, borderRadius: 7,
-      padding: "7px 10px",
-      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-        <Hash size={11} color={INK5} />
-        <span style={{
-          fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.08em",
-          textTransform: "uppercase", color: INK5,
-        }}>ID</span>
-        <code title={id} style={{
-          fontFamily: "ui-monospace, monospace", fontSize: "0.75rem",
-          color: INK9, fontWeight: 600, letterSpacing: "0.04em",
-          fontVariantNumeric: "tabular-nums",
-        }}>{shortId}</code>
-      </div>
-      <button type="button" onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(id);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1400);
-        } catch { /* */ }
-      }} title="Copiar ID completo" style={{
-        display: "inline-flex", alignItems: "center", gap: 3,
-        height: 22, padding: "0 7px", borderRadius: 5,
-        border: `1px solid ${INK2}`, background: "#fff", color: INK6,
-        fontSize: "0.625rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-      }}>
-        {copied ? <Check size={10} color={APTO} /> : <Copy size={10} />}
-        {copied ? "Copiado" : "Copiar"}
-      </button>
     </div>
   );
 }
@@ -914,7 +804,7 @@ function TripTrackCard({
   if (hasReal) {
     polylines.push({
       path: trackPoints,
-      color: APTO,
+      color: GRN,
       weight: 4,
       opacity: 0.95,
     });
@@ -976,10 +866,10 @@ function TripTrackCard({
           <div style={{
             display: "inline-flex", alignItems: "center", gap: 5,
             padding: "3px 9px", borderRadius: 999,
-            background: "#fff", color: APTO, border: `1px solid #86EFAC`,
+            background: "#fff", color: GRN, border: `1px solid #86EFAC`,
             fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.04em",
           }}>
-            <span style={{ width: 5, height: 5, borderRadius: "50%", background: APTO }} />
+            <span style={{ width: 5, height: 5, borderRadius: "50%", background: GRN }} />
             {trackPoints.length} pts
           </div>
         )}
@@ -1009,7 +899,7 @@ function TripTrackCard({
             }}>
               {hasReal && (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ width: 22, height: 0, borderTop: `3px solid ${APTO}` }} />
+                  <span style={{ width: 22, height: 0, borderTop: `3px solid ${GRN}` }} />
                   Trazado real GPS
                 </span>
               )}

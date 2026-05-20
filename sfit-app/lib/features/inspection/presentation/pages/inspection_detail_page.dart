@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/datasources/inspection_api_service.dart';
 import '../../data/models/inspection_model.dart';
@@ -65,8 +66,7 @@ class _InspectionDetailPageState
         foregroundColor: Colors.white,
       ),
       body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.gold))
+          ? const SfitLoading.page(color: AppColors.gold)
           : _error != null
               ? _ErrorState(message: _error!, onRetry: _load)
               : _inspection == null

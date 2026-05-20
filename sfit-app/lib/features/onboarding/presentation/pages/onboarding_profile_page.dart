@@ -806,7 +806,7 @@ class _ScopeSelector extends StatelessWidget {
         final selected = value == opt.value;
         final accent = opt.isUrban
             ? AppColors.info
-            : const Color(0xFF7C3AED);
+            : AppColors.purple;
         return Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: InkWell(

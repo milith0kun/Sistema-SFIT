@@ -7,11 +7,15 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Save, UserCog, MapPin, Trash2,
   CheckCircle2, Activity, KeyRound, Building2,
-  Loader2, CheckCircle, AlertTriangle, Copy, Check,
+  Loader2, CheckCircle, AlertTriangle,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 import { LocationPicker } from "@/components/location-picker";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { KeyValueRow, SystemIdRow } from "@/components/ui/KeyValueRow";
+import { INK1, INK2, INK3, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBG, GRNBD } from "@/lib/design-tokens";
 
 /* ── Types ── */
 type UserDetail = {
@@ -34,11 +38,6 @@ type DniLookup =
   | { state: "not_found" }
   | { state: "error"; message: string };
 
-/* ── Design tokens ── */
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK3 = "#d4d4d8";
-const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const RED  = "#DC2626"; const REDBG = "#FFF5F5"; const REDBD = "#FCA5A5";
-const GRN  = "#15803d"; const GRNBG = "#F0FDF4"; const GRNBD = "#86EFAC";
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin:      "Super Administrador",
@@ -92,42 +91,7 @@ function assignableRoles(actorRole: string): string[] {
   return [];
 }
 
-function SectionCard({ icon, title, subtitle, children, action }: {
-  icon: React.ReactNode; title: string; subtitle?: string;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
-      <div style={{ padding: "10px 16px", borderBottom: `1px solid ${INK1}`, display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 26, height: 26, borderRadius: 6, background: INK1, border: `1px solid ${INK2}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          {icon}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9, lineHeight: 1.25 }}>{title}</div>
-          {subtitle && <div style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.3, marginTop: 1 }}>{subtitle}</div>}
-        </div>
-        {action && <div style={{ flexShrink: 0 }}>{action}</div>}
-      </div>
-      <div style={{ padding: "16px 18px" }}>{children}</div>
-    </div>
-  );
-}
 
-function StatusBadge({ status }: { status: string }) {
-  const m = STATUS_META[status] ?? STATUS_META.pendiente;
-  return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
-      padding: "3px 10px", borderRadius: 6,
-      fontSize: "0.6875rem", fontWeight: 700,
-      background: m.bg, color: m.color, border: `1px solid ${m.bd}`,
-    }}>
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
-      {m.label}
-    </span>
-  );
-}
 
 export default function UsuarioDetallePage() {
   const router = useRouter();
@@ -820,7 +784,7 @@ export default function UsuarioDetallePage() {
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontWeight: 700, fontSize: "0.9375rem", color: INK9, lineHeight: 1.3 }}>{target.name}</div>
                 <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 3 }}>{target.email}</div>
-                <div style={{ marginTop: 8 }}><StatusBadge status={target.status} /></div>
+                <div style={{ marginTop: 8 }}><StatusBadge status={target.status} statusMap={STATUS_META} /></div>
               </div>
             </div>
             <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
@@ -872,53 +836,6 @@ export default function UsuarioDetallePage() {
   );
 }
 
-/* ── ID del sistema con copy-to-clipboard (legible y compacto) ── */
-function SystemIdRow({ id }: { id: string }) {
-  const [copied, setCopied] = useState(false);
-  const shortId = id.slice(-8).toUpperCase();
-  return (
-    <div>
-      <div style={{ fontSize: "0.6875rem", color: INK5, marginBottom: 4 }}>ID del sistema</div>
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6,
-        background: INK1, padding: "6px 10px", borderRadius: 7,
-      }}>
-        <code title={id} style={{
-          fontFamily: "ui-monospace, monospace",
-          fontSize: "0.75rem",
-          color: INK9,
-          fontWeight: 600,
-          letterSpacing: "0.04em",
-          fontVariantNumeric: "tabular-nums",
-        }}>
-          {shortId}
-        </code>
-        <button
-          type="button"
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(id);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 1400);
-            } catch { /* clipboard may be blocked */ }
-          }}
-          title="Copiar ID completo"
-          aria-label="Copiar ID completo"
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 4,
-            height: 24, padding: "0 8px", borderRadius: 6,
-            border: `1px solid ${INK2}`, background: "#fff", color: INK6,
-            fontSize: "0.6875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-            transition: "all 120ms",
-          }}
-        >
-          {copied ? <Check size={11} color={GRN} /> : <Copy size={11} />}
-          {copied ? "Copiado" : "Copiar"}
-        </button>
-      </div>
-    </div>
-  );
-}
 
 /* ── Zona de peligro compacta para el sidebar ── */
 function DangerZoneSidebar({

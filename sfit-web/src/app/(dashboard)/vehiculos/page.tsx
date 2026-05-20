@@ -12,6 +12,15 @@ import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 
 import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
+import { INK1, INK2, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBD, AMBER, AMBER_BG, AMBER_BD, INFO_BD } from "@/lib/design-tokens";
+import { BTN_PRIMARY, BTN_OUTLINE } from "@/lib/form-styles";
+
+const NO = RED;
+const NO_BG = REDBG;
+const NO_BD = REDBD;
+const APTO = GRN;
+const btnPrimary = BTN_PRIMARY;
+const btnOutline = BTN_OUTLINE;
 type VehicleStatus = "disponible" | "en_ruta" | "en_mantenimiento" | "fuera_de_servicio";
 type Vehicle = {
   id: string; plate: string; vehicleTypeKey: string;
@@ -22,19 +31,15 @@ type Vehicle = {
   verified?: boolean;
 };
 
-/* Paleta sobria — gris + verde/ámbar/rojo sólo como semántica de estado */
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
-const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const APTO = "#15803d"; const APTO_BD = "#86EFAC";
-const INFO = "#1E40AF"; const INFO_BD = "#BFDBFE";
-const RIESGO = "#B45309"; const RIESGO_BD = "#FDE68A";
-const NO = "#DC2626"; const NO_BG = "#FFF5F5"; const NO_BD = "#FCA5A5";
+/* Semántica de estado — INFO/RIESGO con valores distintos a tokens genéricos */
+const INFO = "#1E40AF";
+const RIESGO = "#B45309";
 
 const STATUS_META = (s: VehicleStatus) => ({
-  disponible:        { color: APTO,   bd: APTO_BD,   label: "DISPONIBLE" },
-  en_ruta:           { color: INFO,   bd: INFO_BD,   label: "EN RUTA" },
-  en_mantenimiento:  { color: RIESGO, bd: RIESGO_BD, label: "MANTENIMIENTO" },
-  fuera_de_servicio: { color: NO,     bd: NO_BD,     label: "FUERA DE SERVICIO" },
+  disponible:        { color: GRN,      bd: GRNBD,    label: "DISPONIBLE" },
+  en_ruta:           { color: INFO,     bd: INFO_BD,  label: "EN RUTA" },
+  en_mantenimiento:  { color: RIESGO,   bd: AMBER_BD, label: "MANTENIMIENTO" },
+  fuera_de_servicio: { color: RED,      bd: REDBD,    label: "FUERA DE SERVICIO" },
 }[s] ?? { color: INK6, bd: INK2, label: s });
 
 function StateBadge({ s }: { s: VehicleStatus }) {
@@ -73,19 +78,6 @@ const TYPE_LABELS: Record<string, string> = {
 };
 const CAN_EDIT = ["super_admin", "admin_municipal"];
 const CAN_CREATE = ["super_admin", "admin_municipal"];
-
-const btnPrimary: React.CSSProperties = {
-  display: "inline-flex", alignItems: "center", gap: 6,
-  height: 32, padding: "0 12px", borderRadius: 7,
-  border: "none", background: INK9, color: "#fff",
-  fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-};
-const btnOutline: React.CSSProperties = {
-  display: "inline-flex", alignItems: "center", gap: 6,
-  height: 32, padding: "0 12px", borderRadius: 7,
-  border: `1px solid ${INK2}`, background: "#fff", color: INK6,
-  fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-};
 
 export default function VehiculosPage() {
   const router = useRouter();

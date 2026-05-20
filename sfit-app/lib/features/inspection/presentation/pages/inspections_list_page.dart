@@ -4,7 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/sfit_loading.dart';
+import '../../../../core/widgets/sfit_brand_loading.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../../fiscal/data/datasources/fiscal_api_service.dart';
 import '../../data/datasources/inspection_api_service.dart';
 import '../../data/models/inspection_model.dart';
@@ -274,7 +275,7 @@ class _DailySummaryStrip extends StatelessWidget {
         child: SizedBox(
           height: 62,
           child: Center(
-            child: SfitLoading(size: 32),
+            child: SfitBrandLoading(size: 32),
           ),
         ),
       );

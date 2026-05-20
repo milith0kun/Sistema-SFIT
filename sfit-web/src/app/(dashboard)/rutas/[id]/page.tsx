@@ -5,11 +5,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Trash2, Save, AlertTriangle, MapPin, Building2, Briefcase, Map,
-  Loader2, CheckCircle, Hash, Copy, Check, Globe, Clock, Plus, X,
+  Loader2, CheckCircle, Globe, Clock, Plus, X,
 } from "lucide-react";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { KeyValueRow, SystemIdRow } from "@/components/ui/KeyValueRow";
 import { WaypointsEditor, type Waypoint } from "@/components/ui/WaypointsEditor";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
+import { INK1, INK2, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBG, GRNBD } from "@/lib/design-tokens";
+import { FIELD, READ, LABEL } from "@/lib/form-styles";
 
 import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
@@ -68,25 +72,6 @@ interface Props { params: Promise<{ id: string }> }
 // Los 4 admins jerárquicos editan rutas dentro de su scope geográfico; el
 // operador gestiona las rutas de su empresa desde la app móvil.
 const CAN_EDIT = ["super_admin", "admin_municipal"];
-
-/* Paleta sobria */
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
-const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const APTO = "#15803d"; const APTO_BG = "#F0FDF4"; const APTO_BD = "#86EFAC";
-const RED = "#DC2626"; const RED_BG = "#FFF5F5"; const RED_BD = "#FCA5A5";
-
-const FIELD: React.CSSProperties = {
-  width: "100%", height: 38, padding: "0 12px", borderRadius: 8,
-  border: `1px solid ${INK2}`, fontSize: "0.875rem", color: INK9,
-  background: "#fff", outline: "none", boxSizing: "border-box",
-  fontFamily: "var(--font-inter), Inter, sans-serif",
-  transition: "border-color 150ms",
-};
-const READ: React.CSSProperties = { ...FIELD, background: INK1, color: INK6 };
-const LABEL: React.CSSProperties = {
-  display: "block", fontSize: "0.6875rem", fontWeight: 700,
-  letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, marginBottom: 6,
-};
 
 export default function RutaDetallePage({ params }: Props) {
   const { id } = usePromise(params);
@@ -383,7 +368,7 @@ export default function RutaDetallePage({ params }: Props) {
 
       {error && (
         <div role="alert" style={{
-          padding: "10px 14px", background: RED_BG, border: `1px solid ${RED_BD}`,
+          padding: "10px 14px", background: REDBG, border: `1px solid ${REDBD}`,
           borderRadius: 8, color: RED, fontSize: "0.8125rem",
           display: "flex", alignItems: "center", gap: 8,
         }}>
@@ -392,8 +377,8 @@ export default function RutaDetallePage({ params }: Props) {
       )}
       {success && (
         <div role="status" style={{
-          padding: "10px 14px", background: APTO_BG, border: `1px solid ${APTO_BD}`,
-          borderRadius: 8, color: APTO, fontSize: "0.8125rem", fontWeight: 600,
+          padding: "10px 14px", background: GRNBG, border: `1px solid ${GRNBD}`,
+          borderRadius: 8, color: GRN, fontSize: "0.8125rem", fontWeight: 600,
           display: "flex", alignItems: "center", gap: 8,
         }}>
           <CheckCircle size={14} />{success}
@@ -433,8 +418,8 @@ export default function RutaDetallePage({ params }: Props) {
                       style={{
                         textAlign: "left", padding: "10px 12px",
                         borderRadius: 10, fontFamily: "inherit",
-                        background: active ? APTO_BG : "#fff",
-                        border: `1.5px solid ${active ? APTO_BD : INK2}`,
+                        background: active ? GRNBG : "#fff",
+                        border: `1.5px solid ${active ? GRNBD : INK2}`,
                         color: INK9, cursor: canEdit ? "pointer" : "default",
                         opacity: canEdit ? 1 : 0.85,
                       }}
@@ -590,7 +575,7 @@ export default function RutaDetallePage({ params }: Props) {
               >
                 {fieldErrors.waypoints && (
                   <div style={{
-                    padding: "8px 12px", background: RED_BG, border: `1px solid ${RED_BD}`,
+                    padding: "8px 12px", background: REDBG, border: `1px solid ${REDBD}`,
                     borderRadius: 7, color: RED, fontSize: "0.75rem", marginBottom: 10,
                   }}>
                     {fieldErrors.waypoints}
@@ -678,15 +663,15 @@ export default function RutaDetallePage({ params }: Props) {
                         <label key={d.code} style={{
                           display: "flex", alignItems: "center", gap: 6,
                           padding: "6px 10px", borderRadius: 7,
-                          border: `1px solid ${checked ? APTO_BD : INK2}`,
-                          background: checked ? APTO_BG : "#fff",
+                          border: `1px solid ${checked ? GRNBD : INK2}`,
+                          background: checked ? GRNBG : "#fff",
                           cursor: canEdit ? "pointer" : "default",
                           fontSize: "0.75rem", color: INK9, opacity: canEdit ? 1 : 0.85,
                         }}>
                           <input type="checkbox" checked={checked}
                             disabled={!canEdit}
                             onChange={() => toggleTraversed(d.code)}
-                            style={{ accentColor: APTO }} />
+                            style={{ accentColor: GRN }} />
                           <span style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                               {d.name}
@@ -778,11 +763,11 @@ export default function RutaDetallePage({ params }: Props) {
               </div>
               <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
                 <SystemIdRow id={route.id} />
-                <Row k="Código" v={route.code} />
-                <Row k="Tipo" v={route.type === "ruta" ? "Ruta fija" : "Zona"} />
-                <Row k="Vehículos asignados" v={`${route.vehicleCount}`} />
-                {waypoints.length > 0 && <Row k="Paradas en mapa" v={`${waypoints.length}`} />}
-                {route.companyName && <Row k="Empresa" v={route.companyName} />}
+                <KeyValueRow k="Código" v={route.code} />
+                <KeyValueRow k="Tipo" v={route.type === "ruta" ? "Ruta fija" : "Zona"} />
+                <KeyValueRow k="Vehículos asignados" v={`${route.vehicleCount}`} />
+                {waypoints.length > 0 && <KeyValueRow k="Paradas en mapa" v={`${waypoints.length}`} />}
+                {route.companyName && <KeyValueRow k="Empresa" v={route.companyName} />}
               </div>
             </div>
 
@@ -813,100 +798,6 @@ export default function RutaDetallePage({ params }: Props) {
   );
 }
 
-function SectionCard({
-  icon, title, subtitle, children,
-}: {
-  icon: React.ReactNode; title: string; subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div style={{
-      background: "#fff", border: `1px solid ${INK2}`,
-      borderRadius: 12, overflow: "hidden",
-    }}>
-      <div style={{
-        padding: "10px 16px", borderBottom: `1px solid ${INK1}`,
-        display: "flex", alignItems: "center", gap: 10,
-      }}>
-        <div style={{
-          width: 26, height: 26, borderRadius: 6,
-          background: INK1, border: `1px solid ${INK2}`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          flexShrink: 0,
-        }}>
-          {icon}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9, lineHeight: 1.25 }}>
-            {title}
-          </div>
-          {subtitle && (
-            <div style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.3, marginTop: 1 }}>
-              {subtitle}
-            </div>
-          )}
-        </div>
-      </div>
-      <div style={{ padding: "14px 16px" }}>{children}</div>
-    </div>
-  );
-}
-
-function Row({ k, v }: { k: string; v: string }) {
-  return (
-    <div style={{
-      display: "flex", justifyContent: "space-between", alignItems: "center",
-      padding: "6px 10px", borderRadius: 6, background: INK1, gap: 8,
-    }}>
-      <span style={{ fontSize: "0.75rem", color: INK5, flexShrink: 0 }}>{k}</span>
-      <span style={{
-        fontSize: "0.8125rem", fontWeight: 600, color: INK9,
-        textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-      }}>{v}</span>
-    </div>
-  );
-}
-
-function SystemIdRow({ id }: { id: string }) {
-  const [copied, setCopied] = useState(false);
-  const shortId = id.slice(-8).toUpperCase();
-  return (
-    <div style={{
-      background: "#fff", border: `1px dashed ${INK2}`, borderRadius: 7,
-      padding: "7px 10px",
-      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-        <Hash size={11} color={INK5} />
-        <span style={{
-          fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.08em",
-          textTransform: "uppercase", color: INK5,
-        }}>ID</span>
-        <code title={id} style={{
-          fontFamily: "ui-monospace, monospace", fontSize: "0.75rem",
-          color: INK9, fontWeight: 600, letterSpacing: "0.04em",
-          fontVariantNumeric: "tabular-nums",
-        }}>{shortId}</code>
-      </div>
-      <button type="button" onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(id);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1400);
-        } catch { /* */ }
-      }} title="Copiar ID completo" style={{
-        display: "inline-flex", alignItems: "center", gap: 3,
-        height: 22, padding: "0 7px", borderRadius: 5,
-        border: `1px solid ${INK2}`, background: "#fff", color: INK6,
-        fontSize: "0.625rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-      }}>
-        {copied ? <Check size={10} color={APTO} /> : <Copy size={10} />}
-        {copied ? "Copiado" : "Copiar"}
-      </button>
-    </div>
-  );
-}
-
 function DangerZoneSidebar({
   code, name, confirmDelete, setConfirmDelete, deleting, onDelete,
 }: {
@@ -918,7 +809,7 @@ function DangerZoneSidebar({
 }) {
   return (
     <div style={{
-      background: "#fff", border: `1px solid ${RED_BD}`, borderRadius: 12,
+      background: "#fff", border: `1px solid ${REDBD}`, borderRadius: 12,
       padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10,
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -937,14 +828,14 @@ function DangerZoneSidebar({
           <button onClick={() => setConfirmDelete(true)} style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
             height: 32, padding: "0 12px", borderRadius: 7,
-            border: `1px solid ${RED_BD}`, background: RED_BG, color: RED,
+            border: `1px solid ${REDBD}`, background: REDBG, color: RED,
             fontSize: "0.8125rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
           }}>
             <Trash2 size={12} />Eliminar ruta
           </button>
         </>
       ) : (
-        <div style={{ background: RED_BG, border: `1px solid ${RED_BD}`, borderRadius: 8, padding: "10px 12px" }}>
+        <div style={{ background: REDBG, border: `1px solid ${REDBD}`, borderRadius: 8, padding: "10px 12px" }}>
           <div style={{ fontWeight: 700, color: RED, marginBottom: 4, fontSize: "0.8125rem" }}>¿Confirmar?</div>
           <p style={{ fontSize: "0.75rem", color: INK6, marginBottom: 10, lineHeight: 1.5 }}>
             Eliminarás <strong>{code} · {name}</strong>. Acción irreversible.

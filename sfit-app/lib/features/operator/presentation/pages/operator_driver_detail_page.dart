@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../../../shared/models/conductor_model.dart';
 import '../../data/datasources/operator_api_service.dart';
 
@@ -216,9 +217,7 @@ class _OperatorDriverDetailPageState
         ],
       ),
       body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.gold),
-            )
+          ? const SfitLoading.page(color: AppColors.gold)
           : _error != null
               ? _ErrorState(message: _error!, onRetry: _load)
               : _driver == null

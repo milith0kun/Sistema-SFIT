@@ -5,23 +5,25 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Save, Trash2, User, Phone, CreditCard, Award, Clock, TrendingUp,
-  AlertTriangle, CheckCircle, Loader2, Hash, Copy, Check, Building2, Pencil, ImageUp,
+  AlertTriangle, CheckCircle, Loader2, Building2, Pencil, ImageUp,
   Activity, Shield, MessageSquareWarning,
 } from "lucide-react";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PhotoUploader } from "@/components/ui/PhotoUploader";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { KeyValueRow, SystemIdRow } from "@/components/ui/KeyValueRow";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 import { hasWebPermission, FATIGUE_ROLES } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
+import { fmtDate } from "@/lib/format";
 import {
   INK1, INK2, INK5, INK6, INK9,
   GRN as APTO, GRNBG as APTO_BG, GRNBD as APTO_BD,
   RED as NO, REDBG as NO_BG, REDBD as NO_BD,
+  AMBER as RIESGO, AMBER_BG as RIESGO_BG, AMBER_BD as RIESGO_BD,
 } from "@/lib/design-tokens";
-
-/* Tokens locales únicos a esta pantalla (riesgo no está en la paleta global) */
-const RIESGO = "#B45309"; const RIESGO_BG = "#FFFBEB"; const RIESGO_BD = "#FDE68A";
+import { FIELD, READ, LABEL } from "@/lib/form-styles";
 
 const LICENSE_CATEGORIES = ["A-I", "A-IIa", "A-IIb", "A-IIIa", "A-IIIb", "A-IIIc"];
 
@@ -63,19 +65,6 @@ const STATUS_META = {
   apto:    { label: "Apto",    color: APTO,   bg: APTO_BG,   bd: APTO_BD,   icon: CheckCircle },
   riesgo:  { label: "Riesgo",  color: RIESGO, bg: RIESGO_BG, bd: RIESGO_BD, icon: AlertTriangle },
   no_apto: { label: "No apto", color: NO,     bg: NO_BG,     bd: NO_BD,     icon: AlertTriangle },
-};
-
-const FIELD: React.CSSProperties = {
-  width: "100%", height: 38, padding: "0 12px", borderRadius: 8,
-  border: `1px solid ${INK2}`, fontSize: "0.875rem", color: INK9,
-  background: "#fff", outline: "none", boxSizing: "border-box",
-  fontFamily: "var(--font-inter), Inter, sans-serif",
-  transition: "border-color 150ms",
-};
-const READ: React.CSSProperties = { ...FIELD, background: INK1, color: INK6 };
-const LABEL: React.CSSProperties = {
-  display: "block", fontSize: "0.6875rem", fontWeight: 700,
-  letterSpacing: "0.08em", textTransform: "uppercase", color: INK5, marginBottom: 6,
 };
 
 function Field({ label, error, required, hint, children }: {
@@ -956,7 +945,7 @@ export default function ConductorDetallePage({ params }: Props) {
                   </div>
                   <div style={{ fontSize: "0.6875rem", color: INK5, marginTop: 6 }}>
                     {resumen.trips.lastAt
-                      ? `Último: ${new Date(resumen.trips.lastAt).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}`
+                      ? `Último: ${fmtDate(resumen.trips.lastAt)}`
                       : "Sin viajes registrados"}
                   </div>
                 </div>
@@ -1042,11 +1031,11 @@ export default function ConductorDetallePage({ params }: Props) {
               </div>
             </div>
             <div style={{ padding: "0 16px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-              <Row k="DNI" v={conductor.dni ?? "—"} mono />
-              <Row k="Licencia" v={conductor.licenseNumber ?? "—"} mono />
-              <Row k="Categoría" v={conductor.licenseCategory ?? "—"} />
-              <Row k="Empresa" v={conductor.companyName?.trim() || "—"} />
-              <Row k="Activo" v={conductor.active ? "Sí" : "No"} />
+              <KeyValueRow k="DNI" v={conductor.dni ?? "—"} mono />
+              <KeyValueRow k="Licencia" v={conductor.licenseNumber ?? "—"} mono />
+              <KeyValueRow k="Categoría" v={conductor.licenseCategory ?? "—"} />
+              <KeyValueRow k="Empresa" v={conductor.companyName?.trim() || "—"} />
+              <KeyValueRow k="Activo" v={conductor.active ? "Sí" : "No"} />
             </div>
           </div>
 
@@ -1129,8 +1118,8 @@ export default function ConductorDetallePage({ params }: Props) {
                       </div>
                     )}
                     <div style={{ fontSize: "0.6875rem", color: INK6, marginTop: 4 }}>
-                      Desde {new Date(m.joinedAt).toLocaleDateString("es-PE")}
-                      {m.leftAt && ` · Hasta ${new Date(m.leftAt).toLocaleDateString("es-PE")}`}
+                      Desde {fmtDate(m.joinedAt)}
+                      {m.leftAt && ` · Hasta ${fmtDate(m.leftAt)}`}
                     </div>
                   </li>
                 ))}
@@ -1151,9 +1140,9 @@ export default function ConductorDetallePage({ params }: Props) {
             </div>
             <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
               <SystemIdRow id={conductor.id} />
-              <Row k="Creado" v={new Date(conductor.createdAt).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })} />
+              <KeyValueRow k="Creado" v={fmtDate(conductor.createdAt)} />
               {conductor.updatedAt !== conductor.createdAt && (
-                <Row k="Actualizado" v={new Date(conductor.updatedAt).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })} />
+                <KeyValueRow k="Actualizado" v={fmtDate(conductor.updatedAt)} />
               )}
             </div>
           </div>
@@ -1261,45 +1250,6 @@ export default function ConductorDetallePage({ params }: Props) {
 
 /* ─────────── Subcomponentes ─────────── */
 
-function SectionCard({
-  icon, title, subtitle, children,
-}: {
-  icon: React.ReactNode; title: string; subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div style={{
-      background: "#fff", border: `1px solid ${INK2}`,
-      borderRadius: 12, overflow: "hidden",
-    }}>
-      <div style={{
-        padding: "10px 16px", borderBottom: `1px solid ${INK1}`,
-        display: "flex", alignItems: "center", gap: 10,
-      }}>
-        <div style={{
-          width: 26, height: 26, borderRadius: 6,
-          background: INK1, border: `1px solid ${INK2}`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          flexShrink: 0,
-        }}>
-          {icon}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: "0.875rem", color: INK9, lineHeight: 1.25 }}>
-            {title}
-          </div>
-          {subtitle && (
-            <div style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.3, marginTop: 1 }}>
-              {subtitle}
-            </div>
-          )}
-        </div>
-      </div>
-      <div style={{ padding: "14px 16px" }}>{children}</div>
-    </div>
-  );
-}
-
 function DniPopover({
   lookup, currentName, onApply, onRetry,
 }: {
@@ -1400,63 +1350,6 @@ function MiniRow({ label, value, accent }: { label: string; value: string; accen
         fontSize: "0.875rem", fontWeight: 800, color: accent ?? INK9,
         fontVariantNumeric: "tabular-nums",
       }}>{value}</div>
-    </div>
-  );
-}
-
-function Row({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
-  return (
-    <div style={{
-      display: "flex", justifyContent: "space-between", alignItems: "center",
-      padding: "6px 10px", borderRadius: 6, background: INK1, gap: 8,
-    }}>
-      <span style={{ fontSize: "0.75rem", color: INK5, flexShrink: 0 }}>{k}</span>
-      <span style={{
-        fontSize: "0.8125rem", fontWeight: 600, color: INK9, textAlign: "right",
-        fontFamily: mono ? "ui-monospace, monospace" : "inherit",
-        letterSpacing: mono ? "0.04em" : 0,
-        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-      }}>{v}</span>
-    </div>
-  );
-}
-
-function SystemIdRow({ id }: { id: string }) {
-  const [copied, setCopied] = useState(false);
-  const shortId = id.slice(-8).toUpperCase();
-  return (
-    <div style={{
-      background: "#fff", border: `1px dashed ${INK2}`, borderRadius: 7,
-      padding: "7px 10px",
-      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-        <Hash size={11} color={INK5} />
-        <span style={{
-          fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.08em",
-          textTransform: "uppercase", color: INK5,
-        }}>ID</span>
-        <code title={id} style={{
-          fontFamily: "ui-monospace, monospace", fontSize: "0.75rem",
-          color: INK9, fontWeight: 600, letterSpacing: "0.04em",
-          fontVariantNumeric: "tabular-nums",
-        }}>{shortId}</code>
-      </div>
-      <button type="button" onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(id);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1400);
-        } catch { /* */ }
-      }} title="Copiar ID completo" style={{
-        display: "inline-flex", alignItems: "center", gap: 3,
-        height: 22, padding: "0 7px", borderRadius: 5,
-        border: `1px solid ${INK2}`, background: "#fff", color: INK6,
-        fontSize: "0.625rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-      }}>
-        {copied ? <Check size={10} color={APTO} /> : <Copy size={10} />}
-        {copied ? "Copiado" : "Copiar"}
-      </button>
     </div>
   );
 }

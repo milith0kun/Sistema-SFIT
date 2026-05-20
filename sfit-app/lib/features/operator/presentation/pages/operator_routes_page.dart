@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../../../shared/models/route_candidate_model.dart';
 import '../../../../shared/models/route_model.dart';
 import '../../data/datasources/operator_api_service.dart';
@@ -226,9 +227,7 @@ class _OfficialTab extends ConsumerWidget {
       color: AppColors.primary,
       onRefresh: onRefresh,
       child: routesAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
+        loading: () => const SfitLoading.page(color: AppColors.primary),
         error: (_, __) => ListView(children: [
           const SizedBox(height: 80),
           Center(
@@ -368,9 +367,7 @@ class _CandidatesTabState extends ConsumerState<_CandidatesTab> {
         color: AppColors.primary,
         onRefresh: widget.onRefresh,
         child: widget.candidatesAsync.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.primary),
-          ),
+          loading: () => const SfitLoading.page(color: AppColors.primary),
           error: (_, __) => _emptyCandidates(),
           data: (items) {
             if (items.isEmpty) return _emptyCandidates();

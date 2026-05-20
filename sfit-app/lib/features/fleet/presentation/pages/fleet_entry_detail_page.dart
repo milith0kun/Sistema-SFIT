@@ -7,7 +7,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/fleet_entry_model.dart';
 import '../../../../shared/widgets/map/sfit_map_tiles.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../../operator/data/datasources/operator_api_service.dart';
+import '../../../../shared/models/fleet_entry_model.dart';
 
 /// Detalle de una entrada de flota (FleetEntry) para el rol OPERADOR.
 ///
@@ -89,9 +91,7 @@ class _FleetEntryDetailPageState extends ConsumerState<FleetEntryDetailPage> {
         iconTheme: const IconThemeData(color: AppColors.ink9),
       ),
       body: _entry.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
+        loading: () => const SfitLoading.page(color: AppColors.primary),
         error: (_, __) => _ErrorView(onRetry: _load),
         data: (e) => RefreshIndicator(
           color: AppColors.primary,

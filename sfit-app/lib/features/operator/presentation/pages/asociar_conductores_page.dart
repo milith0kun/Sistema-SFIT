@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../../../shared/models/conductor_model.dart';
 import '../../data/datasources/operator_api_service.dart';
 
@@ -166,10 +167,7 @@ class _AsociarConductoresPageState extends ConsumerState<AsociarConductoresPage>
               suffixIcon: _loading
                   ? const Padding(
                       padding: EdgeInsets.all(12),
-                      child: SizedBox(
-                        width: 18, height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gold),
-                      ),
+                      child: SfitLoading.inline(strokeWidth: 2, color: AppColors.gold),
                     )
                   : (_searchCtrl.text.isNotEmpty
                       ? IconButton(
@@ -355,7 +353,7 @@ class _DriverTile extends StatelessWidget {
             child: busy
                 ? const SizedBox(
                     width: 14, height: 14,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    child: SfitLoading.inline(color: Colors.white, strokeWidth: 2),
                   )
                 : Text(
                     'Asociar',

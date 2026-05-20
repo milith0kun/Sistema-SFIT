@@ -20,6 +20,8 @@ import {
   licenseValidityLabel,
   type LicenseValidityState,
 } from "@/lib/license-validity";
+import { INK1, INK2, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBD, AMBER_BD } from "@/lib/design-tokens";
+import { BTN_PRIMARY, BTN_OUTLINE } from "@/lib/form-styles";
 type DriverStatus = "apto" | "riesgo" | "no_apto";
 type Driver = {
   id: string; name: string; dni: string; licenseNumber: string; licenseCategory: string;
@@ -29,17 +31,13 @@ type Driver = {
   verified?: boolean;
 };
 
-/* Paleta sobria — gris + verde/ámbar/rojo sólo como semántica de fatiga */
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK3 = "#d4d4d8";
-const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const APTO = "#15803d"; const APTO_BD = "#86EFAC";
-const RIESGO = "#B45309"; const RIESGO_BD = "#FDE68A";
-const NO = "#DC2626"; const NO_BG = "#FFF5F5"; const NO_BD = "#FCA5A5";
+/* Semántica de fatiga — valor local distinto a AMBER genérico */
+const RIESGO = "#B45309";
 
 const STATUS_META = (s: DriverStatus) =>
-  s === "apto"   ? { color: APTO, bd: APTO_BD, label: "APTO" }
-  : s === "riesgo" ? { color: RIESGO, bd: RIESGO_BD, label: "RIESGO" }
-  : { color: NO, bd: NO_BD, label: "NO APTO" };
+  s === "apto"   ? { color: GRN, bd: GRNBD, label: "APTO" }
+  : s === "riesgo" ? { color: RIESGO, bd: AMBER_BD, label: "RIESGO" }
+  : { color: RED, bd: REDBD, label: "NO APTO" };
 
 function StatusBadge({ s }: { s: DriverStatus }) {
   const m = STATUS_META(s);
@@ -72,19 +70,6 @@ function Avatar({ name, size = 34 }: { name: string; size?: number }) {
 }
 const CAN_EDIT = ["super_admin", "admin_municipal"];
 const CAN_CREATE = ["super_admin", "admin_municipal"];
-
-const btnPrimary: React.CSSProperties = {
-  display: "inline-flex", alignItems: "center", gap: 6,
-  height: 32, padding: "0 12px", borderRadius: 7,
-  border: "none", background: INK9, color: "#fff",
-  fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-};
-const btnOutline: React.CSSProperties = {
-  display: "inline-flex", alignItems: "center", gap: 6,
-  height: 32, padding: "0 12px", borderRadius: 7,
-  border: `1px solid ${INK2}`, background: "#fff", color: INK6,
-  fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-};
 
 export default function ConductoresPage() {
   const router = useRouter();
@@ -384,8 +369,8 @@ export default function ConductoresPage() {
 
       {error && (
         <div role="alert" style={{
-          padding: "10px 14px", background: NO_BG, border: `1px solid ${NO_BD}`,
-          borderRadius: 8, color: NO, fontSize: "0.8125rem",
+          padding: "10px 14px", background: REDBG, border: `1px solid ${REDBD}`,
+          borderRadius: 8, color: RED, fontSize: "0.8125rem",
           display: "flex", alignItems: "center", gap: 8,
         }}>
           <AlertTriangle size={14} />{error}
@@ -481,7 +466,7 @@ function DriverPreview({ driver, canEdit }: { driver: Driver; canEdit: boolean }
   const score = driver.reputationScore ?? 0;
   const cont = driver.continuousHours ?? 0;
   const rest = driver.restHours ?? 0;
-  const repColor = score >= 80 ? APTO : score >= 60 ? RIESGO : NO;
+  const repColor = score >= 80 ? GRN : score >= 60 ? RIESGO : RED;
   const status = driver.status ?? "apto";
   return (
     <div style={{
@@ -576,7 +561,7 @@ function DriverPreview({ driver, canEdit }: { driver: Driver; canEdit: boolean }
         </div>
 
         <Link href={`/conductores/${driver.id}`} style={{ display: "block" }}>
-          <button style={{ ...btnPrimary, width: "100%", height: 34 }}>
+          <button style={{ ...BTN_PRIMARY, width: "100%", height: 34 }}>
             {canEdit ? <Pencil size={13} /> : <Eye size={13} />}
             {canEdit ? "Editar conductor" : "Ver perfil completo"}
           </button>

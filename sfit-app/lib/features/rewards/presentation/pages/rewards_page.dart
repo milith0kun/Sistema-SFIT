@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/datasources/rewards_api_service.dart';
 import '../../data/models/reward_model.dart';
@@ -109,9 +110,7 @@ class _RewardsPageState extends ConsumerState<RewardsPage> {
     final user = ref.watch(authProvider).user;
 
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.gold),
-      );
+      return const SfitLoading.page(color: AppColors.gold);
     }
 
     if (_error != null) {
@@ -439,7 +438,7 @@ class _RewardCard extends StatelessWidget {
             const SizedBox(
               width: 22,
               height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gold),
+              child: SfitLoading.inline(strokeWidth: 2, color: AppColors.gold),
             )
           else
             FilledButton(
@@ -912,7 +911,7 @@ class _RedemptionsList extends StatelessWidget {
       return Container(
         height: 90,
         alignment: Alignment.center,
-        child: const CircularProgressIndicator(color: AppColors.gold),
+        child: const SfitLoading.inline(color: AppColors.gold),
       );
     }
     if (error != null) {

@@ -9,6 +9,10 @@ import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 
 import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
+import { fmtDateTime } from "@/lib/format";
+import { INK1, INK2, INK3, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBG, GRNBD, AMBER, AMBER_BG, AMBER_BD, INFO, INFO_BG, INFO_BD } from "@/lib/design-tokens";
+import { BTN_PRIMARY, BTN_OUTLINE } from "@/lib/form-styles";
+
 type InspectionResult = "aprobada" | "observada" | "rechazada";
 type Inspection = {
   id: string;
@@ -25,17 +29,13 @@ type Inspection = {
 type Stats = { aprobada: number; observada: number; rechazada: number; avgScore: number; mes: number };
 type Sugerencia = { item: string; fallos: number; total: number; tasaFallo: number };
 
-const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
-const RIESGO = "#b45309"; const RIESGOBG = "#FFFBEB"; const RIESGOBD = "#FCD34D";
-const NO = "#DC2626"; const NOBG = "#FFF5F5"; const NOBD = "#FCA5A5";
+const APTO = GRN; const APTOBG = GRNBG; const APTOBD = GRNBD;
+const RIESGO = AMBER; const RIESGOBG = AMBER_BG; const RIESGOBD = AMBER_BD;
+const NO = RED; const NOBG = REDBG; const NOBD = REDBD;
 const G = "#6C0606"; const GD = "#4A0303"; const GBG = "#FBEAEA"; const GBR = "#D9B0B0";
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7"; const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
 
-function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString("es-PE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-}
-const btnInk: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: "none", background: INK9, color: "#fff", fontFamily: "inherit" };
-const btnOut: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontFamily: "inherit" };
+const btnInk = BTN_PRIMARY;
+const btnOut = BTN_OUTLINE;
 
 export default function InspeccionesPage() {
   const router = useRouter();
@@ -151,7 +151,7 @@ export default function InspeccionesPage() {
       accessorFn: (row) => row.date,
       sortingFn: "datetime",
       cell: ({ row }) => (
-        <span style={{ fontSize: "0.8125rem", color: INK6 }}>{fmtDate(row.original.date)}</span>
+        <span style={{ fontSize: "0.8125rem", color: INK6 }}>{fmtDateTime(row.original.date)}</span>
       ),
     },
     {

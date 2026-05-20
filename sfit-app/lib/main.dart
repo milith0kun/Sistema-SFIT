@@ -12,6 +12,8 @@ import 'app.dart';
 import 'core/services/fcm_background_handler.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/tracking_watchdog.dart';
+import 'core/theme/app_colors.dart';
+import 'core/theme/app_theme.dart';
 
 /// Reemplaza el `ErrorWidget.builder` default (banner rojo grande de
 /// FlutterErrorWidget) por una vista compacta que no asusta al usuario en
@@ -19,28 +21,28 @@ import 'core/services/tracking_watchdog.dart';
 Widget _buildErrorWidget(FlutterErrorDetails details) {
   if (kDebugMode) return ErrorWidget(details.exception);
   return Container(
-    color: const Color(0xFFFFFAFA),
+    color: AppColors.paper,
     alignment: Alignment.center,
     padding: const EdgeInsets.all(20),
-    child: const Column(
+    child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.error_outline_rounded, size: 36, color: Color(0xFFB45309)),
-        SizedBox(height: 10),
+        Icon(Icons.error_outline_rounded, size: 36, color: AppColors.riesgo),
+        const SizedBox(height: 10),
         Text(
           'Algo no salió bien al cargar esta sección.',
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: AppTheme.inter(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF18181B),
+            color: AppColors.ink9,
           ),
         ),
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
         Text(
           'Inténtalo nuevamente o vuelve más tarde.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 12, color: Color(0xFF71717A)),
+          style: AppTheme.inter(fontSize: 12, color: AppColors.ink5),
         ),
       ],
     ),

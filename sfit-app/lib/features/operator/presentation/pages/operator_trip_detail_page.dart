@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../../trips/data/models/trip_model.dart';
 import '../../data/datasources/operator_api_service.dart';
 
@@ -88,9 +89,7 @@ class _OperatorTripDetailPageState
         ),
       ),
       body: _tripAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
+        loading: () => const SfitLoading.page(color: AppColors.primary),
         error: (_, __) => Center(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Text(

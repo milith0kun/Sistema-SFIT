@@ -10,6 +10,9 @@ import { KPIStrip, type KPIItem } from "@/components/dashboard/KPIStrip";
 
 import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
+import { fmtDate } from "@/lib/format";
+import { INK1, INK2, INK5, INK6, INK9, INFO, INFO_BG, INFO_BD } from "@/lib/design-tokens";
+import { ROLE_LABELS } from "@/components/layout/nav";
 type UserRole =
   | "super_admin" | "admin_municipal"
   | "fiscal" | "operador" | "conductor" | "ciudadano";
@@ -30,29 +33,12 @@ type UsuarioRow = {
 type StoredUser = { id: string; role: string };
 const LIMIT   = 200;
 
-const ROLE_LABELS: Record<string, string> = {
-  super_admin:      "Super Administrador",
-  admin_municipal:  "Administrador Municipal",
-  fiscal:           "Fiscal",
-  operador:         "Operador",
-  conductor:        "Conductor",
-  ciudadano:        "Ciudadano",
-};
-
-const INK1 = "#f4f4f5"; const INK2 = "#e4e4e7";
-const INK5 = "#71717a"; const INK6 = "#52525b"; const INK9 = "#18181b";
-const INFO_BG = "#EFF6FF"; const INFO_C = "#1D4ED8"; const INFO_BD = "#BFDBFE";
-
 const STATUS_DOT: Record<string, { color: string; label: string }> = {
   activo:     { color: "#15803d", label: "Activo" },
   pendiente:  { color: "#b45309", label: "Pendiente" },
   suspendido: { color: "#DC2626", label: "Suspendido" },
   rechazado:  { color: "#71717a", label: "Rechazado" },
 };
-
-function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" });
-}
 
 function UserAvatar({ name, role }: { name: string; role: string }) {
   const isAdmin = role.startsWith("admin") || role === "super_admin";
@@ -61,7 +47,7 @@ function UserAvatar({ name, role }: { name: string; role: string }) {
     <div style={{
       width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
       background: isAdmin ? INFO_BG : INK1,
-      color: isAdmin ? INFO_C : INK6,
+      color: isAdmin ? INFO : INK6,
       display: "flex", alignItems: "center", justifyContent: "center",
       fontSize: "0.75rem", fontWeight: 800,
       border: `1.5px solid ${isAdmin ? INFO_BD : INK2}`,
@@ -79,7 +65,7 @@ function RoleBadge({ role }: { role: string }) {
       display: "inline-flex", padding: "3px 9px", borderRadius: 6,
       fontSize: "0.6875rem", fontWeight: 700, whiteSpace: "nowrap",
       background: isGold ? "#FBEAEA" : isAdmin ? INFO_BG : INK1,
-      color: isGold ? "#4A0303" : isAdmin ? INFO_C : INK6,
+      color: isGold ? "#4A0303" : isAdmin ? INFO : INK6,
       border: `1px solid ${isGold ? "#D9B0B0" : isAdmin ? INFO_BD : INK2}`,
     }}>
       {ROLE_LABELS[role] ?? role}
@@ -130,7 +116,7 @@ export default function UsuariosAdminPage() {
   }, [items, roleFilter]);
 
   // KPIs fijos por rol: el admin_municipal debe ver siempre el conteo de
-  // los 4 roles operativos (fiscal, operador, conductor, ciudadano) — antes
+  // los 3 roles operativos de cuentas (fiscal, operador, ciudadano) — antes
   // mostraba solo el "top 3 por conteo" y los roles con pocos usuarios
   // quedaban escondidos. Super admin ve adicionalmente Admin Municipal.
   const kpis: KPIItem[] = useMemo(() => {
@@ -139,7 +125,6 @@ export default function UsuariosAdminPage() {
       { label: "TOTAL",       value: total || items.length, subtitle: "usuarios", icon: Users },
       { label: "FISCALES",    value: countOf("fiscal"),     subtitle: "inspectores en campo", icon: Users },
       { label: "OPERADORES",  value: countOf("operador"),   subtitle: "empresas operando",    icon: Users },
-      { label: "CONDUCTORES", value: countOf("conductor"),  subtitle: "registrados",          icon: Users },
       { label: "CIUDADANOS",  value: countOf("ciudadano"),  subtitle: "reportantes",          icon: Users },
     ];
     if (user?.role === "super_admin") {
@@ -191,17 +176,6 @@ export default function UsuariosAdminPage() {
       cell: ({ row: r }) => <RoleBadge role={r.original.role} />,
     },
     {
-      id: "ubicacion",
-      header: "Municipio / Provincia",
-      accessorFn: row => row.municipality?.name ?? row.province?.name ?? "",
-      cell: ({ getValue }) => {
-        const v = getValue<string>();
-        return v
-          ? <span style={{ fontSize: "0.8125rem", color: INK6 }}>{v}</span>
-          : <span style={{ color: "#a1a1aa" }}>—</span>;
-      },
-    },
-    {
       accessorKey: "createdAt",
       header: "Registrado",
       enableSorting: true,
@@ -234,6 +208,7 @@ export default function UsuariosAdminPage() {
       <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} style={selectStyle}>
         <option value="">Todos los roles</option>
         {Object.entries(ROLE_LABELS)
+          .filter(([v]) => v !== "conductor")
           .filter(([v]) => !(user?.role === "admin_municipal" && v === "super_admin"))
           .map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
@@ -272,6 +247,17 @@ export default function UsuariosAdminPage() {
   return (
     <div className="flex flex-col gap-4 animate-fade-in">
       <PageHeader kicker="Administración · RF-01" title="Gestión de usuarios" action={headerAction} />
+
+      <div style={{
+        padding: "10px 12px",
+        borderRadius: 10,
+        border: `1px solid ${INFO_BD}`,
+        background: INFO_BG,
+        color: INFO,
+        fontSize: "0.8125rem",
+      }}>
+        Las cuentas de conductores se administran desde el módulo <strong>Conductores</strong> para evitar duplicidad.
+      </div>
 
       <KPIStrip items={kpis} cols={kpis.length as 2 | 3 | 4 | 5 | 6} />
 

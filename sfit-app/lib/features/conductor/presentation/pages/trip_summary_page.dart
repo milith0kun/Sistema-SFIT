@@ -11,6 +11,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/map/sfit_map_markers.dart';
 import '../../../../shared/widgets/map/sfit_map_tiles.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../../trips/data/datasources/trips_api_service.dart';
 
 /// Pantalla de resumen al cerrar un FleetEntry. Llamada con
@@ -250,7 +251,7 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
     if (_loading) {
       return const Scaffold(
         backgroundColor: AppColors.paper,
-        body: Center(child: CircularProgressIndicator(color: AppColors.gold)),
+        body: const Center(child: SfitLoading.inline(color: AppColors.gold)),
       );
     }
 
@@ -589,12 +590,12 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
                     width: 32,
                     height: 32,
                     decoration: const BoxDecoration(
-                      color: Color(0xFFFFF4E5),
+                      color: AppColors.riesgoBg,
                       shape: BoxShape.circle,
                     ),
                     alignment: Alignment.center,
                     child: const Icon(Icons.location_off_rounded,
-                        size: 18, color: Color(0xFFB45309)),
+                        size: 18, color: AppColors.riesgo),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -1045,14 +1046,7 @@ class _PendingSyncBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const SizedBox(
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(
-              strokeWidth: 2.2,
-              color: AppColors.gold,
-            ),
-          ),
+          const SfitLoading.inline(strokeWidth: 2.2, color: AppColors.gold),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -1109,8 +1103,8 @@ class _BulkRetryBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isError = exhausted;
-    final color = isError ? const Color(0xFFB45309) : AppColors.gold;
-    final bg = isError ? const Color(0xFFFFF4E5) : Colors.white;
+    final color = isError ? AppColors.riesgo : AppColors.gold;
+    final bg = isError ? AppColors.riesgoBg : Colors.white;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
@@ -1131,7 +1125,7 @@ class _BulkRetryBanner extends StatelessWidget {
             SizedBox(
               width: 18,
               height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2.2, color: color),
+              child: SfitLoading.inline(strokeWidth: 2.2, color: color),
             )
           else
             Icon(
@@ -1215,21 +1209,21 @@ class _MarkPreferredAction extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFFF0FDF4),
-          border: Border.all(color: const Color(0xFF86EFAC)),
+          color: AppColors.aptoBg,
+          border: Border.all(color: AppColors.aptoBorder),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
           children: [
             const Icon(Icons.check_circle,
-                size: 18, color: Color(0xFF15803D)),
+                size: 18, color: AppColors.apto),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 message ?? '¡Marcada como recomendada!',
                 style: AppTheme.inter(
                   fontSize: 12.5,
-                  color: const Color(0xFF15803D),
+                  color: AppColors.apto,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1253,7 +1247,7 @@ class _MarkPreferredAction extends StatelessWidget {
                 ? const SizedBox(
                     width: 14,
                     height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 1.5),
+                    child: SfitLoading.inline(strokeWidth: 1.5),
                   )
                 : const Icon(Icons.star_outline, size: 18),
             label: Text(

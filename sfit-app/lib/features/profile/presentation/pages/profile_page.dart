@@ -1099,7 +1099,7 @@ class _DriverInfoSection extends StatelessWidget {
 
     final statusMeta = switch (status) {
       'apto'    => (color: AppColors.apto,   label: 'Apto'),
-      'riesgo'  => (color: const Color(0xFFB45309), label: 'En riesgo'),
+      'riesgo'  => (color: AppColors.riesgo, label: 'En riesgo'),
       'no_apto' => (color: AppColors.noApto, label: 'No apto'),
       _         => (color: AppColors.ink5,   label: status),
     };
@@ -1179,7 +1179,7 @@ class _DriverInfoSection extends StatelessWidget {
                       color: continuousHours >= 8
                           ? AppColors.noApto
                           : continuousHours >= 5
-                              ? const Color(0xFFB45309)
+                              ? AppColors.riesgo
                               : AppColors.ink8,
                     ),
                   ),
@@ -1199,7 +1199,7 @@ class _DriverInfoSection extends StatelessWidget {
                       color: reputation >= 80
                           ? AppColors.apto
                           : reputation >= 50
-                              ? const Color(0xFFB45309)
+                              ? AppColors.riesgo
                               : AppColors.noApto,
                     ),
                   ),

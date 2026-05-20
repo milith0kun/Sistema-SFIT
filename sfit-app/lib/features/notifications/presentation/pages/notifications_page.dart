@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 
 class _NotifItem {
   final String id;
@@ -292,7 +293,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.ink9, strokeWidth: 2))
+          ? const SfitLoading.page(color: AppColors.ink9, strokeWidth: 2)
           : _error != null
               ? _ErrorState(message: _error!, onRetry: _load)
               : Column(
@@ -525,7 +526,7 @@ class _NotifTile extends StatelessWidget {
                 : BorderSide(color: accent, width: 3),
             bottom: const BorderSide(color: AppColors.ink2, width: 0.5),
           ),
-          color: item.read ? Colors.white : const Color(0xFFFAFAFA),
+          color: item.read ? Colors.white : AppColors.paper,
         ),
         padding: EdgeInsets.only(
           left: item.read ? 16 : 13,

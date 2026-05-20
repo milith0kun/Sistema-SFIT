@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/sfit_loading.dart';
 import '../../data/datasources/fleet_api_service.dart';
 import '../../data/models/fleet_entry_model.dart';
 
@@ -229,7 +230,7 @@ class _FleetPageState extends ConsumerState<FleetPage> {
           // ── Lista ─────────────────────────────────────────────
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
+                ? const SfitLoading.page(color: AppColors.gold)
                 : _error != null
                     ? Center(child: Text(_error!, style: AppTheme.inter(color: AppColors.noApto)))
                     : _entries.isEmpty

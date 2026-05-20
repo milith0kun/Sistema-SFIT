@@ -95,7 +95,7 @@ export default function RegisterPage() {
     localStorage.setItem("sfit_access_token",  data.accessToken);
     localStorage.setItem("sfit_refresh_token", data.refreshToken);
     localStorage.setItem("sfit_user",          JSON.stringify(data.user));
-    document.cookie = `sfit_access_token=${data.accessToken}; path=/; max-age=7200; SameSite=Lax`;
+    document.cookie = `sfit_access_token=${data.accessToken}; path=/; max-age=7200; SameSite=Strict; Secure`;
   }
 
   async function handleGoogleCredential(response: { credential: string }) {

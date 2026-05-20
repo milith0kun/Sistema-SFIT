@@ -67,6 +67,16 @@ const UpdateCompanySchema = z.object({
   authorizations: z.array(AuthorizationSchema).optional(),
 });
 
+function canonicalTypeByScope(scope: "urbano" | "interprovincial"): string {
+  return scope === "interprovincial"
+    ? "transporte_interprovincial"
+    : "transporte_urbano";
+}
+
+function inferScopeFromTypeKey(key: string): "urbano" | "interprovincial" {
+  return key.includes("interprov") ? "interprovincial" : "urbano";
+}
+
 /**
  * RF-04-02 / RF-04-03 / RF-04-05.
  * DELETE = soft delete (active: false, suspendedAt: now) (RF-04-05).
@@ -186,8 +196,17 @@ export async function PATCH(
       return apiForbidden();
     }
 
+    const patch = { ...parsed.data };
+    if (patch.serviceScope) {
+      patch.vehicleTypeKeys = [canonicalTypeByScope(patch.serviceScope)];
+    } else if (patch.vehicleTypeKeys && patch.vehicleTypeKeys.length > 0) {
+      const inferredScope = inferScopeFromTypeKey(patch.vehicleTypeKeys[0]);
+      patch.serviceScope = inferredScope;
+      patch.vehicleTypeKeys = [canonicalTypeByScope(inferredScope)];
+    }
+
     const wasActive = existing.active;
-    Object.assign(existing, parsed.data);
+    Object.assign(existing, patch);
     // Si se reactiva, limpiar `suspendedAt`
     if (parsed.data.active === true) {
       existing.suspendedAt = undefined;
