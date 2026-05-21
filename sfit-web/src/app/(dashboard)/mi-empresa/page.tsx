@@ -319,7 +319,7 @@ export default function MiEmpresaPage() {
       {/* Atajos */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <QuickLink href="/conductores" icon={<Users size={14} />} label="Ver mis conductores" />
-        <QuickLink href="/flota" icon={<Car size={14} />} label="Ver mi flota" />
+        <QuickLink href="/vehiculos" icon={<Car size={14} />} label="Ver mis vehículos" />
         <QuickLink href="/rutas" icon={<FileText size={14} />} label="Ver mis rutas" />
       </div>
     </div>

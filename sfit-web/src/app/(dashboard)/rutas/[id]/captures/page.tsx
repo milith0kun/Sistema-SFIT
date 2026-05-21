@@ -32,8 +32,22 @@ type Capture = {
 
 type RouteSummary = {
   id: string; code: string; name: string;
+  serviceScope?: string;
+  originDistrictCode?: string;
+  destinationDistrictCode?: string;
   waypoints: Waypoint[];
 };
+
+function routeStructureLabel(route: RouteSummary | null): string {
+  if (!route) return "";
+  const scope = (route.serviceScope ?? "").toLowerCase();
+  if (scope === "interprovincial") {
+    const o = route.originDistrictCode ?? "—";
+    const d = route.destinationDistrictCode ?? "—";
+    return `Interprovincial · origen ${o} · destino ${d}`;
+  }
+  return `Urbano · ${route.waypoints.length} paradero${route.waypoints.length === 1 ? "" : "s"}`;
+}
 
 type Pass = {
   id: string;
@@ -158,6 +172,9 @@ export default function RutaCapturesPage({ params }: Props) {
         id: routeData.data.id ?? routeData.data._id ?? id,
         code: routeData.data.code,
         name: routeData.data.name,
+        serviceScope: routeData.data.serviceScope,
+        originDistrictCode: routeData.data.originDistrictCode,
+        destinationDistrictCode: routeData.data.destinationDistrictCode,
         waypoints: (routeData.data.waypoints ?? []) as Waypoint[],
       });
       if (capturesRes.ok && capturesData.success) {
@@ -327,7 +344,7 @@ export default function RutaCapturesPage({ params }: Props) {
       <PageHeader
         kicker={route ? `RUTA · ${route.code}` : "RUTA"}
         title="Capturas GPS"
-        subtitle={route ? `${route.name} — ${stats.total} captura${stats.total === 1 ? "" : "s"} en historial` : "Cargando…"}
+        subtitle={route ? `${route.name} · ${routeStructureLabel(route)} · ${stats.total} captura${stats.total === 1 ? "" : "s"} en historial` : "Cargando…"}
         action={
           <Link
             href={`/rutas/${id}`}

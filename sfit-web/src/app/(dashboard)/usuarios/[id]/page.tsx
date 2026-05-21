@@ -14,7 +14,7 @@ import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 import { LocationPicker } from "@/components/location-picker";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { KeyValueRow, SystemIdRow } from "@/components/ui/KeyValueRow";
+import { SystemIdRow } from "@/components/ui/KeyValueRow";
 import { INK1, INK2, INK3, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBG, GRNBD } from "@/lib/design-tokens";
 
 /* ── Types ── */
@@ -110,6 +110,7 @@ export default function UsuarioDetallePage() {
 
   /* Edit state */
   const [name,        setName]        = useState("");
+  const [email,       setEmail]       = useState("");
   const [phone,       setPhone]       = useState("");
   const [dni,         setDni]         = useState("");
   const [selRole,     setSelRole]     = useState("");
@@ -153,6 +154,7 @@ export default function UsuarioDetallePage() {
       const u = data.data;
       setTarget(u);
       setName(u.name ?? "");
+      setEmail(u.email ?? "");
       setPhone(u.phone ?? "");
       setDni(u.dni ?? "");
       setSelRole(u.role);
@@ -250,7 +252,7 @@ export default function UsuarioDetallePage() {
     finally { setSaving(false); }
   }
 
-  async function saveProfile()  { await patch({ name: name.trim(), phone: phone.trim() || null, dni: dni.trim() || null }, "Datos personales actualizados."); }
+  async function saveProfile()  { await patch({ name: name.trim(), email: email.trim().toLowerCase(), phone: phone.trim() || null, dni: dni.trim() || null }, "Datos personales actualizados."); }
   async function saveRole() {
     // Cuando el rol se cambia a algo distinto de "operador", limpiamos
     // companyId para que no quede colgado un vínculo con la empresa anterior.
@@ -370,7 +372,7 @@ export default function UsuarioDetallePage() {
           <SectionCard
             icon={<Save size={14} color={INK6} />}
             title="Datos personales"
-            subtitle="Documento de identidad, nombre y teléfono"
+            subtitle="Documento, correo, nombre y teléfono"
             action={
               <button onClick={() => { void saveProfile(); }} disabled={saving}
                 style={{ ...BTN_PRIMARY, height: 28, padding: "0 10px", fontSize: "0.75rem",
@@ -534,6 +536,19 @@ export default function UsuarioDetallePage() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              <div>
+                <label style={LABEL_S}>Correo electrónico <span style={{ color: RED }}>*</span></label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="correo@ejemplo.com"
+                  style={FIELD}
+                  onFocus={e => { e.currentTarget.style.borderColor = INK9; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = INK2; }}
+                />
               </div>
 
               <div>

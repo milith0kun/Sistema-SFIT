@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
         : Promise.resolve(null),
       driver.lastRouteId
         ? RouteModel.findOne({ _id: driver.lastRouteId })
-            .select("code name type stops length status")
+            .select("code name type stops length status serviceScope originDistrictCode destinationDistrictCode waypoints")
             .lean()
         : Promise.resolve(null),
     ]);
@@ -60,6 +60,10 @@ export async function GET(request: NextRequest) {
             stops: route.stops,
             length: route.length,
             status: route.status,
+            serviceScope: route.serviceScope,
+            originDistrictCode: route.originDistrictCode,
+            destinationDistrictCode: route.destinationDistrictCode,
+            waypointsCount: Array.isArray(route.waypoints) ? route.waypoints.length : 0,
           }
         : null,
     });

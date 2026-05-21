@@ -401,6 +401,9 @@ export async function GET(request: NextRequest) {
               id: String(route._id),
               name: route.name ?? "—",
               code: route.code ?? null,
+              serviceScope: route.serviceScope ?? null,
+              originDistrictCode: route.originDistrictCode ?? null,
+              destinationDistrictCode: route.destinationDistrictCode ?? null,
               waypoints: waypoints.map((w) => ({
                 lat: w.lat,
                 lng: w.lng,

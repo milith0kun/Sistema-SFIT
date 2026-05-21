@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     const [items, total] = await Promise.all([
       Trip.find(filter)
         .populate("vehicleId", "plate brand model vehicleTypeKey")
-        .populate("routeId", "code name direction siblingRouteId")
+        .populate("routeId", "code name direction siblingRouteId serviceScope originDistrictCode destinationDistrictCode waypoints")
         .sort({ assignedAt: -1, startTime: -1 })
         .limit(limit)
         .lean(),

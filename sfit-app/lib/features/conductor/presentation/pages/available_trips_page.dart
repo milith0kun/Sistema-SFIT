@@ -149,6 +149,8 @@ class _AvailableCard extends StatelessWidget {
     final routeName = route?['name'] as String? ?? 'Sin ruta';
     final routeCode = route?['code'] as String?;
     final direction = trip['direction'] as String?;
+    final routeScope = (route?['serviceScope'] as String?)?.toLowerCase();
+    final routeSummary = _routeSummary(route);
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -200,6 +202,42 @@ class _AvailableCard extends StatelessWidget {
                   Text(routeName,
                     style: AppTheme.inter(fontSize: 12, color: AppColors.ink6),
                     maxLines: 1, overflow: TextOverflow.ellipsis),
+                  if (routeScope != null || routeSummary != null) ...[
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        if (routeScope != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: routeScope == 'interprovincial' ? AppColors.riesgoBg : AppColors.infoBg,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: routeScope == 'interprovincial' ? AppColors.riesgoBorder : AppColors.infoBorder,
+                              ),
+                            ),
+                            child: Text(
+                              routeScope == 'interprovincial' ? 'INTERPROVINCIAL' : 'URBANO',
+                              style: AppTheme.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: routeScope == 'interprovincial' ? AppColors.riesgo : AppColors.info,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                          ),
+                        if (routeSummary != null)
+                          Text(
+                            routeSummary,
+                            style: AppTheme.inter(fontSize: 11, color: AppColors.ink5),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -224,6 +262,24 @@ class _AvailableCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String? _routeSummary(Map<String, dynamic>? route) {
+    if (route == null) return null;
+    final scope = (route['serviceScope'] as String?)?.toLowerCase();
+    if (scope == 'interprovincial') {
+      final origin = route['originDistrictCode'] as String?;
+      final destination = route['destinationDistrictCode'] as String?;
+      if (origin != null && destination != null) {
+        return 'Origen $origin -> Destino $destination';
+      }
+      return 'Ruta por origen y destino';
+    }
+    final waypoints = route['waypoints'];
+    if (waypoints is List) {
+      return '${waypoints.length} paraderos';
+    }
+    return null;
   }
 }
 

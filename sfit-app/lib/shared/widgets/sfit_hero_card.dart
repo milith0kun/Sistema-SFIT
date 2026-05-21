@@ -213,13 +213,17 @@ class _SfitHeroCardState extends State<SfitHeroCard>
       children: [
         dot,
         const SizedBox(width: 7),
-        Text(
-          widget.kicker.toUpperCase(),
-          style: AppTheme.inter(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w700,
-            color: AppColors.goldLight,
-            letterSpacing: 2.1,
+        Flexible(
+          child: Text(
+            widget.kicker.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTheme.inter(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.goldLight,
+              letterSpacing: 2.1,
+            ),
           ),
         ),
         if (widget.rfCode != null) ...[

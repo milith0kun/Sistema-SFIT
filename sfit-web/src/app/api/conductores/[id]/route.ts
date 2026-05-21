@@ -55,6 +55,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   return apiResponse({
     id: String(res.driver._id),
+    userId: res.driver.userId ? String(res.driver.userId) : null,
     municipalityId: String(res.driver.municipalityId),
     companyId: res.driver.companyId ? String((res.driver.companyId as { _id?: unknown })._id ?? res.driver.companyId) : undefined,
     companyName: (res.driver.companyId as { razonSocial?: string } | null)?.razonSocial,

@@ -11,7 +11,7 @@ import { KPIStrip, type KPIItem } from "@/components/dashboard/KPIStrip";
 import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
 import { fmtDate } from "@/lib/format";
-import { INK1, INK2, INK5, INK6, INK9, INFO, INFO_BG, INFO_BD } from "@/lib/design-tokens";
+import { INK1, INK2, INK5, INK6, INK9 } from "@/lib/design-tokens";
 import { ROLE_LABELS } from "@/components/layout/nav";
 type UserRole =
   | "super_admin" | "admin_municipal"
@@ -116,7 +116,7 @@ export default function UsuariosAdminPage() {
   }, [items, roleFilter]);
 
   // KPIs fijos por rol: el admin_municipal debe ver siempre el conteo de
-  // los 3 roles operativos de cuentas (fiscal, operador, ciudadano) — antes
+  // los 4 roles operativos de cuentas (fiscal, operador, conductor, ciudadano) — antes
   // mostraba solo el "top 3 por conteo" y los roles con pocos usuarios
   // quedaban escondidos. Super admin ve adicionalmente Admin Municipal.
   const kpis: KPIItem[] = useMemo(() => {
@@ -125,6 +125,7 @@ export default function UsuariosAdminPage() {
       { label: "TOTAL",       value: total || items.length, subtitle: "usuarios", icon: Users },
       { label: "FISCALES",    value: countOf("fiscal"),     subtitle: "inspectores en campo", icon: Users },
       { label: "OPERADORES",  value: countOf("operador"),   subtitle: "empresas operando",    icon: Users },
+      { label: "CONDUCTORES", value: countOf("conductor"),  subtitle: "choferes registrados", icon: Users },
       { label: "CIUDADANOS",  value: countOf("ciudadano"),  subtitle: "reportantes",          icon: Users },
     ];
     if (user?.role === "super_admin") {
@@ -208,7 +209,6 @@ export default function UsuariosAdminPage() {
       <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} style={selectStyle}>
         <option value="">Todos los roles</option>
         {Object.entries(ROLE_LABELS)
-          .filter(([v]) => v !== "conductor")
           .filter(([v]) => !(user?.role === "admin_municipal" && v === "super_admin"))
           .map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
@@ -247,17 +247,6 @@ export default function UsuariosAdminPage() {
   return (
     <div className="flex flex-col gap-4 animate-fade-in">
       <PageHeader kicker="Administración · RF-01" title="Gestión de usuarios" action={headerAction} />
-
-      <div style={{
-        padding: "10px 12px",
-        borderRadius: 10,
-        border: `1px solid ${INFO_BD}`,
-        background: INFO_BG,
-        color: INFO,
-        fontSize: "0.8125rem",
-      }}>
-        Las cuentas de conductores se administran desde el módulo <strong>Conductores</strong> para evitar duplicidad.
-      </div>
 
       <KPIStrip items={kpis} cols={kpis.length as 2 | 3 | 4 | 5 | 6} />
 

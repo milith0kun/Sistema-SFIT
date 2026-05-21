@@ -4,7 +4,7 @@
  * Restricciones:
  *   - admin_municipal NO puede asignar super_admin.
  *   - password solo editable por super_admin (solo cuentas credentials).
- *   - Campos permitidos: status, role, name, phone, dni, companyId, password,
+ *   - Campos permitidos: status, role, name, email, phone, dni, companyId, password,
  *     rejectionReason. La ubicación (region/province/municipality) NO es
  *     editable — el sistema opera sobre una única muni institucional y se
  *     asigna automáticamente al crear/aprobar al usuario.
@@ -47,6 +47,7 @@ const PatchSchema = z.object({
     "fiscal", "operador", "conductor", "ciudadano",
   ]).optional(),
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100).trim().optional(),
+  email: z.string().email("Correo inválido").toLowerCase().optional(),
   phone: z.string().max(20).trim().nullable().optional(),
   dni: z.string().max(20).trim().nullable().optional(),
   companyId: z.string().nullable().optional(),
@@ -55,7 +56,7 @@ const PatchSchema = z.object({
 }).refine(
   (d) =>
     d.status !== undefined || d.role !== undefined ||
-    d.name !== undefined || d.phone !== undefined ||
+    d.name !== undefined || d.email !== undefined || d.phone !== undefined ||
     d.dni !== undefined || d.companyId !== undefined ||
     d.password !== undefined ||
     d.rejectionReason !== undefined,
@@ -79,7 +80,7 @@ export async function GET(
     await connectDB();
 
     const user = await User.findById(id)
-      .select("name email role status municipalityId provinceId regionId phone dni createdAt image provider")
+      .select("name email role status municipalityId provinceId regionId phone dni companyId createdAt image provider")
       .populate("municipalityId", "name")
       .populate("provinceId", "name")
       .populate("regionId", "name")
@@ -118,6 +119,7 @@ export async function GET(
       dni:              user.dni    ?? null,
       image:            user.image  ?? null,
       provider:         user.provider,
+      companyId:        user.companyId ? String(user.companyId) : null,
       municipalityId:   muni ? String(muni._id) : null,
       municipalityName: muni?.name ?? null,
       provinceId:       prov ? String(prov._id) : null,
@@ -155,7 +157,7 @@ export async function PATCH(
     return apiError(first, 422);
   }
 
-  const { status, role, name, phone, dni, companyId, password, rejectionReason } = parsed.data;
+  const { status, role, name, email, phone, dni, companyId, password, rejectionReason } = parsed.data;
 
   // ── Protecciones de escalada de privilegios ───────────────────────────────
   if (password !== undefined && session.role !== ROLES.SUPER_ADMIN) {
@@ -218,11 +220,21 @@ export async function PATCH(
       }
     }
 
+    if (email !== undefined && email !== target.email) {
+      const dupEmail = await User.findOne({ email, _id: { $ne: id } })
+        .select("_id")
+        .lean<{ _id: unknown } | null>();
+      if (dupEmail) {
+        return apiError("El correo ya está registrado en otra cuenta", 409);
+      }
+    }
+
     // Construir actualización
     const update: Record<string, unknown> = {};
     if (status        !== undefined) update.status = status;
     if (role          !== undefined) update.role   = role;
     if (name          !== undefined) update.name   = name;
+    if (email         !== undefined) update.email  = email;
     if (phone         !== undefined) update.phone  = phone ?? undefined;
     if (dni           !== undefined) update.dni    = dni   ?? undefined;
     if (companyId !== undefined) {
@@ -294,7 +306,7 @@ export async function PATCH(
       mongoUpdate,
       { returnDocument: "after", runValidators: true }
     )
-      .select("name email role status municipalityId provinceId regionId phone dni rejectionReason createdAt image")
+      .select("name email role status municipalityId provinceId regionId phone dni companyId rejectionReason createdAt image")
       .populate("municipalityId", "name")
       .populate("provinceId", "name")
       .populate("regionId", "name")
@@ -369,6 +381,7 @@ export async function PATCH(
       status: updated.status,
       phone: updated.phone ?? null,
       dni: updated.dni ?? null,
+      companyId: updated.companyId ? String(updated.companyId) : null,
       municipality: updated.municipalityId as unknown as { _id: string; name: string } | null,
       province: updated.provinceId as unknown as { _id: string; name: string } | null,
       region: updated.regionId as unknown as { _id: string; name: string } | null,

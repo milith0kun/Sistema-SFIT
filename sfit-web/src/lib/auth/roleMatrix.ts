@@ -31,7 +31,6 @@ export type Resource =
   | "sanciones"
   | "apelaciones"
   | "reportes"
-  | "recompensas"
   | "usuarios"
   | "municipalidades"
   | "provincias"
@@ -113,12 +112,6 @@ export const ROLE_MATRIX: Record<Resource, Record<Action, Role[]>> = {
     edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL],
     delete: [A.SUPER_ADMIN],
   },
-  recompensas: {
-    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.CIUDADANO],
-    create: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
-    edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
-    delete: [A.SUPER_ADMIN],
-  },
   usuarios: {
     view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
     create: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
@@ -198,6 +191,9 @@ export function hasWebPermission(
   action: Action,
 ): boolean {
   if (!role) return false;
+  // Módulos delegados a operación móvil: se ocultan/bloquean en web
+  // incluso por URL directa para mantener al admin_municipal en supervisión.
+  if (resource === "flota" || resource === "viajes") return false;
   return (pageRolesFor(resource, action) as Role[]).includes(role);
 }
 
@@ -262,7 +258,7 @@ export const WEB_ALLOWED_ROLES: readonly Role[] = [
  *   - operador: gestiona su flota (conductores, vehículos, rutas, viajes,
  *     apelaciones) desde el app.
  *   - conductor: app del conductor (rutas, fatiga, viajes en curso).
- *   - ciudadano: app de reportes y recompensas.
+ *   - ciudadano: app de reportes ciudadanos.
  */
 export const MOBILE_ONLY_ROLES: readonly Role[] = [
   A.FISCAL,

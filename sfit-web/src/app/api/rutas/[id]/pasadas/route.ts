@@ -56,7 +56,7 @@ export async function GET(
   await connectDB();
 
   const route = await Route.findById(id)
-    .select("municipalityId companyId preferredCaptureId preferredAt code name")
+    .select("municipalityId companyId preferredCaptureId preferredAt code name serviceScope originDistrictCode destinationDistrictCode")
     .lean<{
       _id: Types.ObjectId;
       municipalityId: Types.ObjectId;
@@ -65,6 +65,9 @@ export async function GET(
       preferredAt?: Date;
       code?: string;
       name?: string;
+      serviceScope?: string;
+      originDistrictCode?: string;
+      destinationDistrictCode?: string;
     } | null>();
   if (!route) return apiNotFound("Ruta no encontrada");
   if (!(await canAccessMunicipality(auth.session, String(route.municipalityId)))) {
@@ -193,6 +196,9 @@ export async function GET(
       id: String(route._id),
       code: route.code,
       name: route.name,
+      serviceScope: route.serviceScope ?? null,
+      originDistrictCode: route.originDistrictCode ?? null,
+      destinationDistrictCode: route.destinationDistrictCode ?? null,
       preferredCaptureId: preferredId,
       preferredAt: route.preferredAt ?? null,
     },

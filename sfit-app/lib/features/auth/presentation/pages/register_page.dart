@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/apiperu_service.dart';
 import '../../../../core/widgets/sfit_mark.dart';
-import '../../../../shared/widgets/sfit_disclaimer_banner.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../providers/auth_provider.dart';
 
@@ -433,12 +431,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 // ── Widgets auxiliares ───────────────────────────────────────────

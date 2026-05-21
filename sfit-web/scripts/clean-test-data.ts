@@ -39,7 +39,6 @@ const CLEAN = [
   "uploadedfiles",
   "apelacions",
   "routecaptures",
-  "recompensas",
   "routes",
   "trips",
   "passengers",

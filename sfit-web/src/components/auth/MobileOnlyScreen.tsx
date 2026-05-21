@@ -23,7 +23,7 @@ const ROLE_COPY: Record<string, { title: string; body: string }> = {
   },
   ciudadano: {
     title: "SFIT funciona en tu celular",
-    body: "Reporta incidentes, sigue buses en vivo y canjea recompensas desde la app móvil.",
+    body: "Reporta incidentes y sigue buses en vivo desde la app móvil.",
   },
 };
 

@@ -211,7 +211,7 @@ export function OperatorDashboard({ user }: Props) {
 
 function QuickActions() {
   const ACTIONS: { label: string; subtitle: string; href: string; icon: typeof Plus }[] = [
-    { label: "Nuevo viaje",     subtitle: "Inicia un viaje y asigna pasajeros", href: "/viajes/nueva",       icon: CalendarDays },
+    { label: "Ver rutas",       subtitle: "Revisa rutas activas y cobertura",    href: "/rutas",             icon: CalendarDays },
     { label: "Nuevo conductor", subtitle: "Registra al personal de tu empresa", href: "/conductores/nuevo",  icon: Users },
     { label: "Nuevo vehículo",  subtitle: "Suma una unidad a tu flota",         href: "/vehiculos/nuevo",    icon: Car },
   ];
@@ -288,11 +288,11 @@ function RecentTrips({ trips, loading }: { trips: TripBrief[]; loading: boolean 
             Últimos viajes
           </h3>
         </div>
-        <Link href="/viajes" style={{
+        <Link href="/reportes" style={{
           display: "inline-flex", alignItems: "center", gap: 4,
           fontSize: "0.75rem", color: INK6, textDecoration: "none", fontWeight: 600,
         }}>
-          Ver todos <ArrowUpRight size={11} />
+          Ver reportes <ArrowUpRight size={11} />
         </Link>
       </div>
 
@@ -316,7 +316,7 @@ function RecentTrips({ trips, loading }: { trips: TripBrief[]; loading: boolean 
             const meta = STATUS_COLOR[t.status] ?? STATUS_COLOR.programado;
             const label = STATUS_LABEL[t.status] ?? t.status;
             return (
-              <Link key={t.id} href={`/viajes/${t.id}`}
+              <Link key={t.id} href="/rutas"
                 style={{
                   display: "flex", alignItems: "center", gap: 12,
                   padding: "11px 16px",
@@ -483,13 +483,13 @@ function CompanyCard({ company, loading }: { company: CompanyInfo | null; loadin
             <Building2 size={12} />Ver empresa
           </Link>
         )}
-        <Link href="/flota" style={{
+        <Link href="/vehiculos" style={{
           flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
           height: 32, padding: "0 12px", borderRadius: 7,
           border: "none", background: INK9, color: "#fff",
           fontSize: "0.75rem", fontWeight: 700, textDecoration: "none",
         }}>
-          <ClipboardList size={12} />Ver flota
+          <ClipboardList size={12} />Ver vehículos
         </Link>
       </div>
     </div>
@@ -525,4 +525,3 @@ function fmtTime(iso: string): string {
     return "—";
   }
 }
-

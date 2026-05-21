@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
       Trip.find(filter)
         .populate("vehicleId", "plate brand model")
         .populate("driverId", "name")
-        .populate("routeId", "code name")
+        .populate("routeId", "code name serviceScope originDistrictCode destinationDistrictCode waypoints")
         .sort({ startTime: -1 })
         .skip((page - 1) * limit)
         .limit(limit)

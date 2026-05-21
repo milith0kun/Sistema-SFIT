@@ -12,7 +12,7 @@
  * Conserva (masters):
  *   - User, Driver, Vehicle, Company
  *   - Province, Municipality, Region
- *   - Recompensa, SfitCoin, Notification, AuditLog
+ *   - SfitCoin, Notification, AuditLog
  *
  * Uso: npx tsx scripts/reset-operational-data.ts
  */

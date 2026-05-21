@@ -49,7 +49,6 @@ const COLLECTIONS = [
   "apelacions",
   // Gamificación
   "sfitcoins",
-  "recompensas",
   // Notificaciones
   "notifications",
   // Otros

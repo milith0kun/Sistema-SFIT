@@ -88,12 +88,14 @@ export async function GET(request: NextRequest) {
     return apiNotFound("Sin registro de conductor asociado a tu cuenta");
   }
 
-  // 2. Turnos del conductor (recientes primero), trayendo Route con waypoints.
+  // 2. Turnos del conductor (recientes primero), trayendo Route con modalidad
+  //    y estructura (paraderos u origen/destino) para que app/web muestren
+  //    correctamente urbano vs interprovincial.
   const entries = await FleetEntry.find({ driverId: driver._id })
     .sort({ date: -1, createdAt: -1 })
     .limit(limit)
     .populate("vehicleId", "plate vehicleTypeKey")
-    .populate("routeId", "code name waypoints")
+    .populate("routeId", "code name waypoints serviceScope originDistrictCode destinationDistrictCode")
     .select(
       "vehicleId routeId date status departureTime returnTime km distanceMeters durationSeconds routeCompliancePercentage visitedStops startLocation endLocation currentLocation",
     )
@@ -175,6 +177,9 @@ export async function GET(request: NextRequest) {
     routeId: string | null;
     code: string | null;
     name: string | null;
+    serviceScope: string | null;
+    originDistrictCode: string | null;
+    destinationDistrictCode: string | null;
     waypoints: Array<{ order: number; lat: number; lng: number; label?: string }> | null;
     passes: Pass[];
     bestPassId: string | null;
@@ -191,6 +196,9 @@ export async function GET(request: NextRequest) {
           _id?: unknown;
           code?: string;
           name?: string;
+          serviceScope?: string;
+          originDistrictCode?: string;
+          destinationDistrictCode?: string;
           waypoints?: Array<{ order: number; lat: number; lng: number; label?: string }>;
         }
       | null;
@@ -257,11 +265,14 @@ export async function GET(request: NextRequest) {
 
     const routeKey = route?._id ? String(route._id) : "__no_route__";
     if (!routeGroups.has(routeKey)) {
-      routeGroups.set(routeKey, {
-        routeId: route?._id ? String(route._id) : null,
-        code: route?.code ?? null,
-        name: route?.name ?? null,
-        waypoints: route?.waypoints
+        routeGroups.set(routeKey, {
+          routeId: route?._id ? String(route._id) : null,
+          code: route?.code ?? null,
+          name: route?.name ?? null,
+          serviceScope: route?.serviceScope ?? null,
+          originDistrictCode: route?.originDistrictCode ?? null,
+          destinationDistrictCode: route?.destinationDistrictCode ?? null,
+          waypoints: route?.waypoints
           ? route.waypoints.map((w) => ({
               order: w.order,
               lat: w.lat,

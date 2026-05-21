@@ -86,6 +86,9 @@ class BusData {
   final String? routeId;
   final String? routeName;
   final String? routeCode;
+  final String? routeServiceScope;
+  final String? routeOriginDistrictCode;
+  final String? routeDestinationDistrictCode;
   /// Nombre del municipio que administra al bus (ej. "Cusco", "San Jerónimo").
   /// Permite al ciudadano identificar de qué jurisdicción es la unidad.
   final String? municipalityName;
@@ -125,6 +128,9 @@ class BusData {
     this.routeId,
     this.routeName,
     this.routeCode,
+    this.routeServiceScope,
+    this.routeOriginDistrictCode,
+    this.routeDestinationDistrictCode,
     this.municipalityName,
     this.waypoints = const [],
     this.polylineCoords = const [],
@@ -178,6 +184,9 @@ class BusData {
       routeId: route?['id'] as String?,
       routeName: route?['name'] as String?,
       routeCode: route?['code'] as String?,
+      routeServiceScope: route?['serviceScope'] as String?,
+      routeOriginDistrictCode: route?['originDistrictCode'] as String?,
+      routeDestinationDistrictCode: route?['destinationDistrictCode'] as String?,
       municipalityName: j['municipalityName'] as String?,
       waypoints: wpList.map(BusWaypoint.fromJson).toList(),
       polylineCoords: polyCoords,

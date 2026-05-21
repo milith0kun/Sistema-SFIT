@@ -31,7 +31,6 @@ import { logAction } from "@/lib/audit/logAction";
 import { getActiveMunicipalityId } from "@/lib/scope-server";
 
 const ALLOWED_ROLES = [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL];
-const EXCLUDED_FROM_USERS_PANEL = [ROLES.CONDUCTOR] as const;
 const ROLES_REQUIRE_IDENTITY = new Set([
   ROLES.SUPER_ADMIN,
   ROLES.ADMIN_MUNICIPAL,
@@ -86,13 +85,6 @@ export async function GET(request: NextRequest) {
     filter.role = roleFilter;
   }
 
-  // La gestión operativa de conductores vive en /conductores (modelo Driver).
-  // Para evitar duplicidad/confusión, el panel /usuarios no lista cuentas con
-  // rol conductor.
-  if (filter.role === ROLES.CONDUCTOR) {
-    return apiResponse({ items: [], total: 0, page, limit });
-  }
-
   // admin_municipal nunca debe ver super_admins (no son parte de su jerarquía).
   // Aplicar después del roleFilter para que no se pueda saltar pidiendo
   // role=super_admin desde el cliente.
@@ -101,17 +93,15 @@ export async function GET(request: NextRequest) {
       return apiResponse({ items: [], total: 0, page, limit });
     }
     if (!filter.role) {
-      filter.role = { $nin: [ROLES.SUPER_ADMIN, ...EXCLUDED_FROM_USERS_PANEL] };
+      filter.role = { $ne: ROLES.SUPER_ADMIN };
     } else if (
       typeof filter.role === "object" &&
       filter.role !== null &&
       "$ne" in (filter.role as Record<string, unknown>)
     ) {
       const ne = (filter.role as { $ne?: string }).$ne;
-      filter.role = { $nin: [ne, ...EXCLUDED_FROM_USERS_PANEL].filter(Boolean) };
+      filter.role = { $ne: ne };
     }
-  } else if (!filter.role) {
-    filter.role = { $nin: [...EXCLUDED_FROM_USERS_PANEL] };
   }
 
   const validStatuses = ["activo", "pendiente", "suspendido", "rechazado"];

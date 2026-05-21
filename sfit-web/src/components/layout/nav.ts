@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   House, UserCheck, Users, Building2, Car,
   Route, Shield, Flag, TriangleAlert, ChartColumn, Bell,
-  MessageSquareWarning, Gift, CircleUserRound,
+  MessageSquareWarning, CircleUserRound,
 } from "lucide-react";
 
 export type NavSection =
@@ -46,9 +46,7 @@ export const NAV: NavItem[] = [
   // Lo que NO va aquí:
   //   - /flota: la marca el operador desde la app móvil al abrir su turno.
   //   - /viajes: los crea y cierra el operador (y el conductor) desde la
-  //     app móvil. La ruta /viajes queda accesible vía URL como vista de
-  //     auditoría puntual, pero NO va en el sidebar para no inducir al
-  //     admin_municipal a "operar" desde la web — su rol es supervisar.
+  //     app móvil. Ambos módulos quedan bloqueados en web por RBAC.
   { href: "/empresas",        label: "Empresas",            icon: Building2,             section: "OPERACIÓN",      roles: ["admin_municipal"] },
   { href: "/conductores",     label: "Conductores",         icon: Users,                 section: "OPERACIÓN",      roles: ["admin_municipal"] },
   { href: "/vehiculos",       label: "Vehículos / QR",      icon: Car,                   section: "OPERACIÓN",      roles: ["admin_municipal"] },
@@ -61,7 +59,6 @@ export const NAV: NavItem[] = [
   // CIUDADANÍA — solo admin_municipal
   { href: "/reportes",        label: "Reportes ciudadanos", icon: Flag,                  section: "CIUDADANÍA",     roles: ["admin_municipal"] },
   { href: "/sanciones",       label: "Sanciones",           icon: TriangleAlert,         section: "CIUDADANÍA",     roles: ["admin_municipal"] },
-  { href: "/recompensas",     label: "Recompensas",         icon: Gift,                  section: "CIUDADANÍA",     roles: ["admin_municipal"] },
 
   // ANÁLISIS — solo admin_municipal
   { href: "/estadisticas",    label: "Estadísticas",        icon: ChartColumn,           section: "ANÁLISIS",       roles: ["admin_municipal"] },
@@ -95,16 +92,13 @@ export const SEG_LABELS: Record<string, string> = {
   empresas: "Empresas",
   conductores: "Conductores",
   vehiculos: "Vehículos",
-  flota: "Flota del día",
   rutas: "Rutas y zonas",
-  viajes: "Viajes",
   inspecciones: "Inspecciones",
   apelaciones: "Apelaciones",
   reportes: "Reportes ciudadanos",
   sanciones: "Sanciones",
   estadisticas: "Estadísticas",
   notificaciones: "Notificaciones",
-  recompensas: "Recompensas",
   perfil: "Mi perfil",
   "mi-empresa": "Mi empresa",
   users: "Aprobaciones",
@@ -135,10 +129,7 @@ const PARENT_DETAIL_LABELS: Record<string, string> = {
   reportes:           "Detalle de reporte",
   apelaciones:        "Detalle de apelación",
   sanciones:          "Detalle de sanción",
-  viajes:             "Detalle de viaje",
   notificaciones:     "Detalle de notificación",
-  recompensas:        "Detalle de recompensa",
-  flota:              "Detalle de flota",
   "tipos-vehiculo":   "Detalle de tipo",
   users:              "Detalle de aprobación",
 };

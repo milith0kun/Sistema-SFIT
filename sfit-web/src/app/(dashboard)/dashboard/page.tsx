@@ -566,7 +566,7 @@ function buildQuickActionFor(role: string): QuickActionDef | null {
   switch (role) {
     case "super_admin":      return { icon: Users,       title: "Gestión de Usuarios y Roles",     subtitle: "Designar accesos y permisos en toda la plataforma.", href: "/usuarios" };
     case "admin_municipal":  return { icon: UserCheck,   title: "Centro de aprobaciones",           subtitle: "Empresas, conductores, vehículos y usuarios pendientes.", href: "/aprobaciones" };
-    case "operador":         return { icon: ClipboardList, title: "Flota del día",                 subtitle: "Asignaciones, conductores y despacho.",               href: "/flota" };
+    case "operador":         return { icon: ClipboardList, title: "Rutas operativas",              subtitle: "Consulta rutas, conductores y unidades.",              href: "/rutas" };
     case "fiscal":           return { icon: Shield,      title: "Inspecciones en campo",            subtitle: "Levanta actas digitales y escanea QR.",              href: "/inspecciones" };
     default:                 return { icon: Bell,        title: "Notificaciones",                   subtitle: "Mantente al día con novedades.",                     href: "/notificaciones" };
   }
@@ -697,13 +697,13 @@ function buildTabsFor(role: string, stats: GlobalStats | null): TabConfig[] {
 
   if (role === "operador") return [
     { key: "flota",     label: "Flota",     items: [
-      { title: "Flota del día", subtitle: "Asignaciones", href: "/flota",       icon: ClipboardList },
+      { title: "Rutas",         subtitle: "Asignaciones", href: "/rutas",       icon: ClipboardList },
       { title: "Vehículos",     subtitle: "Registro",     href: "/vehiculos",   icon: Car           },
       { title: "Conductores",   subtitle: "Disponibles",  href: "/conductores", icon: Users         },
     ]},
     { key: "operacion", label: "Operación", items: [
       { title: "Rutas",  subtitle: "Y zonas", href: "/rutas",  icon: Route        },
-      { title: "Viajes", subtitle: "Del día", href: "/viajes", icon: CalendarDays },
+      { title: "Reportes", subtitle: "Ciudadanos", href: "/reportes", icon: CalendarDays },
     ]},
   ];
 

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
   Check, X, UserCheck, Clock, Users, Calendar, Mail, ShieldAlert,
-  Search, Inbox, MessageSquare, Loader2, ChevronRight, ArrowLeft,
+  Search, Inbox, MessageSquare, Loader2, ChevronRight, ArrowLeft, Building2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
@@ -24,6 +24,11 @@ type PendingUser = {
   requestedRole: string;
   requestMessage?: string;
   createdAt: string;
+};
+type CompanyOption = {
+  id: string;
+  razonSocial: string;
+  ruc: string;
 };
 type ActionMode = "approve" | "reject";
 
@@ -104,6 +109,33 @@ export default function AdminUsersPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
+  // Empresas para asignar a operadores
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
+  const [assignedCompanyId, setAssignedCompanyId] = useState<string>("");
+
+  // Cargar empresas disponibles al montar
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const token = localStorage.getItem("sfit_access_token");
+        const res = await fetch("/api/empresas?active=true&limit=100", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (res.ok && data.data?.items) {
+          setCompanies(
+            data.data.items.map((c: { id: string; razonSocial: string; ruc: string }) => ({
+              id: c.id,
+              razonSocial: c.razonSocial,
+              ruc: c.ruc,
+            })),
+          );
+        }
+      } catch { /* silencioso */ }
+    };
+    void load();
+  }, []);
+
   // Filtros
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
@@ -178,6 +210,7 @@ export default function AdminUsersPage() {
     setActionSuccess(null);
     setRejectReason("");
     setAction("approve");
+    setAssignedCompanyId("");
     const u = users.find(x => x.id === selectedId);
     if (u) setAssignedRole(u.requestedRole);
   }, [selectedId, users]);
@@ -218,7 +251,13 @@ export default function AdminUsersPage() {
       // caso de aprobar, asigna el rol final. En caso de rechazar incluye
       // rejectionReason que el backend exige.
       const body = action === "approve"
-        ? { status: "activo", role: assignedRole }
+        ? {
+            status: "activo",
+            role: assignedRole,
+            ...(assignedRole === "operador" && assignedCompanyId
+              ? { companyId: assignedCompanyId }
+              : {}),
+          }
         : { status: "rechazado", rejectionReason: rejectReason.trim() };
       const res = await fetch(`/api/admin/usuarios/${selectedId}`, {
         method: "PATCH",
@@ -326,6 +365,9 @@ export default function AdminUsersPage() {
               onSubmit={handleAction}
               onClose={() => setSelectedId(null)}
               roleOptions={roleOptions}
+              companies={companies}
+              assignedCompanyId={assignedCompanyId}
+              setAssignedCompanyId={setAssignedCompanyId}
             />
           ) : (
             <DetailEmpty />
@@ -385,6 +427,9 @@ export default function AdminUsersPage() {
               onSubmit={handleAction}
               onClose={() => setSelectedId(null)}
               roleOptions={roleOptions}
+              companies={companies}
+              assignedCompanyId={assignedCompanyId}
+              setAssignedCompanyId={setAssignedCompanyId}
             />
           </div>
         </div>,
@@ -627,6 +672,7 @@ function DetailPanel({
   processing, error, success,
   onSubmit, onClose,
   roleOptions,
+  companies, assignedCompanyId, setAssignedCompanyId,
 }: {
   user: PendingUser;
   action: ActionMode; setAction: (a: ActionMode) => void;
@@ -635,6 +681,9 @@ function DetailPanel({
   processing: boolean; error: string | null; success: string | null;
   onSubmit: () => void; onClose: () => void;
   roleOptions: { value: string; label: string }[];
+  companies: CompanyOption[];
+  assignedCompanyId: string;
+  setAssignedCompanyId: (v: string) => void;
 }) {
   return (
     <div style={{
@@ -742,6 +791,33 @@ function DetailPanel({
           </svg>
         </div>
 
+        {/* Empresa asignada (solo para operador) */}
+        {assignedRole === "operador" && action === "approve" && (
+          <div style={{ marginBottom: 14 }}>
+            <FormLabel required icon={<Building2 size={12} />}>Empresa</FormLabel>
+            <div style={{ position: "relative" }}>
+              <select
+                value={assignedCompanyId}
+                onChange={e => setAssignedCompanyId(e.target.value)}
+                style={{
+                  width: "100%", height: 38, padding: "0 36px 0 12px", borderRadius: 8,
+                  border: `1px solid ${INK2}`, background: "#fff",
+                  fontSize: "0.875rem", color: INK9, fontFamily: "inherit",
+                  appearance: "none", cursor: "pointer", outline: "none",
+                }}
+              >
+                <option value="">Seleccionar empresa…</option>
+                {companies.map(c => (
+                  <option key={c.id} value={c.id}>{c.razonSocial} ({c.ruc})</option>
+                ))}
+              </select>
+              <svg viewBox="0 0 10 6" width="10" height="10" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} fill="none">
+                <path d="M1 1l4 4 4-4" stroke={INK5} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </div>
+        )}
+
         {/* Motivo del rechazo (solo cuando se está rechazando) */}
         {action === "reject" && (
           <div style={{
@@ -808,18 +884,20 @@ function DetailPanel({
             </button>
             <button
               onClick={onSubmit}
-              disabled={processing}
+              disabled={processing || (assignedRole === "operador" && !assignedCompanyId)}
               style={{
                 flex: 1, height: 38, borderRadius: 8, border: "none",
                 background: INK9, color: "#fff",
                 fontFamily: "inherit", fontWeight: 700, fontSize: "0.875rem",
-                cursor: processing ? "not-allowed" : "pointer",
-                opacity: processing ? 0.5 : 1,
+                cursor: processing || (assignedRole === "operador" && !assignedCompanyId) ? "not-allowed" : "pointer",
+                opacity: processing || (assignedRole === "operador" && !assignedCompanyId) ? 0.5 : 1,
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
               }}
             >
               {processing
                 ? <><Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} /> Procesando…</>
+                : assignedRole === "operador" && !assignedCompanyId
+                ? "Selecciona una empresa"
                 : <><Check size={14} strokeWidth={2.5} />Aprobar usuario</>
               }
             </button>

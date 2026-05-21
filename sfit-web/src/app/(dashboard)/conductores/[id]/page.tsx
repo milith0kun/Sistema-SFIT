@@ -15,7 +15,7 @@ import { SectionCard } from "@/components/ui/SectionCard";
 import { KeyValueRow, SystemIdRow } from "@/components/ui/KeyValueRow";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 import { hasWebPermission, FATIGUE_ROLES } from "@/lib/auth/roleMatrix";
-import type { Role } from "@/lib/constants";
+import { ROLES, type Role } from "@/lib/constants";
 import { fmtDate } from "@/lib/format";
 import {
   INK1, INK2, INK5, INK6, INK9,
@@ -32,11 +32,15 @@ interface Conductor {
   licenseCategory: string;
   licenseIssuedAt?: string | null;
   licenseExpiryDate?: string | null;
+  userId?: string | null;
   companyId?: string; companyName?: string;
   phone?: string; status: "apto" | "riesgo" | "no_apto";
   continuousHours: number; restHours: number; reputationScore: number;
   active: boolean; createdAt: string; updatedAt: string;
   photoUrl?: string;
+}
+interface LinkedUser {
+  id: string; name: string; email: string; role: string; status: string;
 }
 interface Empresa { id: string; razonSocial: string }
 interface FormData {
@@ -65,6 +69,50 @@ const STATUS_META = {
   apto:    { label: "Apto",    color: APTO,   bg: APTO_BG,   bd: APTO_BD,   icon: CheckCircle },
   riesgo:  { label: "Riesgo",  color: RIESGO, bg: RIESGO_BG, bd: RIESGO_BD, icon: AlertTriangle },
   no_apto: { label: "No apto", color: NO,     bg: NO_BG,     bd: NO_BD,     icon: AlertTriangle },
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: "Super Admin", admin_municipal: "Admin Municipal",
+  fiscal: "Fiscal / Inspector", operador: "Operador",
+  conductor: "Conductor", ciudadano: "Ciudadano",
+};
+const STATUS_META_LABELS: Record<string, string> = {
+  activo: "Activo", pendiente: "Pendiente", suspendido: "Suspendido", rechazado: "Rechazado",
+};
+
+function assignableRoles(): { value: string; label: string }[] {
+  try {
+    const raw = typeof window !== "undefined" ? localStorage.getItem("sfit_user") : null;
+    if (!raw) return [];
+    const u = JSON.parse(raw) as { role?: string };
+    if (u.role === "super_admin") {
+      return Object.entries(ROLE_LABELS).map(([v, l]) => ({ value: v, label: l }));
+    }
+    if (u.role === "admin_municipal") {
+      return [
+        { value: "fiscal", label: "Fiscal / Inspector" },
+        { value: "operador", label: "Operador" },
+        { value: "conductor", label: "Conductor" },
+        { value: "ciudadano", label: "Ciudadano" },
+      ];
+    }
+    return [];
+  } catch { return []; }
+}
+
+const BTN_PRIMARY: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 6,
+  height: 32, padding: "0 14px", borderRadius: 7,
+  border: "none", background: INK9, color: "#fff",
+  fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
+  fontFamily: "inherit", transition: "opacity 0.15s",
+};
+const BTN_SECONDARY: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 6,
+  height: 32, padding: "0 14px", borderRadius: 7,
+  border: `1px solid ${INK2}`, background: "#fff", color: INK6,
+  fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
+  fontFamily: "inherit", transition: "opacity 0.15s",
 };
 
 function Field({ label, error, required, hint, children }: {
@@ -130,6 +178,12 @@ export default function ConductorDetallePage({ params }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [linkedUser, setLinkedUser] = useState<LinkedUser | null>(null);
+  const [loadingUser, setLoadingUser] = useState(false);
+  const [newRole, setNewRole] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
+  const [showPass, setShowPass] = useState(false);
 
   // Validación DNI con RENIEC
   const [dniLookup, setDniLookup] = useState<DniLookup>({ state: "idle" });
@@ -173,6 +227,34 @@ export default function ConductorDetallePage({ params }: Props) {
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoadingConductor(false));
+
+    // Cargar usuario vinculado (cuenta del sistema)
+    fetch(`/api/conductores/${id}?includeUser=true`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async res => {
+        if (!res.ok) return;
+        const body = await res.json();
+        const data: Conductor = body?.data ?? body;
+        if (data.userId) {
+          setLoadingUser(true);
+          fetch(`/api/admin/usuarios/${data.userId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+            .then(async r => {
+              if (!r.ok) { setLinkedUser(null); return; }
+              const b = await r.json();
+              const u = b?.data;
+              if (u) {
+                setLinkedUser({ id: u.id, name: u.name, email: u.email, role: u.role, status: u.status });
+                setNewRole(u.role);
+              }
+            })
+            .catch(() => setLinkedUser(null))
+            .finally(() => setLoadingUser(false));
+        }
+      })
+      .catch(() => {});
   }, [authorized, token, id]);
 
   // Cargar historial laboral en paralelo al detalle del conductor. No bloquea
@@ -382,6 +464,50 @@ export default function ConductorDetallePage({ params }: Props) {
       setConfirmDelete(false);
     } catch { setServerError("Error de conexión."); setConfirmDelete(false); }
     finally { setDeleting(false); }
+  }
+
+  async function handleRoleChange(userId: string, newRoleValue: string) {
+    setSubmitting(true); setServerError(null);
+    try {
+      const res = await fetch(`/api/admin/usuarios/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ role: newRoleValue }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setServerError((body as { error?: string })?.error ?? "Error al cambiar rol");
+        return;
+      }
+      setLinkedUser(prev => prev ? { ...prev, role: newRoleValue } : prev);
+      setSuccessMsg("Rol actualizado correctamente.");
+      setTimeout(() => setSuccessMsg(null), 3500);
+    } catch { setServerError("Error de conexión."); }
+    finally { setSubmitting(false); }
+  }
+
+  async function handlePasswordReset(userId: string) {
+    if (newPass !== confirmPass || newPass.length < 8) {
+      setServerError("Las contraseñas no coinciden o son muy cortas.");
+      return;
+    }
+    setSubmitting(true); setServerError(null);
+    try {
+      const res = await fetch(`/api/admin/usuarios/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ password: newPass }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setServerError((body as { error?: string })?.error ?? "Error al restablecer");
+        return;
+      }
+      setNewPass(""); setConfirmPass("");
+      setSuccessMsg("Contraseña restablecida correctamente.");
+      setTimeout(() => setSuccessMsg(null), 3500);
+    } catch { setServerError("Error de conexión."); }
+    finally { setSubmitting(false); }
   }
 
   function handleChange(field: keyof FormData, value: string) {
@@ -1126,6 +1252,104 @@ export default function ConductorDetallePage({ params }: Props) {
               </ol>
             )}
           </SectionCard>
+
+          {/* Cuenta de usuario vinculada */}
+          {(linkedUser || loadingUser) && (
+            <SectionCard
+              icon={<Shield size={14} color={INK6} />}
+              title="Cuenta de usuario"
+              subtitle={loadingUser ? "Cargando…" : `Vinculada a ${linkedUser!.email}`}
+            >
+              {loadingUser ? (
+                <div style={{ fontSize: "0.8125rem", color: INK5 }}>
+                  <Loader2 size={13} style={{ animation: "spin 0.7s linear infinite", marginRight: 6 }} />
+                  Consultando cuenta…
+                </div>
+              ) : linkedUser ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  <KeyValueRow k="Correo" v={linkedUser.email} />
+                  <KeyValueRow k="Rol actual" v={ROLE_LABELS[linkedUser.role] ?? linkedUser.role} />
+                  <KeyValueRow k="Estado" v={STATUS_META_LABELS[linkedUser.status] ?? linkedUser.status} />
+
+                  {/* Cambiar rol */}
+                  <div>
+                    <label style={LABEL}>Cambiar rol</label>
+                    <select
+                      value={newRole}
+                      onChange={e => setNewRole(e.target.value)}
+                      style={FIELD}
+                    >
+                      {assignableRoles().map(r => (
+                        <option key={r.value} value={r.value}>{r.label}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => handleRoleChange(linkedUser.id, newRole)}
+                      disabled={submitting || newRole === linkedUser.role}
+                      style={{
+                        ...BTN_PRIMARY, marginTop: 8,
+                        opacity: submitting || newRole === linkedUser.role ? 0.4 : 1,
+                        cursor: submitting || newRole === linkedUser.role ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {submitting ? "Guardando…" : "Cambiar rol"}
+                    </button>
+                  </div>
+
+                  {/* Restablecer contraseña */}
+                  <div>
+                    <label style={LABEL}>Restablecer contraseña</label>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <input
+                        type={showPass ? "text" : "password"}
+                        value={newPass}
+                        onChange={e => setNewPass(e.target.value)}
+                        placeholder="Nueva contraseña"
+                        style={{ ...FIELD, flex: 1 }}
+                      />
+                      <button
+                        onClick={() => setShowPass(!showPass)}
+                        style={{ ...BTN_SECONDARY, height: 38 }}
+                      >
+                        {showPass ? "Ocultar" : "Mostrar"}
+                      </button>
+                    </div>
+                    {newPass && (
+                      <input
+                        type={showPass ? "text" : "password"}
+                        value={confirmPass}
+                        onChange={e => setConfirmPass(e.target.value)}
+                        placeholder="Confirmar contraseña"
+                        style={{ ...FIELD, marginTop: 8 }}
+                      />
+                    )}
+                    <button
+                      onClick={() => handlePasswordReset(linkedUser.id)}
+                      disabled={submitting || !newPass || !confirmPass || newPass !== confirmPass || newPass.length < 8}
+                      style={{
+                        ...BTN_PRIMARY, marginTop: 8,
+                        opacity: submitting || !newPass || !confirmPass || newPass !== confirmPass || newPass.length < 8 ? 0.4 : 1,
+                        cursor: submitting || !newPass || !confirmPass || newPass !== confirmPass || newPass.length < 8 ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {submitting ? "…" : "Restablecer contraseña"}
+                    </button>
+                  </div>
+
+                  <Link href={`/usuarios/${linkedUser.id}`} style={{
+                    fontSize: "0.8125rem", fontWeight: 600, color: INK6,
+                    textDecoration: "underline", display: "inline-flex", alignItems: "center", gap: 6,
+                  }}>
+                    Ir a ficha completa de usuario →
+                  </Link>
+                </div>
+              ) : (
+                <div style={{ fontSize: "0.8125rem", color: INK5 }}>
+                  Sin cuenta de usuario vinculada.
+                </div>
+              )}
+            </SectionCard>
+          )}
 
           {/* Información del registro */}
           <div style={{

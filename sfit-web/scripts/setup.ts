@@ -1,7 +1,6 @@
 /**
  * Script de setup inicial para el primer deploy de SFIT.
- * Crea el super_admin, una provincia y municipalidad de prueba,
- * y el catálogo inicial de recompensas.
+ * Crea el super_admin y una provincia/municipalidad de prueba.
  *
  * Uso:
  *   cd sfit-web
@@ -30,15 +29,6 @@ const loose = { strict: false, timestamps: true } as const;
 const UserModel     = mongoose.models.User     ?? model("User",     new Schema({}, loose));
 const ProvinceModel = mongoose.models.Province ?? model("Province", new Schema({}, loose));
 const MuniModel     = mongoose.models.Municipality ?? model("Municipality", new Schema({}, loose));
-const RewardModel   = mongoose.models.Reward   ?? model("Reward",   new Schema({}, loose));
-
-// ── Catálogo inicial de recompensas ───────────────────────────────────────────
-const RECOMPENSAS = [
-  { name: "Descuento 10% en trámites",   description: "Válido en municipalidad",          cost: 50,  category: "descuento",    stock: 100, active: true },
-  { name: "Certificado ciudadano activo", description: "PDF oficial de participación",      cost: 100, category: "certificado",  stock: -1,  active: true },
-  { name: "Prioridad en atención",        description: "Turno preferencial 1 día",         cost: 200, category: "beneficio",    stock: 20,  active: true },
-  { name: "Reconocimiento público",       description: "Mención en boletín municipal",     cost: 500, category: "otro",         stock: -1,  active: true },
-];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function parseArgs(): Record<string, string> {
@@ -95,7 +85,7 @@ async function main() {
   console.log("=".repeat(50));
 
   // ── 1. Super Admin ────────────────────────────────────────────────────────────
-  console.log("\n[1/3] Super Admin");
+  console.log("\n[1/2] Super Admin");
 
   const existingSuperAdmin = await UserModel.findOne({ role: "super_admin" });
   if (existingSuperAdmin && !force) {
@@ -136,7 +126,7 @@ async function main() {
   }
 
   // ── 2. Provincia y Municipalidad de prueba ────────────────────────────────────
-  console.log("\n[2/3] Provincia y Municipalidad de prueba");
+  console.log("\n[2/2] Provincia y Municipalidad de prueba");
 
   const provincia = await upsert(
     ProvinceModel,
@@ -166,21 +156,12 @@ async function main() {
   );
   log(`Municipalidad: Municipalidad Provincial del Cusco (id: ${municipalidad._id})`);
 
-  // ── 3. Catálogo de recompensas ─────────────────────────────────────────────────
-  console.log("\n[3/3] Catálogo de recompensas");
-
-  for (const r of RECOMPENSAS) {
-    await upsert(RewardModel, { name: r.name }, r);
-    log(`${r.name} (${r.cost} SFITCoins)`);
-  }
-
   // ── Resumen ───────────────────────────────────────────────────────────────────
   console.log("\n" + "=".repeat(50));
   console.log("Setup completado exitosamente.");
   console.log(`\n  Super Admin : ${adminEmail}`);
   console.log(`  Provincia   : Cusco`);
   console.log(`  Municipio   : Municipalidad Provincial del Cusco`);
-  console.log(`  Recompensas : ${RECOMPENSAS.length} items creados/actualizados`);
   console.log("\nPara crear usuarios adicionales usa scripts/seed-test-users.ts");
 
   await mongoose.disconnect();

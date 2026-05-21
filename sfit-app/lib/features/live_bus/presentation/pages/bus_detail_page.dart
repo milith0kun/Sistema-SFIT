@@ -233,6 +233,93 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
     return '$kmh km/h';
   }
 
+  bool _isInterprov(BusData bus) =>
+      (bus.routeServiceScope ?? '').toLowerCase() == 'interprovincial';
+
+  String _interprovStructure(BusData bus) {
+    final origin = bus.routeOriginDistrictCode;
+    final destination = bus.routeDestinationDistrictCode;
+    if (origin != null && destination != null) {
+      return 'Origen $origin -> Destino $destination';
+    }
+    return 'Ruta interprovincial por origen y destino';
+  }
+
+  Widget _interprovInfoView(BusData bus, Color color) {
+    return Scaffold(
+      backgroundColor: AppColors.paper,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: const BackButton(),
+        title: Text(
+          'Interprovincial en vivo',
+          style: AppTheme.inter(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.riesgoBg,
+              border: Border.all(color: AppColors.riesgoBorder),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              'Mapa oculto por privacidad en rutas interprovinciales',
+              style: AppTheme.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.riesgo,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _busSummaryCard(bus, color),
+          const SizedBox(height: 12),
+          _kpiStrip(bus),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.ink2),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Estructura de ruta',
+                  style: AppTheme.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink6,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _interprovStructure(bus),
+                  style: AppTheme.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.ink9,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _actionButtons(bus),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -275,8 +362,10 @@ class _BusDetailPageState extends ConsumerState<BusDetailPage> {
         ),
       );
     }
-
     final color = _statusColor(bus.vehicleStatus);
+    if (_isInterprov(bus)) {
+      return _interprovInfoView(bus, color);
+    }
     final hasValidPos = _validCoord(bus.lat, bus.lng);
 
     // Filtramos coordenadas inválidas en cada conjunto antes de pasarlas al
