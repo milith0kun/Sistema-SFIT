@@ -26,8 +26,6 @@ import { useToast } from "@/hooks/useToast";
 
 import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
-import { INK1, INK2, INK5, INK6, INK9, GRN, GRNBG, GRNBD, AMBER, AMBER_BG, AMBER_BD, RED, REDBG, REDBD } from "@/lib/design-tokens";
-import { fmtAgo } from "@/lib/format";
 type CandidateStatus = "candidate" | "validated" | "rejected" | "all";
 
 type Candidate = {

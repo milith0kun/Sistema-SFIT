@@ -279,6 +279,9 @@ export async function GET(request: NextRequest) {
         _id?: unknown;
         name?: string;
         code?: string;
+        serviceScope?: string | null;
+        originDistrictCode?: string | null;
+        destinationDistrictCode?: string | null;
         waypoints?: Array<{ lat: number; lng: number; label?: string; order: number }>;
         polylineGeometry?: {
           coords?: [number, number][];

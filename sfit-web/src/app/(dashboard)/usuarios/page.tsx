@@ -11,7 +11,7 @@ import { KPIStrip, type KPIItem } from "@/components/dashboard/KPIStrip";
 import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
 import { fmtDate } from "@/lib/format";
-import { INK1, INK2, INK5, INK6, INK9 } from "@/lib/design-tokens";
+import { INK1, INK2, INK5, INK6, INK9, INFO, INFO_BG, INFO_BD } from "@/lib/design-tokens";
 import { ROLE_LABELS } from "@/components/layout/nav";
 type UserRole =
   | "super_admin" | "admin_municipal"
