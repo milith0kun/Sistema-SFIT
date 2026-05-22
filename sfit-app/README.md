@@ -15,3 +15,16 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+## Configuracion QR HMAC (importante)
+
+Para que la verificacion offline del QR coincida con el backend web, ejecuta
+la app movil con el mismo secreto que usa `QR_HMAC_SECRET` en `sfit-web`.
+
+Ejemplo:
+
+```bash
+flutter run --dart-define=SFIT_QR_SECRET="<mismo_valor_de_QR_HMAC_SECRET>"
+```
+
+Si no defines ese valor, se usa el fallback `SFIT_QR_SECRET_KEY`.

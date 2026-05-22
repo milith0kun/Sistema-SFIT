@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../models/qr_payload.dart';
 
 /// Verifica la firma HMAC-SHA256 del payload QR sin necesidad de conexión.
@@ -9,10 +10,7 @@ import '../models/qr_payload.dart';
 ///
 /// En debug, cae en la clave de desarrollo si no se provee el define.
 class QrHmacService {
-  static const String _secret = String.fromEnvironment(
-    'SFIT_QR_SECRET',
-    defaultValue: 'sfit-dev-qr-secret',
-  );
+  static const String _secret = AppConstants.qrSecretKey;
 
   static final _key = utf8.encode(_secret);
 

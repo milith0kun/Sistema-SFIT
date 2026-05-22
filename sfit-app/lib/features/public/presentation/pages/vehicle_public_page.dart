@@ -506,7 +506,16 @@ class _QrValidationBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final valid = (offline ?? true) && (server ?? true);
+    final bool valid;
+    if (server != null) {
+      // Si existe validacion del backend, esa decide el resultado final.
+      // La verificacion offline se muestra como apoyo, pero puede fallar
+      // por configuracion local del secreto en builds de desarrollo.
+      valid = server!;
+    } else {
+      valid = offline ?? true;
+    }
+
     final color = valid ? AppColors.apto : AppColors.noApto;
     final bg    = valid ? AppColors.aptoBg : AppColors.noAptoBg;
     final border= valid ? AppColors.aptoBorder : AppColors.noAptoBorder;
