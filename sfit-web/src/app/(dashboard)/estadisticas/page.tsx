@@ -15,6 +15,8 @@ import {
   YAxis,
 } from "recharts";
 import { MapPin, Building2, Truck, Car, Download, FileCheck, AlertCircle, Users, ClipboardList } from "lucide-react";
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 import { type ColumnDef, DataTable } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
@@ -90,6 +92,7 @@ export default function EstadisticasPage() {
   const [municipiosRows, setMunicipiosRows] = useState<MunicipioRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const [municipalStats, setMunicipalStats] = useState<MunicipalStats | null>(null);
 
   useEffect(() => {
@@ -169,10 +172,17 @@ export default function EstadisticasPage() {
 
   function exportUsersCsv() {
     if (!stats) return;
-    const rows = ["Rol,Cantidad", ...Object.entries(stats.usersByRole ?? {}).map(([r, c]) => `${ROLE_LABELS[r] ?? r},${c}`)];
-    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" }));
-    a.download = `sfit-usuarios-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setExporting(true);
+    try {
+      const rows = ["Rol,Cantidad", ...Object.entries(stats.usersByRole ?? {}).map(([r, c]) => `${ROLE_LABELS[r] ?? r},${c}`)];
+      const blob = new Blob(["﻿" + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sfit-usuarios-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } finally { setExporting(false); }
   }
 
   if (!user) return (
@@ -181,11 +191,7 @@ export default function EstadisticasPage() {
     </div>
   );
 
-  if (
-    user.role !== "super_admin" &&
-    user.role !== "admin_municipal" &&
-    user.role !== "fiscal"
-  ) return <ComingSoon title="Estadísticas" rf="RF-19" />;
+  if (!hasWebPermission(user.role as Role, "estadisticas", "view")) return <ComingSoon title="Estadísticas" rf="RF-19" />;
 
   // Fiscal y admin_municipal usan el mismo dashboard municipal (filtrado por
   // su muni). Para fiscal el endpoint stats/municipal acepta su rol.
@@ -209,8 +215,9 @@ export default function EstadisticasPage() {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-          <Button variant="outline" size="md" onClick={exportUsersCsv} style={{ background: "rgba(255,255,255,.08)", border: "1.5px solid rgba(255,255,255,.15)", color: "#fff" }}>
-            <Download size={15} strokeWidth={1.8} />Exportar usuarios
+          <Button variant="outline" size="md" onClick={exportUsersCsv} loading={exporting} style={{ background: "rgba(255,255,255,.08)", border: "1.5px solid rgba(255,255,255,.15)", color: "#fff" }}>
+            <Download size={15} strokeWidth={1.8} />
+            {exporting ? "Exportando…" : "Exportar usuarios"}
           </Button>
         </div>
       </div>

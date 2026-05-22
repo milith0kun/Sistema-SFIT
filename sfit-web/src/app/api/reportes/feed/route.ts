@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
             { status: "validado" },
             {
               citizenId: myCitizenId,
-              status: { $in: ["pendiente", "en_revision"] },
+              status: { $in: ["pendiente", "revision"] },
             },
           ],
         };

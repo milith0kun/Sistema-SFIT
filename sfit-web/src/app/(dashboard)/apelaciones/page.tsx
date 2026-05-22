@@ -214,9 +214,8 @@ export default function ApelacionesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [resolving, setResolving] = useState<Apelacion | null>(null);
-  // Los 4 admins jerárquicos resuelven apelaciones desde web; el scope
-  // geográfico se valida en el handler PATCH /api/apelaciones/[id]/resolver.
-  const canResolve = !!user?.role && ["super_admin", "admin_municipal"].includes(user.role);
+  // Quién puede resolver se deriva de la matriz central (apelaciones.edit).
+  const canResolve = !!user?.role && hasWebPermission(user.role as Role, "apelaciones", "edit");
 
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");

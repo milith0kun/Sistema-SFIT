@@ -12,6 +12,8 @@ import { SectionCard } from "@/components/ui/SectionCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { MetaRow } from "@/components/ui/MetaRow";
 import { fmtDate } from "@/lib/format";
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 import {
   INK1, INK2, INK3, INK5, INK6, INK9,
   RED, REDBG, REDBD,
@@ -41,11 +43,6 @@ type Apelacion = {
   resolvedBy?: { id: string; name: string } | null;
   createdAt: string;
 };
-
-// Los 4 admins jerárquicos resuelven desde web; el scope geográfico se
-// valida en el handler PATCH /api/apelaciones/[id]/resolver.
-const ALLOWED_VIEW = ["super_admin", "admin_municipal"];
-const CAN_RESOLVE  = ["super_admin", "admin_municipal"];
 
 const STATUS_META: Record<ApelacionStatus, { label: string; color: string; bg: string; bd: string }> = {
   pendiente: { label: "Pendiente", color: AMBER, bg: AMBER_BG, bd: AMBER_BD },
@@ -86,7 +83,7 @@ export default function ApelacionDetailPage({ params }: { params: Promise<{ id: 
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
     const u = JSON.parse(raw) as { role: string };
-    if (!ALLOWED_VIEW.includes(u.role)) { router.replace("/dashboard"); return; }
+    if (!hasWebPermission(u.role as Role, "apelaciones", "view")) { router.replace("/dashboard"); return; }
     setUser(u);
   }, [router]);
 
@@ -136,7 +133,7 @@ export default function ApelacionDetailPage({ params }: { params: Promise<{ id: 
   }
 
   if (!user) return null;
-  const canResolve = CAN_RESOLVE.includes(user.role);
+  const canResolve = hasWebPermission(user.role as Role, "apelaciones", "edit");
 
   const backBtn = (
     <Link href="/apelaciones">

@@ -23,7 +23,7 @@ import { MapPin } from "lucide-react";
 
 const KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? "";
 
-interface PlaceResult {
+export interface PlaceResult {
   formatted: string;
   lat?: number;
   lng?: number;
@@ -66,6 +66,13 @@ interface Props {
   style?: React.CSSProperties;
   /** Países permitidos en formato ISO. Default: Perú */
   countries?: string[];
+  /**
+   * Cuando es true, no inyecta su propio <Script> de Google Maps y en su lugar
+   * espera (polling) a que la librería `places` ya esté cargada por otro
+   * componente (ej. GoogleMapView). Útil cuando ambos conviven en la misma
+   * página para evitar doble carga del script.
+   */
+  skipScript?: boolean;
 }
 
 export function AddressAutocomplete({
@@ -77,10 +84,29 @@ export function AddressAutocomplete({
   className,
   style,
   countries = ["pe"],
+  skipScript = false,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const acRef = useRef<GoogleAutocomplete | null>(null);
   const [scriptReady, setScriptReady] = useState(false);
+
+  // Modo skipScript: espera a que google.maps.places esté disponible vía otro
+  // componente (GoogleMapView). Polling cada 200ms, máximo 50 intentos (~10s).
+  useEffect(() => {
+    if (!skipScript || scriptReady) return;
+    let attempts = 0;
+    const id = setInterval(() => {
+      attempts++;
+      const win = window as unknown as { google?: { maps?: { places?: unknown } } };
+      if (win.google?.maps?.places) {
+        setScriptReady(true);
+        clearInterval(id);
+      } else if (attempts >= 50) {
+        clearInterval(id);
+      }
+    }, 200);
+    return () => clearInterval(id);
+  }, [skipScript, scriptReady]);
 
   // Inicializar Autocomplete cuando el script esté ready y el input montado
   useEffect(() => {
@@ -132,7 +158,13 @@ export function AddressAutocomplete({
           placeholder={placeholder}
           disabled={disabled}
           className={className}
-          style={{ paddingLeft: 38 }}
+          style={{
+            paddingLeft: 38, width: "100%", height: 36,
+            border: "1px solid #d4d4d8", borderRadius: 6,
+            background: "#fff", fontSize: "0.8125rem",
+            outline: "none", color: "#18181b", fontFamily: "inherit",
+            boxSizing: "border-box",
+          }}
         />
       </div>
     );
@@ -140,12 +172,14 @@ export function AddressAutocomplete({
 
   return (
     <>
-      <Script
-        src={`https://maps.googleapis.com/maps/api/js?key=${KEY}&libraries=places&loading=async`}
-        strategy="afterInteractive"
-        onLoad={() => setScriptReady(true)}
-        onReady={() => setScriptReady(true)}
-      />
+      {!skipScript && (
+        <Script
+          src={`https://maps.googleapis.com/maps/api/js?key=${KEY}&libraries=places&loading=async`}
+          strategy="afterInteractive"
+          onLoad={() => setScriptReady(true)}
+          onReady={() => setScriptReady(true)}
+        />
+      )}
       <div style={{ position: "relative", ...style }}>
         <MapPin
           size={15}
@@ -161,7 +195,13 @@ export function AddressAutocomplete({
           disabled={disabled}
           className={className}
           autoComplete="off"
-          style={{ paddingLeft: 38 }}
+          style={{
+            paddingLeft: 38, width: "100%", height: 36,
+            border: "1px solid #d4d4d8", borderRadius: 6,
+            background: "#fff", fontSize: "0.8125rem",
+            outline: "none", color: "#18181b", fontFamily: "inherit",
+            boxSizing: "border-box",
+          }}
         />
       </div>
     </>

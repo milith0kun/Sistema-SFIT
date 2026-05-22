@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Save, AlertTriangle, MapPin, Building2, Briefcase, Loader2, Map,
-  Clock, Plus, X, Globe,
+  Globe, RefreshCw,
 } from "lucide-react";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { WaypointsEditor, type Waypoint } from "@/components/ui/WaypointsEditor";
-import { fmtDate, fmtAgo } from "@/lib/format";
-import { INK1, INK2, INK3, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBG, GRNBD, AMBER, AMBER_BG, AMBER_BD, INFO, INFO_BG, INFO_BD } from "@/lib/design-tokens";
-import { FIELD, READ, LABEL, BTN_PRIMARY, BTN_OUTLINE } from "@/lib/form-styles";
+import { INK1, INK2, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBG, GRNBD } from "@/lib/design-tokens";
+import { FIELD, LABEL } from "@/lib/form-styles";
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 import {
   ACTIVE_DISTRICTS,
   ACTIVE_PROVINCE_NAME,
@@ -57,12 +58,8 @@ const DESTINATION_DISTRICTS = INTERPROV_DESTINATIONS.map((d) => ({
   province: d.province,
 }));
 
-const ALLOWED_CREATE = ["super_admin", "admin_municipal"];
-
 const APTO = GRN; const APTO_BG = GRNBG; const APTO_BD = GRNBD;
 const RED_BG = REDBG; const RED_BD = REDBD;
-
-const TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 export default function NuevaRutaPage() {
   const router = useRouter();
@@ -77,35 +74,80 @@ export default function NuevaRutaPage() {
   const [originDistrictCode, setOriginDistrictCode] = useState("");
   const [destinationDistrictCode, setDestinationDistrictCode] = useState("");
   const [traversedDistrictCodes, setTraversedDistrictCodes] = useState<string[]>([]);
+  const [suggestingCode, setSuggestingCode] = useState(false);
+  const [polylineColor, setPolylineColor] = useState("#18181b");
 
-  // Rutas urbanas compartidas: varias empresas operan la misma ruta con
-  // misma tarifa y paraderos (caso típico Cotabambas intra-provincia).
-  // Solo aplica si serviceScope es urbano.
-  const [isShared, setIsShared] = useState(false);
-  const [sharedCompanyIds, setSharedCompanyIds] = useState<string[]>([]);
+  const codeInputRef = useRef<HTMLInputElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
-  const [departureSchedules, setDepartureSchedules] = useState<string[]>([]);
-  const [scheduleDraft, setScheduleDraft] = useState("");
+  // Auto-generar nombre de ruta: Origen – Destino a partir de los waypoints.
+  useEffect(() => {
+    if (waypoints.length >= 2) {
+      const first = waypoints[0];
+      const last = waypoints[waypoints.length - 1];
+      const originLabel = first?.label?.trim() || "Origen";
+      const destLabel = last?.label?.trim() || "Destino";
+      const suggested = `${originLabel} – ${destLabel}`;
+      if (nameInputRef.current) {
+        // Solo sobrescribe si está vacío o coincide con algún auto-generado previo.
+        const current = nameInputRef.current.value.trim();
+        if (!current || current.includes(" – ")) {
+          nameInputRef.current.value = suggested;
+        }
+      }
+    } else if (waypoints.length === 1 && nameInputRef.current) {
+      const label = waypoints[0]?.label?.trim();
+      if (label && !nameInputRef.current.value.trim()) {
+        nameInputRef.current.value = label;
+      }
+    }
+  }, [waypoints]);
 
   const isUrban = URBAN_SCOPES.has(serviceScope);
   const isInterprov = INTERPROV_SCOPES.has(serviceScope);
+
+  const suggestCode = useCallback(async () => {
+    setSuggestingCode(true);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/rutas/suggest-code?scope=${serviceScope}`, {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (res.status === 401) { router.replace("/login"); return; }
+      const data = await res.json();
+      if (res.ok && data.success && codeInputRef.current) {
+        codeInputRef.current.value = data.data.code;
+      }
+    } catch { /* silent */ }
+    finally { setSuggestingCode(false); }
+  }, [serviceScope, router]);
+
+  // Auto-suggest code on mount and when scope changes
+  useEffect(() => {
+    void suggestCode();
+  }, [suggestCode]);
 
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) { router.replace("/login"); return; }
     try {
       const u = JSON.parse(raw) as StoredUser;
-      if (!ALLOWED_CREATE.includes(u.role)) { router.replace("/dashboard"); return; }
+      if (!hasWebPermission(u.role as Role, "rutas", "create")) { router.replace("/dashboard"); return; }
     } catch { router.replace("/login"); return; }
+  }, [router]);
+
+  useEffect(() => {
     void loadCompanies();
     void loadVehicleTypes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router]);
+  }, [serviceScope]);
 
   async function loadCompanies() {
     try {
       const token = localStorage.getItem("sfit_access_token");
-      const res = await fetch("/api/empresas?limit=100", { headers: { Authorization: `Bearer ${token ?? ""}` } });
+      const res = await fetch(`/api/empresas?limit=100&scope=${serviceScope}`, {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
       if (res.status === 401) { router.replace("/login"); return; }
       const data = await res.json();
       if (res.ok && data.success) setCompanies(data.data.items ?? []);
@@ -115,7 +157,9 @@ export default function NuevaRutaPage() {
   async function loadVehicleTypes() {
     try {
       const token = localStorage.getItem("sfit_access_token");
-      const res = await fetch("/api/tipos-vehiculo?limit=100", { headers: { Authorization: `Bearer ${token ?? ""}` } });
+      const res = await fetch(`/api/tipos-vehiculo?limit=100&scope=${serviceScope}`, {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
       if (res.status === 401) { router.replace("/login"); return; }
       const data = await res.json();
       if (res.ok && data.success) {
@@ -130,43 +174,9 @@ export default function NuevaRutaPage() {
     } catch { /* silent */ }
   }
 
-  function addSchedule() {
-    const v = scheduleDraft.trim();
-    if (!TIME_REGEX.test(v)) {
-      setFieldErrors(e => ({ ...e, schedule: "Formato HH:mm requerido" }));
-      return;
-    }
-    if (departureSchedules.includes(v)) {
-      setFieldErrors(e => ({ ...e, schedule: "Ese horario ya está agregado" }));
-      return;
-    }
-    setDepartureSchedules([...departureSchedules, v].sort());
-    setScheduleDraft("");
-    setFieldErrors(e => ({ ...e, schedule: "" }));
-  }
-  function removeSchedule(s: string) {
-    setDepartureSchedules(departureSchedules.filter(x => x !== s));
-  }
-
   function toggleTraversed(code: string) {
     setTraversedDistrictCodes(prev =>
       prev.includes(code) ? prev.filter(x => x !== code) : [...prev, code]
-    );
-  }
-
-  function handleScopeChange(s: ServiceScope) {
-    setServiceScope(s);
-    // Las rutas interprovinciales NO pueden ser compartidas en el modelo
-    // (cada empresa tiene sus propias rutas). Resetea el flag.
-    if (!URBAN_SCOPES.has(s)) {
-      setIsShared(false);
-      setSharedCompanyIds([]);
-    }
-  }
-
-  function toggleSharedCompany(id: string) {
-    setSharedCompanyIds(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
   }
 
@@ -180,12 +190,7 @@ export default function NuevaRutaPage() {
     const type = (form.get("type") as string) || "ruta";
     const companyId = (form.get("companyId") as string)?.trim() || undefined;
     const vehicleTypeKey = (form.get("vehicleTypeKey") as string)?.trim() || undefined;
-    const stopsRaw = (form.get("stops") as string)?.trim();
-    const stops = stopsRaw ? Number(stopsRaw) : undefined;
-    const length = (form.get("length") as string)?.trim() || undefined;
     const status = (form.get("status") as string) || "activa";
-    const frequenciesRaw = (form.get("frequencies") as string)?.trim();
-    const frequencies = frequenciesRaw ? frequenciesRaw.split(",").map(f => f.trim()).filter(Boolean) : undefined;
 
     const localErrors: Record<string, string> = {};
     if (!code) localErrors.code = "El código es obligatorio.";
@@ -193,26 +198,13 @@ export default function NuevaRutaPage() {
     if (isUrban && waypoints.length < 2) localErrors.waypoints = "Las rutas urbanas necesitan al menos 2 paradas.";
     if (isInterprov && !originDistrictCode) localErrors.originDistrictCode = "Selecciona el distrito de origen.";
     if (isInterprov && !destinationDistrictCode) localErrors.destinationDistrictCode = "Selecciona el distrito de destino.";
-    if (isUrban && isShared && sharedCompanyIds.length === 0) {
-      localErrors.companyIds = "Una ruta compartida requiere al menos una empresa autorizada.";
-    }
     if (Object.keys(localErrors).length > 0) {
       setFieldErrors(localErrors); setLoading(false); return;
     }
 
     const payload: Record<string, unknown> = { code, name, type, status, serviceScope };
-    // Ruta compartida: omite companyId individual e incluye companyIds.
-    if (isUrban && isShared) {
-      payload.isShared = true;
-      payload.companyIds = sharedCompanyIds;
-    } else if (companyId) {
-      payload.companyId = companyId;
-    }
+    payload.companyId = companyId || null;
     if (vehicleTypeKey) payload.vehicleTypeKey = vehicleTypeKey;
-    if (stops != null && !isNaN(stops)) payload.stops = stops;
-    if (length) payload.length = length;
-    if (frequencies && frequencies.length > 0) payload.frequencies = frequencies;
-    if (departureSchedules.length > 0) payload.departureSchedules = departureSchedules;
 
     if (isUrban) {
       payload.waypoints = waypoints;
@@ -316,7 +308,7 @@ export default function NuevaRutaPage() {
               const active = serviceScope === s;
               return (
                 <button
-                  key={s} type="button" onClick={() => handleScopeChange(s)}
+                  key={s} type="button" onClick={() => setServiceScope(s)}
                   style={{
                     textAlign: "left", padding: "10px 12px",
                     borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
@@ -347,9 +339,24 @@ export default function NuevaRutaPage() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
                 <label htmlFor="code" style={LABEL}>Código <span style={{ color: RED, marginLeft: 3 }}>*</span></label>
-                <input id="code" name="code" placeholder="R001"
-                  style={{ ...FIELD, borderColor: fieldErrors.code ? RED : INK2 }}
-                />
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input id="code" name="code" ref={codeInputRef} placeholder="U-001"
+                    style={{ ...FIELD, flex: 1, borderColor: fieldErrors.code ? RED : INK2 }}
+                  />
+                  <button type="button" disabled={suggestingCode}
+                    onClick={() => { void suggestCode(); }}
+                    title="Generar código"
+                    style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      width: 36, height: 36, borderRadius: 7,
+                      border: `1px solid ${INK2}`, background: "#fff", color: INK5,
+                      cursor: suggestingCode ? "not-allowed" : "pointer",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <RefreshCw size={13} style={suggestingCode ? { animation: "spin 0.7s linear infinite" } : undefined} />
+                  </button>
+                </div>
                 {fieldErrors.code && <p style={{ marginTop: 5, fontSize: "0.75rem", color: RED, fontWeight: 500 }}>{fieldErrors.code}</p>}
               </div>
               <div>
@@ -362,7 +369,8 @@ export default function NuevaRutaPage() {
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <label htmlFor="name" style={LABEL}>Nombre <span style={{ color: RED, marginLeft: 3 }}>*</span></label>
-                <input id="name" name="name" placeholder={isUrban ? "Terminal – Plaza de Armas" : "Cusco – Lima"}
+                <input id="name" name="name" ref={nameInputRef}
+                  placeholder={isUrban ? "Terminal – Plaza de Armas" : "Cusco – Lima"}
                   style={{ ...FIELD, borderColor: fieldErrors.name ? RED : INK2 }}
                 />
                 {fieldErrors.name && <p style={{ marginTop: 5, fontSize: "0.75rem", color: RED, fontWeight: 500 }}>{fieldErrors.name}</p>}
@@ -376,100 +384,20 @@ export default function NuevaRutaPage() {
             subtitle="Empresa y tipo de vehículo"
           >
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              {/* Toggle "Ruta compartida" — solo para urbanas */}
-              {isUrban && (
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <label style={{
-                    display: "flex", alignItems: "flex-start", gap: 10,
-                    padding: "10px 12px", borderRadius: 9,
-                    border: `1.5px solid ${isShared ? "#1D4ED8" : INK2}`,
-                    background: isShared ? "#EFF6FF" : "#fff",
-                    cursor: "pointer", fontFamily: "inherit",
-                  }}>
-                    <input type="checkbox" checked={isShared}
-                      onChange={(e) => {
-                        setIsShared(e.target.checked);
-                        if (!e.target.checked) setSharedCompanyIds([]);
-                      }}
-                      style={{ marginTop: 3, accentColor: "#1D4ED8" }}
-                    />
-                    <div>
-                      <div style={{ fontSize: "0.8125rem", fontWeight: 700, color: INK9 }}>
-                        Ruta compartida entre varias empresas
-                      </div>
-                      <div style={{ fontSize: "0.6875rem", color: INK5, marginTop: 2, lineHeight: 1.5 }}>
-                        Misma ruta y paraderos operados por más de una empresa con misma tarifa.
-                        Cada viaje deberá registrar qué empresa lo ejecutó (auditoría).
-                      </div>
-                    </div>
-                  </label>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label htmlFor="companyId" style={LABEL}>Empresa</label>
+                <div style={{ position: "relative" }}>
+                  <Building2 size={13} color={INK5} style={{
+                    position: "absolute", left: 11, top: "50%",
+                    transform: "translateY(-50%)", pointerEvents: "none",
+                  }} />
+                  <select id="companyId" name="companyId" defaultValue=""
+                    style={{ ...FIELD, paddingLeft: 32, appearance: "none", paddingRight: 30 }}>
+                    <option value="">— Sin empresa —</option>
+                    {companies.map(c => <option key={c.id} value={c.id}>{c.razonSocial}</option>)}
+                  </select>
                 </div>
-              )}
-
-              {/* Empresa(s): single select cuando NO es compartida, multi-select cuando lo es */}
-              {!isShared ? (
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <label htmlFor="companyId" style={LABEL}>Empresa</label>
-                  <div style={{ position: "relative" }}>
-                    <Building2 size={13} color={INK5} style={{
-                      position: "absolute", left: 11, top: "50%",
-                      transform: "translateY(-50%)", pointerEvents: "none",
-                    }} />
-                    <select id="companyId" name="companyId" defaultValue=""
-                      style={{ ...FIELD, paddingLeft: 32, appearance: "none", paddingRight: 30 }}>
-                      <option value="">— Sin empresa —</option>
-                      {companies.map(c => <option key={c.id} value={c.id}>{c.razonSocial}</option>)}
-                    </select>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <label style={LABEL}>
-                    Empresas autorizadas <span style={{ color: RED, marginLeft: 3 }}>*</span>
-                    <span style={{ color: INK5, fontWeight: 500, textTransform: "none", letterSpacing: 0, marginLeft: 4 }}>
-                      ({sharedCompanyIds.length} seleccionada{sharedCompanyIds.length !== 1 ? "s" : ""})
-                    </span>
-                  </label>
-                  <div style={{
-                    display: "grid", gap: 6,
-                    gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                    maxHeight: 220, overflowY: "auto",
-                    border: `1px solid ${fieldErrors.companyIds ? RED : INK2}`,
-                    borderRadius: 8, padding: 8, background: "#fff",
-                  }}>
-                    {companies.length === 0 ? (
-                      <p style={{ fontSize: "0.75rem", color: INK5, padding: 8 }}>
-                        No hay empresas registradas. Crea una empresa primero.
-                      </p>
-                    ) : (
-                      companies.map(c => {
-                        const checked = sharedCompanyIds.includes(c.id);
-                        return (
-                          <label key={c.id} style={{
-                            display: "flex", alignItems: "center", gap: 6,
-                            padding: "6px 10px", borderRadius: 7,
-                            border: `1px solid ${checked ? "#BFDBFE" : INK2}`,
-                            background: checked ? "#EFF6FF" : "#fff",
-                            cursor: "pointer", fontSize: "0.8125rem", color: INK9,
-                          }}>
-                            <input type="checkbox" checked={checked}
-                              onChange={() => toggleSharedCompany(c.id)}
-                              style={{ accentColor: "#1D4ED8" }} />
-                            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}>
-                              {c.razonSocial}
-                            </span>
-                          </label>
-                        );
-                      })
-                    )}
-                  </div>
-                  {fieldErrors.companyIds && (
-                    <p style={{ marginTop: 5, fontSize: "0.75rem", color: RED, fontWeight: 500 }}>
-                      {fieldErrors.companyIds}
-                    </p>
-                  )}
-                </div>
-              )}
+              </div>
               <div>
                 <label htmlFor="vehicleTypeKey" style={LABEL}>Tipo de vehículo</label>
                 <select id="vehicleTypeKey" name="vehicleTypeKey" defaultValue=""
@@ -486,55 +414,38 @@ export default function NuevaRutaPage() {
                   <option value="suspendida">Suspendida</option>
                 </select>
               </div>
-              <div>
-                <label htmlFor="stops" style={LABEL}>
-                  Paradas
-                  {isUrban && waypoints.length > 0 && (
-                    <span style={{ color: INK5, fontWeight: 500, textTransform: "none", letterSpacing: 0, marginLeft: 4 }}>
-                      ({waypoints.length} en mapa)
-                    </span>
-                  )}
-                </label>
-                <input id="stops" name="stops" type="number" min={0}
-                  placeholder={isUrban && waypoints.length > 0 ? String(waypoints.length) : "12"}
-                  style={FIELD}
-                />
-              </div>
-              <div>
-                <label htmlFor="length" style={LABEL}>Longitud</label>
-                <input id="length" name="length" placeholder={isUrban ? "8.5 km" : "1100 km"} style={FIELD} />
-              </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label htmlFor="frequencies" style={LABEL}>
-                  Frecuencias
-                  <span style={{ color: INK5, fontWeight: 500, textTransform: "none", letterSpacing: 0, marginLeft: 4 }}>
-                    (separadas por coma · útiles en urbanas)
-                  </span>
-                </label>
-                <input id="frequencies" name="frequencies" placeholder="10 min, 15 min" style={FIELD} />
-              </div>
             </div>
           </SectionCard>
         </div>
 
-        {/* UI condicional por scope */}
-        {isUrban ? (
-          <SectionCard
-            icon={<Map size={14} color={INK6} />}
-            title="Trazado en mapa"
-            subtitle="Click para agregar paradas. Arrastra los puntos para ajustar."
-          >
-            {fieldErrors.waypoints && (
-              <div style={{
-                padding: "8px 12px", background: RED_BG, border: `1px solid ${RED_BD}`,
-                borderRadius: 7, color: RED, fontSize: "0.75rem", marginBottom: 10,
-              }}>
-                {fieldErrors.waypoints}
-              </div>
-            )}
-            <WaypointsEditor waypoints={waypoints} onChange={setWaypoints} height={420} />
-          </SectionCard>
-        ) : (
+        {/* Trazado en mapa — visible para ambas modalidades */}
+        <SectionCard
+          icon={<Map size={14} color={INK6} />}
+          title="Trazado en mapa"
+          subtitle={isUrban
+            ? "Click para agregar paradas. Arrastra los puntos para ajustar."
+            : "Busca origen y destino, luego traza los paraderos en el mapa."}
+        >
+          {fieldErrors.waypoints && (
+            <div style={{
+              padding: "8px 12px", background: RED_BG, border: `1px solid ${RED_BD}`,
+              borderRadius: 7, color: RED, fontSize: "0.75rem", marginBottom: 10,
+            }}>
+              {fieldErrors.waypoints}
+            </div>
+          )}
+          <WaypointsEditor
+            waypoints={waypoints}
+            onChange={setWaypoints}
+            height={420}
+            showSearch
+            polylineColor={polylineColor}
+            onPolylineColorChange={setPolylineColor}
+          />
+        </SectionCard>
+
+        {/* Distritos — solo para interprovincial (metadata UBIGEO) */}
+        {isInterprov && (
           <>
             <SectionCard
               icon={<Globe size={14} color={INK6} />}
@@ -616,58 +527,6 @@ export default function NuevaRutaPage() {
           </>
         )}
 
-        {/* Horarios de salida (común a interprovincial; opcional para urbano) */}
-        <SectionCard
-          icon={<Clock size={14} color={INK6} />}
-          title="Horarios de salida"
-          subtitle={isInterprov
-            ? "Salidas programadas (HH:mm)."
-            : "Opcional · usa esto si tu ruta urbana tiene salidas fijas en lugar de frecuencias."}
-        >
-          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <input
-              type="time" value={scheduleDraft}
-              onChange={e => setScheduleDraft(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addSchedule(); } }}
-              placeholder="HH:mm"
-              style={{ ...FIELD, width: 120 }}
-            />
-            <button type="button" onClick={addSchedule}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 5,
-                height: 38, padding: "0 12px", borderRadius: 8,
-                border: "none", background: INK9, color: "#fff",
-                fontSize: "0.8125rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-              }}>
-              <Plus size={12} />Agregar
-            </button>
-            {fieldErrors.schedule && (
-              <span style={{ fontSize: "0.75rem", color: RED, fontWeight: 500 }}>{fieldErrors.schedule}</span>
-            )}
-          </div>
-          {departureSchedules.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-              {departureSchedules.map(s => (
-                <span key={s} style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  padding: "4px 6px 4px 10px",
-                  background: INK1, border: `1px solid ${INK2}`, borderRadius: 999,
-                  fontSize: "0.75rem", fontWeight: 600, color: INK9,
-                  fontFamily: "ui-monospace, monospace", letterSpacing: "0.04em",
-                }}>
-                  {s}
-                  <button type="button" onClick={() => removeSchedule(s)} style={{
-                    width: 18, height: 18, borderRadius: "50%",
-                    border: "none", background: "#fff", color: INK6, cursor: "pointer",
-                    display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    <X size={10} />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </SectionCard>
       </form>
     </div>
   );

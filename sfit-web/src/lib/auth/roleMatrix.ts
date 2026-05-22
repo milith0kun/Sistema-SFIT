@@ -35,7 +35,8 @@ export type Resource =
   | "municipalidades"
   | "provincias"
   | "regiones"
-  | "aprobaciones";
+  | "aprobaciones"
+  | "estadisticas";
 
 export type Action = "view" | "create" | "edit" | "delete";
 
@@ -95,7 +96,7 @@ export const ROLE_MATRIX: Record<Resource, Record<Action, Role[]>> = {
     delete: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
   },
   apelaciones: {
-    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL, A.CONDUCTOR],
+    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL, A.CONDUCTOR, A.OPERADOR],
     // Conductor apela su propia sanción desde la app; operador apela en
     // nombre de su flota desde la app móvil. Ambos casos pasan por el mismo POST.
     create: [A.CONDUCTOR, A.OPERADOR],
@@ -150,6 +151,14 @@ export const ROLE_MATRIX: Record<Resource, Record<Action, Role[]>> = {
     create: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
     edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
     delete: [A.SUPER_ADMIN],
+  },
+  estadisticas: {
+    // Dashboard read-only. super_admin ve el panel global; admin_municipal ve
+    // el panel de su municipalidad. fiscal accede desde la app móvil.
+    view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL],
+    create: [],
+    edit: [],
+    delete: [],
   },
 };
 

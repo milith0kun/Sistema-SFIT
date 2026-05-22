@@ -20,10 +20,7 @@ type PopulatedInspection = {
 } | null;
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  // OPERADOR no está en la matriz `apelaciones.view` (sólo accede a las apelaciones
-  // que él mismo envió, validado por scope abajo). Lo agregamos explícitamente aquí
-  // para preservar ese acceso, pero el resto sale de la matriz central.
-  const auth = requireRole(request, [...rolesFor("apelaciones", "view"), ROLES.OPERADOR]);
+  const auth = requireRole(request, [...rolesFor("apelaciones", "view")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   const { id } = await params;
   if (!isValidObjectId(id)) return apiError("ID inválido", 400);

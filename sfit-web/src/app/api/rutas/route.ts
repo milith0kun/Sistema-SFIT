@@ -193,10 +193,13 @@ export async function GET(request: NextRequest) {
       filter.companyId = companyIdParam;
     }
 
-    const items = await Route.find(filter)
-      .populate("companyId", "razonSocial")
-      .sort({ code: 1 })
-      .lean();
+    const [items, total] = await Promise.all([
+      Route.find(filter)
+        .populate("companyId", "razonSocial")
+        .sort({ code: 1 })
+        .lean(),
+      Route.countDocuments(filter),
+    ]);
 
     return apiResponse({
       items: items.map((r) => ({
@@ -235,7 +238,7 @@ export async function GET(request: NextRequest) {
         createdAt: r.createdAt,
         updatedAt: r.updatedAt,
       })),
-      total: items.length,
+      total,
     });
   } catch (error) {
     console.error("[rutas GET]", error);

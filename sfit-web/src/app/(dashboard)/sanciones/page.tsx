@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, cloneElement, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, FileText, Check, X, Download, Plus, Mail, Phone, Bell } from "lucide-react";
+import { AlertTriangle, FileText, Check, X, Download, Mail, Phone, Bell, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
@@ -25,8 +25,6 @@ type Sanction = {
   appealNotes?: string;
   createdAt: string;
 };
-type VehicleOpt = { id: string; plate: string };
-type DriverOpt = { id: string; name: string };
 type Stats = { emitida: number; notificada: number; apelada: number; confirmada: number; anulada: number; montoConfirmado: number };
 
 const APTO = "#15803d"; const APTOBG = "#F0FDF4"; const APTOBD = "#86EFAC";
@@ -62,34 +60,9 @@ function StepFlow({ status }: { status: SanctionStatus }) {
     </div>
   );
 }
-const btnInk: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: "none", background: INK9, color: "#fff", fontFamily: "inherit" };
+
 const btnOut: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 40, padding: "0 16px", borderRadius: 9, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: `1.5px solid ${INK2}`, background: "#fff", color: INK6, fontFamily: "inherit" };
-const btnSm: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 12px", borderRadius: 7, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: `1.5px solid ${INK2}`, background: "#fff", color: INK6 };
 
-const inputStyle: React.CSSProperties = {
-  width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
-  border: `1.5px solid ${INK2}`, fontSize: "0.875rem", outline: "none",
-  fontFamily: "inherit", boxSizing: "border-box", color: INK9, background: "#fff",
-};
-const labelStyle: React.CSSProperties = { fontSize: "0.75rem", fontWeight: 700, color: INK6, letterSpacing: "0.04em", display: "block", marginBottom: 6 };
-
-const FAULT_TYPES = [
-  "Exceso de velocidad",
-  "Falta de documentos (SOAT vencido)",
-  "Falta de revisión técnica",
-  "Vehículo en mal estado",
-  "Conductor sin licencia vigente",
-  "Incumplimiento de ruta autorizada",
-  "Sobrecarga de pasajeros",
-  "Conducción bajo influencia de alcohol",
-  "Incumplimiento de horario",
-  "Infracción al reglamento de tránsito",
-  "Otra infracción",
-];
-
-const UIT_OPTIONS = [
-  "0.1 UIT", "0.25 UIT", "0.5 UIT", "1 UIT", "1.5 UIT", "2 UIT", "3 UIT", "5 UIT",
-];
 
 export default function SancionesPage() {
   const router = useRouter();
@@ -99,21 +72,11 @@ export default function SancionesPage() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const [sel, setSel] = useState<Sanction | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [reenviandoId, setReenviandoId] = useState<string | null>(null);
-
-  // Modal state
-  const [showModal, setShowModal] = useState(false);
-  const [vehicles, setVehicles] = useState<VehicleOpt[]>([]);
-  const [drivers, setDrivers] = useState<DriverOpt[]>([]);
-  const [form, setForm] = useState({
-    vehicleId: "", driverId: "", faultType: "", faultTypeCustom: "",
-    amountSoles: "", amountUIT: "",
-  });
-  const [formError, setFormError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
@@ -151,75 +114,6 @@ export default function SancionesPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const loadModalData = useCallback(async () => {
-    const token = localStorage.getItem("sfit_access_token");
-    const headers = { Authorization: `Bearer ${token ?? ""}` };
-    const [vRes, dRes] = await Promise.all([
-      fetch("/api/vehiculos?limit=100", { headers }),
-      fetch("/api/conductores?limit=100", { headers }),
-    ]);
-    const [vData, dData] = await Promise.all([vRes.json(), dRes.json()]);
-    if (vData.success) setVehicles((vData.data.items ?? []).map((v: { id: string; plate: string }) => ({ id: v.id, plate: v.plate })));
-    if (dData.success) setDrivers((dData.data.items ?? []).map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })));
-  }, []);
-
-  const openModal = () => {
-    setForm({ vehicleId: "", driverId: "", faultType: "", faultTypeCustom: "", amountSoles: "", amountUIT: "" });
-    setFormError(null);
-    setShowModal(true);
-    void loadModalData();
-  };
-
-  const handleSubmit = async () => {
-    const faultTypeValue = form.faultType === "Otra infracción" ? form.faultTypeCustom.trim() : form.faultType;
-    if (!form.vehicleId) { setFormError("Seleccione un vehículo"); return; }
-    if (!faultTypeValue) { setFormError("Ingresa el tipo de infracción"); return; }
-    const amountSoles = parseFloat(form.amountSoles);
-    if (isNaN(amountSoles) || amountSoles < 0) { setFormError("Monto inválido"); return; }
-    if (!form.amountUIT) { setFormError("Seleccione el monto en UIT"); return; }
-
-    setSubmitting(true); setFormError(null);
-    try {
-      const token = localStorage.getItem("sfit_access_token");
-      const body: Record<string, unknown> = {
-        vehicleId: form.vehicleId,
-        faultType: faultTypeValue,
-        amountSoles,
-        amountUIT: form.amountUIT,
-      };
-      if (form.driverId) body.driverId = form.driverId;
-
-      const res = await fetch("/api/sanciones", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) { setFormError(data.error ?? "Error al crear sanción"); return; }
-      setShowModal(false);
-      void load();
-    } catch { setFormError("Error de conexión"); }
-    finally { setSubmitting(false); }
-  };
-
-  const updateStatus = async (id: string, status: SanctionStatus) => {
-    setActionError(null);
-    try {
-      const token = localStorage.getItem("sfit_access_token");
-      const res = await fetch(`/api/sanciones/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
-        body: JSON.stringify({ status }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success) {
-        setActionError(data.error ?? "No se pudo actualizar la sanción");
-        return;
-      }
-      void load();
-    } catch { setActionError("Error de conexión"); }
-  };
-
   /**
    * Reenvía la notificación de la sanción. El endpoint deriva canal y
    * destinatario automáticamente (email al operador por defecto) y agrega
@@ -256,28 +150,31 @@ export default function SancionesPage() {
 
   const exportCSV = () => {
     if (items.length === 0) return;
-    const header = ["ID", "Placa", "Conductor", "Empresa", "Infracción", "Monto S/", "UIT", "Estado", "Fecha"];
-    const rows = items.map(s => [
-      `S-${(s.id ?? "").slice(-10).toUpperCase()}`,
-      s.vehicle?.plate ?? "",
-      s.driver?.name ?? "",
-      s.company?.razonSocial ?? "",
-      s.faultType,
-      s.amountSoles.toString(),
-      s.amountUIT,
-      s.status,
-      new Date(s.createdAt).toISOString().slice(0, 10),
-    ]);
-    const csv = [header, ...rows].map(r =>
-      r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")
-    ).join("\r\n");
-    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `sanciones_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    setExporting(true);
+    try {
+      const header = ["ID", "Placa", "Conductor", "Empresa", "Infracción", "Monto S/", "UIT", "Estado", "Fecha"];
+      const rows = items.map(s => [
+        `S-${(s.id ?? "").slice(-10).toUpperCase()}`,
+        s.vehicle?.plate ?? "",
+        s.driver?.name ?? "",
+        s.company?.razonSocial ?? "",
+        s.faultType,
+        s.amountSoles.toString(),
+        s.amountUIT,
+        s.status,
+        new Date(s.createdAt).toISOString().slice(0, 10),
+      ]);
+      const csv = [header, ...rows].map(r =>
+        r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")
+      ).join("\r\n");
+      const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sanciones_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } finally { setExporting(false); }
   };
 
   const emitidas = stats.emitida;
@@ -392,15 +289,16 @@ export default function SancionesPage() {
   const notifLabel = (ch: string) => ch === "email" ? "Correo a empresa" : ch === "whatsapp" ? "WhatsApp al operador" : "Push al conductor";
 
   // Las sanciones se emiten exclusivamente desde la app móvil del fiscal.
-  // En web son read-only para todos los admins; ocultamos el CTA de creación.
-  const canCreate = false;
+  // En web son read-only para todos los admins; no hay CTA de creación.
 
   return (
     <div className="flex flex-col gap-3 animate-fade-in">
       <PageHeader kicker="Ciudadanía · RF-13" title="Sanciones"
         action={<div style={{ display: "flex", gap: 8 }}>
-          <button style={{ ...btnOut, opacity: items.length === 0 ? 0.5 : 1, cursor: items.length === 0 ? "not-allowed" : "pointer" }} onClick={exportCSV} disabled={items.length === 0}><Download size={16} />Exportar CSV</button>
-          {canCreate && <button style={btnInk} onClick={openModal}><Plus size={16} />Emitir sanción</button>}
+          <button style={btnOut} onClick={exportCSV} disabled={items.length === 0 || exporting}>
+            {exporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+            {exporting ? "Exportando…" : "Exportar CSV"}
+          </button>
         </div>} />
 
       {actionSuccess && (
@@ -515,21 +413,6 @@ export default function SancionesPage() {
                   {actionError}
                 </div>
               )}
-
-              {canCreate && sel.status !== "confirmada" && sel.status !== "anulada" && (
-                <div style={{ display: "flex", gap: 8, marginTop: 18, flexWrap: "wrap" }}>
-                  {sel.status === "emitida" && (
-                    <button style={{ ...btnSm, flex: 1, minWidth: 130 }} onClick={() => updateStatus(sel.id, "notificada")}><Bell size={14} />Marcar notificada</button>
-                  )}
-                  {sel.status === "notificada" && (
-                    <button style={{ ...btnSm, flex: 1, minWidth: 130 }} onClick={() => updateStatus(sel.id, "apelada")}><FileText size={14} />Registrar apelación</button>
-                  )}
-                  {sel.status === "apelada" && (
-                    <button style={{ ...btnSm, flex: 1, minWidth: 130 }} onClick={() => updateStatus(sel.id, "confirmada")}><Check size={14} />Confirmar</button>
-                  )}
-                  <button style={{ ...btnInk, flex: 1, minWidth: 130, height: 32, fontSize: "0.8125rem" }} onClick={() => updateStatus(sel.id, "anulada")}><X size={14} />Anular</button>
-                </div>
-              )}
             </div>
           </div>
         ) : (
@@ -537,98 +420,6 @@ export default function SancionesPage() {
         )}
       </div>
 
-      {/* Modal: Emitir sanción */}
-      {showModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(9,9,11,.55)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => !submitting && setShowModal(false)}>
-          <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 14, width: 540, maxWidth: "100%", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 24px", borderBottom: `1px solid ${INK2}` }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: "1rem", color: INK9 }}>Emitir nueva sanción</div>
-                <div style={{ fontSize: "0.8125rem", color: INK5, marginTop: 2 }}>Los campos marcados con * son obligatorios</div>
-              </div>
-              <button onClick={() => !submitting && setShowModal(false)} style={{ width: 32, height: 32, borderRadius: 7, border: `1px solid ${INK2}`, background: "#fff", color: INK6, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><X size={14} /></button>
-            </div>
-
-            <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 18 }}>
-              {/* Vehículo */}
-              <div>
-                <label style={labelStyle}>VEHÍCULO *</label>
-                <select value={form.vehicleId} onChange={e => setForm(f => ({ ...f, vehicleId: e.target.value }))}
-                  style={{ ...inputStyle, appearance: "auto" }}>
-                  <option value="">Seleccione un vehículo…</option>
-                  {vehicles.map(v => <option key={v.id} value={v.id}>{v.plate}</option>)}
-                </select>
-                {vehicles.length === 0 && <div style={{ fontSize: "0.75rem", color: INK5, marginTop: 4 }}>Cargando vehículos…</div>}
-              </div>
-
-              {/* Conductor */}
-              <div>
-                <label style={labelStyle}>CONDUCTOR (opcional)</label>
-                <select value={form.driverId} onChange={e => setForm(f => ({ ...f, driverId: e.target.value }))}
-                  style={{ ...inputStyle, appearance: "auto" }}>
-                  <option value="">Sin conductor asignado</option>
-                  {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-              </div>
-
-              {/* Tipo de infracción */}
-              <div>
-                <label style={labelStyle}>TIPO DE INFRACCIÓN *</label>
-                <select value={form.faultType} onChange={e => setForm(f => ({ ...f, faultType: e.target.value, faultTypeCustom: "" }))}
-                  style={{ ...inputStyle, appearance: "auto" }}>
-                  <option value="">Seleccione un tipo…</option>
-                  {FAULT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-                {form.faultType === "Otra infracción" && (
-                  <input
-                    value={form.faultTypeCustom}
-                    onChange={e => setForm(f => ({ ...f, faultTypeCustom: e.target.value }))}
-                    placeholder="Describe la infracción…"
-                    style={{ ...inputStyle, marginTop: 8 }}
-                  />
-                )}
-              </div>
-
-              {/* Montos */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={labelStyle}>MONTO EN SOLES (S/) *</label>
-                  <input
-                    type="number" min="0" step="0.01"
-                    value={form.amountSoles}
-                    onChange={e => setForm(f => ({ ...f, amountSoles: e.target.value }))}
-                    placeholder="0.00"
-                    style={inputStyle}
-                  />
-                </div>
-                <div>
-                  <label style={labelStyle}>EQUIVALENCIA UIT *</label>
-                  <select value={form.amountUIT} onChange={e => setForm(f => ({ ...f, amountUIT: e.target.value }))}
-                    style={{ ...inputStyle, appearance: "auto" }}>
-                    <option value="">Selecciona…</option>
-                    {UIT_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              {/* Error */}
-              {formError && (
-                <div style={{ padding: "10px 14px", background: NOBG, border: `1px solid ${NOBD}`, borderRadius: 8, color: NO, fontSize: "0.875rem", display: "flex", gap: 8, alignItems: "center" }}>
-                  <AlertTriangle size={15} />{formError}
-                </div>
-              )}
-
-              {/* Acciones */}
-              <div style={{ display: "flex", gap: 8, paddingTop: 4 }}>
-                <button style={{ ...btnOut, flex: 1 }} onClick={() => !submitting && setShowModal(false)} disabled={submitting}>Cancelar</button>
-                <button style={{ ...btnInk, flex: 1, opacity: submitting ? 0.6 : 1, cursor: submitting ? "not-allowed" : "pointer" }} onClick={handleSubmit} disabled={submitting}>
-                  {submitting ? "Emitiendo…" : <><AlertTriangle size={15} />Emitir sanción</>}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

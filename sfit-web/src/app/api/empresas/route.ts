@@ -66,6 +66,7 @@ export async function GET(request: NextRequest) {
     const activeParam = url.searchParams.get("active");
     const vehicleTypeKey = url.searchParams.get("vehicleTypeKey");
     const municipalityIdParam = url.searchParams.get("municipalityId");
+    const scopeParam = url.searchParams.get("scope");
 
     const filter: Record<string, unknown> = {};
 
@@ -100,6 +101,18 @@ export async function GET(request: NextRequest) {
     if (activeParam === "true") filter.active = true;
     else if (activeParam === "false") filter.active = false;
     if (vehicleTypeKey) filter.vehicleTypeKeys = vehicleTypeKey;
+    if (scopeParam === "urbano" || scopeParam === "interprovincial") {
+      filter.authorizations = {
+        $elemMatch: {
+          scope: scopeParam,
+          $or: [
+            { expiresAt: { $exists: false } },
+            { expiresAt: null },
+            { expiresAt: { $gt: new Date() } },
+          ],
+        },
+      };
+    }
 
     const [items, total] = await Promise.all([
       Company.find(filter)

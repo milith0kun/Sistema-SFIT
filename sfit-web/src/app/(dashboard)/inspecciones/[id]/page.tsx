@@ -12,6 +12,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { MetaRow } from "@/components/ui/MetaRow";
 import { fmtDate, fmtDateTime } from "@/lib/format";
+import { hasWebPermission } from "@/lib/auth/roleMatrix";
+import type { Role } from "@/lib/constants";
 import { INK1, INK2, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBG, GRNBD, AMBER, AMBER_BG, AMBER_BD } from "@/lib/design-tokens";
 
 /* ── Tipos ── */
@@ -41,10 +43,6 @@ type Inspection = {
   date: string;
   createdAt: string;
 };
-
-type StoredUser = { role: string };
-
-const ALLOWED_VIEW = ["super_admin", "admin_municipal"];
 
 const RESULT_META: Record<InspectionResult, { label: string; color: string; bg: string; bd: string }> = {
   aprobada:  { label: "Aprobada",  color: GRN, bg: GRNBG, bd: GRNBD },
@@ -99,8 +97,8 @@ export default function InspeccionDetallePage({ params }: { params: Promise<{ id
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) { router.replace("/login"); return; }
-    const u = JSON.parse(raw) as StoredUser;
-    if (!ALLOWED_VIEW.includes(u.role)) { router.replace("/dashboard"); return; }
+    const u = JSON.parse(raw) as { role: string };
+    if (!hasWebPermission(u.role as Role, "inspecciones", "view")) { router.replace("/dashboard"); return; }
   }, [router]);
 
   useEffect(() => {

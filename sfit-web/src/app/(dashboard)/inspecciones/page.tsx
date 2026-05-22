@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Shield, Check, AlertTriangle, X, Plus, Sparkles, Download, ChevronRight } from "lucide-react";
+import { Shield, Check, AlertTriangle, X, Plus, Sparkles, Download, ChevronRight, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 
@@ -47,6 +47,7 @@ export default function InspeccionesPage() {
   const [resultFilter, setResultFilter] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
@@ -96,6 +97,8 @@ export default function InspeccionesPage() {
   const totalGlobal = stats.aprobada + stats.observada + stats.rechazada;
 
   const exportCSV = async () => {
+    setExporting(true);
+    setError(null);
     try {
       const token = localStorage.getItem("sfit_access_token");
       const qs = new URLSearchParams();
@@ -108,8 +111,9 @@ export default function InspeccionesPage() {
       a.href = url;
       a.download = `inspecciones_${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch { setError("Error de conexión al exportar"); }
+    finally { setExporting(false); }
   };
 
   const columns = useMemo<ColumnDef<Inspection, unknown>[]>(() => [
@@ -205,8 +209,9 @@ export default function InspeccionesPage() {
       <PageHeader kicker="Operación · RF-11" title="Inspecciones"
         action={
           <div style={{ display: "flex", gap: 8 }}>
-            <button style={btnOut} onClick={exportCSV} disabled={items.length === 0}>
-              <Download size={16} />Exportar CSV
+            <button style={btnOut} onClick={exportCSV} disabled={items.length === 0 || exporting}>
+              {exporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+              {exporting ? "Exportando…" : "Exportar CSV"}
             </button>
             {/* Las inspecciones se levantan exclusivamente desde la app móvil del fiscal; el CTA de creación se retiró de la web. */}
           </div>
