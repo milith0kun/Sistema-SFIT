@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState, use as usePromise } from "react";
+import { useEffect, useState, useRef, use as usePromise } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Trash2, Save, AlertTriangle, MapPin, Building2, Briefcase, Map,
-  Loader2, CheckCircle, Globe, Clock, Plus, X,
+  Loader2, CheckCircle, Globe,
 } from "lucide-react";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { SectionCard } from "@/components/ui/SectionCard";
@@ -62,16 +62,11 @@ const DESTINATION_DISTRICTS = INTERPROV_DESTINATIONS.map((d) => ({
   province: d.province,
 }));
 
-const TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
-
 type Company = { id: string; razonSocial: string };
 type VehicleType = { id: string; key: string; name: string; active: boolean };
 type StoredUser = { role: string };
 
 interface Props { params: Promise<{ id: string }> }
-// Los 4 admins jerárquicos editan rutas dentro de su scope geográfico; el
-// operador gestiona las rutas de su empresa desde la app móvil.
-const CAN_EDIT = ["super_admin", "admin_municipal"];
 
 export default function RutaDetallePage({ params }: Props) {
   const { id } = usePromise(params);
@@ -93,9 +88,10 @@ export default function RutaDetallePage({ params }: Props) {
   const [originDistrictCode, setOriginDistrictCode] = useState("");
   const [destinationDistrictCode, setDestinationDistrictCode] = useState("");
   const [traversedDistrictCodes, setTraversedDistrictCodes] = useState<string[]>([]);
-  const [departureSchedules, setDepartureSchedules] = useState<string[]>([]);
-  const [scheduleDraft, setScheduleDraft] = useState("");
   const [scopeChangeWarning, setScopeChangeWarning] = useState(false);
+  const [polylineColor, setPolylineColor] = useState("#18181b");
+
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
@@ -104,12 +100,35 @@ export default function RutaDetallePage({ params }: Props) {
     if (!hasWebPermission(u.role as Role, "rutas", "view")) { router.replace("/dashboard"); return; }
     setUser(u);
     void loadRoute();
+  }, [id, router]);
+
+  useEffect(() => {
     void loadCompanies();
     void loadVehicleTypes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, router]);
+  }, [serviceScope]);
 
   useSetBreadcrumbTitle(route ? `${route.code} · ${route.name}` : null);
+
+  const canEdit = user ? hasWebPermission(user.role as Role, "rutas", "edit") : false;
+
+  // Auto-generar nombre de ruta a partir de los labels de los waypoints.
+  useEffect(() => {
+    if (!canEdit) return;
+    if (waypoints.length >= 2) {
+      const first = waypoints[0];
+      const last = waypoints[waypoints.length - 1];
+      const originLabel = first?.label?.trim() || "Origen";
+      const destLabel = last?.label?.trim() || "Destino";
+      const suggested = `${originLabel} – ${destLabel}`;
+      if (nameInputRef.current) {
+        const current = nameInputRef.current.value.trim();
+        if (!current || current.includes(" – ")) {
+          nameInputRef.current.value = suggested;
+        }
+      }
+    }
+  }, [waypoints, canEdit]);
 
   async function loadRoute() {
     try {
@@ -125,28 +144,10 @@ export default function RutaDetallePage({ params }: Props) {
       setOriginDistrictCode(data.data.originDistrictCode ?? "");
       setDestinationDistrictCode(data.data.destinationDistrictCode ?? "");
       setTraversedDistrictCodes(data.data.traversedDistrictCodes ?? []);
-      setDepartureSchedules(data.data.departureSchedules ?? []);
     } catch { setError("Error de conexión."); }
     finally { setLoading(false); }
   }
 
-  function addSchedule() {
-    const v = scheduleDraft.trim();
-    if (!TIME_REGEX.test(v)) {
-      setFieldErrors(e => ({ ...e, schedule: "Formato HH:mm requerido" }));
-      return;
-    }
-    if (departureSchedules.includes(v)) {
-      setFieldErrors(e => ({ ...e, schedule: "Ese horario ya está agregado" }));
-      return;
-    }
-    setDepartureSchedules([...departureSchedules, v].sort());
-    setScheduleDraft("");
-    setFieldErrors(e => ({ ...e, schedule: "" }));
-  }
-  function removeSchedule(s: string) {
-    setDepartureSchedules(departureSchedules.filter(x => x !== s));
-  }
   function toggleTraversed(code: string) {
     setTraversedDistrictCodes(prev =>
       prev.includes(code) ? prev.filter(x => x !== code) : [...prev, code]
@@ -156,7 +157,9 @@ export default function RutaDetallePage({ params }: Props) {
   async function loadCompanies() {
     try {
       const token = localStorage.getItem("sfit_access_token");
-      const res = await fetch("/api/empresas?limit=100", { headers: { Authorization: `Bearer ${token ?? ""}` } });
+      const res = await fetch(`/api/empresas?limit=100&scope=${serviceScope}`, {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
       const data = await res.json();
       if (res.ok && data.success) setCompanies(data.data.items ?? []);
     } catch { /* silent */ }
@@ -165,7 +168,9 @@ export default function RutaDetallePage({ params }: Props) {
   async function loadVehicleTypes() {
     try {
       const token = localStorage.getItem("sfit_access_token");
-      const res = await fetch("/api/tipos-vehiculo?limit=100", { headers: { Authorization: `Bearer ${token ?? ""}` } });
+      const res = await fetch(`/api/tipos-vehiculo?limit=100&scope=${serviceScope}`, {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
       const data = await res.json();
       if (res.ok && data.success) {
         // Deduplica por `key` (la base puede tener registros duplicados, ej. "minibus" 2x).
@@ -192,12 +197,7 @@ export default function RutaDetallePage({ params }: Props) {
     const type = (form.get("type") as string) || "ruta";
     const companyId = (form.get("companyId") as string)?.trim() || undefined;
     const vehicleTypeKey = (form.get("vehicleTypeKey") as string)?.trim() || undefined;
-    const stopsRaw = (form.get("stops") as string)?.trim();
-    const stops = stopsRaw ? Number(stopsRaw) : undefined;
-    const length = (form.get("length") as string)?.trim() || undefined;
     const status = (form.get("status") as string) || "activa";
-    const frequenciesRaw = (form.get("frequencies") as string)?.trim();
-    const frequencies = frequenciesRaw ? frequenciesRaw.split(",").map(f => f.trim()).filter(Boolean) : undefined;
 
     const localErrors: Record<string, string> = {};
     if (!code) localErrors.code = "El código es obligatorio.";
@@ -223,12 +223,7 @@ export default function RutaDetallePage({ params }: Props) {
     const payload: Record<string, unknown> = { code, name, type, status, serviceScope };
     payload.companyId = companyId || null;
     if (vehicleTypeKey) payload.vehicleTypeKey = vehicleTypeKey;
-    if (stops != null && !isNaN(stops)) payload.stops = stops;
-    if (length) payload.length = length;
-    if (frequencies && frequencies.length > 0) payload.frequencies = frequencies;
     payload.waypoints = waypoints;
-    if (departureSchedules.length > 0) payload.departureSchedules = departureSchedules;
-    else payload.departureSchedules = [];
 
     if (isInterprov) {
       payload.originDistrictCode = originDistrictCode;
@@ -269,7 +264,6 @@ export default function RutaDetallePage({ params }: Props) {
       setOriginDistrictCode(data.data.originDistrictCode ?? "");
       setDestinationDistrictCode(data.data.destinationDistrictCode ?? "");
       setTraversedDistrictCodes(data.data.traversedDistrictCodes ?? []);
-      setDepartureSchedules(data.data.departureSchedules ?? []);
       setScopeChangeWarning(false);
       setSuccess("Ruta actualizada correctamente.");
       setTimeout(() => setSuccess(null), 3500);
@@ -325,7 +319,6 @@ export default function RutaDetallePage({ params }: Props) {
     );
   }
 
-  const canEdit = CAN_EDIT.includes(user?.role ?? "");
   const heroAction = (
     <div style={{ display: "flex", gap: 6 }}>
       <Link href="/rutas" style={{
@@ -438,7 +431,7 @@ export default function RutaDetallePage({ params }: Props) {
                   <AlertTriangle size={12} style={{ marginTop: 1, flexShrink: 0 }} />
                   <span>
                     Cambiar la modalidad puede invalidar datos existentes (waypoints,
-                    distritos, horarios). Revisa los campos antes de guardar.
+                    distritos). Revisa los campos antes de guardar.
                   </span>
                 </div>
               )}
@@ -472,7 +465,7 @@ export default function RutaDetallePage({ params }: Props) {
                   </div>
                   <div style={{ gridColumn: "1 / -1" }}>
                     <label htmlFor="name" style={LABEL}>Nombre <span style={{ color: RED, marginLeft: 3 }}>*</span></label>
-                    <input id="name" name="name" defaultValue={route.name} disabled={!canEdit}
+                    <input id="name" name="name" ref={nameInputRef} defaultValue={route.name} disabled={!canEdit}
                       placeholder="Terminal – Plaza de Armas"
                       style={{ ...(canEdit ? FIELD : READ), borderColor: fieldErrors.name ? RED : INK2 }}
                       onFocus={e => { if (canEdit && !fieldErrors.name) e.target.style.borderColor = INK9; }}
@@ -526,69 +519,42 @@ export default function RutaDetallePage({ params }: Props) {
                       <option value="suspendida">Suspendida</option>
                     </select>
                   </div>
-                  <div>
-                    <label htmlFor="stops" style={LABEL}>
-                      Paradas
-                      {waypoints.length > 0 && (
-                        <span style={{ color: INK5, fontWeight: 500, textTransform: "none", letterSpacing: 0, marginLeft: 4 }}>
-                          ({waypoints.length} en mapa)
-                        </span>
-                      )}
-                    </label>
-                    <input id="stops" name="stops" type="number" min={0}
-                      defaultValue={route.stops ?? ""} disabled={!canEdit}
-                      placeholder="12"
-                      style={canEdit ? FIELD : READ}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="length" style={LABEL}>Longitud</label>
-                    <input id="length" name="length" defaultValue={route.length ?? ""} disabled={!canEdit}
-                      placeholder="8.5 km" style={canEdit ? FIELD : READ} />
-                  </div>
-                  <div style={{ gridColumn: "1 / -1" }}>
-                    <label htmlFor="frequencies" style={LABEL}>
-                      Frecuencias
-                      <span style={{ color: INK5, fontWeight: 500, textTransform: "none", letterSpacing: 0, marginLeft: 4 }}>
-                        (separadas por coma)
-                      </span>
-                    </label>
-                    <input id="frequencies" name="frequencies"
-                      defaultValue={route.frequencies ? route.frequencies.join(", ") : ""}
-                      disabled={!canEdit} placeholder="10 min, 15 min"
-                      style={canEdit ? FIELD : READ}
-                    />
-                  </div>
                 </div>
               </SectionCard>
             </div>
 
-            {/* UI condicional por scope */}
-            {URBAN_SCOPES.has(serviceScope) ? (
-              <SectionCard
-                icon={<Map size={14} color={INK6} />}
-                title="Trazado en mapa"
-                subtitle={canEdit
+            {/* Trazado en mapa — visible para ambas modalidades */}
+            <SectionCard
+              icon={<Map size={14} color={INK6} />}
+              title="Trazado en mapa"
+              subtitle={canEdit
+                ? URBAN_SCOPES.has(serviceScope)
                   ? "Click para agregar paradas. Arrastra los puntos para ajustar."
-                  : "Visualización del trazado registrado"
-                }
-              >
-                {fieldErrors.waypoints && (
-                  <div style={{
-                    padding: "8px 12px", background: REDBG, border: `1px solid ${REDBD}`,
-                    borderRadius: 7, color: RED, fontSize: "0.75rem", marginBottom: 10,
-                  }}>
-                    {fieldErrors.waypoints}
-                  </div>
-                )}
-                <WaypointsEditor
-                  waypoints={waypoints}
-                  onChange={canEdit ? setWaypoints : undefined}
-                  height={420}
-                  readOnly={!canEdit}
-                />
-              </SectionCard>
-            ) : (
+                  : "Busca origen y destino, luego traza los paraderos en el mapa."
+                : "Visualización del trazado registrado"
+              }
+            >
+              {fieldErrors.waypoints && (
+                <div style={{
+                  padding: "8px 12px", background: REDBG, border: `1px solid ${REDBD}`,
+                  borderRadius: 7, color: RED, fontSize: "0.75rem", marginBottom: 10,
+                }}>
+                  {fieldErrors.waypoints}
+                </div>
+              )}
+              <WaypointsEditor
+                waypoints={waypoints}
+                onChange={canEdit ? setWaypoints : undefined}
+                height={420}
+                readOnly={!canEdit}
+                showSearch
+                polylineColor={polylineColor}
+                onPolylineColorChange={canEdit ? setPolylineColor : undefined}
+              />
+            </SectionCard>
+
+            {/* Distritos — solo para interprovincial (metadata UBIGEO) */}
+            {!URBAN_SCOPES.has(serviceScope) && (
               <>
                 <SectionCard
                   icon={<Globe size={14} color={INK6} />}
@@ -688,64 +654,6 @@ export default function RutaDetallePage({ params }: Props) {
               </>
             )}
 
-            {/* Horarios de salida (común a interprovincial; opcional para urbano) */}
-            <SectionCard
-              icon={<Clock size={14} color={INK6} />}
-              title="Horarios de salida"
-              subtitle={INTERPROV_SCOPES.has(serviceScope)
-                ? "Salidas programadas (HH:mm)."
-                : "Opcional · útil si la ruta urbana tiene salidas fijas."}
-            >
-              {canEdit && (
-                <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                  <input type="time" value={scheduleDraft}
-                    onChange={e => setScheduleDraft(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addSchedule(); } }}
-                    style={{ ...FIELD, width: 120 }} />
-                  <button type="button" onClick={addSchedule} style={{
-                    display: "inline-flex", alignItems: "center", gap: 5,
-                    height: 38, padding: "0 12px", borderRadius: 8,
-                    border: "none", background: INK9, color: "#fff",
-                    fontSize: "0.8125rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-                  }}>
-                    <Plus size={12} />Agregar
-                  </button>
-                  {fieldErrors.schedule && (
-                    <span style={{ fontSize: "0.75rem", color: RED, fontWeight: 500 }}>{fieldErrors.schedule}</span>
-                  )}
-                </div>
-              )}
-              {departureSchedules.length > 0 ? (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: canEdit ? 10 : 0 }}>
-                  {departureSchedules.map(s => (
-                    <span key={s} style={{
-                      display: "inline-flex", alignItems: "center", gap: 6,
-                      padding: canEdit ? "4px 6px 4px 10px" : "4px 10px",
-                      background: INK1, border: `1px solid ${INK2}`, borderRadius: 999,
-                      fontSize: "0.75rem", fontWeight: 600, color: INK9,
-                      fontFamily: "ui-monospace, monospace", letterSpacing: "0.04em",
-                    }}>
-                      {s}
-                      {canEdit && (
-                        <button type="button" onClick={() => removeSchedule(s)} style={{
-                          width: 18, height: 18, borderRadius: "50%",
-                          border: "none", background: "#fff", color: INK6, cursor: "pointer",
-                          display: "inline-flex", alignItems: "center", justifyContent: "center",
-                        }}>
-                          <X size={10} />
-                        </button>
-                      )}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                !canEdit && (
-                  <div style={{ color: INK5, fontSize: "0.8125rem" }}>
-                    Sin horarios programados.
-                  </div>
-                )
-              )}
-            </SectionCard>
           </div>
 
           {/* Sidebar */}
@@ -823,7 +731,7 @@ function DangerZoneSidebar({
       {!confirmDelete ? (
         <>
           <p style={{ fontSize: "0.75rem", color: INK6, lineHeight: 1.5, margin: 0 }}>
-            Eliminar esta ruta es permanente. Si tiene vehículos asignados deberás reasignarlos primero.
+            Al eliminar esta ruta quedará suspendida. Si tiene vehículos asignados deberás reasignarlos primero.
           </p>
           <button onClick={() => setConfirmDelete(true)} style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
@@ -838,7 +746,7 @@ function DangerZoneSidebar({
         <div style={{ background: REDBG, border: `1px solid ${REDBD}`, borderRadius: 8, padding: "10px 12px" }}>
           <div style={{ fontWeight: 700, color: RED, marginBottom: 4, fontSize: "0.8125rem" }}>¿Confirmar?</div>
           <p style={{ fontSize: "0.75rem", color: INK6, marginBottom: 10, lineHeight: 1.5 }}>
-            Eliminarás <strong>{code} · {name}</strong>. Acción irreversible.
+            Suspenderás <strong>{code} · {name}</strong>. La ruta dejará de estar activa.
           </p>
           <div style={{ display: "flex", gap: 6 }}>
             <button onClick={onDelete} disabled={deleting}

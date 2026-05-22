@@ -198,11 +198,29 @@ export default function RutasPage() {
     },
   ], [tab]);
 
+  const handleExport = useCallback(async () => {
+    const token = localStorage.getItem("sfit_access_token");
+    try {
+      const res = await fetch("/api/rutas/export.xlsx", {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const match = disposition.match(/filename="?([^";\n]+)"?/);
+      const filename = match?.[1] ?? "rutas.xlsx";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename;
+      a.click(); URL.revokeObjectURL(url);
+    } catch { /* silent */ }
+  }, []);
+
   if (!user) return null;
 
   const headerAction = (
     <div style={{ display: "flex", gap: 8 }}>
-      <button style={{
+      <button onClick={handleExport} style={{
         display: "inline-flex", alignItems: "center", gap: 6,
         height: 36, padding: "0 14px", borderRadius: 9,
         border: `1.5px solid ${INK2}`, background: "#fff", color: INK6,

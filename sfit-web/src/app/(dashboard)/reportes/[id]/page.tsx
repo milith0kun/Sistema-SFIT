@@ -51,9 +51,7 @@ const STATUS_META: Record<ReportStatus, { label: string; color: string; bg: stri
   validado:  { label: "Validado",    color: GRN,  bg: GRNBG, bd: GRNBD },
   rechazado: { label: "Rechazado",   color: RED,  bg: REDBG, bd: REDBD },
 };
-// Los 4 admins jerárquicos validan/cierran reportes ciudadanos desde web;
-// fiscal lo hace desde la app móvil.
-const CAN_ACT = ["super_admin", "admin_municipal"];
+// Quién puede validar/cerrar reportes se deriva de la matriz central (reportes.edit).
 
 const LABEL_S: React.CSSProperties = {
   display: "block", fontSize: "0.6875rem", fontWeight: 700,
@@ -188,7 +186,7 @@ export default function ReporteDetallePage({ params }: Props) {
     finally { setUpdating(false); }
   }
 
-  const canAct = CAN_ACT.includes(userRole);
+  const canAct = hasWebPermission(userRole as Role, "reportes", "edit");
 
   const backBtn = (
     <Link href="/reportes">

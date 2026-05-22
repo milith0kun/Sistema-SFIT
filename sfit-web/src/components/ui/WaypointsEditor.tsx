@@ -1,13 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Trash2, MapPin, RotateCcw, Undo2, ArrowUp, ArrowDown, Move, Route as RouteIcon,
   Loader2, AlertTriangle, CheckCircle, Layers, Box,
 } from "lucide-react";
 import { GoogleMapView, type MapPolyline } from "./GoogleMapView";
+import { AddressAutocomplete } from "./AddressAutocomplete";
+import type { PlaceResult } from "./AddressAutocomplete";
 
-export type Waypoint = { order: number; lat: number; lng: number; label?: string };
+export type Waypoint = {
+  order: number;
+  lat: number;
+  lng: number;
+  label?: string;
+  /** UBIGEO 6 dígitos del distrito al que pertenece el waypoint. */
+  districtCode?: string;
+};
 
 interface WaypointsEditorProps {
   waypoints: Waypoint[];
@@ -22,6 +31,12 @@ interface WaypointsEditorProps {
    * para comparar el trazado oficial contra los recorridos reales.
    */
   historicalCaptures?: Array<{ id?: string; points: { lat: number; lng: number }[]; color?: string; opacity?: number }>;
+  /** Color de la polilínea del trazado. Default: INK9 (#18181b). */
+  polylineColor?: string;
+  /** Callback cuando el usuario cambia el color desde el picker. */
+  onPolylineColorChange?: (color: string) => void;
+  /** Muestra inputs de búsqueda de origen/destino (Google Places) arriba del mapa. */
+  showSearch?: boolean;
 }
 
 const DEFAULT_CENTER = { lat: -13.5178, lng: -71.9785 }; // Cusco
@@ -48,6 +63,34 @@ function formatKm(meters: number): string {
   return `${(meters / 1000).toFixed(2)} km`;
 }
 
+type LatLng = { lat: number; lng: number };
+
+/** Encuentra el punto más cercano sobre la polilínea al punto `p`. */
+function closestPointOnPolyline(p: LatLng, polyline: LatLng[]): LatLng {
+  if (polyline.length === 0) return p;
+  if (polyline.length === 1) return { lat: polyline[0].lat, lng: polyline[0].lng };
+  let bestPt = polyline[0];
+  let bestDist = Infinity;
+  for (let i = 1; i < polyline.length; i++) {
+    const a = polyline[i - 1];
+    const b = polyline[i];
+    const dx = b.lng - a.lng;
+    const dy = b.lat - a.lat;
+    const lenSq = dx * dx + dy * dy;
+    let t = lenSq === 0 ? 0 : ((p.lng - a.lng) * dx + (p.lat - a.lat) * dy) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+    const closest: LatLng = { lat: a.lat + t * dy, lng: a.lng + t * dx };
+    const cdx = p.lng - closest.lng;
+    const cdy = p.lat - closest.lat;
+    const dist = cdx * cdx + cdy * cdy;
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestPt = closest;
+    }
+  }
+  return bestPt;
+}
+
 type SnapState =
   | { state: "idle" }
   | { state: "loading" }
@@ -61,6 +104,9 @@ export function WaypointsEditor({
   readOnly = false,
   draggable = true,
   historicalCaptures = [],
+  polylineColor = INK9,
+  onPolylineColorChange,
+  showSearch = false,
 }: WaypointsEditorProps) {
   const canDrag = !readOnly && draggable && !!onChange;
 
@@ -71,6 +117,98 @@ export function WaypointsEditor({
 
   // Toggle 2D/3D del mapa.
   const [view, setView] = useState<"2d" | "3d">("2d");
+
+  // Búsqueda de lugares (origen/destino).
+  const [originSearch, setOriginSearch] = useState("");
+  const [destSearch, setDestSearch] = useState("");
+  const [mapCenterOverride, setMapCenterOverride] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Centro congelado: solo cambia con búsqueda explícita o primer click del usuario.
+  // Así arrastrar marcadores NO re-centra ni hace zoom brusco.
+  const [userCenter, setUserCenter] = useState<{ lat: number; lng: number }>(DEFAULT_CENTER);
+
+  // Modo "añadir paradero": al activarlo los clicks en el mapa insertan entre origen y destino.
+  const [addingStop, setAddingStop] = useState(false);
+
+  // Refs para que los handlers de búsqueda no cambien de identidad en cada render.
+  // Así el Autocomplete no se destruye/recrea cuando cambian los waypoints.
+  const waypointsRef = useRef(waypoints);
+  waypointsRef.current = waypoints;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  // Si se borran puntos y quedan < 2, salir del modo añadir paradero.
+  useEffect(() => {
+    if (waypoints.length < 2) setAddingStop(false);
+  }, [waypoints.length]);
+
+  // Centrar en waypoints existentes solo en el montaje inicial (carga de ruta editada).
+  useEffect(() => {
+    if (waypoints.length > 0) {
+      setUserCenter({
+        lat: waypoints.reduce((s, w) => s + w.lat, 0) / waypoints.length,
+        lng: waypoints.reduce((s, w) => s + w.lng, 0) / waypoints.length,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleOriginSelect = useCallback((place: PlaceResult) => {
+    if (place.lat == null || place.lng == null) return;
+    setUserCenter({ lat: place.lat, lng: place.lng });
+    setMapCenterOverride({ lat: place.lat, lng: place.lng });
+    const onChange = onChangeRef.current;
+    if (!onChange) return;
+    const ways = waypointsRef.current;
+    const label = place.formatted.split(",")[0]?.trim() || undefined;
+    const newWp: Waypoint = {
+      order: 0,
+      lat: Math.round(place.lat * 1e6) / 1e6,
+      lng: Math.round(place.lng * 1e6) / 1e6,
+      label,
+    };
+    if (ways.length === 0) {
+      onChange([newWp]);
+    } else {
+      // Reemplaza el primer waypoint (origen), conserva el resto
+      const rest = ways.slice(1).map((w, i) => ({ ...w, order: i + 1 }));
+      onChange([newWp, ...rest]);
+    }
+  }, []);
+
+  const handleDestSelect = useCallback((place: PlaceResult) => {
+    if (place.lat == null || place.lng == null) return;
+    setUserCenter({ lat: place.lat, lng: place.lng });
+    setMapCenterOverride({ lat: place.lat, lng: place.lng });
+    const onChange = onChangeRef.current;
+    if (!onChange) return;
+    const ways = waypointsRef.current;
+    const label = place.formatted.split(",")[0]?.trim() || undefined;
+    if (ways.length === 0) {
+      onChange([{
+        order: 0,
+        lat: Math.round(place.lat * 1e6) / 1e6,
+        lng: Math.round(place.lng * 1e6) / 1e6,
+        label,
+      }]);
+    } else if (ways.length === 1) {
+      onChange([...ways, {
+        order: 1,
+        lat: Math.round(place.lat * 1e6) / 1e6,
+        lng: Math.round(place.lng * 1e6) / 1e6,
+        label,
+      }]);
+    } else {
+      // Reemplaza el último waypoint (destino), conserva origen + intermedios
+      const rest = ways.slice(0, -1);
+      onChange([...rest, {
+        order: rest.length,
+        lat: Math.round(place.lat * 1e6) / 1e6,
+        lng: Math.round(place.lng * 1e6) / 1e6,
+        label,
+      }]);
+    }
+  }, []);
 
   // Cuando snap está activo y hay >=2 puntos, llama a DirectionsService.
   useEffect(() => {
@@ -165,12 +303,41 @@ export function WaypointsEditor({
     ? undefined
     : (lat: number, lng: number) => {
         if (!onChange) return;
-        const newWp: Waypoint = {
-          order: waypoints.length,
-          lat: Math.round(lat * 1e6) / 1e6,
-          lng: Math.round(lng * 1e6) / 1e6,
-        };
-        onChange([...waypoints, newWp]);
+        setMapCenterOverride(null);
+        // Congela el centro en el primer punto agregado manualmente.
+        if (waypoints.length === 0) {
+          setUserCenter({ lat, lng });
+        }
+        // Si ya hay origen + destino pero NO estamos en modo añadir paradero,
+        // no hacer nada — el usuario debe activar el botón explícitamente.
+        if (waypoints.length >= 2 && !addingStop) return;
+        // Si hay 2+ puntos y addingStop está activo, insertar antes del destino.
+        if (waypoints.length >= 2 && addingStop) {
+          const dest = waypoints[waypoints.length - 1];
+          const beforeDest = waypoints.slice(0, -1);
+          // Ajusta el click al punto más cercano sobre el trazado existente
+          // para que la parada quede sobre la ruta sin inflar la distancia.
+          const routePath = snap.state === "ok" && snap.path.length > 1
+            ? snap.path
+            : polylineDirect;
+          const snapped = routePath.length > 1
+            ? closestPointOnPolyline({ lat, lng }, routePath)
+            : { lat, lng };
+          const newWp: Waypoint = {
+            order: beforeDest.length,
+            lat: Math.round(snapped.lat * 1e6) / 1e6,
+            lng: Math.round(snapped.lng * 1e6) / 1e6,
+          };
+          onChange([...beforeDest, newWp, { ...dest, order: beforeDest.length + 1 }]);
+        } else {
+          // < 2 waypoints: construyendo origen → destino normalmente
+          const newWp: Waypoint = {
+            order: waypoints.length,
+            lat: Math.round(lat * 1e6) / 1e6,
+            lng: Math.round(lng * 1e6) / 1e6,
+          };
+          onChange([...waypoints, newWp]);
+        }
       };
 
   const handleMarkerDragEnd = canDrag
@@ -219,7 +386,7 @@ export function WaypointsEditor({
       title: isFirst ? `🅐 INICIO${w.label ? ` · ${w.label}` : ""}`
         : isLast ? `🅑 FIN${w.label ? ` · ${w.label}` : ""}`
         : `Parada ${i + 1}${w.label ? ` · ${w.label}` : ""}`,
-      color: (isFirst ? "green" : isLast ? "red" : "gold") as "green" | "red" | "gold",
+      color: (isFirst ? "green" : isLast ? "red" : "blue") as "green" | "red" | "blue",
       label: isFirst ? "A" : isLast ? "B" : String(i + 1),
       draggable: canDrag,
     };
@@ -245,22 +412,17 @@ export function WaypointsEditor({
         // Recta sutil (referencia visual de los puntos)
         { path: polylineDirect, color: INK3, weight: 2, opacity: 0.5 },
         // Trazado real siguiendo calles (principal)
-        { path: snap.path, color: INK9, weight: 5, opacity: 0.95 },
+        { path: snap.path, color: polylineColor, weight: 5, opacity: 0.95 },
       );
     }
     return lines;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snap, JSON.stringify(polylineDirect), JSON.stringify(historicalCaptures)]);
 
-  const center =
-    waypoints.length > 0
-      ? {
-          lat: waypoints.reduce((s, w) => s + w.lat, 0) / waypoints.length,
-          lng: waypoints.reduce((s, w) => s + w.lng, 0) / waypoints.length,
-        }
-      : DEFAULT_CENTER;
-
-  const zoom = waypoints.length > 1 ? 14 : waypoints.length === 1 ? 15 : 13;
+  // Centro congelado: solo cambia con búsqueda, primer click, o montaje inicial.
+  // Arrastrar marcadores NO lo modifica → sin saltos bruscos de zoom/centro.
+  const center = mapCenterOverride ?? userCenter;
+  const zoom = 15;
 
   // Distancia total — directa siempre, real cuando hay snap OK.
   const directMeters = useMemo(() => {
@@ -306,8 +468,30 @@ export function WaypointsEditor({
           </button>
 
           <span style={{ fontSize: "0.75rem", color: INK6, display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <MapPin size={11} />Click para agregar punto
+            <MapPin size={11} />
+            {waypoints.length < 2
+              ? "Click para agregar origen / destino"
+              : addingStop
+                ? "Click en el mapa para insertar paradero"
+                : "Activa \"Añadir Paradero\" para insertar paradas"}
           </span>
+          {waypoints.length >= 2 && (
+            <button
+              type="button"
+              onClick={() => setAddingStop(v => !v)}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                height: 28, padding: "0 10px", borderRadius: 6,
+                border: `1px solid ${addingStop ? APTO : INK2}`,
+                background: addingStop ? APTO : "#fff",
+                color: addingStop ? "#fff" : INK6,
+                fontSize: "0.75rem", fontWeight: 700, fontFamily: "inherit",
+                cursor: "pointer", transition: "all 120ms",
+              }}
+            >
+              + Añadir Paradero
+            </button>
+          )}
           {canDrag && waypoints.length > 0 && (
             <span style={{ fontSize: "0.75rem", color: INK6, display: "inline-flex", alignItems: "center", gap: 6 }}>
               <Move size={11} />Arrastra los marcadores para reposicionar
@@ -349,7 +533,11 @@ export function WaypointsEditor({
             {waypoints.length > 0 && (
               <button
                 type="button"
-                onClick={() => onChange?.([])}
+                onClick={() => {
+                  onChange?.([]);
+                  setUserCenter(DEFAULT_CENTER);
+                  setMapCenterOverride(null);
+                }}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 5,
                   height: 26, padding: "0 9px", borderRadius: 6,
@@ -360,6 +548,54 @@ export function WaypointsEditor({
                 <RotateCcw size={11} />Limpiar
               </button>
             )}
+            {onPolylineColorChange && (
+              <input
+                type="color"
+                value={polylineColor}
+                onChange={(e) => onPolylineColorChange(e.target.value)}
+                title="Color del trazado"
+                style={{
+                  width: 28, height: 28, padding: 2, borderRadius: 6,
+                  border: `1px solid ${INK2}`, cursor: "pointer",
+                  background: "#fff",
+                }}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Fila de búsqueda: origen / destino (solo si showSearch y no readOnly) */}
+      {showSearch && !readOnly && (
+        <div style={{
+          display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
+          marginBottom: 8,
+        }}>
+          <div>
+            <div style={{ fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: INK5, marginBottom: 4 }}>
+              Origen
+            </div>
+            <AddressAutocomplete
+              value={originSearch}
+              onChange={setOriginSearch}
+              onSelect={handleOriginSelect}
+              placeholder="Buscar origen (ej. Tambobamba, Challhuahuacho)..."
+              skipScript
+              style={{ width: "100%" }}
+            />
+          </div>
+          <div>
+            <div style={{ fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: INK5, marginBottom: 4 }}>
+              Destino
+            </div>
+            <AddressAutocomplete
+              value={destSearch}
+              onChange={setDestSearch}
+              onSelect={handleDestSelect}
+              placeholder="Buscar destino (ej. Cusco, Abancay)..."
+              skipScript
+              style={{ width: "100%" }}
+            />
           </div>
         </div>
       )}
@@ -395,7 +631,7 @@ export function WaypointsEditor({
         zoom={zoom}
         markers={markers}
         polyline={snapEnabled && snap.state === "ok" ? [] : polylineDirect}
-        polylineColor={INK9}
+        polylineColor={polylineColor}
         polylines={polylines}
         height={height}
         view={view}

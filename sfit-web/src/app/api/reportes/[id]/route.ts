@@ -25,9 +25,7 @@ const UpdateSchema = z.object({
 const REJECTIONS_BEFORE_SUSPENSION = 3;
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL, ROLES.FISCAL,
-  ]);
+  const auth = requireRole(request, [...rolesFor("reportes", "view")]);
   if ("error" in auth) return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
 
   const { id } = await params;

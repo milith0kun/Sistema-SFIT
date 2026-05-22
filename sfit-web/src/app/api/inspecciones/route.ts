@@ -114,10 +114,6 @@ export async function GET(request: NextRequest) {
     if (resultParam) filter.result = resultParam;
     if (vehicleIdParam && isValidObjectId(vehicleIdParam)) filter.vehicleId = vehicleIdParam;
 
-    // Filtro global (sin result) para los KPIs
-    const globalFilter: Record<string, unknown> = { ...filter };
-    delete globalFilter.result;
-
     // Inicio del mes actual para "Este mes"
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -133,10 +129,10 @@ export async function GET(request: NextRequest) {
         .lean(),
       Inspection.countDocuments(filter),
       Inspection.aggregate([
-        { $match: globalFilter },
+        { $match: filter },
         { $group: { _id: "$result", count: { $sum: 1 }, avgScore: { $avg: "$score" } } },
       ]),
-      Inspection.countDocuments({ ...globalFilter, date: { $gte: monthStart } }),
+      Inspection.countDocuments({ ...filter, date: { $gte: monthStart } }),
     ]);
 
     const stats = { aprobada: 0, observada: 0, rechazada: 0, avgScore: 0, mes: monthCount };

@@ -106,11 +106,6 @@ export async function GET(request: NextRequest) {
 
     if (statusParam) filter.status = statusParam;
 
-    // Filtro global (sin status) para los KPIs — se mantienen consistentes
-    // aunque el usuario aplique un filtro de estado en la UI.
-    const globalFilter: Record<string, unknown> = { ...filter };
-    delete globalFilter.status;
-
     const [items, total, statsAgg] = await Promise.all([
       Sanction.find(filter)
         .populate("vehicleId", "plate")
@@ -122,7 +117,7 @@ export async function GET(request: NextRequest) {
         .lean(),
       Sanction.countDocuments(filter),
       Sanction.aggregate([
-        { $match: globalFilter },
+        { $match: filter },
         { $group: { _id: "$status", count: { $sum: 1 }, montoTotal: { $sum: "$amountSoles" } } },
       ]),
     ]);

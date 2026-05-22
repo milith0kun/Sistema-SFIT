@@ -126,11 +126,8 @@ export async function GET(request: NextRequest) {
       CitizenReport.countDocuments(filter),
     ]);
 
-    // Stats globales (sin filtro de status) — los KPIs no se distorsionan al cambiar de tab
-    const globalFilter: Record<string, unknown> = { ...filter };
-    delete globalFilter.status;
     const counts = await CitizenReport.aggregate([
-      { $match: Object.keys(globalFilter).length ? globalFilter : {} },
+      { $match: Object.keys(filter).length ? filter : {} },
       { $group: { _id: "$status", count: { $sum: 1 } } },
     ]).catch(() => []);
 

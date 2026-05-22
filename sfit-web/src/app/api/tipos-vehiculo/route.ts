@@ -131,6 +131,7 @@ export async function GET(request: NextRequest) {
       Math.max(1, Number(url.searchParams.get("limit") ?? 20)),
     );
     const municipalityIdParam = url.searchParams.get("municipalityId");
+    const scopeParam = url.searchParams.get("scope");
 
     const filter: Record<string, unknown> = {};
     const isAdminMuni = auth.session.role === ROLES.ADMIN_MUNICIPAL;
@@ -162,6 +163,14 @@ export async function GET(request: NextRequest) {
         return apiForbidden();
       }
       filter.municipalityId = targetMunicipalityId;
+    }
+
+    // Scope filter: "urbano" excluye los de key interprovincial, "interprovincial"
+    // deja solo los que contienen "interprov" en el key (convención existente).
+    if (scopeParam === "urbano") {
+      filter.key = { $not: /interprov/ };
+    } else if (scopeParam === "interprovincial") {
+      filter.key = /interprov/;
     }
 
     // Auto-seed: garantizar que existan los predefinidos.

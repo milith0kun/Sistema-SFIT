@@ -150,10 +150,6 @@ export async function GET(request: NextRequest) {
       filter.status = statusParam;
     }
 
-    // Stats globales (sin filtro de status)
-    const globalFilter: Record<string, unknown> = { ...filter };
-    delete globalFilter.status;
-
     const [items, total, statsAgg] = await Promise.all([
       Apelacion.find(filter)
         .populate("inspectionId", "result date score observations")
@@ -166,7 +162,7 @@ export async function GET(request: NextRequest) {
         .lean(),
       Apelacion.countDocuments(filter),
       Apelacion.aggregate([
-        { $match: globalFilter },
+        { $match: filter },
         { $group: { _id: "$status", count: { $sum: 1 } } },
       ]),
     ]);

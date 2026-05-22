@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, cloneElement, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Flag, Eye, Check, X, Download, Camera, AlertTriangle } from "lucide-react";
+import { Flag, Eye, Check, X, Download, Camera, AlertTriangle, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
@@ -58,6 +58,7 @@ export default function ReportesPage() {
   const [tab, setTab] = useState<ReportStatus>("pendiente");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const [counts, setCounts] = useState<StatusCounts>({});
   const [sel, setSel] = useState<Report | null>(null);
   const [qrFilter, setQrFilter] = useState<"all" | "verified" | "unverified">("all");
@@ -166,6 +167,8 @@ export default function ReportesPage() {
   };
 
   const exportCSV = async () => {
+    setExporting(true);
+    setError(null);
     try {
       const token = localStorage.getItem("sfit_access_token");
       const qs = new URLSearchParams();
@@ -178,8 +181,9 @@ export default function ReportesPage() {
       a.href = url;
       a.download = `reportes_${tab}_${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch { setError("Error de conexión al exportar"); }
+    finally { setExporting(false); }
   };
 
   const columns = useMemo<ColumnDef<Report, unknown>[]>(() => [
@@ -266,8 +270,9 @@ export default function ReportesPage() {
       <PageHeader kicker="Ciudadanía · RF-12" title="Reportes ciudadanos"
         action={
           <div style={{ display: "flex", gap: 8 }}>
-            <button style={btnOut} onClick={exportCSV} disabled={items.length === 0}>
-              <Download size={16} />Exportar CSV
+            <button style={btnOut} onClick={exportCSV} disabled={items.length === 0 || exporting}>
+              {exporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+              {exporting ? "Exportando…" : "Exportar CSV"}
             </button>
           </div>
         } />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type LatLng = { lat: number; lng: number };
 type MapMarker = {
@@ -75,7 +75,7 @@ function loadMapsApi(key: string): Promise<void> {
     if (!w.google?.maps) {
       await new Promise<void>((resolve, reject) => {
         const script = document.createElement("script");
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=geometry&loading=async&v=weekly`;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=geometry,places&loading=async&v=weekly`;
         script.async = true;
         script.defer = true;
         script.onload = () => resolve();
@@ -93,6 +93,8 @@ function loadMapsApi(key: string): Promise<void> {
       try { await importLibrary("geometry"); } catch { /* opcional */ }
       // `routes` habilita DirectionsService (snap a calles en el editor de rutas).
       try { await importLibrary("routes"); } catch { /* opcional, fallback usa core */ }
+      // `places` habilita Autocomplete para búsqueda de origen/destino.
+      try { await importLibrary("places"); } catch { /* opcional */ }
     }
 
     // 2) Poll de respaldo (50 intentos × 50ms = 2.5s máx) por si la api antigua
@@ -153,124 +155,128 @@ export function GoogleMapView({
   const key = apiKey ?? process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? "";
   const noKey = !key;
 
+  // Señal: se pone en true cuando el mapa ya está creado. Los efectos 2 y 3
+  // dependen de ella para aplicar centro/markers/polylines al mapa nuevo.
+  const [mapReady, setMapReady] = useState(false);
+
+  // ── Efecto 1: inicialización única del mapa ──────────────────────
   useEffect(() => {
     if (!divRef.current || noKey) return;
     let active = true;
 
     void loadMapsApi(key).then(() => {
-      if (!active || !divRef.current) return;
+      if (!active || !divRef.current || mapRef.current) return;
       const g = (window as unknown as { google: typeof google }).google;
 
-      // Estilos solo aplican a mapTypeId roadmap; en hybrid los POIs van con el satélite.
-      const baseOptions: google.maps.MapOptions = view === "3d"
-        ? {
-            center,
-            zoom,
-            mapTypeControl: false,
-            streetViewControl: false,
-            fullscreenControl: false,
-            zoomControl: true,
-            mapTypeId: g.maps.MapTypeId.HYBRID,
-            tilt: 67.5,
-            heading: 0,
-            draggableCursor: onMapClickRef.current ? "crosshair" : undefined,
+      mapRef.current = new g.maps.Map(divRef.current, {
+        center,
+        zoom,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+        zoomControl: true,
+        mapTypeId: g.maps.MapTypeId.ROADMAP,
+        tilt: 0,
+        draggableCursor: onMapClickRef.current ? "crosshair" : undefined,
+        styles: [
+          { featureType: "poi", stylers: [{ visibility: "off" }] },
+          { featureType: "transit", stylers: [{ visibility: "off" }] },
+        ],
+      });
+
+      clickListenerRef.current = mapRef.current.addListener(
+        "click",
+        (e: google.maps.MapMouseEvent) => {
+          if (e.latLng && onMapClickRef.current) {
+            onMapClickRef.current(e.latLng.lat(), e.latLng.lng());
           }
-        : {
-            center,
-            zoom,
-            mapTypeControl: false,
-            streetViewControl: false,
-            fullscreenControl: false,
-            zoomControl: true,
-            mapTypeId: g.maps.MapTypeId.ROADMAP,
-            tilt: 0,
-            draggableCursor: onMapClickRef.current ? "crosshair" : undefined,
-            styles: [
-              { featureType: "poi", stylers: [{ visibility: "off" }] },
-              { featureType: "transit", stylers: [{ visibility: "off" }] },
-            ],
-          };
+        },
+      );
 
-      if (!mapRef.current) {
-        mapRef.current = new g.maps.Map(divRef.current, baseOptions);
-
-        // Click listener — uses ref so always calls latest handler
-        clickListenerRef.current = mapRef.current.addListener(
-          "click",
-          (e: google.maps.MapMouseEvent) => {
-            if (e.latLng && onMapClickRef.current) {
-              onMapClickRef.current(e.latLng.lat(), e.latLng.lng());
-            }
-          },
-        );
-      } else {
-        mapRef.current.setCenter(center);
-        mapRef.current.setZoom(zoom);
-        mapRef.current.setOptions(baseOptions);
-        // setMapTypeId / setTilt explícitos para forzar el cambio en re-render.
-        mapRef.current.setMapTypeId(view === "3d" ? g.maps.MapTypeId.HYBRID : g.maps.MapTypeId.ROADMAP);
-        mapRef.current.setTilt(view === "3d" ? 67.5 : 0);
-      }
-
-      // Clear existing markers
-      markersRef.current.forEach(m => m.setMap(null));
-      markersRef.current = [];
-
-      markers.forEach((m, idx) => {
-        const marker = new g.maps.Marker({
-          position: { lat: m.lat, lng: m.lng },
-          map: mapRef.current!,
-          title: m.title,
-          icon: MARKER_COLORS[m.color ?? "gold"],
-          label: m.label ? { text: m.label, color: "#fff", fontWeight: "bold", fontSize: "11px" } : undefined,
-          draggable: !!m.draggable,
-          cursor: m.draggable ? "grab" : undefined,
-        });
-        if (m.draggable) {
-          marker.addListener("dragend", (e: google.maps.MapMouseEvent) => {
-            if (e.latLng && onMarkerDragEndRef.current) {
-              onMarkerDragEndRef.current(idx, e.latLng.lat(), e.latLng.lng());
-            }
-          });
-        }
-        markersRef.current.push(marker);
-      });
-
-      // Clear existing polyline
-      polylineRef.current?.setMap(null);
-      if (polyline.length > 1) {
-        polylineRef.current = new g.maps.Polyline({
-          path: polyline,
-          geodesic: true,
-          strokeColor: polylineColor,
-          strokeOpacity: 0.9,
-          strokeWeight: 4,
-          map: mapRef.current,
-        });
-      }
-
-      // Clear existing extra polylines
-      polylinesRef.current.forEach(p => p.setMap(null));
-      polylinesRef.current = [];
-
-      polylines.forEach(p => {
-        if (p.path.length > 1) {
-          const pl = new g.maps.Polyline({
-            path: p.path,
-            geodesic: true,
-            strokeColor: p.color ?? "#18181b",
-            strokeOpacity: p.opacity ?? 0.9,
-            strokeWeight: p.weight ?? 4,
-            map: mapRef.current,
-          });
-          polylinesRef.current.push(pl);
-        }
-      });
-    }).catch(() => { /* API key faltante o sin internet */ });
+      setMapReady(true);
+    }).catch(() => {});
 
     return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  // ── Efecto 2: centro / zoom / vista / cursor ─────────────────────
+  useEffect(() => {
+    if (!mapReady) return;
+    const g = (window as unknown as { google: typeof google }).google;
+    mapRef.current!.setCenter(center);
+    mapRef.current!.setZoom(zoom);
+    mapRef.current!.setMapTypeId(view === "3d" ? g.maps.MapTypeId.HYBRID : g.maps.MapTypeId.ROADMAP);
+    mapRef.current!.setTilt(view === "3d" ? 67.5 : 0);
+    mapRef.current!.setOptions({
+      draggableCursor: onMapClickRef.current ? "crosshair" : undefined,
+      styles: view === "3d" ? undefined : [
+        { featureType: "poi", stylers: [{ visibility: "off" }] },
+        { featureType: "transit", stylers: [{ visibility: "off" }] },
+      ],
+    });
+  }, [mapReady, center.lat, center.lng, zoom, view]);
+
+  // ── Efecto 3: markers + polylines ────────────────────────────────
+  useEffect(() => {
+    if (!mapReady) return;
+
+    // Markers
+    markersRef.current.forEach(m => m.setMap(null));
+    markersRef.current = [];
+
+    markers.forEach((m, idx) => {
+      const marker = new google.maps.Marker({
+        position: { lat: m.lat, lng: m.lng },
+        map: mapRef.current!,
+        title: m.title,
+        icon: MARKER_COLORS[m.color ?? "gold"],
+        label: m.label ? { text: m.label, color: "#fff", fontWeight: "bold", fontSize: "11px" } : undefined,
+        draggable: !!m.draggable,
+        cursor: m.draggable ? "grab" : undefined,
+      });
+      if (m.draggable) {
+        marker.addListener("dragend", (e: google.maps.MapMouseEvent) => {
+          if (e.latLng && onMarkerDragEndRef.current) {
+            onMarkerDragEndRef.current(idx, e.latLng.lat(), e.latLng.lng());
+          }
+        });
+      }
+      markersRef.current.push(marker);
+    });
+
+    // Polyline principal
+    polylineRef.current?.setMap(null);
+    if (polyline.length > 1) {
+      polylineRef.current = new google.maps.Polyline({
+        path: polyline,
+        geodesic: true,
+        strokeColor: polylineColor,
+        strokeOpacity: 0.9,
+        strokeWeight: 4,
+        map: mapRef.current,
+      });
+    }
+
+    // Polylines extra
+    polylinesRef.current.forEach(p => p.setMap(null));
+    polylinesRef.current = [];
+
+    polylines.forEach(p => {
+      if (p.path.length > 1) {
+        const pl = new google.maps.Polyline({
+          path: p.path,
+          geodesic: true,
+          strokeColor: p.color ?? "#18181b",
+          strokeOpacity: p.opacity ?? 0.9,
+          strokeWeight: p.weight ?? 4,
+          map: mapRef.current,
+        });
+        polylinesRef.current.push(pl);
+      }
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [center.lat, center.lng, zoom, JSON.stringify(markers), JSON.stringify(polyline), JSON.stringify(polylines), key, view]);
+  }, [mapReady, JSON.stringify(markers), JSON.stringify(polyline), polylineColor, JSON.stringify(polylines)]);
 
   if (noKey) {
     return (
