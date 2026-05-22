@@ -14,6 +14,7 @@ export async function GET() {
     database: "error",
     firebase: "not_configured",
     ocr: "not_installed",
+    scraper: "not_configured",
   };
 
   // ── 1. MongoDB ──────────────────────────────────────────────────────────────
@@ -37,6 +38,23 @@ export async function GET() {
   const ocrConfigured = !!process.env.OCR_SERVICE_URL || !!process.env.TESSERACT_PATH;
   checks.ocr = ocrConfigured ? "ok" : "not_installed";
 
+  // ── 4. Scraper service (Python Playwright microservice) ────────────────────────
+  const scraperUrl = process.env.SCRAPER_SERVICE_URL ?? "http://127.0.0.1:8001";
+  const scraperToken = process.env.SCRAPER_INTERNAL_TOKEN;
+  if (!scraperToken) {
+    checks.scraper = "not_configured";
+  } else {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch(`${scraperUrl}/health`, { signal: controller.signal });
+      clearTimeout(timeout);
+      checks.scraper = res.ok ? "ok" : "error";
+    } catch {
+      checks.scraper = "error";
+    }
+  }
+
   // ── Estado global ────────────────────────────────────────────────────────────
   const allOk = Object.values(checks).every((v) => v === "ok" || v === "not_configured" || v === "not_installed");
   const hasCriticalError = checks.database === "error";
@@ -58,6 +76,8 @@ export async function GET() {
           NEXTAUTH_SECRET: !!process.env.NEXTAUTH_SECRET,
           GOOGLE_CLIENT_ID: !!process.env.GOOGLE_CLIENT_ID,
           QR_HMAC_SECRET: !!process.env.QR_HMAC_SECRET,
+          SCRAPER_SERVICE_URL: !!process.env.SCRAPER_SERVICE_URL,
+          TWO_CAPTCHA_API_KEY: !!process.env.TWO_CAPTCHA_API_KEY,
         },
       },
     },

@@ -31,7 +31,8 @@ import { logAction } from "@/lib/audit/logAction";
 import { getActiveMunicipalityId } from "@/lib/scope-server";
 
 const ALLOWED_ROLES = [ROLES.SUPER_ADMIN, ROLES.ADMIN_MUNICIPAL];
-const ROLES_REQUIRE_IDENTITY = new Set([
+const EXCLUDED_FROM_USERS_PANEL = [ROLES.CONDUCTOR] as const;
+const ROLES_REQUIRE_IDENTITY = new Set<string>([
   ROLES.SUPER_ADMIN,
   ROLES.ADMIN_MUNICIPAL,
   ROLES.CONDUCTOR,

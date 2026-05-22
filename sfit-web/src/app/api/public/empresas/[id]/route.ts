@@ -27,7 +27,7 @@ export async function GET(
     await connectDB();
     const company = await Company.findById(id)
       .populate("municipalityId", "name ubigeoCode")
-      .select("ruc razonSocial municipalityId serviceScope vehicleTypeKeys reputationScore active createdAt")
+      .select("ruc razonSocial municipalityId serviceScope vehicleTypeKeys reputationScore active approvedAt createdAt")
       .lean<{
         _id: Types.ObjectId;
         ruc: string;
@@ -37,9 +37,10 @@ export async function GET(
         vehicleTypeKeys?: string[];
         reputationScore?: number;
         active?: boolean;
+        approvedAt?: Date;
         createdAt?: Date;
       } | null>();
-    if (!company || company.active === false) return apiNotFound("Empresa no encontrada");
+    if (!company || company.active === false || !company.approvedAt) return apiNotFound("Empresa no encontrada");
 
     // Agregaciones rápidas sobre la flota.
     const [vehicleCount, vehicleAggregate, driverCount] = await Promise.all([

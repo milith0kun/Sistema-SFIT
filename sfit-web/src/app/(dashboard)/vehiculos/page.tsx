@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Car, Check, Route, Wrench, Plus, QrCode, Pencil, Eye, AlertTriangle, Loader2, Printer, Download, RefreshCw,
+  Car, Check, Route, Wrench, Plus, QrCode, Pencil, Eye, AlertTriangle, Loader2, Printer, Download, RefreshCw, Search, ShieldCheck,
 } from "lucide-react";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -12,8 +12,11 @@ import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 
 import { hasWebPermission } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
-import { INK1, INK2, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBD, AMBER, AMBER_BG, AMBER_BD, INFO_BD } from "@/lib/design-tokens";
+import { INK1, INK2, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBG, GRNBD, AMBER, AMBER_BG, AMBER_BD, INFO_BD } from "@/lib/design-tokens";
 import { BTN_PRIMARY, BTN_OUTLINE } from "@/lib/form-styles";
+import { DOC_STATUS_META, type computeDocStatus } from "@/lib/vehicle-status";
+
+type DocStatus = ReturnType<typeof computeDocStatus>;
 
 const NO = RED;
 const NO_BG = REDBG;
@@ -23,13 +26,28 @@ const btnPrimary = BTN_PRIMARY;
 const btnOutline = BTN_OUTLINE;
 type VehicleStatus = "disponible" | "en_ruta" | "en_mantenimiento" | "fuera_de_servicio";
 type Vehicle = {
-  id: string; plate: string; vehicleTypeKey: string;
+  id: string; municipalityId: string;
+  plate: string; vehicleTypeKey: string;
   brand: string; model: string; year: number;
-  status: VehicleStatus; companyName?: string; currentDriverName?: string;
-  lastInspectionStatus?: string; reputationScore: number;
-  soatExpiry?: string; qrHmac?: string;
-  verified?: boolean;
+  companyId?: string; companyName?: string;
+  currentDriverId?: string | null; currentDriverName?: string;
+  status: VehicleStatus;
+  lastInspectionStatus?: string; lastInspectionDate?: string | null;
+  lastInspectionCertificate?: string | null;
+  reputationScore: number;
+  soatExpiry?: string | null; soatInsurer?: string | null; soatCertificate?: string | null;
+  soatStatus?: DocStatus;
+  citvExpiryDate?: string | null; citvStatus?: DocStatus;
+  ownerName?: string | null;
+  qrHmac?: string;
+  photoUrl?: string | null;
+  verified?: boolean; verifiedAt?: string | null;
+  active: boolean;
+  scrapingStatus?: string;
+  createdAt: string;
 };
+
+type CompanyOption = { id: string; razonSocial: string };
 
 /* Semántica de estado — INFO/RIESGO con valores distintos a tokens genéricos */
 const INFO = "#1E40AF";
@@ -41,6 +59,31 @@ const STATUS_META = (s: VehicleStatus) => ({
   en_mantenimiento:  { color: RIESGO,   bd: AMBER_BD, label: "MANTENIMIENTO" },
   fuera_de_servicio: { color: RED,      bd: REDBD,    label: "FUERA DE SERVICIO" },
 }[s] ?? { color: INK6, bd: INK2, label: s });
+
+const SCRAPE_META: Record<string, { color: string; bg: string; bd: string; label: string }> = {
+  idle:     { color: INK5, bg: INK1, bd: INK2, label: "Sin consultar" },
+  pending:  { color: "#1E40AF", bg: "#EFF6FF", bd: INFO_BD, label: "Pendiente" },
+  in_progress: { color: "#1E40AF", bg: "#EFF6FF", bd: INFO_BD, label: "Consultando..." },
+  complete: { color: GRN, bg: GRNBG, bd: GRNBD, label: "Completo" },
+  partial:  { color: AMBER, bg: AMBER_BG, bd: AMBER_BD, label: "Parcial" },
+  error:    { color: RED, bg: REDBG, bd: REDBD, label: "Error" },
+};
+
+function ScrapeBadge({ s }: { s?: string }) {
+  const m = SCRAPE_META[s ?? "idle"] ?? SCRAPE_META.idle;
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      padding: "2px 8px", borderRadius: 5,
+      background: m.bg, color: m.color, border: `1px solid ${m.bd}`,
+      fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.03em",
+      textTransform: "uppercase", whiteSpace: "nowrap",
+    }}>
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
+      {m.label}
+    </span>
+  );
+}
 
 function StateBadge({ s }: { s: VehicleStatus }) {
   const m = STATUS_META(s);
@@ -91,6 +134,8 @@ export default function VehiculosPage() {
   const [qrLoading, setQrLoading] = useState(false);
   const [qrError, setQrError] = useState<string | null>(null);
   const [qrPng, setQrPng] = useState<string | null>(null);
+  const [companyFilter, setCompanyFilter] = useState("todas");
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
 
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
@@ -99,6 +144,20 @@ export default function VehiculosPage() {
     if (!hasWebPermission(u.role as Role, "vehiculos", "view")) { router.replace("/dashboard"); return; }
     setUser(u);
   }, [router]);
+
+  // Cargar empresas para el filtro (solo admins, no operador)
+  useEffect(() => {
+    if (!user) return;
+    const token = localStorage.getItem("sfit_access_token");
+    fetch(`/api/empresas?limit=200`, {
+      headers: { Authorization: `Bearer ${token ?? ""}` },
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) setCompanies(d.data.items ?? []);
+      })
+      .catch(() => {});
+  }, [user]);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -109,6 +168,7 @@ export default function VehiculosPage() {
       if (typeFilter !== "todos") qs.set("type", typeFilter);
       if (verifiedFilter === "verified") qs.set("verified", "true");
       else if (verifiedFilter === "unverified") qs.set("verified", "false");
+      if (companyFilter !== "todas") qs.set("companyId", companyFilter);
       const res = await fetch(`/api/vehiculos?${qs}`, {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
@@ -122,7 +182,7 @@ export default function VehiculosPage() {
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, typeFilter, verifiedFilter, router]);
+  }, [user, typeFilter, verifiedFilter, companyFilter, router]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -196,6 +256,21 @@ export default function VehiculosPage() {
       accessorFn: (v) => v.plate,
       cell: ({ row: r }) => (
         <div style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }} onClick={() => setSel(r.original)}>
+          {r.original.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={r.original.photoUrl}
+              alt=""
+              style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+            />
+          ) : (
+            <div style={{
+              width: 32, height: 32, borderRadius: "50%", background: INK1, flexShrink: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <Car size={14} color={INK5} strokeWidth={1.5} />
+            </div>
+          )}
           <Plate p={r.original.plate ?? "—"} />
           {r.original.verified === false && (
             <span style={{
@@ -281,6 +356,49 @@ export default function VehiculosPage() {
         );
       },
     },
+    {
+      id: "scraping",
+      header: "Historial Legal",
+      accessorFn: (v) => v.scrapingStatus ?? "idle",
+      cell: ({ row: r }) => (
+        <div style={{ cursor: "pointer" }} onClick={() => setSel(r.original)}>
+          <ScrapeBadge s={r.original.scrapingStatus} />
+        </div>
+      ),
+    },
+    {
+      id: "documentos",
+      header: "Documentos",
+      accessorFn: (v) => `${v.soatStatus ?? ""} ${v.citvStatus ?? ""}`,
+      cell: ({ row: r }) => {
+        const soat = DOC_STATUS_META[r.original.soatStatus ?? "sin_registro"];
+        const citv = DOC_STATUS_META[r.original.citvStatus ?? "sin_registro"];
+        return (
+          <div style={{ cursor: "pointer", display: "flex", flexDirection: "column", gap: 4 }} onClick={() => setSel(r.original)}>
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              padding: "2px 7px", borderRadius: 4,
+              background: soat.bg, color: soat.color, border: `1px solid ${soat.bd}`,
+              fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.03em",
+              textTransform: "uppercase", whiteSpace: "nowrap", width: "fit-content",
+            }}>
+              <span style={{ width: 4, height: 4, borderRadius: "50%", background: soat.color, flexShrink: 0 }} />
+              SOAT {soat.label}
+            </span>
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              padding: "2px 7px", borderRadius: 4,
+              background: citv.bg, color: citv.color, border: `1px solid ${citv.bd}`,
+              fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.03em",
+              textTransform: "uppercase", whiteSpace: "nowrap", width: "fit-content",
+            }}>
+              <span style={{ width: 4, height: 4, borderRadius: "50%", background: citv.color, flexShrink: 0 }} />
+              CITV {citv.label}
+            </span>
+          </div>
+        );
+      },
+    },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [sel]);
 
@@ -289,6 +407,14 @@ export default function VehiculosPage() {
     border: `1px solid ${INK2}`, fontSize: "0.8125rem",
     fontFamily: "inherit", background: "#fff", color: INK6, cursor: "pointer",
   };
+  const exportUrl = useMemo(() => {
+    const qs = new URLSearchParams();
+    if (typeFilter !== "todos") qs.set("type", typeFilter);
+    if (verifiedFilter !== "all") qs.set("verified", verifiedFilter === "verified" ? "true" : "false");
+    if (companyFilter !== "todas") qs.set("companyId", companyFilter);
+    return `/api/vehiculos/export.xlsx?${qs.toString()}`;
+  }, [typeFilter, verifiedFilter, companyFilter]);
+
   const toolbarEnd = (
     <div style={{ display: "flex", gap: 8 }}>
       <select
@@ -309,6 +435,27 @@ export default function VehiculosPage() {
       >
         {TYPES.map(t => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
       </select>
+      <select
+        value={companyFilter}
+        onChange={(e) => setCompanyFilter(e.target.value)}
+        aria-label="Filtrar por empresa"
+        style={selectStyle}
+      >
+        <option value="todas">Empresa: todas</option>
+        {companies.map(c => (
+          <option key={c.id} value={c.id}>{c.razonSocial}</option>
+        ))}
+      </select>
+      <button
+        onClick={() => window.open(exportUrl, "_blank")}
+        style={{
+          ...btnOutline, height: 32, padding: "0 12px", fontSize: "0.8125rem",
+          display: "inline-flex", alignItems: "center", gap: 6,
+          fontFamily: "inherit", cursor: "pointer",
+        }}
+      >
+        <Download size={13} />Exportar
+      </button>
     </div>
   );
 
@@ -351,7 +498,7 @@ export default function VehiculosPage() {
         { label: "REGISTRADOS", value: loading ? "—" : statusCounts.total, subtitle: "vehículos", icon: Car },
         { label: "DISPONIBLES", value: loading ? "—" : statusCounts.disponible, subtitle: "operativos", icon: Check },
         { label: "EN RUTA", value: loading ? "—" : statusCounts.en_ruta, subtitle: "en circulación", icon: Route },
-        { label: "MANTENIMIENTO", value: loading ? "—" : statusCounts.en_mantenimiento, subtitle: "fuera de servicio", icon: Wrench },
+        { label: "MANTENIMIENTO", value: loading ? "—" : statusCounts.en_mantenimiento, subtitle: "en mantenimiento", icon: Wrench },
       ]} />
 
       {error && (
@@ -546,30 +693,75 @@ function VehiclePreview({
         )}
       </div>
 
-      {/* Historial mínimo */}
+      {/* Documentos */}
       <div style={{ padding: "0 16px 14px" }}>
         <div style={{
           fontSize: "0.6875rem", fontWeight: 700, letterSpacing: "0.08em",
           textTransform: "uppercase", color: INK5, marginBottom: 8,
           paddingTop: 14, borderTop: `1px solid ${INK1}`,
-        }}>Historial</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-          {[
-            { lbl: "Última inspección", val: vehicle.lastInspectionStatus ?? "Pendiente" },
-            { lbl: "Reputación", val: `${vehicle.reputationScore ?? 0}/100` },
-            { lbl: "SOAT vigente", val: vehicle.soatExpiry
-                ? new Date(vehicle.soatExpiry).toLocaleDateString("es-PE", { month: "short", year: "numeric" })
-                : "—" },
-          ].map(x => (
-            <div key={x.lbl} style={{
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-              fontSize: "0.75rem", padding: "7px 0",
-              borderBottom: `1px solid ${INK1}`,
-            }}>
-              <span style={{ color: INK5 }}>{x.lbl}</span>
-              <strong style={{ color: INK9, fontWeight: 600 }}>{x.val}</strong>
-            </div>
-          ))}
+        }}>Documentos</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {/* SOAT */}
+          {(() => {
+            const s = DOC_STATUS_META[vehicle.soatStatus ?? "sin_registro"];
+            return (
+              <div style={{
+                padding: "7px 10px", borderRadius: 6,
+                background: s.bg, border: `1px solid ${s.bd}`,
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+              }}>
+                <div>
+                  <div style={{ fontSize: "0.6875rem", fontWeight: 700, color: INK9, textTransform: "uppercase" }}>SOAT</div>
+                  <div style={{ fontSize: "0.75rem", color: INK5 }}>
+                    {vehicle.soatExpiry
+                      ? new Date(vehicle.soatExpiry).toLocaleDateString("es-PE", { dateStyle: "medium" })
+                      : "Sin fecha"}
+                  </div>
+                </div>
+                <span style={{
+                  padding: "2px 8px", borderRadius: 4,
+                  background: s.bg, color: s.color, border: `1px solid ${s.bd}`,
+                  fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.03em",
+                  textTransform: "uppercase",
+                }}>{s.label}</span>
+              </div>
+            );
+          })()}
+          {/* CITV */}
+          {(() => {
+            const c = DOC_STATUS_META[vehicle.citvStatus ?? "sin_registro"];
+            return (
+              <div style={{
+                padding: "7px 10px", borderRadius: 6,
+                background: c.bg, border: `1px solid ${c.bd}`,
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+              }}>
+                <div>
+                  <div style={{ fontSize: "0.6875rem", fontWeight: 700, color: INK9, textTransform: "uppercase" }}>CITV</div>
+                  <div style={{ fontSize: "0.75rem", color: INK5 }}>
+                    {vehicle.citvExpiryDate
+                      ? new Date(vehicle.citvExpiryDate).toLocaleDateString("es-PE", { dateStyle: "medium" })
+                      : vehicle.lastInspectionDate
+                        ? `Última: ${new Date(vehicle.lastInspectionDate).toLocaleDateString("es-PE", { dateStyle: "medium" })}`
+                        : "Sin fecha"}
+                  </div>
+                </div>
+                <span style={{
+                  padding: "2px 8px", borderRadius: 4,
+                  background: c.bg, color: c.color, border: `1px solid ${c.bd}`,
+                  fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.03em",
+                  textTransform: "uppercase",
+                }}>{c.label}</span>
+              </div>
+            );
+          })()}
+          {/* Reputación */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
+            fontSize: "0.75rem", padding: "7px 0",
+          }}>
+            <span style={{ color: INK5 }}>Reputación</span>
+            <strong style={{ color: INK9, fontWeight: 600 }}>{vehicle.reputationScore ?? 0}/100</strong>
+          </div>
         </div>
 
         {/* Acción única — ver/editar */}

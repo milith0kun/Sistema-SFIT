@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Pencil, Save, X, TrendingUp, Building2, Users, Car,
   Loader2, CheckCircle, AlertTriangle, FileText, Plus,
-  Briefcase,
+  Briefcase, Trash2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
@@ -57,7 +57,7 @@ type Company = {
   id: string; razonSocial: string; ruc: string;
   representanteLegal: { name: string; dni: string; phone?: string };
   vehicleTypeKeys: string[]; documents: { name: string; url: string }[];
-  active: boolean; reputationScore: number; status?: string;
+  active: boolean; reputationScore: number;
   serviceScope?: ServiceScope;
   coverage?: Coverage;
   authorizations?: Authorization[];
@@ -118,8 +118,10 @@ export default function EmpresaDetallePage({ params }: Props) {
   });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<"suspend" | "reactivate" | null>(null);
+  const [confirm, setConfirm] = useState<"suspend" | "reactivate" | "delete" | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [tab, setTab] = useState<"perfil" | "documentacion" | "flota" | "operadores">("perfil");
 
   // Operadores que administran esta empresa (tab F5.2)
   const [operadores, setOperadores] = useState<Array<{
@@ -128,6 +130,15 @@ export default function EmpresaDetallePage({ params }: Props) {
     email: string;
     status: string;
     lastLoginAt: string | null;
+  }> | null>(null);
+
+  // Vehículos y conductores de esta empresa
+  const [vehiculos, setVehiculos] = useState<Array<{
+    id: string; plate: string; brand: string; model: string; year: number;
+    vehicleTypeKey: string; status: string;
+  }> | null>(null);
+  const [conductores, setConductores] = useState<Array<{
+    id: string; name: string; dni: string; licenseCategory: string; status: string;
   }> | null>(null);
 
   // Validación RUC (SUNAT)
@@ -150,6 +161,8 @@ export default function EmpresaDetallePage({ params }: Props) {
     setUser(u);
     void load();
     void loadOperadores();
+    void loadVehiculos();
+    void loadConductores();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, router]);
 
@@ -163,6 +176,30 @@ export default function EmpresaDetallePage({ params }: Props) {
       const body = await res.json();
       setOperadores(body?.data?.items ?? []);
     } catch { setOperadores([]); }
+  }
+
+  async function loadVehiculos() {
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/vehiculos?companyId=${id}&limit=50`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { setVehiculos([]); return; }
+      const body = await res.json();
+      setVehiculos(body?.data?.items ?? []);
+    } catch { setVehiculos([]); }
+  }
+
+  async function loadConductores() {
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/conductores?companyId=${id}&limit=50`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { setConductores([]); return; }
+      const body = await res.json();
+      setConductores(body?.data?.items ?? []);
+    } catch { setConductores([]); }
   }
 
   // Breadcrumb dinámico
@@ -330,17 +367,14 @@ export default function EmpresaDetallePage({ params }: Props) {
 
   async function toggleActive() {
     if (!company) return;
-    const isSuspended = !company.active || company.status === "suspendido";
+    const isSuspended = !company.active;
     setToggling(true);
     try {
       const token = localStorage.getItem("sfit_access_token");
       const res = await fetch(`/api/empresas/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
-        body: JSON.stringify({
-          active: isSuspended,
-          status: isSuspended ? "activo" : "suspendido",
-        }),
+        body: JSON.stringify({ active: isSuspended }),
       });
       if (res.status === 401) return router.replace("/login");
       const data = await res.json();
@@ -350,6 +384,28 @@ export default function EmpresaDetallePage({ params }: Props) {
       setCompany(data.data);
     } catch { setError("Error de conexión."); }
     finally { setToggling(false); setConfirm(null); }
+  }
+
+  async function handleDeleteEmpresa() {
+    if (!company) return;
+    setDeleting(true);
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/empresas/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (res.status === 401) return router.replace("/login");
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error ?? "No se pudo eliminar la empresa."); return;
+      }
+      router.push("/empresas");
+    } catch {
+      setError("Error de conexión.");
+    } finally {
+      setDeleting(false); setConfirm(null);
+    }
   }
 
   const backBtnPlain = (
@@ -408,7 +464,7 @@ export default function EmpresaDetallePage({ params }: Props) {
 
   const sc = scoreColor(company.reputationScore);
   const canManage = !!user?.role && ["super_admin", "admin_municipal"].includes(user.role);
-  const isSuspended = !company.active || company.status === "suspendido";
+  const isSuspended = !company.active;
 
   function updateAuth(i: number, patch: Partial<Authorization>) {
     setForm(p => ({
@@ -429,60 +485,11 @@ export default function EmpresaDetallePage({ params }: Props) {
     setForm(p => ({ ...p, documents: p.documents.filter((_, idx) => idx !== i) }));
   }
 
-  const headerAction = (
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-      {backBtnPlain}
-      {canManage && !editing && (
-        <>
-          <button onClick={startEdit} style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            height: 36, padding: "0 14px", borderRadius: 9,
-            border: `1.5px solid ${INK2}`, background: "#fff", color: INK6,
-            fontWeight: 600, fontSize: "0.875rem", cursor: "pointer", fontFamily: "inherit",
-          }}>
-            <Pencil size={14} />Editar
-          </button>
-          <button onClick={() => setConfirm(isSuspended ? "reactivate" : "suspend")} disabled={toggling}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              height: 36, padding: "0 14px", borderRadius: 9,
-              border: `1.5px solid ${isSuspended ? GRN_BD : RED_BD}`,
-              background: isSuspended ? GRN_BG : RED_BG,
-              color: isSuspended ? GRN : RED,
-              fontWeight: 600, fontSize: "0.875rem", cursor: "pointer", fontFamily: "inherit",
-            }}>
-            {isSuspended ? "Reactivar" : "Suspender"}
-          </button>
-        </>
-      )}
-      {editing && (
-        <>
-          <button onClick={cancelEdit} style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            height: 36, padding: "0 14px", borderRadius: 9,
-            border: `1.5px solid ${INK2}`, background: "#fff", color: INK6,
-            fontWeight: 600, fontSize: "0.875rem", cursor: "pointer", fontFamily: "inherit",
-          }}>
-            <X size={14} />Cancelar
-          </button>
-          <button form="empresa-form" type="submit" disabled={saving} style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            height: 36, padding: "0 14px", borderRadius: 9,
-            border: "none", background: INK9, color: "#fff",
-            fontWeight: 700, fontSize: "0.875rem", cursor: saving ? "not-allowed" : "pointer",
-            fontFamily: "inherit", opacity: saving ? 0.7 : 1,
-          }}>
-            {saving ? <Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} /> : <Save size={14} />}
-            {saving ? "Guardando…" : "Guardar"}
-          </button>
-        </>
-      )}
-    </div>
-  );
+  const headerAction = backBtnPlain;
 
   return (
     <div className="flex flex-col gap-4 animate-fade-in pb-10">
-      {confirm && (
+      {confirm && confirm !== "delete" && (
         <ConfirmModal
           title={confirm === "suspend" ? "Suspender empresa" : "Reactivar empresa"}
           body={confirm === "suspend"
@@ -493,6 +500,17 @@ export default function EmpresaDetallePage({ params }: Props) {
           onClose={() => setConfirm(null)}
           onConfirm={toggleActive}
           loading={toggling}
+        />
+      )}
+      {confirm === "delete" && (
+        <ConfirmModal
+          title="Eliminar empresa"
+          body={`¿Eliminar permanentemente "${company.razonSocial}"? Esta acción no se puede deshacer. Se marcará como inactiva y no podrá operar.`}
+          confirmLabel="Sí, eliminar"
+          confirmColor={RED}
+          onClose={() => setConfirm(null)}
+          onConfirm={handleDeleteEmpresa}
+          loading={deleting}
         />
       )}
 
@@ -574,8 +592,130 @@ export default function EmpresaDetallePage({ params }: Props) {
         );
       })()}
 
+      {/* ── Navegación por pestañas ── */}
+      <div style={{
+        display: "flex", gap: 0, flexWrap: "wrap", alignItems: "stretch",
+        borderBottom: `2px solid ${INK2}`,
+        marginBottom: 16,
+      }}>
+        {([
+          ["perfil", "Perfil", Building2],
+          ["documentacion", "Documentación", FileText],
+          ["flota", "Flota", Car],
+          ["operadores", "Operadores", Users],
+        ] as const).map(([key, label, Icon]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => { setTab(key); setEditing(false); }}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "10px 16px", border: "none", background: "transparent",
+              color: tab === key ? INK9 : INK6,
+              fontWeight: tab === key ? 700 : 500,
+              fontSize: "0.8125rem",
+              borderBottom: tab === key ? `2.5px solid ${INK9}` : "2.5px solid transparent",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              transition: "color 140ms ease, border-color 140ms ease",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <Icon size={14} />
+            {label}
+            {/* Contadores en las pestañas */}
+            {key === "flota" && vehiculos && conductores && (
+              <span style={{
+                fontSize: "0.625rem", fontWeight: 700,
+                color: INK5, background: INK1, padding: "1px 6px",
+                borderRadius: 4, marginLeft: 2,
+              }}>
+                {vehiculos.length + conductores.length}
+              </span>
+            )}
+            {key === "operadores" && operadores && operadores.length > 0 && (
+              <span style={{
+                fontSize: "0.625rem", fontWeight: 700,
+                color: INK5, background: INK1, padding: "1px 6px",
+                borderRadius: 4, marginLeft: 2,
+              }}>
+                {operadores.length}
+              </span>
+            )}
+          </button>
+        ))}
+        {/* Acciones a la derecha */}
+        <div style={{ flex: 1, minWidth: 8 }} />
+        {(tab === "perfil" || tab === "documentacion") && canManage && !editing && (
+          <button onClick={startEdit} type="button" style={{
+            display: "inline-flex", alignItems: "center", gap: 5,
+            height: 34, padding: "0 16px", borderRadius: 8,
+            border: `1.5px solid ${INK2}`, background: "#fff", color: INK9,
+            fontWeight: 600, fontSize: "0.8125rem", cursor: "pointer",
+            fontFamily: "inherit", alignSelf: "center",
+          }}>
+            <Pencil size={13} />Editar
+          </button>
+        )}
+        {(tab === "perfil" || tab === "documentacion") && editing && (
+          <>
+            <button onClick={cancelEdit} type="button" style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              height: 34, padding: "0 16px", borderRadius: 8,
+              border: `1.5px solid ${INK2}`, background: "#fff", color: INK9,
+              fontWeight: 600, fontSize: "0.8125rem", cursor: "pointer",
+              fontFamily: "inherit", alignSelf: "center",
+            }}>
+              <X size={13} />Cancelar
+            </button>
+            <button form="empresa-form" type="submit" disabled={saving} style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              height: 34, padding: "0 16px", borderRadius: 8, border: "none",
+              background: INK9, color: "#fff",
+              fontWeight: 700, fontSize: "0.8125rem",
+              cursor: saving ? "not-allowed" : "pointer",
+              fontFamily: "inherit", opacity: saving ? 0.7 : 1,
+              alignSelf: "center",
+            }}>
+              {saving ? <Loader2 size={13} style={{ animation: "spin 0.7s linear infinite" }} /> : <Save size={13} />}
+              {saving ? "Guardando…" : "Guardar"}
+            </button>
+          </>
+        )}
+        {/* Botón Suspender/Reactivar */}
+        {canManage && (
+          <button type="button" onClick={() => setConfirm(isSuspended ? "reactivate" : "suspend")} disabled={toggling}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              height: 34, padding: "0 16px", borderRadius: 8,
+              border: `1.5px solid ${isSuspended ? GRN_BD : RED_BD}`,
+              background: isSuspended ? GRN_BG : RED_BG,
+              color: isSuspended ? GRN : RED,
+              fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer",
+              fontFamily: "inherit", marginLeft: 6, alignSelf: "center",
+            }}>
+            {isSuspended ? "Reactivar" : "Suspender"}
+          </button>
+        )}
+        {/* Botón Eliminar */}
+        {canManage && (
+          <button type="button" onClick={() => setConfirm("delete")}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              height: 34, padding: "0 16px", borderRadius: 8,
+              border: `1.5px solid ${RED_BD}`,
+              background: RED_BG, color: RED,
+              fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer",
+              fontFamily: "inherit", marginLeft: 6, alignSelf: "center",
+            }}>
+            <Trash2 size={12} />Eliminar
+          </button>
+        )}
+      </div>
+
+      {/* ── Contenido de pestañas ── */}
       <form id="empresa-form" onSubmit={handleSave} noValidate>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <div style={{ display: tab === "perfil" ? "grid" : "none", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 14 }}>
 
           {/* ── Datos de la empresa (RUC con SUNAT) ── */}
           <SectionCard
@@ -837,36 +977,43 @@ export default function EmpresaDetallePage({ params }: Props) {
           {/* ── Modalidad y cobertura operativa ── */}
           <SectionCard
             icon={<Briefcase size={14} color={INK6} />}
-            title="Modalidad y cobertura"
-            subtitle="Tipo de servicio autorizado y distritos donde opera"
+            title="Ámbito de servicio"
+            subtitle="Modalidad legal y distritos donde opera la empresa"
           >
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
-                <div style={LABEL}>Modalidad de servicio</div>
+                <div style={LABEL}>Modalidad</div>
                 {editing ? (
                   <select
                     value={form.serviceScope}
-                    onChange={e => setForm(p => ({ ...p, serviceScope: e.target.value as ServiceScope }))}
+                    onChange={e => {
+                      const scope = e.target.value as ServiceScope;
+                      setForm(p => ({
+                        ...p,
+                        serviceScope: scope,
+                        authorizations: p.authorizations.map(a => ({ ...a, scope })),
+                      }));
+                    }}
                     style={{ ...FIELD, appearance: "none", paddingRight: 30 }}
                   >
-                    <option value="urbano">Urbano · rutas dentro de los 6 distritos de Cotabambas</option>
-                    <option value="interprovincial">Interprovincial · rutas a Cusco / Abancay / Arequipa</option>
+                    <option value="urbano">Urbano</option>
+                    <option value="interprovincial">Interprovincial</option>
                   </select>
                 ) : (
                   <input value={SCOPE_LABEL[company.serviceScope ?? "urbano"]} style={READ} readOnly />
                 )}
               </div>
               <div>
-                <div style={LABEL}>Distritos cubiertos (Cotabambas)</div>
+                <div style={LABEL}>Cobertura — distritos de origen (Cotabambas)</div>
                 {editing ? (
                   <div style={{
                     display: "grid", gap: 6,
-                    gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
                     padding: 8, border: `1px solid ${INK2}`, borderRadius: 8, background: "#fff",
+                    marginBottom: form.serviceScope === "interprovincial" ? 14 : 0,
                   }}>
-                    {[...ACTIVE_DISTRICTS, ...INTERPROV_DESTINATIONS].map(d => {
+                    {ACTIVE_DISTRICTS.map(d => {
                       const checked = form.districtCodes.includes(d.code);
-                      const isInterprov = "province" in d;
                       return (
                         <label key={d.code} style={{
                           display: "flex", alignItems: "center", gap: 8,
@@ -889,7 +1036,7 @@ export default function EmpresaDetallePage({ params }: Props) {
                           <span style={{ flex: 1 }}>
                             <div style={{ fontWeight: 600, color: INK9 }}>{d.name}</div>
                             <div style={{ fontSize: "0.6875rem", color: INK5, fontFamily: "ui-monospace, monospace" }}>
-                              {d.code}{isInterprov ? ` · ${(d as { province: string }).province}` : ""}
+                              {d.code}
                             </div>
                           </span>
                         </label>
@@ -897,30 +1044,101 @@ export default function EmpresaDetallePage({ params }: Props) {
                     })}
                   </div>
                 ) : (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {(company.coverage?.districtCodes ?? []).length === 0 ? (
-                      <span style={{ fontSize: "0.8125rem", color: INK5 }}>— Sin distritos definidos —</span>
-                    ) : (
-                      (company.coverage?.districtCodes ?? []).map(code => {
-                        const found =
-                          ACTIVE_DISTRICTS.find(d => d.code === code) ??
-                          INTERPROV_DESTINATIONS.find(d => d.code === code);
-                        return (
-                          <span key={code} style={{
-                            padding: "4px 10px", borderRadius: 6,
-                            background: GRN_BG, color: GRN, border: `1px solid ${GRN_BD}`,
-                            fontSize: "0.75rem", fontWeight: 600,
-                          }}>
-                            {found?.name ?? code}
-                          </span>
-                        );
-                      })
-                    )}
+                  <div style={{ marginBottom: (() => {
+                    const codes = company.coverage?.districtCodes ?? [];
+                    return codes.some(c => INTERPROV_DESTINATIONS.some(d => d.code === c)) ? 14 : 0;
+                  })() }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {(company.coverage?.districtCodes ?? []).filter(code => ACTIVE_DISTRICTS.some(d => d.code === code)).length === 0 ? (
+                        <span style={{ fontSize: "0.8125rem", color: INK5 }}>— Sin distritos definidos —</span>
+                      ) : (
+                        (company.coverage?.districtCodes ?? []).filter(code => ACTIVE_DISTRICTS.some(d => d.code === code)).map(code => {
+                          const found = ACTIVE_DISTRICTS.find(d => d.code === code);
+                          return found ? (
+                            <span key={code} style={{
+                              padding: "4px 10px", borderRadius: 6,
+                              background: GRN_BG, color: GRN, border: `1px solid ${GRN_BD}`,
+                              fontSize: "0.75rem", fontWeight: 600,
+                            }}>
+                              {found.name}
+                            </span>
+                          ) : null;
+                        })
+                      )}
+                    </div>
                   </div>
+                )}
+
+                {/* Destinos interprovinciales — solo visibles si aplica */}
+                {(editing ? form.serviceScope === "interprovincial" : (() => {
+                  const codes = company.coverage?.districtCodes ?? [];
+                  return codes.some(c => INTERPROV_DESTINATIONS.some(d => d.code === c));
+                })()) && (
+                  <>
+                    <div style={{ ...LABEL, marginTop: editing ? 0 : 4 }}>Destinos interprovinciales</div>
+                    {editing ? (
+                      <div style={{
+                        display: "grid", gap: 6,
+                        gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+                        padding: 8, border: `1px solid ${INK2}`, borderRadius: 8, background: "#fff",
+                      }}>
+                        {INTERPROV_DESTINATIONS.map(d => {
+                          const checked = form.districtCodes.includes(d.code);
+                          return (
+                            <label key={d.code} style={{
+                              display: "flex", alignItems: "center", gap: 8,
+                              padding: "6px 10px", borderRadius: 6,
+                              border: `1px solid ${checked ? GRN_BD : INK2}`,
+                              background: checked ? GRN_BG : "#fff",
+                              cursor: "pointer", fontSize: "0.8125rem",
+                            }}>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => setForm(p => ({
+                                  ...p,
+                                  districtCodes: checked
+                                    ? p.districtCodes.filter(c => c !== d.code)
+                                    : [...p.districtCodes, d.code],
+                                }))}
+                                style={{ accentColor: GRN }}
+                              />
+                              <span style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 600, color: INK9 }}>{d.name}</div>
+                                <div style={{ fontSize: "0.6875rem", color: INK5, fontFamily: "ui-monospace, monospace" }}>
+                                  {d.code} · {d.province}
+                                </div>
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {(company.coverage?.districtCodes ?? []).filter(code => INTERPROV_DESTINATIONS.some(d => d.code === code)).map(code => {
+                          const found = INTERPROV_DESTINATIONS.find(d => d.code === code);
+                          return found ? (
+                            <span key={code} style={{
+                              padding: "4px 10px", borderRadius: 6,
+                              background: GRN_BG, color: GRN, border: `1px solid ${GRN_BD}`,
+                              fontSize: "0.75rem", fontWeight: 600,
+                            }}>
+                              {found.name}{found.province !== found.name ? ` · ${found.province}` : ""}
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
           </SectionCard>
+
+        </div>
+
+        {/* ── Pestaña: Documentación ── */}
+        <div style={{ display: tab === "documentacion" ? "grid" : "none", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 14 }}>
 
           {/* ── Autorizaciones ── */}
           <SectionCard
@@ -974,19 +1192,15 @@ export default function EmpresaDetallePage({ params }: Props) {
                       onChange={e => updateAuth(i, { level: e.target.value as AuthorityLevel })}
                       style={{ ...FIELD, height: 34 }}
                     >
-                      <option value="municipal_distrital">Municipal distrital</option>
                       <option value="municipal_provincial">Municipal provincial</option>
                       <option value="regional">Regional</option>
                       <option value="mtc">MTC</option>
                     </select>
-                    <select
-                      value={a.scope}
-                      onChange={e => updateAuth(i, { scope: e.target.value as ServiceScope })}
-                      style={{ ...FIELD, height: 34 }}
-                    >
-                      <option value="urbano">Urbano</option>
-                      <option value="interprovincial">Interprovincial</option>
-                    </select>
+                    <input
+                      value={SCOPE_LABEL[a.scope]}
+                      readOnly
+                      style={{ ...READ, height: 34, textAlign: "center" }}
+                    />
                     <button
                       type="button"
                       onClick={() => removeAuth(i)}
@@ -1017,7 +1231,7 @@ export default function EmpresaDetallePage({ params }: Props) {
                   onClick={() => setForm(p => ({
                     ...p,
                     authorizations: [...p.authorizations, {
-                      level: "municipal_distrital",
+                      level: "municipal_provincial",
                       scope: form.serviceScope,
                       resolutionNumber: "",
                       issuedBy: "",
@@ -1123,8 +1337,10 @@ export default function EmpresaDetallePage({ params }: Props) {
             )}
           </SectionCard>
 
-          {/* ── Operadores que administran ── */}
-          <div style={{ gridColumn: "1 / -1" }}>
+        </div>
+
+        {/* ── Pestaña: Operadores ── */}
+        <div style={{ display: tab === "operadores" ? "block" : "none" }}>
             <SectionCard
               icon={<Users size={14} color={INK6} />}
               title="Operadores que administran"
@@ -1176,12 +1392,123 @@ export default function EmpresaDetallePage({ params }: Props) {
                 </div>
               )}
             </SectionCard>
-          </div>
+        </div>
 
-          {/* ── ID de soporte ── */}
-          <div style={{ gridColumn: "1 / -1" }}>
-            <SystemIdRow id={company.id} />
-          </div>
+        {/* ── Pestaña: Flota ── */}
+        <div style={{ display: tab === "flota" ? "block" : "none" }}>
+            <SectionCard
+              icon={<Car size={14} color={INK6} />}
+              title="Flota y conductores"
+              subtitle={
+                vehiculos === null || conductores === null
+                  ? "Cargando…"
+                  : `${vehiculos.length} vehículo${vehiculos.length === 1 ? "" : "s"} · ${conductores.length} conductor${conductores.length === 1 ? "" : "es"}`
+              }
+            >
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 14 }}>
+                {/* Vehículos */}
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: "0.75rem", color: INK6, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+                    Vehículos ({vehiculos?.length ?? 0})
+                  </div>
+                  {vehiculos === null ? (
+                    <div style={{ fontSize: "0.8125rem", color: INK5 }}>
+                      <Loader2 size={13} style={{ animation: "spin 0.7s linear infinite", marginRight: 6 }} />
+                      Consultando…
+                    </div>
+                  ) : vehiculos.length === 0 ? (
+                    <div style={{ fontSize: "0.8125rem", color: INK5 }}>
+                      Ningún vehículo registrado para esta empresa.
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {vehiculos.map(v => (
+                        <Link key={v.id} href={`/vehiculos/${v.id}`} style={{
+                          display: "flex", alignItems: "center", justifyContent: "space-between",
+                          padding: "8px 12px", borderRadius: 8,
+                          background: INK1, border: `1px solid ${INK2}`,
+                          textDecoration: "none", color: "inherit",
+                          transition: "border-color 120ms",
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = INK5; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = INK2; }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: "0.8125rem", color: INK9 }}>
+                              {v.plate} <span style={{ fontWeight: 400, fontSize: "0.6875rem", color: INK5 }}>{v.brand} {v.model} {v.year}</span>
+                            </div>
+                          </div>
+                          <span style={{
+                            padding: "2px 8px", borderRadius: 5,
+                            background: v.status === "disponible" ? GRN_BG : INK1,
+                            color: v.status === "disponible" ? GRN : INK5,
+                            border: `1px solid ${v.status === "disponible" ? GRN_BD : INK2}`,
+                            fontSize: "0.625rem", fontWeight: 700,
+                            letterSpacing: "0.04em", textTransform: "uppercase",
+                          }}>
+                            {v.status?.replace(/_/g, " ") ?? "—"}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Conductores */}
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: "0.75rem", color: INK6, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+                    Conductores ({conductores?.length ?? 0})
+                  </div>
+                  {conductores === null ? (
+                    <div style={{ fontSize: "0.8125rem", color: INK5 }}>
+                      <Loader2 size={13} style={{ animation: "spin 0.7s linear infinite", marginRight: 6 }} />
+                      Consultando…
+                    </div>
+                  ) : conductores.length === 0 ? (
+                    <div style={{ fontSize: "0.8125rem", color: INK5 }}>
+                      Ningún conductor registrado para esta empresa.
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {conductores.map(c => (
+                        <Link key={c.id} href={`/conductores/${c.id}`} style={{
+                          display: "flex", alignItems: "center", justifyContent: "space-between",
+                          padding: "8px 12px", borderRadius: 8,
+                          background: INK1, border: `1px solid ${INK2}`,
+                          textDecoration: "none", color: "inherit",
+                          transition: "border-color 120ms",
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = INK5; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = INK2; }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: "0.8125rem", color: INK9 }}>{c.name}</div>
+                            <div style={{ fontSize: "0.6875rem", color: INK5 }}>
+                              DNI {c.dni} · Lic. {c.licenseCategory}
+                            </div>
+                          </div>
+                          <span style={{
+                            padding: "2px 8px", borderRadius: 5,
+                            background: c.status === "apto" ? GRN_BG : c.status === "riesgo" ? WARN_BG : RED_BG,
+                            color: c.status === "apto" ? GRN : c.status === "riesgo" ? WARN : RED,
+                            border: `1px solid ${c.status === "apto" ? GRN_BD : c.status === "riesgo" ? WARN_BD : RED_BD}`,
+                            fontSize: "0.625rem", fontWeight: 700,
+                            letterSpacing: "0.04em", textTransform: "uppercase",
+                          }}>
+                            {c.status ?? "—"}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </SectionCard>
+        </div>
+
+        {/* ── ID de soporte (siempre visible) ── */}
+        <div style={{ marginTop: 16 }}>
+          <SystemIdRow id={company.id} />
         </div>
       </form>
     </div>

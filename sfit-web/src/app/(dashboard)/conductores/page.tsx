@@ -21,7 +21,7 @@ import {
   type LicenseValidityState,
 } from "@/lib/license-validity";
 import { INK1, INK2, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBD, AMBER_BD } from "@/lib/design-tokens";
-import { BTN_PRIMARY, BTN_OUTLINE } from "@/lib/form-styles";
+import { BTN_PRIMARY } from "@/lib/form-styles";
 type DriverStatus = "apto" | "riesgo" | "no_apto";
 type Driver = {
   id: string; name: string; dni: string; licenseNumber: string; licenseCategory: string;
@@ -317,6 +317,13 @@ export default function ConductoresPage() {
     </div>
   );
 
+  const exportUrl = useMemo(() => {
+    const qs = new URLSearchParams();
+    if (filter !== "todos") qs.set("status", filter);
+    if (validityFilter !== "all") qs.set("validity", validityFilter);
+    return `/api/conductores/export.xlsx?${qs.toString()}`;
+  }, [filter, validityFilter]);
+
   if (!user) return null;
 
   return (
@@ -328,7 +335,9 @@ export default function ConductoresPage() {
         action={
           <div className="conductores-header-actions" style={{ display: "flex", gap: 8 }}>
             <button
-              aria-label="Exportar CSV"
+              type="button"
+              onClick={() => window.open(exportUrl, "_blank")}
+              aria-label="Exportar a Excel"
               className="conductores-header-btn"
               style={{
                 display: "inline-flex", alignItems: "center", gap: 6,
@@ -337,7 +346,7 @@ export default function ConductoresPage() {
                 fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
               }}>
               <Download size={14} />
-              <span className="conductores-header-btn-label">Exportar CSV</span>
+              <span className="conductores-header-btn-label">Exportar</span>
             </button>
             {canCreate && (
               <Link href="/conductores/nuevo">

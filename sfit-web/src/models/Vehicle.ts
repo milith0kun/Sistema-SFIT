@@ -12,8 +12,15 @@ export interface IVehicle extends Omit<Document, "model"> {
   status: "disponible" | "en_ruta" | "en_mantenimiento" | "fuera_de_servicio";
   currentDriverId?: mongoose.Types.ObjectId;
   lastInspectionStatus?: "aprobada" | "observada" | "rechazada" | "pendiente";
+  lastInspectionDate?: Date;
+  lastInspectionCertificate?: string;
   reputationScore: number;
   soatExpiry?: Date;
+  soatInsurer?: string;
+  soatCertificate?: string;
+  /** Nombre del propietario registral (extraído de SUNARP). */
+  ownerName?: string;
+  citvExpiryDate?: Date;
   qrHmac?: string;
   /**
    * Foto referencial del vehículo (lateral o frontal). Aparece en el
@@ -32,6 +39,9 @@ export interface IVehicle extends Omit<Document, "model"> {
   verified: boolean;
   verifiedAt?: Date;
   verifiedBy?: mongoose.Types.ObjectId;
+  scrapingStatus: "idle" | "pending" | "in_progress" | "complete" | "partial" | "error";
+  scrapingRequestedAt?: Date;
+  scrapingCompletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,20 +62,35 @@ const VehicleSchema = new Schema<IVehicle>(
       enum: ["aprobada", "observada", "rechazada", "pendiente"],
       default: "pendiente",
     },
+    lastInspectionDate: { type: Date },
+    lastInspectionCertificate: { type: String, trim: true },
     reputationScore: { type: Number, default: 100, min: 0, max: 100 },
     soatExpiry: { type: Date },
+    soatInsurer: { type: String, trim: true },
+    soatCertificate: { type: String, trim: true },
+    ownerName: { type: String, trim: true },
+    citvExpiryDate: { type: Date },
     qrHmac: { type: String },
     photoUrl: { type: String, trim: true },
     active: { type: Boolean, default: true },
     verified: { type: Boolean, default: false, index: true },
     verifiedAt: { type: Date },
     verifiedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    scrapingStatus: {
+      type: String,
+      enum: ["idle", "pending", "in_progress", "complete", "partial", "error"],
+      default: "idle",
+      index: true,
+    },
+    scrapingRequestedAt: { type: Date },
+    scrapingCompletedAt: { type: Date },
   },
   { timestamps: true },
 );
 
-// Placa única nacional (SUNARP).
-VehicleSchema.index({ plate: 1 }, { unique: true });
+// Placa única nacional (SUNARP) — solo entre vehículos activos.
+// Vehículos soft-deleteados (active=false) no bloquean el re-registro.
+VehicleSchema.index({ plate: 1 }, { unique: true, partialFilterExpression: { active: true } });
 VehicleSchema.index({ municipalityId: 1, status: 1 });
 VehicleSchema.index({ companyId: 1, status: 1 });
 VehicleSchema.index({ municipalityId: 1, verified: 1 });

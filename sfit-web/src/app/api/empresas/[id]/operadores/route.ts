@@ -33,38 +33,43 @@ export async function GET(
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }
 
-  const { id } = await params;
-  if (!isValidObjectId(id)) return apiError("ID inválido", 400);
+  try {
+    const { id } = await params;
+    if (!isValidObjectId(id)) return apiError("ID inválido", 400);
 
-  await connectDB();
+    await connectDB();
 
-  const company = await Company.findById(id)
-    .select("municipalityId")
-    .lean<{ municipalityId?: unknown } | null>();
-  if (!company) return apiNotFound("Empresa no encontrada");
+    const company = await Company.findById(id)
+      .select("municipalityId")
+      .lean<{ municipalityId?: unknown } | null>();
+    if (!company) return apiNotFound("Empresa no encontrada");
 
-  if (!(await canAccessMunicipality(auth.session, String(company.municipalityId)))) {
-    return apiForbidden();
+    if (!(await canAccessMunicipality(auth.session, String(company.municipalityId)))) {
+      return apiForbidden();
+    }
+
+    const operadores = await User.find({
+      role: ROLES.OPERADOR,
+      companyId: id,
+    })
+      .select("name email phone status createdAt lastLoginAt")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return apiResponse({
+      items: operadores.map((u) => ({
+        id: String(u._id),
+        name: u.name,
+        email: u.email,
+        phone: u.phone ?? null,
+        status: u.status,
+        createdAt: u.createdAt,
+        lastLoginAt: u.lastLoginAt ?? null,
+      })),
+      total: operadores.length,
+    });
+  } catch (error) {
+    console.error("[empresas/:id/operadores GET]", error);
+    return apiError("Error al listar operadores", 500);
   }
-
-  const operadores = await User.find({
-    role: ROLES.OPERADOR,
-    companyId: id,
-  })
-    .select("name email phone status createdAt lastLoginAt")
-    .sort({ createdAt: -1 })
-    .lean();
-
-  return apiResponse({
-    items: operadores.map((u) => ({
-      id: String(u._id),
-      name: u.name,
-      email: u.email,
-      phone: u.phone ?? null,
-      status: u.status,
-      createdAt: u.createdAt,
-      lastLoginAt: u.lastLoginAt ?? null,
-    })),
-    total: operadores.length,
-  });
 }

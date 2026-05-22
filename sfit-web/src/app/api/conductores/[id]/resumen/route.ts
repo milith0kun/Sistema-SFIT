@@ -35,63 +35,68 @@ export async function GET(
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }
 
-  const { id } = await params;
-  if (!isValidObjectId(id)) return apiError("ID inválido", 400);
+  try {
+    const { id } = await params;
+    if (!isValidObjectId(id)) return apiError("ID inválido", 400);
 
-  await connectDB();
+    await connectDB();
 
-  const driver = await Driver.findById(id)
-    .select("municipalityId")
-    .lean<{ municipalityId?: unknown } | null>();
-  if (!driver) return apiNotFound("Conductor no encontrado");
-  if (!(await canAccessMunicipality(auth.session, String(driver.municipalityId)))) {
-    return apiForbidden();
+    const driver = await Driver.findById(id)
+      .select("municipalityId")
+      .lean<{ municipalityId?: unknown } | null>();
+    if (!driver) return apiNotFound("Conductor no encontrado");
+    if (!(await canAccessMunicipality(auth.session, String(driver.municipalityId)))) {
+      return apiForbidden();
+    }
+
+    const [tripsTotal, lastTrip, inspAgg, sancAgg, lastSanction] = await Promise.all([
+      Trip.countDocuments({ driverId: id }),
+      Trip.findOne({ driverId: id })
+        .sort({ startTime: -1 })
+        .select("startTime status routeId")
+        .lean<{ startTime?: Date; status?: string } | null>(),
+      Inspection.aggregate<{ _id: string; count: number }>([
+        { $match: { driverId: id } },
+        { $group: { _id: "$result", count: { $sum: 1 } } },
+      ]),
+      Sanction.aggregate<{ _id: null; count: number; totalSoles: number }>([
+        { $match: { driverId: id } },
+        { $group: { _id: null, count: { $sum: 1 }, totalSoles: { $sum: "$amountSoles" } } },
+      ]),
+      Sanction.findOne({ driverId: id })
+        .sort({ createdAt: -1 })
+        .select("createdAt amountSoles status")
+        .lean<{ createdAt?: Date; amountSoles?: number; status?: string } | null>(),
+    ]);
+
+    const inspByResult: Record<string, number> = {};
+    for (const row of inspAgg) inspByResult[row._id] = row.count;
+    const inspTotal = (inspByResult.aprobada ?? 0) + (inspByResult.rechazada ?? 0) + (inspByResult.observada ?? 0);
+
+    const sancRow = sancAgg[0];
+
+    return apiResponse({
+      trips: {
+        total: tripsTotal,
+        lastAt: lastTrip?.startTime ?? null,
+        lastStatus: lastTrip?.status ?? null,
+      },
+      inspections: {
+        total: inspTotal,
+        aprobadas: inspByResult.aprobada ?? 0,
+        rechazadas: inspByResult.rechazada ?? 0,
+        observadas: inspByResult.observada ?? 0,
+      },
+      sanctions: {
+        total: sancRow?.count ?? 0,
+        totalSoles: sancRow?.totalSoles ?? 0,
+        lastAt: lastSanction?.createdAt ?? null,
+        lastAmountSoles: lastSanction?.amountSoles ?? null,
+        lastStatus: lastSanction?.status ?? null,
+      },
+    });
+  } catch (error) {
+    console.error("[conductores/:id/resumen GET]", error);
+    return apiError("Error al obtener resumen", 500);
   }
-
-  const [tripsTotal, lastTrip, inspAgg, sancAgg, lastSanction] = await Promise.all([
-    Trip.countDocuments({ driverId: id }),
-    Trip.findOne({ driverId: id })
-      .sort({ startTime: -1 })
-      .select("startTime status routeId")
-      .lean<{ startTime?: Date; status?: string } | null>(),
-    Inspection.aggregate<{ _id: string; count: number }>([
-      { $match: { driverId: id } },
-      { $group: { _id: "$result", count: { $sum: 1 } } },
-    ]),
-    Sanction.aggregate<{ _id: null; count: number; totalSoles: number }>([
-      { $match: { driverId: id } },
-      { $group: { _id: null, count: { $sum: 1 }, totalSoles: { $sum: "$amountSoles" } } },
-    ]),
-    Sanction.findOne({ driverId: id })
-      .sort({ createdAt: -1 })
-      .select("createdAt amountSoles status")
-      .lean<{ createdAt?: Date; amountSoles?: number; status?: string } | null>(),
-  ]);
-
-  const inspByResult: Record<string, number> = {};
-  for (const row of inspAgg) inspByResult[row._id] = row.count;
-  const inspTotal = (inspByResult.aprobada ?? 0) + (inspByResult.rechazada ?? 0) + (inspByResult.observada ?? 0);
-
-  const sancRow = sancAgg[0];
-
-  return apiResponse({
-    trips: {
-      total: tripsTotal,
-      lastAt: lastTrip?.startTime ?? null,
-      lastStatus: lastTrip?.status ?? null,
-    },
-    inspections: {
-      total: inspTotal,
-      aprobadas: inspByResult.aprobada ?? 0,
-      rechazadas: inspByResult.rechazada ?? 0,
-      observadas: inspByResult.observada ?? 0,
-    },
-    sanctions: {
-      total: sancRow?.count ?? 0,
-      totalSoles: sancRow?.totalSoles ?? 0,
-      lastAt: lastSanction?.createdAt ?? null,
-      lastAmountSoles: lastSanction?.amountSoles ?? null,
-      lastStatus: lastSanction?.status ?? null,
-    },
-  });
 }

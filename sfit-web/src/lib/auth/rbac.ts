@@ -1,6 +1,4 @@
-import { Municipality } from "@/models/Municipality";
 import { ROLES } from "@/lib/constants";
-import type { ServiceScope } from "@/models/Company";
 import type { JwtPayload } from "./jwt";
 
 /**
@@ -131,45 +129,6 @@ export function recordMuniScope(
   const muniId = targetMuniId ?? session.municipalityId;
   if (!muniId) return { _id: null };
   return { municipalityId: muniId };
-}
-
-/**
- * Forma reducida de Company que necesitan los helpers RBAC.
- * Recibido como parámetro para evitar import circular (Company → rbac → Company).
- */
-export interface CompanyForRbac {
-  serviceScope?: ServiceScope;
-  municipalityId?: { toString(): string };
-  coverage?: {
-    departmentCodes?: string[];
-    provinceCodes?: string[];
-    districtCodes?: string[];
-  };
-}
-
-/**
- * `true` si la sesión puede EDITAR la empresa indicada.
- *
- * Reglas (modelo 1 muni):
- *   - super_admin     : siempre.
- *   - admin_municipal : empresas `urbano` cuya cobertura incluya el distrito
- *                       de su municipalidad, O empresas sediadas en su
- *                       municipalidad (cualquier serviceScope).
- *   - otros           : nunca.
- */
-export async function canEditCompany(
-  session: JwtPayload,
-  company: CompanyForRbac,
-): Promise<boolean> {
-  if (session.role === ROLES.SUPER_ADMIN) return true;
-  // admin_municipal: en modelo mono-muni administrativo edita cualquier
-  // empresa del sistema. Cotabambas Provincial es el único tenant.
-  if (session.role === ROLES.ADMIN_MUNICIPAL) return true;
-  // El parámetro `company` queda como referencia para futuras políticas
-  // (p.ej. operador editando solo su propia empresa) y para que el TS
-  // no marque el imports de CompanyForRbac/Municipality como muertos.
-  void company;
-  return false;
 }
 
 /**

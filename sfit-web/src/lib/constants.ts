@@ -74,3 +74,17 @@ export const VEHICLE_TYPES = {
 
 export type VehicleType =
   (typeof VEHICLE_TYPES)[keyof typeof VEHICLE_TYPES];
+
+/**
+ * Estados derivados de empresa. Se computan a partir de:
+ *   - active + approvedAt + suspendedAt
+ * No es un campo almacenado en el modelo sino una vista calculada.
+ */
+export const COMPANY_STATUS = {
+  ACTIVA: "activa",
+  SUSPENDIDA: "suspendida",
+  PENDIENTE: "pendiente",
+} as const;
+
+export type CompanyStatus =
+  (typeof COMPANY_STATUS)[keyof typeof COMPANY_STATUS];

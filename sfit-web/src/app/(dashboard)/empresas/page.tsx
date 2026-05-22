@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Truck, Star, ChevronRight, Car } from "lucide-react";
+import { Plus, Truck, Star, ChevronRight, Car, Download } from "lucide-react";
 import { DataTable, type ColumnDef } from "@/components/ui/DataTable";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { INK1, INK2, INK5, INK6, INK9, RED, AMBER_BG, AMBER_BD, AMBER } from "@/lib/design-tokens";
-import { BTN_PRIMARY } from "@/lib/form-styles";
+import { BTN_PRIMARY, BTN_OUTLINE } from "@/lib/form-styles";
 
 /**
  * Convierte un key técnico (snake_case) a un label humano legible.
@@ -42,27 +42,15 @@ type Company = {
 };
 
 /**
- * Modalidad operativa según la conversación con la municipalidad:
- *   - "urbano":         opera rutas cortas intra-provincia con paraderos.
- *   - "interprovincial": opera rutas largas a Cusco/Arequipa/Abancay.
- *   - "mixta":          la empresa tiene authorizations en ambos tipos.
- *
- * Se calcula desde Company.serviceScope (default) y Company.authorizations[]
- * (override si declara varias modalidades).
+ * Modalidad operativa según el serviceScope de la empresa:
+ *   - "urbano":         opera rutas dentro de los distritos de Cotabambas.
+ *   - "interprovincial": opera rutas a Cusco / Arequipa / Abancay / Juliaca,
+ *                        además de los distritos de Cotabambas.
  */
-type Modality = "urbano" | "interprovincial" | "mixta";
+type Modality = "urbano" | "interprovincial";
 
 function modalityOf(c: Company): Modality {
-  const scopes = new Set<ServiceScope>();
-  if (c.serviceScope) scopes.add(c.serviceScope);
-  for (const a of c.authorizations ?? []) {
-    if (a.scope) scopes.add(a.scope);
-  }
-  const hasUrban = scopes.has("urbano");
-  const hasInter = scopes.has("interprovincial");
-  if (hasUrban && hasInter) return "mixta";
-  if (hasInter) return "interprovincial";
-  return "urbano";
+  return c.serviceScope === "interprovincial" ? "interprovincial" : "urbano";
 }
 
 type VehicleType = { id: string; key: string; name: string; active: boolean };
@@ -242,7 +230,6 @@ export default function EmpresasPage() {
           const styles: Record<Modality, { bg: string; color: string; border: string; label: string }> = {
             urbano:          { bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE", label: "URBANO" },
             interprovincial: { bg: "#FBEAEA", color: "#4A0303", border: "#D9B0B0", label: "INTERPROV" },
-            mixta:           { bg: "#FEF3C7", color: "#92400E", border: "#FDE68A", label: "MIXTA" },
           };
           const s = styles[m];
           return (
@@ -325,6 +312,16 @@ export default function EmpresasPage() {
     [typeMap]
   );
 
+  const exportUrl = useMemo(() => {
+    const qs = new URLSearchParams();
+    if (typeFilter) {
+      qs.set("type", typeFilter);
+    } else if (tab !== "todas") {
+      qs.set("type", tab === "interprovincial" ? "transporte_interprovincial" : "transporte_urbano");
+    }
+    return `/api/empresas/export.xlsx?${qs.toString()}`;
+  }, [typeFilter, tab]);
+
   if (forbidden) {
     return (
       <div style={{ padding: 24, background: "#fff", borderRadius: 14, border: "1px solid #e4e4e7" }}>
@@ -334,10 +331,10 @@ export default function EmpresasPage() {
   }
 
   if (!user) return null;
-  const canCreate = user.role === "admin_municipal";
+  const canCreate = ["super_admin", "admin_municipal"].includes(user.role);
 
   // Tally por modalidad para badges en los tabs.
-  const counts = { urbano: 0, interprovincial: 0, mixta: 0 };
+  const counts = { urbano: 0, interprovincial: 0 };
   for (const c of items) counts[modalityOf(c)] += 1;
 
   const visibleItems = tab === "todas" ? items : items.filter((c) => modalityOf(c) === tab);
@@ -349,6 +346,17 @@ export default function EmpresasPage() {
 
   const toolbarEnd = (
     <>
+      <button
+        type="button"
+        onClick={() => window.open(exportUrl, "_blank")}
+        style={{
+          ...BTN_OUTLINE, height: 34, padding: "0 12px", fontSize: "0.8125rem",
+          display: "inline-flex", alignItems: "center", gap: 6,
+          fontFamily: "inherit", cursor: "pointer",
+        }}
+      >
+        <Download size={13} />Exportar
+      </button>
       <select style={selectStyle} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
         <option value="">Todos los tipos</option>
         {types.filter((t) => t.active).map((t) => (
@@ -383,7 +391,6 @@ export default function EmpresasPage() {
           { k: "todas" as const,           l: "Todas",            c: items.length },
           { k: "urbano" as const,          l: "Urbanas",          c: counts.urbano },
           { k: "interprovincial" as const, l: "Interprovinciales", c: counts.interprovincial },
-          { k: "mixta" as const,           l: "Mixtas",           c: counts.mixta },
         ]).map((t) => {
           const active = tab === t.k;
           return (

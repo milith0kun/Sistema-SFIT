@@ -20,23 +20,24 @@ type AuthorityLevel =
   | "mtc";
 
 const SCOPE_OPTIONS: Array<{ value: ServiceScope; label: string }> = [
-  { value: "urbano",          label: "Urbano — dentro de los 6 distritos de Cotabambas" },
-  { value: "interprovincial", label: "Interprovincial — a Cusco / Abancay / Arequipa" },
+  { value: "urbano",          label: "Urbano" },
+  { value: "interprovincial", label: "Interprovincial" },
 ];
 
 const LEVEL_OPTIONS: Array<{ value: AuthorityLevel; label: string }> = [
-  { value: "municipal_distrital",  label: "Municipal distrital" },
   { value: "municipal_provincial", label: "Municipal provincial" },
   { value: "regional",             label: "Gobierno regional" },
   { value: "mtc",                  label: "MTC" },
 ];
 
-type StoredUser = { role: string };
+type StoredUser = { role: string; municipalityId?: string };
+
+type MunicipalityOption = { id: string; name: string; provinceName?: string; departmentCode?: string };
 
 type RucLookup =
   | { state: "idle" }
   | { state: "loading" }
-  | { state: "ok"; source: "MTC" | "SUNAT"; razonSocial: string; estado?: string; vehicleCount?: number; tiposServicio?: string[] }
+  | { state: "ok"; source: "MTC" | "SUNAT" | "mock"; razonSocial: string; estado?: string; vehicleCount?: number; tiposServicio?: string[] }
   | { state: "not_found" }
   | { state: "error"; message: string };
 
@@ -74,15 +75,36 @@ export default function NuevaEmpresaPage() {
   const [authIssuedAt, setAuthIssuedAt] = useState("");
   const [authExpiresAt, setAuthExpiresAt] = useState("");
 
+  // Municipio para super_admin (admin_municipal lo obtiene de su sesión)
+  const [municipalityId, setMunicipalityId] = useState("");
+  const [municipalities, setMunicipalities] = useState<MunicipalityOption[]>([]);
+
+  const [user, setUser] = useState<StoredUser | null>(null);
+
   useEffect(() => {
     const raw = localStorage.getItem("sfit_user");
     if (!raw) return router.replace("/login");
     const u = JSON.parse(raw) as StoredUser;
-    if (u.role !== "admin_municipal") {
+    if (!["super_admin", "admin_municipal"].includes(u.role)) {
       router.replace("/dashboard");
       return;
     }
+    setUser(u);
   }, [router]);
+
+  // Cargar lista de municipalidades para super_admin
+  useEffect(() => {
+    if (!user || user.role !== "super_admin") return;
+    const token = localStorage.getItem("sfit_access_token");
+    fetch("/api/municipalidades?active=true&limit=200", {
+      headers: { Authorization: `Bearer ${token ?? ""}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) setMunicipalities(data.data.items ?? []);
+      })
+      .catch(() => {});
+  }, [user]);
 
   // Lookup del RUC: catálogo MTC primero (gratis + datos de servicio),
   // SUNAT después como fallback (apiperu.dev).
@@ -98,12 +120,15 @@ export default function NuevaEmpresaPage() {
       const headers = { Authorization: `Bearer ${token}` };
       // 1) Catálogo MTC
       try {
+        console.log("[ruc-lookup] consultando MTC para", ruc);
         const r = await fetch(`/api/catalogo/empresa-mtc?ruc=${ruc}`, { headers });
+        console.log("[ruc-lookup] MTC respondió", r.status);
         if (r.ok) {
           const j = await r.json();
           if (j?.success && j?.data) {
             const d = j.data;
-            if (!razonSocial.trim()) setRazonSocial(d.razonSocial);
+            console.log("[ruc-lookup] MTC encontrado, aplicando");
+            setRazonSocial(d.razonSocial);
             setRucLookup({
               state: "ok", source: "MTC",
               razonSocial: d.razonSocial,
@@ -113,27 +138,35 @@ export default function NuevaEmpresaPage() {
             return;
           }
         }
-      } catch { /* sigue al fallback */ }
+      } catch (e) {
+        console.log("[ruc-lookup] MTC error, siguiendo a SUNAT", e);
+      }
       // 2) SUNAT vía apiperu.dev
       try {
+        console.log("[ruc-lookup] consultando SUNAT para", ruc);
         const r2 = await fetch(`/api/validar/ruc`, {
           method: "POST",
           headers: { ...headers, "Content-Type": "application/json" },
           body: JSON.stringify({ ruc }),
         });
+        console.log("[ruc-lookup] SUNAT respondió", r2.status);
         const j = await r2.json();
         if (!r2.ok || !j?.success || !j?.data) {
+          console.log("[ruc-lookup] SUNAT falló", j);
           setRucLookup({ state: r2.status === 404 ? "not_found" : "error", message: j?.error ?? "No se encontró" } as RucLookup);
           return;
         }
         const d = j.data;
-        if (!razonSocial.trim()) setRazonSocial(d.razon_social ?? "");
+        const provider = d._provider === "mock" ? "mock" : "SUNAT";
+        console.log("[ruc-lookup] SUNAT ok, provider:", provider, d);
+        setRazonSocial(d.razon_social ?? "");
         setRucLookup({
-          state: "ok", source: "SUNAT",
+          state: "ok", source: provider,
           razonSocial: d.razon_social ?? "",
           estado: d.estado,
         });
-      } catch {
+      } catch (e) {
+        console.log("[ruc-lookup] SUNAT error", e);
         setRucLookup({ state: "error", message: "No se pudo verificar el RUC" });
       }
     }, 350);
@@ -163,7 +196,7 @@ export default function NuevaEmpresaPage() {
           return;
         }
         const nc = (j.data.nombre_completo ?? "").trim();
-        if (nc && !repName.trim()) setRepName(nc);
+        if (nc) setRepName(nc);
         setDniLookup({ state: "ok", nombreCompleto: nc });
       } catch {
         setDniLookup({ state: "error", message: "No se pudo verificar el DNI" });
@@ -210,6 +243,9 @@ export default function NuevaEmpresaPage() {
       ],
       serviceScope,
       coverage: { districtCodes },
+      ...(user?.role === "super_admin" && municipalityId
+        ? { municipalityId }
+        : {}),
       ...(authorizations ? { authorizations } : {}),
     };
 
@@ -220,6 +256,7 @@ export default function NuevaEmpresaPage() {
     if (!repName.trim()) localErrors.repName = "El nombre del representante es obligatorio.";
     if (!repDni.trim()) localErrors.repDni = "El DNI es obligatorio.";
     else if (!/^\d{8}$/.test(repDni.trim())) localErrors.repDni = "El DNI debe tener 8 dígitos.";
+    if (user?.role === "super_admin" && !municipalityId) localErrors.municipalityId = "Seleccione una municipalidad.";
     if (districtCodes.length === 0) localErrors.coverage = "Seleccione al menos un distrito de cobertura.";
     if (authIssuedAt && authExpiresAt) {
       if (new Date(authExpiresAt) <= new Date(authIssuedAt)) {
@@ -323,11 +360,13 @@ export default function NuevaEmpresaPage() {
               {rucLookup.state === "ok" && (
                 <div style={{
                   marginTop: 8, padding: "8px 12px",
-                  background: "#F0FDF4", border: "1.5px solid #86EFAC", borderRadius: 9,
-                  fontSize: "0.75rem", color: "#15803d",
+                  background: rucLookup.source === "mock" ? "#FFFBEB" : "#F0FDF4",
+                  border: `1.5px solid ${rucLookup.source === "mock" ? "#FDE68A" : "#86EFAC"}`,
+                  borderRadius: 9,
+                  fontSize: "0.75rem", color: rucLookup.source === "mock" ? "#92400E" : "#15803d",
                 }}>
                   <div style={{ fontWeight: 700, fontSize: "0.6875rem", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                    Verificado en {rucLookup.source}
+                    {rucLookup.source === "mock" ? "DEMO · Datos de prueba" : `Verificado en ${rucLookup.source}`}
                   </div>
                   <div style={{ color: "#18181b", fontWeight: 600, marginTop: 2 }}>{rucLookup.razonSocial}</div>
                   {rucLookup.source === "MTC" && rucLookup.vehicleCount !== undefined && (
@@ -363,6 +402,30 @@ export default function NuevaEmpresaPage() {
               )}
             </div>
           </div>
+
+          {user?.role === "super_admin" && (
+            <div style={{ maxWidth: 720, marginTop: 16 }}>
+              <label htmlFor="municipalityId" style={{ display: "block", marginBottom: 8 }}>
+                Municipalidad <span style={{ color: "#DC2626" }}>*</span>
+              </label>
+              <select
+                id="municipalityId"
+                className={`field${fieldErrors.municipalityId ? " field-error" : ""}`}
+                value={municipalityId}
+                onChange={(e) => setMunicipalityId(e.target.value)}
+              >
+                <option value="">Seleccionar municipalidad</option>
+                {municipalities.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}{m.provinceName ? ` · ${m.provinceName}` : ""}{m.departmentCode ? ` (dpto. ${m.departmentCode})` : ""}
+                  </option>
+                ))}
+              </select>
+              {fieldErrors.municipalityId && (
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>{fieldErrors.municipalityId}</p>
+              )}
+            </div>
+          )}
         </Card>
 
         <Card>
@@ -463,17 +526,17 @@ export default function NuevaEmpresaPage() {
           </div>
 
           <div>
-            <label style={{ display: "block", marginBottom: 8 }}>
-              Cobertura — distritos atendidos
+            <label style={{ display: "block", marginBottom: 10, fontWeight: 700, fontSize: "0.8125rem", color: "#18181b" }}>
+              Cobertura — distritos de origen (Cotabambas)
             </label>
             <div style={{
               display: "grid", gap: 6,
-              gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
               padding: 8, border: "1.5px solid #e4e4e7", borderRadius: 8, background: "#fff",
+              marginBottom: serviceScope === "interprovincial" ? 18 : 0,
             }}>
-              {[...ACTIVE_DISTRICTS, ...INTERPROV_DESTINATIONS].map(d => {
+              {ACTIVE_DISTRICTS.map(d => {
                 const checked = districtCodes.includes(d.code);
-                const isInterprov = "province" in d;
                 return (
                   <label key={d.code} style={{
                     display: "flex", alignItems: "center", gap: 8,
@@ -492,14 +555,54 @@ export default function NuevaEmpresaPage() {
                     />
                     <span style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, color: "#18181b" }}>{d.name}</div>
-                      <div style={{ fontSize: "0.6875rem", color: "#71717a", fontFamily: "ui-monospace, monospace" }}>
-                        {d.code}{isInterprov ? ` · ${(d as { province: string }).province}` : ""}
-                      </div>
+                      <div style={{ fontSize: "0.6875rem", color: "#71717a", fontFamily: "ui-monospace, monospace" }}>{d.code}</div>
                     </span>
                   </label>
                 );
               })}
             </div>
+
+            {serviceScope === "interprovincial" && (
+              <>
+                <label style={{ display: "block", marginBottom: 10, fontWeight: 700, fontSize: "0.8125rem", color: "#18181b" }}>
+                  Destinos interprovinciales
+                </label>
+                <div style={{
+                  display: "grid", gap: 6,
+                  gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+                  padding: 8, border: "1.5px solid #e4e4e7", borderRadius: 8, background: "#fff",
+                }}>
+                  {INTERPROV_DESTINATIONS.map(d => {
+                    const checked = districtCodes.includes(d.code);
+                    return (
+                      <label key={d.code} style={{
+                        display: "flex", alignItems: "center", gap: 8,
+                        padding: "6px 10px", borderRadius: 6,
+                        border: `1px solid ${checked ? "#86EFAC" : "#e4e4e7"}`,
+                        background: checked ? "#F0FDF4" : "#fff",
+                        cursor: "pointer", fontSize: "0.8125rem",
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => setDistrictCodes(prev =>
+                            checked ? prev.filter(c => c !== d.code) : [...prev, d.code]
+                          )}
+                          style={{ accentColor: "#15803d" }}
+                        />
+                        <span style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600, color: "#18181b" }}>{d.name}</div>
+                          <div style={{ fontSize: "0.6875rem", color: "#71717a", fontFamily: "ui-monospace, monospace" }}>
+                            {d.code} · {d.province}
+                          </div>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
             {fieldErrors.coverage && (
               <p style={{ marginTop: 8, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
                 {fieldErrors.coverage}

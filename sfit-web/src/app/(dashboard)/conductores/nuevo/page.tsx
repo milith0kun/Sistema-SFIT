@@ -7,6 +7,7 @@ import { CheckCircle, AlertTriangle, Loader2, Search } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
+import { PhotoUploader } from "@/components/ui/PhotoUploader";
 import { hasWebPermission, FIXED_COMPANY_ROLES } from "@/lib/auth/roleMatrix";
 import type { Role } from "@/lib/constants";
 
@@ -31,23 +32,31 @@ interface Empresa {
   razonSocial: string;
 }
 
+interface MunicipalityOption { id: string; name: string; provinceName?: string; departmentCode?: string; }
+
 interface FormData {
   name: string;
   dni: string;
+  email: string;
   licenseNumber: string;
   licenseCategory: string;
   licenseIssuedAt: string;
   licenseExpiryDate: string;
   companyId: string;
   phone: string;
+  photoUrl: string;
 }
 
 interface FieldErrors {
   name?: string;
   dni?: string;
+  email?: string;
   licenseNumber?: string;
   licenseCategory?: string;
   licenseExpiryDate?: string;
+  companyId?: string;
+  municipalityId?: string;
+  photoUrl?: string;
 }
 
 export default function NuevoconductorPage() {
@@ -64,17 +73,24 @@ export default function NuevoconductorPage() {
   const [form, setForm] = useState<FormData>({
     name: "",
     dni: "",
+    email: "",
     licenseNumber: "",
     licenseCategory: "",
     licenseIssuedAt: "",
     licenseExpiryDate: "",
     companyId: "",
     phone: "",
+    photoUrl: "",
   });
 
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [successInfo, setSuccessInfo] = useState<{ email: string; password: string } | null>(null);
+
+  // Municipio para super_admin (admin_municipal/fiscal/operador lo obtienen de su sesión)
+  const [municipalityId, setMunicipalityId] = useState("");
+  const [municipalities, setMunicipalities] = useState<MunicipalityOption[]>([]);
 
   // Autocompletado: RENIEC al escribir DNI; consulta de licencia MTC en
   // paralelo (Factiliza /licencia/info/{dni}).
@@ -160,6 +176,19 @@ export default function NuevoconductorPage() {
     }
   }, [authorized, token, role]);
 
+  // Cargar lista de municipalidades para super_admin
+  useEffect(() => {
+    if (!authorized || !token || role !== "super_admin") return;
+    fetch("/api/municipalidades?active=true&limit=200", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) setMunicipalities(data.data.items ?? []);
+      })
+      .catch(() => {});
+  }, [authorized, token, role]);
+
   // Lookup encadenado al cambiar el DNI: RENIEC + Licencia MTC en paralelo.
   useEffect(() => {
     if (dniTimer.current) clearTimeout(dniTimer.current);
@@ -228,10 +257,12 @@ export default function NuevoconductorPage() {
       next.name = "El nombre no puede superar 160 caracteres.";
     }
 
-    if (!form.dni.trim() || form.dni.trim().length < 6) {
-      next.dni = "El DNI es requerido (mínimo 6 caracteres).";
-    } else if (form.dni.trim().length > 20) {
-      next.dni = "El DNI no puede superar 20 caracteres.";
+    if (!form.dni.trim() || !/^\d{8}$/.test(form.dni.trim())) {
+      next.dni = "El DNI debe tener exactamente 8 dígitos.";
+    }
+
+    if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      next.email = "El correo electrónico es requerido.";
     }
 
     if (!form.licenseNumber.trim() || form.licenseNumber.trim().length < 4) {
@@ -250,6 +281,19 @@ export default function NuevoconductorPage() {
       }
     }
 
+    if (!form.photoUrl.trim()) {
+      next.photoUrl = "La foto del conductor es requerida.";
+    }
+
+    const isOperador = role ? FIXED_COMPANY_ROLES.includes(role as Role) : false;
+    if (!isOperador && !form.companyId) {
+      next.companyId = "Seleccione una empresa.";
+    }
+
+    if (role === "super_admin" && !municipalityId) {
+      next.municipalityId = "Seleccione una municipalidad.";
+    }
+
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -265,8 +309,10 @@ export default function NuevoconductorPage() {
     const payload: Record<string, unknown> = {
       name: form.name.trim(),
       dni: form.dni.trim(),
+      email: form.email.trim(),
       licenseNumber: form.licenseNumber.trim(),
       licenseCategory: form.licenseCategory,
+      photoUrl: form.photoUrl.trim(),
     };
     if (form.licenseIssuedAt)   payload.licenseIssuedAt   = form.licenseIssuedAt;
     if (form.licenseExpiryDate) payload.licenseExpiryDate = form.licenseExpiryDate;
@@ -274,8 +320,10 @@ export default function NuevoconductorPage() {
     // dejamos elegir empresa ajena desde la UI.
     const isOperador = role ? FIXED_COMPANY_ROLES.includes(role as Role) : false;
     const companyIdToSend = isOperador ? miEmpresa?.id : form.companyId;
-    if (companyIdToSend) payload.companyId = companyIdToSend;
+    payload.companyId = companyIdToSend;
     if (form.phone.trim()) payload.phone = form.phone.trim();
+    // super_admin debe enviar municipalityId (admin_municipal/fiscal/operador lo obtienen de sesión)
+    if (role === "super_admin" && municipalityId) payload.municipalityId = municipalityId;
 
     try {
       const res = await fetch("/api/conductores", {
@@ -288,7 +336,13 @@ export default function NuevoconductorPage() {
       });
 
       if (res.ok) {
-        router.push("/conductores");
+        const body = await res.json().catch(() => ({}));
+        const data = body?.data ?? body ?? {};
+        const createdEmail = (data.email as string) ?? form.email.trim();
+        const createdPassword = (data.tempPassword as string) ?? "";
+        // Mostrar credenciales al admin para que las comparta con el conductor
+        setServerError(null);
+        setSuccessInfo({ email: createdEmail, password: createdPassword });
         return;
       }
 
@@ -419,6 +473,30 @@ export default function NuevoconductorPage() {
               )}
             </div>
 
+            {/* Email */}
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label htmlFor="email" style={{ display: "block", marginBottom: 8 }}>
+                Correo electrónico <span style={{ color: "#DC2626" }}>*</span>
+                <span style={{ marginLeft: 8, color: "#71717a", fontWeight: 400, fontSize: "0.75rem" }}>
+                  · credenciales de acceso
+                </span>
+              </label>
+              <input
+                id="email"
+                type="email"
+                className={errors.email ? "field field-error" : "field"}
+                value={form.email}
+                onChange={(e) => handleChange("email", e.target.value)}
+                placeholder="Ej. conductor@empresa.com"
+                disabled={submitting}
+              />
+              {errors.email && (
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
+                  {errors.email}
+                </p>
+              )}
+            </div>
+
             {/* Teléfono */}
             <div>
               <label
@@ -438,6 +516,33 @@ export default function NuevoconductorPage() {
               />
             </div>
           </div>
+        </Card>
+
+        {/* Foto referencial */}
+        <Card style={{ marginTop: 16 }}>
+          <h3
+            style={{
+              fontFamily: "var(--font-inter)",
+              fontSize: "1rem",
+              fontWeight: 700,
+              marginBottom: 16,
+            }}
+          >
+            Foto referencial <span style={{ color: "#DC2626" }}>*</span>
+          </h3>
+          <PhotoUploader
+            category="driver"
+            value={form.photoUrl || null}
+            onChange={(url) => handleChange("photoUrl", url ?? "")}
+            aspect="square"
+            label="Foto del conductor"
+            disabled={submitting}
+          />
+          {errors.photoUrl && (
+            <p style={{ marginTop: 10, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
+              {errors.photoUrl}
+            </p>
+          )}
         </Card>
 
         {/* Datos de licencia */}
@@ -587,6 +692,50 @@ export default function NuevoconductorPage() {
           </div>
         </Card>
 
+        {/* Municipalidad — solo visible para super_admin */}
+        {role === "super_admin" && (
+          <Card style={{ marginTop: 16 }}>
+            <h3
+              style={{
+                fontFamily: "var(--font-inter)",
+                fontSize: "1rem",
+                fontWeight: 700,
+                marginBottom: 16,
+              }}
+            >
+              Municipalidad
+            </h3>
+
+            <div style={{ maxWidth: 720 }}>
+              <label htmlFor="municipalityId" style={{ display: "block", marginBottom: 8 }}>
+                Municipalidad <span style={{ color: "#DC2626" }}>*</span>
+              </label>
+              <select
+                id="municipalityId"
+                className={errors.municipalityId ? "field field-error" : "field"}
+                value={municipalityId}
+                onChange={(e) => {
+                  setMunicipalityId(e.target.value);
+                  if (errors.municipalityId) setErrors(prev => ({ ...prev, municipalityId: undefined }));
+                }}
+                disabled={submitting}
+              >
+                <option value="">Seleccionar municipalidad</option>
+                {municipalities.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}{m.provinceName ? ` · ${m.provinceName}` : ""}
+                  </option>
+                ))}
+              </select>
+              {errors.municipalityId && (
+                <p style={{ marginTop: 6, fontSize: "0.8125rem", color: "#DC2626", fontWeight: 500 }}>
+                  {errors.municipalityId}
+                </p>
+              )}
+            </div>
+          </Card>
+        )}
+
         {/* Empresa */}
         <Card style={{ marginTop: 16 }}>
           <h3
@@ -597,7 +746,7 @@ export default function NuevoconductorPage() {
               marginBottom: 16,
             }}
           >
-            Empresa (opcional)
+            Empresa <span style={{ color: "#DC2626" }}>*</span>
           </h3>
 
           <div style={{ maxWidth: 720 }}>
@@ -605,7 +754,7 @@ export default function NuevoconductorPage() {
               htmlFor="companyId"
               style={{ display: "block", marginBottom: 8 }}
             >
-              Empresa de transporte
+              Empresa de transporte {role && !FIXED_COMPANY_ROLES.includes(role as Role) ? <span style={{ color: "#DC2626" }}>*</span> : null}
             </label>
             {role && FIXED_COMPANY_ROLES.includes(role as Role) ? (
               miEmpresaMissing ? (
@@ -687,7 +836,83 @@ export default function NuevoconductorPage() {
           </div>
         )}
 
+        {/* Conductor creado — credenciales temporales */}
+        {successInfo && (
+          <Card style={{ marginTop: 16 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+              <CheckCircle size={20} style={{ color: "#15803d", flexShrink: 0, marginTop: 2 }} />
+              <div style={{ flex: 1 }}>
+                <h3 style={{
+                  fontFamily: "var(--font-inter)", fontSize: "1rem", fontWeight: 700,
+                  color: "#15803d", margin: 0, marginBottom: 4,
+                }}>
+                  Conductor creado exitosamente
+                </h3>
+                <p style={{ margin: 0, fontSize: "0.8125rem", color: "#52525b", lineHeight: 1.6 }}>
+                  Comparte estas credenciales con el conductor para que pueda iniciar sesión.
+                  Deberá cambiar su contraseña en el primer acceso.
+                </p>
+
+                <div style={{
+                  marginTop: 14, padding: "14px 18px",
+                  background: "#F4F4F5", borderRadius: 10,
+                  border: "1.5px solid #D4D4D8",
+                  fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                  fontSize: "0.8125rem",
+                  lineHeight: 1.8,
+                }}>
+                  <div>
+                    <span style={{ color: "#71717a", fontWeight: 500 }}>Correo: </span>
+                    <span style={{ color: "#18181b", fontWeight: 700 }}>{successInfo.email}</span>
+                  </div>
+                  <div>
+                    <span style={{ color: "#71717a", fontWeight: 500 }}>Contraseña temporal: </span>
+                    <span style={{ color: "#18181b", fontWeight: 700 }}>{successInfo.password}</span>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(
+                        `Correo: ${successInfo.email}\nContraseña: ${successInfo.password}`
+                      ).catch(() => {});
+                    }}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      height: 34, padding: "0 14px", borderRadius: 8,
+                      background: "#18181b", color: "#fff",
+                      fontSize: "0.8125rem", fontWeight: 600,
+                      border: "none", cursor: "pointer",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    Copiar credenciales
+                  </button>
+                  <Link href="/conductores">
+                    <button
+                      type="button"
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 6,
+                        height: 34, padding: "0 14px", borderRadius: 8,
+                        background: "#fff", color: "#52525b",
+                        fontSize: "0.8125rem", fontWeight: 600,
+                        border: "1.5px solid #E4E4E7", cursor: "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      Ir a conductores
+                    </button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Acciones — flex-wrap para que en pantallas chicas no se salgan */}
+        {!successInfo && (
         <div
           style={{
             display: "flex",
@@ -706,6 +931,7 @@ export default function NuevoconductorPage() {
             </Button>
           </Link>
         </div>
+        )}
       </form>
     </div>
   );

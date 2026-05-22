@@ -76,7 +76,7 @@ export const ROLE_MATRIX: Record<Resource, Record<Action, Role[]>> = {
     view: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.FISCAL, A.OPERADOR],
     create: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
     edit: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL, A.OPERADOR],
-    delete: [A.SUPER_ADMIN],
+    delete: [A.SUPER_ADMIN, A.ADMIN_MUNICIPAL],
   },
   inspecciones: {
     // View: admins consultan/auditan en web (read-only). Fiscal trabaja en móvil.

@@ -1,12 +1,15 @@
 import { NextRequest } from "next/server";
 import { isValidObjectId } from "mongoose";
+import { randomBytes } from "crypto";
+import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { Driver } from "@/models/Driver";
+import { User } from "@/models/User";
 import { Company } from "@/models/Company";
 import { apiResponse, apiError, apiForbidden, apiUnauthorized, apiValidationError } from "@/lib/api/response";
 import { requireRole } from "@/lib/auth/guard";
-import { ROLES, DRIVER_STATUS } from "@/lib/constants";
+import { ROLES, DRIVER_STATUS, USER_STATUS } from "@/lib/constants";
 import { rolesFor } from "@/lib/auth/roleMatrix";
 import { canAccessMunicipality, scopedCompanyFilter } from "@/lib/auth/rbac";
 import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
@@ -17,7 +20,8 @@ import {
 
 const CreateDriverSchema = z.object({
   municipalityId: z.string().refine(isValidObjectId, "municipalityId inválido").optional(),
-  companyId: z.string().refine(isValidObjectId).optional(),
+  companyId: z.string().refine(isValidObjectId, "companyId inválido"),
+  email: z.string().email("Correo electrónico inválido"),
   name: z.string().min(2).max(160),
   dni: z.string().min(6).max(20),
   licenseNumber: z.string().min(4).max(30),
@@ -35,7 +39,7 @@ const CreateDriverSchema = z.object({
   continuousHours: z.number().min(0).max(24).default(0),
   restHours: z.number().min(0).max(24).default(8),
   reputationScore: z.number().min(0).max(100).default(100),
-  photoUrl: z.string().url().optional(),
+  photoUrl: z.string().url("Foto del conductor requerida"),
 }).refine(
   (d) =>
     !d.licenseIssuedAt ||
@@ -57,6 +61,7 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
     const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") ?? 50)));
     const statusParam = url.searchParams.get("status");
+    const activeParam = url.searchParams.get("active");
     const search = url.searchParams.get("q");
     const municipalityIdParam = url.searchParams.get("municipalityId");
 
@@ -74,6 +79,16 @@ export async function GET(request: NextRequest) {
       filter.municipalityId = targetId;
     }
 
+    // Filtro por empresa (solo admins; operador ya tiene su companyId forzado abajo)
+    const companyIdParam = url.searchParams.get("companyId");
+    if (companyIdParam && auth.session.role !== ROLES.OPERADOR) {
+      if (!isValidObjectId(companyIdParam)) return apiError("companyId inválido", 400);
+      const scopeFilter = await scopedCompanyFilter(auth.session);
+      const companyExists = await Company.findOne({ _id: companyIdParam, ...scopeFilter }).select("_id").lean();
+      if (!companyExists) return apiForbidden();
+      filter.companyId = companyIdParam;
+    }
+
     // Operador: acotar al companyId del operador (Driver.companyId directo).
     // Sin empresa asignada → lista vacía (no es error de auth).
     if (auth.session.role === ROLES.OPERADOR) {
@@ -89,6 +104,11 @@ export async function GET(request: NextRequest) {
     if (statusParam && Object.values(DRIVER_STATUS).includes(statusParam as never)) {
       filter.status = statusParam;
     }
+
+    // Filtro de activos: default muestra solo activos (true), pasar
+    // active=false para ver los eliminados/inactivos.
+    if (activeParam === "false") filter.active = false;
+    else filter.active = true;
 
     // Filtro de vigencia de licencia. valid | expiring_soon | expired | missing | all
     const validityParam = url.searchParams.get("validity") as
@@ -234,9 +254,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const duplicate = await Driver.findOne({ municipalityId, dni: parsed.data.dni });
-    if (duplicate) return apiError("Ya existe un conductor con ese DNI", 409);
+    const duplicateDni = await Driver.findOne({ municipalityId, dni: parsed.data.dni });
+    if (duplicateDni) return apiError("Ya existe un conductor con ese DNI", 409);
 
+    // Email único nacional — no puede haber dos cuentas con el mismo correo.
+    const existingUser = await User.findOne({ email: parsed.data.email });
+    if (existingUser) return apiError("Ya existe una cuenta con ese correo electrónico", 409);
+
+    // Crear el perfil profesional del conductor
     const created = await Driver.create({
       municipalityId,
       companyId: effectiveCompanyId,
@@ -254,7 +279,39 @@ export async function POST(request: NextRequest) {
       reputationScore: parsed.data.reputationScore,
     });
 
-    return apiResponse({ id: String(created._id), ...created.toObject() }, 201);
+    // Crear cuenta de usuario para que el conductor pueda iniciar sesión.
+    // Contraseña temporal aleatoria — el conductor la cambiará en su primer login.
+    const tempPassword = randomBytes(16).toString("hex");
+    const hashedPassword = await bcrypt.hash(tempPassword, 12);
+
+    const user = await User.create({
+      name: parsed.data.name,
+      email: parsed.data.email,
+      password: hashedPassword,
+      provider: "credentials",
+      municipalityId,
+      companyId: effectiveCompanyId,
+      dni: parsed.data.dni,
+      phone: parsed.data.phone,
+      role: ROLES.CONDUCTOR,
+      status: USER_STATUS.ACTIVO,
+      profileCompleted: true,
+      mustChangePassword: true,
+    });
+
+    // Vincular el User al Driver para que `resolveDriverFromSession` funcione
+    created.userId = user._id;
+    await created.save();
+
+    return apiResponse(
+      {
+        id: String(created._id),
+        email: user.email,
+        tempPassword,
+        ...created.toObject(),
+      },
+      201,
+    );
   } catch (error) {
     console.error("[conductores POST]", error);
     return apiError("Error al crear conductor", 500);

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { isValidObjectId } from "mongoose";
+import mongoose, { isValidObjectId } from "mongoose";
 import { z } from "zod";
 import { connectDB } from "@/lib/db/mongoose";
 import { Vehicle } from "@/models/Vehicle";
@@ -10,6 +10,8 @@ import { ROLES, VEHICLE_STATUS } from "@/lib/constants";
 import { canAccessMunicipality, scopedCompanyFilter } from "@/lib/auth/rbac";
 import { getOperatorCompanyId } from "@/lib/auth/operatorCompany";
 import { rolesFor } from "@/lib/auth/roleMatrix";
+import { triggerVehicleScraping } from "@/lib/scraper/trigger";
+import { computeDocStatus } from "@/lib/vehicle-status";
 
 const CreateVehicleSchema = z.object({
   municipalityId: z.string().refine(isValidObjectId).optional(),
@@ -21,7 +23,14 @@ const CreateVehicleSchema = z.object({
   year: z.number().min(1990).max(new Date().getFullYear() + 1),
   status: z.enum(["disponible", "en_ruta", "en_mantenimiento", "fuera_de_servicio"]).optional(),
   soatExpiry: z.string().optional(),
-  photoUrl: z.string().url().optional(),
+  soatInsurer: z.string().max(120).optional(),
+  soatCertificate: z.string().max(60).optional(),
+  ownerName: z.string().max(200).optional(),
+  lastInspectionDate: z.string().optional(),
+  lastInspectionStatus: z.enum(["aprobada", "observada", "rechazada", "pendiente"]).optional(),
+  lastInspectionCertificate: z.string().max(60).optional(),
+  citvExpiryDate: z.string().optional(),
+  photoUrl: z.string().url(),
 });
 
 export async function GET(request: NextRequest) {
@@ -38,7 +47,11 @@ export async function GET(request: NextRequest) {
     const search = url.searchParams.get("q");
     const municipalityIdParam = url.searchParams.get("municipalityId");
 
-    const filter: Record<string, unknown> = {};
+    const filter: Record<string, unknown> = { active: true };
+    // Permitir ver inactivos con ?incluirInactivos=true (para admins que auditan)
+    if (url.searchParams.get("incluirInactivos") === "true") {
+      delete filter.active;
+    }
 
     if (auth.session.role === ROLES.SUPER_ADMIN) {
       if (municipalityIdParam) {
@@ -68,6 +81,15 @@ export async function GET(request: NextRequest) {
     const verifiedParam = url.searchParams.get("verified");
     if (verifiedParam === "true") filter.verified = true;
     else if (verifiedParam === "false") filter.verified = { $ne: true };
+    // Filtro por empresa (solo admins; operador ya tiene su companyId forzado)
+    const companyIdParam = url.searchParams.get("companyId");
+    if (companyIdParam && auth.session.role !== ROLES.OPERADOR) {
+      if (!isValidObjectId(companyIdParam)) return apiError("companyId inválido", 400);
+      const scopeFilter = await scopedCompanyFilter(auth.session);
+      const companyExists = await Company.findOne({ _id: companyIdParam, ...scopeFilter }).select("_id").lean();
+      if (!companyExists) return apiForbidden();
+      filter.companyId = companyIdParam;
+    }
     if (search) {
       filter.$or = [
         { plate: { $regex: search, $options: "i" } },
@@ -104,13 +126,22 @@ export async function GET(request: NextRequest) {
           : null,
         currentDriverName: (v.currentDriverId as { name?: string } | null)?.name,
         lastInspectionStatus: v.lastInspectionStatus,
+        lastInspectionDate: v.lastInspectionDate ?? null,
+        lastInspectionCertificate: v.lastInspectionCertificate ?? null,
         reputationScore: v.reputationScore,
-        soatExpiry: v.soatExpiry,
+        soatExpiry: v.soatExpiry ?? null,
+        soatInsurer: v.soatInsurer ?? null,
+        soatCertificate: v.soatCertificate ?? null,
+        ownerName: v.ownerName ?? null,
+        citvExpiryDate: v.citvExpiryDate ?? null,
         qrHmac: v.qrHmac,
         photoUrl: v.photoUrl,
         active: v.active,
         verified: v.verified ?? false,
         verifiedAt: v.verifiedAt ?? null,
+        soatStatus: computeDocStatus(v.soatExpiry),
+        citvStatus: computeDocStatus(v.citvExpiryDate, v.year),
+        scrapingStatus: v.scrapingStatus ?? "idle",
         createdAt: v.createdAt,
         updatedAt: v.updatedAt,
       })),
@@ -193,20 +224,72 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const duplicate = await Vehicle.findOne({ municipalityId, plate: parsed.data.plate.toUpperCase() });
-    if (duplicate) return apiError("Ya existe un vehículo con esa placa", 409);
+    const normalizedPlate = parsed.data.plate.toUpperCase().replace(/[^A-Za-z0-9]/g, "").slice(0, 6);
+
+    // Solo bloquear creación si ya existe un vehículo ACTIVO con la misma placa
+    const activeDuplicate = await Vehicle.findOne({ plate: normalizedPlate, active: true });
+    if (activeDuplicate) return apiError("Ya existe un vehículo activo con esa placa", 409);
+
+    // Si existe un vehículo inactivo (soft-deleted) con la misma placa, reactivarlo
+    const inactive = await Vehicle.findOne({ plate: normalizedPlate, active: false });
+    if (inactive) {
+      inactive.set({
+        municipalityId: new mongoose.Types.ObjectId(municipalityId),
+        companyId: effectiveCompanyId ? new mongoose.Types.ObjectId(effectiveCompanyId) : undefined,
+        vehicleTypeKey: parsed.data.vehicleTypeKey,
+        brand: parsed.data.brand,
+        model: parsed.data.model,
+        year: parsed.data.year,
+        status: parsed.data.status ?? VEHICLE_STATUS.DISPONIBLE,
+        soatExpiry: parsed.data.soatExpiry ? new Date(parsed.data.soatExpiry) : undefined,
+        soatInsurer: parsed.data.soatInsurer,
+        soatCertificate: parsed.data.soatCertificate,
+        ownerName: parsed.data.ownerName,
+        lastInspectionDate: parsed.data.lastInspectionDate ? new Date(parsed.data.lastInspectionDate) : undefined,
+        lastInspectionStatus: parsed.data.lastInspectionStatus,
+        lastInspectionCertificate: parsed.data.lastInspectionCertificate,
+        citvExpiryDate: parsed.data.citvExpiryDate ? new Date(parsed.data.citvExpiryDate) : undefined,
+        photoUrl: parsed.data.photoUrl || undefined,
+        active: true,
+        verified: false,
+        verifiedAt: undefined,
+        verifiedBy: undefined,
+        scrapingStatus: "idle",
+        currentDriverId: undefined,
+        reputationScore: 100,
+      });
+      await inactive.save();
+
+      triggerVehicleScraping(String(inactive._id), normalizedPlate).catch((err) => {
+        console.error("[vehiculos POST] scrape trigger failed:", err);
+      });
+
+      return apiResponse({ id: String(inactive._id), reactivated: true, ...inactive.toObject() }, 200);
+    }
 
     const created = await Vehicle.create({
       municipalityId,
       companyId: effectiveCompanyId,
-      plate: parsed.data.plate.toUpperCase(),
+      plate: normalizedPlate,
       vehicleTypeKey: parsed.data.vehicleTypeKey,
       brand: parsed.data.brand,
       model: parsed.data.model,
       year: parsed.data.year,
       status: parsed.data.status ?? VEHICLE_STATUS.DISPONIBLE,
       soatExpiry: parsed.data.soatExpiry ? new Date(parsed.data.soatExpiry) : undefined,
+      soatInsurer: parsed.data.soatInsurer,
+      soatCertificate: parsed.data.soatCertificate,
+      ownerName: parsed.data.ownerName,
+      lastInspectionDate: parsed.data.lastInspectionDate ? new Date(parsed.data.lastInspectionDate) : undefined,
+      lastInspectionStatus: parsed.data.lastInspectionStatus,
+      lastInspectionCertificate: parsed.data.lastInspectionCertificate,
+      citvExpiryDate: parsed.data.citvExpiryDate ? new Date(parsed.data.citvExpiryDate) : undefined,
       photoUrl: parsed.data.photoUrl,
+    });
+
+    // Disparar scraping asíncrono (fire-and-forget)
+    triggerVehicleScraping(String(created._id), normalizedPlate).catch((err) => {
+      console.error("[vehiculos POST] scrape trigger failed:", err);
     });
 
     return apiResponse({ id: String(created._id), ...created.toObject() }, 201);

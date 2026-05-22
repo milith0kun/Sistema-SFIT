@@ -50,6 +50,7 @@ export const INTERPROV_DESTINATIONS = [
   { code: "030101", name: "Abancay",  province: "Abancay"  },
   { code: "080101", name: "Cusco",    province: "Cusco"    },
   { code: "040101", name: "Arequipa", province: "Arequipa" },
+  { code: "211101", name: "Juliaca",  province: "San Román" },
 ] as const;
 
 export const INTERPROV_DESTINATION_CODES: readonly string[] =

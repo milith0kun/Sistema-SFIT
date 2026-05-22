@@ -17,46 +17,18 @@ import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { logAudit } from "@/lib/audit/log";
 import { createNotificationForRoles } from "@/lib/notifications/create";
 import { rolesFor } from "@/lib/auth/roleMatrix";
-
-const RepresentanteLegalSchema = z.object({
-  name: z.string().min(2).max(160),
-  dni: z.string().min(6).max(20),
-  phone: z.string().max(30).optional(),
-});
-
-const DocumentSchema = z.object({
-  name: z.string().min(1).max(160),
-  url: z.string().url(),
-});
-
-const ServiceScopeEnum = z.enum(["urbano", "interprovincial"]);
-
-const AuthorityLevelEnum = z.enum([
-  "municipal_distrital",
-  "municipal_provincial",
-  "regional",
-  "mtc",
-]);
-
-const AuthorizationSchema = z.object({
-  level: AuthorityLevelEnum,
-  scope: ServiceScopeEnum,
-  issuedBy: z.string().max(160).optional(),
-  resolutionNumber: z.string().max(80).optional(),
-  issuedAt: z.string().datetime().optional(),
-  expiresAt: z.string().datetime().optional(),
-  documentUrl: z.string().url().optional(),
-});
-
-const CoverageSchema = z.object({
-  departmentCodes: z.array(z.string().regex(/^\d{2}$/)).default([]),
-  provinceCodes:   z.array(z.string().regex(/^\d{4}$/)).default([]),
-  districtCodes:   z.array(z.string().regex(/^\d{6}$/)).default([]),
-});
+import {
+  RepresentanteLegalSchema,
+  DocumentSchema,
+  ServiceScopeEnum,
+  AuthorityLevelEnum,
+  AuthorizationSchema,
+  CoverageSchema,
+} from "@/lib/validations/company";
 
 const UpdateCompanySchema = z.object({
   razonSocial: z.string().min(2).max(200).optional(),
-  ruc: z.string().min(8).max(20).optional(),
+  ruc: z.string().regex(/^\d{11}$/, "RUC debe tener exactamente 11 dígitos").optional(),
   representanteLegal: RepresentanteLegalSchema.optional(),
   vehicleTypeKeys: z.array(z.string().min(1).max(80)).optional(),
   documents: z.array(DocumentSchema).optional(),
@@ -196,6 +168,14 @@ export async function PATCH(
       return apiForbidden();
     }
 
+    // Validar unicidad de RUC si se está cambiando
+    if (parsed.data.ruc && parsed.data.ruc !== existing.ruc) {
+      const duplicate = await Company.findOne({ ruc: parsed.data.ruc });
+      if (duplicate) {
+        return apiError("Ya existe una empresa nacional con ese RUC", 409);
+      }
+    }
+
     const patch = { ...parsed.data };
     if (patch.serviceScope) {
       patch.vehicleTypeKeys = [canonicalTypeByScope(patch.serviceScope)];
@@ -259,7 +239,12 @@ export async function PATCH(
       documents: existing.documents,
       active: existing.active,
       suspendedAt: existing.suspendedAt,
+      approvedAt: existing.approvedAt,
+      approvedBy: existing.approvedBy ? String(existing.approvedBy) : null,
       reputationScore: existing.reputationScore,
+      serviceScope: existing.serviceScope,
+      coverage: existing.coverage ?? { departmentCodes: [], provinceCodes: [], districtCodes: [] },
+      authorizations: existing.authorizations ?? [],
       createdAt: existing.createdAt,
       updatedAt: existing.updatedAt,
     });
@@ -273,10 +258,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireRole(request, [
-    ROLES.SUPER_ADMIN,
-    ROLES.ADMIN_MUNICIPAL,
-  ]);
+  const auth = requireRole(request, [...rolesFor("empresas", "delete")]);
   if ("error" in auth) {
     return auth.error === "unauthorized" ? apiUnauthorized() : apiForbidden();
   }

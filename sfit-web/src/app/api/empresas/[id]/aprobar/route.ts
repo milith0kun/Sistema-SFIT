@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { isValidObjectId } from "mongoose";
+import mongoose, { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/db/mongoose";
 import { Company } from "@/models/Company";
 import { User } from "@/models/User";
@@ -64,7 +64,7 @@ export async function POST(
     company.suspendedAt = undefined;
     company.approvedAt = new Date();
     company.approvedBy = isValidObjectId(auth.session.userId)
-      ? (auth.session.userId as unknown as typeof company.approvedBy)
+      ? new mongoose.Types.ObjectId(auth.session.userId)
       : undefined;
     await company.save();
 

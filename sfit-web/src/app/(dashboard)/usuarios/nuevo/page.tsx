@@ -26,7 +26,7 @@ type DniLookup =
 
 type StoredUser = { role: string };
 
-const ROLES_REQUIRE_IDENTITY = new Set([
+const ROLES_REQUIRE_IDENTITY = new Set<string>([
   "super_admin",
   "admin_municipal",
   "conductor",

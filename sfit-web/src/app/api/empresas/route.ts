@@ -15,46 +15,13 @@ import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality, recordMuniScope } from "@/lib/auth/rbac";
 import { Municipality } from "@/models/Municipality";
 import { rolesFor } from "@/lib/auth/roleMatrix";
-
-const RepresentanteLegalSchema = z.object({
-  name: z.string().min(2).max(160),
-  dni: z.string().min(6).max(20),
-  phone: z.string().max(30).optional(),
-});
-
-const DocumentSchema = z.object({
-  name: z.string().min(1).max(160),
-  url: z.string().url(),
-});
-
-const SERVICE_SCOPE_ENUM = ["urbano", "interprovincial"] as const;
-const AUTHORITY_LEVEL_ENUM = [
-  "municipal_distrital",
-  "municipal_provincial",
-  "regional",
-  "mtc",
-] as const;
-
-const CoverageSchema = z.object({
-  departmentCodes: z.array(z.string().regex(/^\d{2}$/)).max(30).optional(),
-  provinceCodes:   z.array(z.string().regex(/^\d{4}$/)).max(60).optional(),
-  districtCodes:   z.array(z.string().regex(/^\d{6}$/)).max(200).optional(),
-});
-
-const AuthorizationSchema = z
-  .object({
-    level: z.enum(AUTHORITY_LEVEL_ENUM),
-    scope: z.enum(SERVICE_SCOPE_ENUM),
-    issuedBy: z.string().max(200).optional(),
-    resolutionNumber: z.string().max(80).optional(),
-    issuedAt: z.coerce.date().optional(),
-    expiresAt: z.coerce.date().optional(),
-    documentUrl: z.string().url().optional(),
-  })
-  .refine(
-    (a) => !a.issuedAt || !a.expiresAt || a.expiresAt.getTime() > a.issuedAt.getTime(),
-    { message: "expiresAt debe ser posterior a issuedAt", path: ["expiresAt"] },
-  );
+import {
+  RepresentanteLegalSchema,
+  DocumentSchema,
+  ServiceScopeEnum,
+  AuthorizationSchema,
+  CoverageSchema,
+} from "@/lib/validations/company";
 
 const CreateCompanySchema = z.object({
   municipalityId: z
@@ -62,13 +29,13 @@ const CreateCompanySchema = z.object({
     .refine(isValidObjectId, "municipalityId inválido")
     .optional(),
   razonSocial: z.string().min(2).max(200),
-  ruc: z.string().min(8).max(20),
+  ruc: z.string().regex(/^\d{11}$/, "RUC debe tener exactamente 11 dígitos"),
   representanteLegal: RepresentanteLegalSchema,
   vehicleTypeKeys: z.array(z.string().min(1).max(80)).optional(),
   documents: z.array(DocumentSchema).optional(),
   active: z.boolean().optional(),
   /** Modalidad de servicio. Default `urbano` cuando no se envía. */
-  serviceScope: z.enum(SERVICE_SCOPE_ENUM).optional(),
+  serviceScope: ServiceScopeEnum.optional(),
   /** Cobertura geográfica. Si no se envía, se infiere desde la sede municipal. */
   coverage: CoverageSchema.optional(),
   /** Autorizaciones iniciales. Si no se envían, se crea una autorización
@@ -248,13 +215,14 @@ export async function POST(request: NextRequest) {
     };
 
     // authorizations: respeta las del cliente; en su defecto crea una base
-    // municipal vigente indefinida (compat con flujo anterior).
+    // según modalidad: municipal provincial para urbano, regional para interprovincial.
+    const defaultAuthLevel = serviceScope === "interprovincial" ? "regional" as const : "municipal_provincial" as const;
     const authorizations =
       parsed.data.authorizations && parsed.data.authorizations.length > 0
         ? parsed.data.authorizations
         : [
             {
-              level: "municipal_distrital",
+              level: defaultAuthLevel,
               scope: serviceScope,
               issuedBy: muniDoc?.name ? `Municipalidad de ${muniDoc.name}` : undefined,
             },
@@ -265,7 +233,10 @@ export async function POST(request: NextRequest) {
       razonSocial: parsed.data.razonSocial,
       ruc: parsed.data.ruc,
       representanteLegal: parsed.data.representanteLegal,
-      vehicleTypeKeys: [canonicalVehicleTypeKey],
+      vehicleTypeKeys:
+        parsed.data.vehicleTypeKeys && parsed.data.vehicleTypeKeys.length > 0
+          ? parsed.data.vehicleTypeKeys
+          : [canonicalVehicleTypeKey],
       documents: parsed.data.documents ?? [],
       active: parsed.data.active ?? true,
       serviceScope,

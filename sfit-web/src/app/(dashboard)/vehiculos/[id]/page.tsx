@@ -2,20 +2,23 @@
 
 import { use as usePromise, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeft, Save, Trash2, AlertTriangle, CheckCircle, Loader2,
   Car, TrendingUp, ClipboardCheck, ShieldCheck, Building2, Calendar, ShieldOff,
-  BadgeCheck,
+  BadgeCheck, Search, RefreshCw,
 } from "lucide-react";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { KeyValueRow, SystemIdRow } from "@/components/ui/KeyValueRow";
+import { PhotoUploader } from "@/components/ui/PhotoUploader";
 import { useSetBreadcrumbTitle } from "@/hooks/useBreadcrumbTitle";
 import { hasWebPermission, SUSPEND_ROLES } from "@/lib/auth/roleMatrix";
 import { fmtDate } from "@/lib/format";
 import { INK1, INK2, INK3, INK5, INK6, INK9, RED, REDBG, REDBD, GRN, GRNBG, GRNBD, AMBER, AMBER_BG, AMBER_BD, INFO_BG, INFO_BD } from "@/lib/design-tokens";
+import { DOC_STATUS_META, type DocStatus } from "@/lib/vehicle-status";
 import { BTN_PRIMARY, BTN_OUTLINE } from "@/lib/form-styles";
 import type { Role } from "@/lib/constants";
 
@@ -33,7 +36,7 @@ type VehicleStatus = "disponible" | "en_ruta" | "en_mantenimiento" | "fuera_de_s
 type InspectionStatus = "aprobada" | "observada" | "rechazada" | "pendiente";
 
 interface Vehicle {
-  id: string;
+  id: string; municipalityId: string;
   plate: string;
   vehicleTypeKey: string;
   brand: string;
@@ -42,14 +45,33 @@ interface Vehicle {
   companyId?: string;
   companyName?: string;
   status: VehicleStatus;
+  currentDriverId?: string | null;
   currentDriverName?: string;
+  ownerName?: string | null;
   lastInspectionStatus?: InspectionStatus;
+  lastInspectionDate?: string | null;
+  lastInspectionCertificate?: string | null;
   reputationScore: number;
-  soatExpiry?: string;
+  soatExpiry?: string | null;
+  soatInsurer?: string | null;
+  soatCertificate?: string | null;
+  soatStatus?: DocStatus;
+  citvExpiryDate?: string | null;
+  citvStatus?: DocStatus;
+  qrHmac?: string;
+  photoUrl?: string | null;
   verified?: boolean;
   verifiedAt?: string | null;
+  verifiedBy?: string | null;
   active: boolean;
+  scrapingStatus?: string;
   createdAt: string;
+  updatedAt: string;
+}
+
+interface ScrapingData {
+  overallStatus: string;
+  sources: Record<string, { source: string; status: string; data: unknown; error: string | null; captchaCost: number; durationMs: number; completedAt: string | null }>;
 }
 
 interface Empresa { id: string; razonSocial: string }
@@ -61,9 +83,17 @@ interface FormData {
   brand: string;
   model: string;
   year: string;
+  ownerName: string;
   companyId: string;
   status: string;
   soatExpiry: string;
+  soatInsurer: string;
+  soatCertificate: string;
+  lastInspectionDate: string;
+  lastInspectionStatus: string;
+  lastInspectionCertificate: string;
+  citvExpiryDate: string;
+  photoUrl: string;
 }
 interface FieldErrors {
   plate?: string;
@@ -102,7 +132,7 @@ const INSPECTION_META: Record<InspectionStatus, { color: string; bg: string; bd:
   pendiente: { color: INK6, bg: INK1, bd: INK2, label: "Pendiente" },
 };
 
-function daysUntil(iso?: string): number | null {
+function daysUntil(iso?: string | null): number | null {
   if (!iso) return null;
   const d = new Date(iso);
   if (isNaN(d.getTime())) return null;
@@ -121,6 +151,7 @@ export default function VehiculoDetallePage({ params }: Props) {
   const [notFound, setNotFound] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [canEdit, setCanEdit] = useState(false);
+  const [canDelete, setCanDelete] = useState(false);
   const [canSuspend, setCanSuspend] = useState(false);
   const [showSuspend, setShowSuspend] = useState(false);
   const [suspendReason, setSuspendReason] = useState("");
@@ -128,7 +159,11 @@ export default function VehiculoDetallePage({ params }: Props) {
 
   const [form, setForm] = useState<FormData>({
     plate: "", vehicleTypeKey: "", brand: "", model: "",
-    year: "", companyId: "", status: "", soatExpiry: "",
+    year: "", ownerName: "", companyId: "", status: "", soatExpiry: "",
+    soatInsurer: "", soatCertificate: "",
+    lastInspectionDate: "", lastInspectionStatus: "",
+    lastInspectionCertificate: "", citvExpiryDate: "",
+    photoUrl: "",
   });
 
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -139,6 +174,93 @@ export default function VehiculoDetallePage({ params }: Props) {
   const [saveSuccess, setSaveSuccess] = useState(false);
   // Verificación administrativa del vehículo (espejo del flujo conductores).
   const [verifying, setVerifying] = useState(false);
+
+  // Scraping de historial legal (SOAT / MTC CITV / SUNARP)
+  const [scrapeData, setScrapeData] = useState<ScrapingData | null>(null);
+  const [scrapePolling, setScrapePolling] = useState(false);
+  const [scrapeLoading, setScrapeLoading] = useState(false);
+  const sunarpAutoFilled = useRef(false);
+
+  // Poll scraping status cuando está en progreso, o cargar resultados existentes
+  useEffect(() => {
+    if (!vehicle?.scrapingStatus || vehicle.scrapingStatus === "idle") return;
+    if (vehicle.scrapingStatus === "pending" || vehicle.scrapingStatus === "in_progress") {
+      setScrapePolling(true);
+      return;
+    }
+    // Ya completado: cargar resultados para auto-llenar campos
+    if (!vehicle?.id) return;
+    const token = localStorage.getItem("sfit_access_token");
+    fetch(`/api/vehiculos/${vehicle.id}/scrape/status`, {
+      headers: { Authorization: `Bearer ${token ?? ""}` },
+    })
+      .then(r => r.json())
+      .then(json => { if (json.success) setScrapeData(json.data); })
+      .catch(() => {});
+  }, [vehicle?.scrapingStatus, vehicle?.id]);
+
+  useEffect(() => {
+    if (!scrapePolling || !vehicle?.id) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const token = localStorage.getItem("sfit_access_token");
+        const res = await fetch(`/api/vehiculos/${vehicle.id}/scrape/status`, {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled && json.success) {
+          setScrapeData(json.data);
+          const status = json.data.overallStatus;
+          // Actualizar vehicle localmente
+          setVehicle(prev => prev ? { ...prev, scrapingStatus: status } : prev);
+          if (status === "complete" || status === "partial" || status === "error") {
+            setScrapePolling(false);
+          }
+        }
+      } catch { /* ignorar */ }
+    };
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => { cancelled = true; clearInterval(interval); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrapePolling, vehicle?.id]);
+
+  // Auto-llenar ownerName desde SUNARP scraping cuando llegan titulares
+  useEffect(() => {
+    if (!scrapeData || !canEdit || sunarpAutoFilled.current) return;
+    const sunarp = scrapeData.sources?.sunarp_vehicular;
+    if (!sunarp || sunarp.status !== "ok") return;
+    const data = sunarp.data as Record<string, unknown> | undefined;
+    const titulares = data?.titulares as string[] | undefined;
+    if (!titulares || titulares.length === 0) return;
+    // Solo auto-llenar si el campo está vacío
+    setForm(prev => {
+      if (prev.ownerName.trim()) return prev;
+      sunarpAutoFilled.current = true;
+      return { ...prev, ownerName: titulares[0] };
+    });
+  }, [scrapeData, canEdit]);
+
+  const handleTriggerScrape = async () => {
+    if (!vehicle?.id) return;
+    setScrapeLoading(true);
+    sunarpAutoFilled.current = false;
+    try {
+      const token = localStorage.getItem("sfit_access_token");
+      const res = await fetch(`/api/vehiculos/${vehicle.id}/scrape`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+      });
+      const json = await res.json();
+      if (json.success) {
+        setVehicle(prev => prev ? { ...prev, scrapingStatus: "pending" } : prev);
+        setScrapePolling(true);
+      }
+    } catch { /* ignorar */ }
+    finally { setScrapeLoading(false); }
+  };
 
   // Validación SUNARP de la placa
   const [placaLookup, setPlacaLookup] = useState<PlacaLookup>({ state: "idle" });
@@ -152,11 +274,33 @@ export default function VehiculoDetallePage({ params }: Props) {
     try { user = JSON.parse(raw); } catch { router.replace("/login"); return; }
     if (!hasWebPermission(user.role, "vehiculos", "view")) { router.replace("/dashboard"); return; }
     setCanEdit(hasWebPermission(user.role, "vehiculos", "edit"));
+    setCanDelete(hasWebPermission(user.role, "vehiculos", "delete"));
     setCanSuspend(user.role ? SUSPEND_ROLES.includes(user.role) : false);
+    sunarpAutoFilled.current = false;
     void loadVehicle();
     void loadDropdowns();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, router]);
+
+  // Refiltrar empresas cuando el usuario cambia el tipo de servicio
+  useEffect(() => {
+    if (!form.vehicleTypeKey) return;
+    const vt = form.vehicleTypeKey;
+    const token = localStorage.getItem("sfit_access_token");
+    fetch(`/api/empresas?limit=100&vehicleTypeKey=${vt}`, {
+      headers: { Authorization: `Bearer ${token ?? ""}` },
+    })
+      .then((r) => r.json())
+      .then((body) => {
+        const items = body?.data?.items ?? [];
+        setEmpresas(items);
+        if (form.companyId && items.length > 0 && !items.some((e: Empresa) => e.id === form.companyId)) {
+          setForm((prev) => ({ ...prev, companyId: "" }));
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.vehicleTypeKey]);
 
   // Breadcrumb dinámico con la placa
   useSetBreadcrumbTitle(vehicle?.plate);
@@ -236,10 +380,20 @@ export default function VehiculoDetallePage({ params }: Props) {
         brand: v.brand ?? "",
         model: v.model ?? "",
         year: String(v.year ?? ""),
+        ownerName: v.ownerName ?? "",
         companyId: v.companyId ?? "",
         status: v.status ?? "",
         soatExpiry: v.soatExpiry ? v.soatExpiry.split("T")[0] : "",
+        soatInsurer: v.soatInsurer ?? "",
+        soatCertificate: v.soatCertificate ?? "",
+        lastInspectionDate: v.lastInspectionDate ? v.lastInspectionDate.split("T")[0] : "",
+        lastInspectionStatus: v.lastInspectionStatus ?? "",
+        lastInspectionCertificate: v.lastInspectionCertificate ?? "",
+        citvExpiryDate: v.citvExpiryDate ? v.citvExpiryDate.split("T")[0] : "",
+        photoUrl: v.photoUrl ?? "",
       });
+      // Recargar empresas filtradas por el tipo de servicio del vehículo
+      loadDropdowns(v.vehicleTypeKey);
     } catch { setLoadError("Error de conexión."); }
     finally { setLoading(false); }
   }
@@ -267,12 +421,15 @@ export default function VehiculoDetallePage({ params }: Props) {
     }
   }
 
-  async function loadDropdowns() {
+  async function loadDropdowns(vehicleTypeKey?: string) {
     try {
       const token = localStorage.getItem("sfit_access_token");
       const headers = { Authorization: `Bearer ${token ?? ""}` };
+      const empQs = vehicleTypeKey
+        ? `limit=100&vehicleTypeKey=${vehicleTypeKey}`
+        : "limit=100";
       const [empRes, tiposRes] = await Promise.all([
-        fetch("/api/empresas?limit=100", { headers }),
+        fetch(`/api/empresas?${empQs}`, { headers }),
         fetch("/api/tipos-vehiculo?limit=100", { headers }),
       ]);
       const [empBody, tiposBody] = await Promise.all([empRes.json(), tiposRes.json()]);
@@ -317,11 +474,21 @@ export default function VehiculoDetallePage({ params }: Props) {
     if (form.status) payload.status = form.status;
     if (form.companyId) payload.companyId = form.companyId;
     else payload.companyId = null;
+    if (form.ownerName) payload.ownerName = form.ownerName.trim();
     if (form.soatExpiry) payload.soatExpiry = form.soatExpiry;
+    if (form.soatInsurer) payload.soatInsurer = form.soatInsurer.trim();
+    if (form.soatCertificate) payload.soatCertificate = form.soatCertificate.trim();
+    if (form.lastInspectionDate) payload.lastInspectionDate = form.lastInspectionDate;
+    if (form.lastInspectionStatus) payload.lastInspectionStatus = form.lastInspectionStatus;
+    if (form.lastInspectionCertificate) payload.lastInspectionCertificate = form.lastInspectionCertificate.trim();
+    if (form.citvExpiryDate) payload.citvExpiryDate = form.citvExpiryDate;
+    if (form.photoUrl) payload.photoUrl = form.photoUrl;
+    else if (vehicle?.photoUrl && !form.photoUrl) payload.photoUrl = null;
+
     try {
       const token = localStorage.getItem("sfit_access_token");
       const res = await fetch(`/api/vehiculos/${id}`, {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify(payload),
       });
@@ -419,8 +586,9 @@ export default function VehiculoDetallePage({ params }: Props) {
     return (
       <div className="flex flex-col gap-4 animate-fade-in">
         <PageHeader kicker="Vehículos · RF-06" title="Cargando vehículo…" action={backBtnPlain} />
-        <KPIStrip cols={3} items={[
-          { label: "ÚLTIMA INSPECCIÓN", value: "—", subtitle: "—", icon: ClipboardCheck },
+        <KPIStrip cols={4} items={[
+          { label: "SOAT", value: "—", subtitle: "—", icon: ShieldCheck },
+          { label: "REVISIÓN TÉCNICA", value: "—", subtitle: "—", icon: ClipboardCheck },
           { label: "REPUTACIÓN", value: "—", subtitle: "—", icon: TrendingUp },
           { label: "CONDUCTOR ACTUAL", value: "—", subtitle: "—", icon: Car },
         ]} />
@@ -433,11 +601,16 @@ export default function VehiculoDetallePage({ params }: Props) {
 
   const tipoNombre = tipos.find(t => t.key === vehicle.vehicleTypeKey)?.name ?? vehicle.vehicleTypeKey;
   const repColor = vehicle.reputationScore >= 80 ? GRN : vehicle.reputationScore >= 50 ? AMBER : RED;
-  const inspMeta = INSPECTION_META[vehicle.lastInspectionStatus ?? "pendiente"];
+  const soatMeta = DOC_STATUS_META[vehicle.soatStatus ?? "sin_registro"];
+  const citvMeta = DOC_STATUS_META[vehicle.citvStatus ?? "sin_registro"];
+  const citvExento = vehicle.citvStatus === "exento";
   const stMeta = VEHICLE_STATUS_META[vehicle.status] ?? VEHICLE_STATUS_META.disponible;
   const soatDays = daysUntil(vehicle.soatExpiry);
   const soatWarn = soatDays != null && soatDays >= 0 && soatDays <= 30;
   const soatExpired = soatDays != null && soatDays < 0;
+  const citvDays = daysUntil(vehicle.citvExpiryDate);
+  const citvWarn = citvDays != null && citvDays >= 0 && citvDays <= 30;
+  const citvExpired = citvDays != null && citvDays < 0;
 
   const canShowSuspend = canSuspend && vehicle.status !== "fuera_de_servicio";
   const canVerify = canEdit && !vehicle.verified;
@@ -533,13 +706,27 @@ export default function VehiculoDetallePage({ params }: Props) {
         </div>
       )}
 
-      <KPIStrip cols={3} items={[
+      <KPIStrip cols={4} items={[
         {
-          label: "ÚLTIMA INSPECCIÓN",
-          value: inspMeta.label,
-          subtitle: vehicle.lastInspectionStatus === "rechazada" ? "requiere atención"
-            : vehicle.lastInspectionStatus === "observada" ? "con observaciones"
-            : vehicle.lastInspectionStatus === "aprobada" ? "vigente" : "sin registro",
+          label: "SOAT",
+          value: soatMeta.label,
+          subtitle: vehicle.soatStatus === "vigente" ? "vigente"
+            : vehicle.soatStatus === "vencido" ? "vencido"
+            : vehicle.soatStatus === "por_vencer" ? "por vencer"
+            : vehicle.soatStatus === "sin_registro" ? "sin registro"
+            : "pendiente",
+          icon: ShieldCheck,
+        },
+        {
+          label: "REVISIÓN TÉCNICA",
+          value: citvMeta.label,
+          subtitle: citvExento
+            ? `Exento hasta ${(vehicle.year ?? 0) + 3}`
+            : vehicle.citvStatus === "vigente" ? "vigente"
+            : vehicle.citvStatus === "vencido" ? "vencida"
+            : vehicle.citvStatus === "por_vencer" ? "por vencer"
+            : vehicle.citvStatus === "sin_registro" ? "sin registro"
+            : "pendiente",
           icon: ClipboardCheck,
         },
         {
@@ -574,6 +761,26 @@ export default function VehiculoDetallePage({ params }: Props) {
         }}>
           <AlertTriangle size={14} />
           SOAT vence en {soatDays} día{soatDays === 1 ? "" : "s"}. Considera renovarlo.
+        </div>
+      )}
+      {!citvExento && citvExpired && (
+        <div role="alert" style={{
+          padding: "10px 14px", background: REDBG, border: `1px solid ${REDBD}`,
+          borderRadius: 8, color: RED, fontSize: "0.8125rem", fontWeight: 600,
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <AlertTriangle size={14} />
+          CITV vencido hace {Math.abs(citvDays!)} días. Programa una revisión técnica antes de operar.
+        </div>
+      )}
+      {!citvExento && citvWarn && !citvExpired && (
+        <div role="status" style={{
+          padding: "10px 14px", background: AMBER_BG, border: `1px solid ${AMBER_BD}`,
+          borderRadius: 8, color: AMBER, fontSize: "0.8125rem", fontWeight: 500,
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <AlertTriangle size={14} />
+          CITV vence en {citvDays} día{citvDays === 1 ? "" : "s"}. Programa la próxima revisión.
         </div>
       )}
 
@@ -755,7 +962,7 @@ export default function VehiculoDetallePage({ params }: Props) {
                   )}
                 </div>
                 <div>
-                  <label htmlFor="vehicleTypeKey" style={LABEL}>Tipo de vehículo <span style={{ color: RED, marginLeft: 3 }}>*</span></label>
+                  <label htmlFor="vehicleTypeKey" style={LABEL}>Tipo de servicio <span style={{ color: RED, marginLeft: 3 }}>*</span></label>
                   <select
                     id="vehicleTypeKey" value={form.vehicleTypeKey}
                     onChange={e => handleChange("vehicleTypeKey", e.target.value)}
@@ -778,116 +985,271 @@ export default function VehiculoDetallePage({ params }: Props) {
             <SectionCard
               icon={<Building2 size={14} color={INK6} />}
               title="Datos del vehículo"
-              subtitle="Marca, modelo, año y estado operativo"
+              subtitle="Información operativa y registral"
             >
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div>
-                  <label htmlFor="brand" style={LABEL}>Marca <span style={{ color: RED, marginLeft: 3 }}>*</span></label>
-                  <input
-                    id="brand" type="text" value={form.brand}
-                    onChange={e => handleChange("brand", e.target.value)}
-                    placeholder="Ej. Toyota" maxLength={80}
-                    disabled={submitting || !canEdit}
-                    style={{ ...(canEdit ? FIELD : READ), borderColor: fieldErrors.brand ? RED : INK2 }}
-                    onFocus={e => { if (canEdit && !fieldErrors.brand) e.target.style.borderColor = INK9; }}
-                    onBlur={e => { if (!fieldErrors.brand) e.target.style.borderColor = INK2; }}
-                  />
-                  {fieldErrors.brand && <p style={{ marginTop: 5, fontSize: "0.75rem", color: RED, fontWeight: 500 }}>{fieldErrors.brand}</p>}
+              {/* ── Sección 1: Información operativa ── */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{
+                  fontSize: "0.6875rem", fontWeight: 700, color: INK5,
+                  textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10,
+                }}>
+                  Información operativa
                 </div>
-                <div>
-                  <label htmlFor="model" style={LABEL}>Modelo <span style={{ color: RED, marginLeft: 3 }}>*</span></label>
-                  <input
-                    id="model" type="text" value={form.model}
-                    onChange={e => handleChange("model", e.target.value)}
-                    placeholder="Ej. Hiace" maxLength={80}
-                    disabled={submitting || !canEdit}
-                    style={{ ...(canEdit ? FIELD : READ), borderColor: fieldErrors.model ? RED : INK2 }}
-                    onFocus={e => { if (canEdit && !fieldErrors.model) e.target.style.borderColor = INK9; }}
-                    onBlur={e => { if (!fieldErrors.model) e.target.style.borderColor = INK2; }}
-                  />
-                  {fieldErrors.model && <p style={{ marginTop: 5, fontSize: "0.75rem", color: RED, fontWeight: 500 }}>{fieldErrors.model}</p>}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div>
+                    <label htmlFor="companyId" style={LABEL}>Empresa de transporte</label>
+                    <select
+                      id="companyId" value={form.companyId}
+                      onChange={e => handleChange("companyId", e.target.value)}
+                      disabled={submitting || !canEdit}
+                      style={{ ...(canEdit ? FIELD : READ), appearance: "none", paddingRight: 30, cursor: canEdit ? "pointer" : "default" }}
+                    >
+                      <option value="">Sin empresa asignada</option>
+                      {empresas.map(emp => <option key={emp.id} value={emp.id}>{emp.razonSocial}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="status" style={LABEL}>Estado operativo</label>
+                    <select
+                      id="status" value={form.status}
+                      onChange={e => handleChange("status", e.target.value)}
+                      disabled={submitting || !canEdit}
+                      style={{ ...(canEdit ? FIELD : READ), appearance: "none", paddingRight: 30, cursor: canEdit ? "pointer" : "default" }}
+                    >
+                      <option value="">— Seleccionar —</option>
+                      <option value="disponible">Disponible</option>
+                      <option value="en_ruta">En ruta</option>
+                      <option value="en_mantenimiento">En mantenimiento</option>
+                      <option value="fuera_de_servicio">Fuera de servicio</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label htmlFor="year" style={LABEL}>Año <span style={{ color: RED, marginLeft: 3 }}>*</span></label>
-                  <input
-                    id="year" type="number" value={form.year}
-                    onChange={e => handleChange("year", e.target.value)}
-                    placeholder={String(CURRENT_YEAR)} min={1990} max={CURRENT_YEAR + 1}
-                    disabled={submitting || !canEdit}
-                    style={{
-                      ...(canEdit ? FIELD : READ),
-                      fontVariantNumeric: "tabular-nums",
-                      borderColor: fieldErrors.year ? RED : INK2,
-                    }}
-                    onFocus={e => { if (canEdit && !fieldErrors.year) e.target.style.borderColor = INK9; }}
-                    onBlur={e => { if (!fieldErrors.year) e.target.style.borderColor = INK2; }}
-                  />
-                  {fieldErrors.year && <p style={{ marginTop: 5, fontSize: "0.75rem", color: RED, fontWeight: 500 }}>{fieldErrors.year}</p>}
+              </div>
+
+              {/* ── Foto referencial ── */}
+              <div style={{ marginBottom: 16 }}>
+                <PhotoUploader
+                  category="vehicle"
+                  value={form.photoUrl || null}
+                  onChange={(url) => handleChange("photoUrl", url ?? "")}
+                  aspect="wide"
+                  label="Foto referencial del vehículo"
+                  disabled={submitting || !canEdit}
+                />
+              </div>
+
+              {/* ── Sección 2: Datos del vehículo ── */}
+              <div style={{ paddingTop: 16, borderTop: "1px solid #e4e4e7" }}>
+                <div style={{
+                  fontSize: "0.6875rem", fontWeight: 700, color: INK5,
+                  textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10,
+                }}>
+                  Datos del vehículo
                 </div>
-                <div>
-                  <label htmlFor="status" style={LABEL}>Estado operativo</label>
-                  <select
-                    id="status" value={form.status}
-                    onChange={e => handleChange("status", e.target.value)}
-                    disabled={submitting || !canEdit}
-                    style={{ ...(canEdit ? FIELD : READ), appearance: "none", paddingRight: 30, cursor: canEdit ? "pointer" : "default" }}
-                  >
-                    <option value="">— Seleccionar —</option>
-                    <option value="disponible">Disponible</option>
-                    <option value="en_ruta">En ruta</option>
-                    <option value="en_mantenimiento">En mantenimiento</option>
-                    <option value="fuera_de_servicio">Fuera de servicio</option>
-                  </select>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  {/* Nombre del propietario — full width */}
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label htmlFor="ownerName" style={LABEL}>Nombre del propietario</label>
+                    <input
+                      id="ownerName" type="text" value={form.ownerName}
+                      onChange={e => handleChange("ownerName", e.target.value)}
+                      placeholder="Propietario registral (SUNARP)"
+                      maxLength={200}
+                      disabled={submitting || !canEdit}
+                      style={{ ...(canEdit ? FIELD : READ) }}
+                      onFocus={e => { if (canEdit) e.target.style.borderColor = INK9; }}
+                      onBlur={e => { e.target.style.borderColor = INK2; }}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="brand" style={LABEL}>Marca <span style={{ color: RED, marginLeft: 3 }}>*</span></label>
+                    <input
+                      id="brand" type="text" value={form.brand}
+                      onChange={e => handleChange("brand", e.target.value)}
+                      placeholder="Ej. Toyota" maxLength={80}
+                      disabled={submitting || !canEdit}
+                      style={{ ...(canEdit ? FIELD : READ), borderColor: fieldErrors.brand ? RED : INK2 }}
+                      onFocus={e => { if (canEdit && !fieldErrors.brand) e.target.style.borderColor = INK9; }}
+                      onBlur={e => { if (!fieldErrors.brand) e.target.style.borderColor = INK2; }}
+                    />
+                    {fieldErrors.brand && <p style={{ marginTop: 5, fontSize: "0.75rem", color: RED, fontWeight: 500 }}>{fieldErrors.brand}</p>}
+                  </div>
+                  <div>
+                    <label htmlFor="model" style={LABEL}>Modelo <span style={{ color: RED, marginLeft: 3 }}>*</span></label>
+                    <input
+                      id="model" type="text" value={form.model}
+                      onChange={e => handleChange("model", e.target.value)}
+                      placeholder="Ej. Hiace" maxLength={80}
+                      disabled={submitting || !canEdit}
+                      style={{ ...(canEdit ? FIELD : READ), borderColor: fieldErrors.model ? RED : INK2 }}
+                      onFocus={e => { if (canEdit && !fieldErrors.model) e.target.style.borderColor = INK9; }}
+                      onBlur={e => { if (!fieldErrors.model) e.target.style.borderColor = INK2; }}
+                    />
+                    {fieldErrors.model && <p style={{ marginTop: 5, fontSize: "0.75rem", color: RED, fontWeight: 500 }}>{fieldErrors.model}</p>}
+                  </div>
+                  <div>
+                    <label htmlFor="year" style={LABEL}>Año <span style={{ color: RED, marginLeft: 3 }}>*</span></label>
+                    <input
+                      id="year" type="number" value={form.year}
+                      onChange={e => handleChange("year", e.target.value)}
+                      placeholder={String(CURRENT_YEAR)} min={1990} max={CURRENT_YEAR + 1}
+                      disabled={submitting || !canEdit}
+                      style={{
+                        ...(canEdit ? FIELD : READ),
+                        fontVariantNumeric: "tabular-nums",
+                        borderColor: fieldErrors.year ? RED : INK2,
+                      }}
+                      onFocus={e => { if (canEdit && !fieldErrors.year) e.target.style.borderColor = INK9; }}
+                      onBlur={e => { if (!fieldErrors.year) e.target.style.borderColor = INK2; }}
+                    />
+                    {fieldErrors.year && <p style={{ marginTop: 5, fontSize: "0.75rem", color: RED, fontWeight: 500 }}>{fieldErrors.year}</p>}
+                  </div>
                 </div>
               </div>
             </SectionCard>
 
-            {/* Empresa y SOAT */}
+            {/* Documentación */}
             <SectionCard
               icon={<ShieldCheck size={14} color={INK6} />}
-              title="Empresa y documentación"
-              subtitle="Asignación y vencimientos legales"
+              title="Documentación"
+              subtitle="SOAT y revisión técnica (CITV)"
             >
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div>
-                  <label htmlFor="companyId" style={LABEL}>Empresa de transporte</label>
-                  <select
-                    id="companyId" value={form.companyId}
-                    onChange={e => handleChange("companyId", e.target.value)}
-                    disabled={submitting || !canEdit}
-                    style={{ ...(canEdit ? FIELD : READ), appearance: "none", paddingRight: 30, cursor: canEdit ? "pointer" : "default" }}
-                  >
-                    <option value="">Sin empresa asignada</option>
-                    {empresas.map(emp => <option key={emp.id} value={emp.id}>{emp.razonSocial}</option>)}
-                  </select>
+              {/* ── SOAT ── */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{
+                  fontSize: "0.6875rem", fontWeight: 700, color: INK5,
+                  textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10,
+                }}>
+                  SOAT
                 </div>
-                <div>
-                  <label htmlFor="soatExpiry" style={LABEL}>
-                    Vencimiento SOAT
-                    {soatDays != null && (
-                      <span style={{
-                        color: soatExpired ? RED : soatWarn ? AMBER : INK5,
-                        fontWeight: 500, textTransform: "none", letterSpacing: 0, marginLeft: 6,
-                      }}>
-                        ({soatExpired ? `vencido hace ${Math.abs(soatDays)}d`
-                          : soatDays === 0 ? "vence hoy"
-                          : `en ${soatDays}d`})
-                      </span>
-                    )}
-                  </label>
-                  <div style={{ position: "relative" }}>
-                    <Calendar size={13} color={INK5} style={{
-                      position: "absolute", left: 11, top: "50%",
-                      transform: "translateY(-50%)", pointerEvents: "none",
-                    }} />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                  <div>
+                    <label htmlFor="soatExpiry" style={LABEL}>
+                      Vencimiento
+                      {soatDays != null && (
+                        <span style={{
+                          color: soatExpired ? RED : soatWarn ? AMBER : INK5,
+                          fontWeight: 500, textTransform: "none", letterSpacing: 0, marginLeft: 6,
+                        }}>
+                          ({soatExpired ? `vencido hace ${Math.abs(soatDays)}d`
+                            : soatDays === 0 ? "vence hoy"
+                            : `en ${soatDays}d`})
+                        </span>
+                      )}
+                    </label>
+                    <div style={{ position: "relative" }}>
+                      <Calendar size={13} color={INK5} style={{
+                        position: "absolute", left: 11, top: "50%",
+                        transform: "translateY(-50%)", pointerEvents: "none",
+                      }} />
+                      <input
+                        id="soatExpiry" type="date" value={form.soatExpiry}
+                        onChange={e => handleChange("soatExpiry", e.target.value)}
+                        disabled={submitting || !canEdit}
+                        style={{
+                          ...(canEdit ? FIELD : READ), paddingLeft: 32,
+                          borderColor: soatExpired ? RED : soatWarn ? AMBER : INK2,
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="soatInsurer" style={LABEL}>Aseguradora</label>
                     <input
-                      id="soatExpiry" type="date" value={form.soatExpiry}
-                      onChange={e => handleChange("soatExpiry", e.target.value)}
+                      id="soatInsurer" type="text" value={form.soatInsurer}
+                      onChange={e => handleChange("soatInsurer", e.target.value)}
+                      placeholder="Ej. Pacífico Seguros"
+                      maxLength={120}
+                      disabled={submitting || !canEdit}
+                      style={{ ...(canEdit ? FIELD : READ) }}
+                      onFocus={e => { if (canEdit) e.target.style.borderColor = INK9; }}
+                      onBlur={e => { e.target.style.borderColor = INK2; }}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="soatCertificate" style={LABEL}>N° Certificado</label>
+                    <input
+                      id="soatCertificate" type="text" value={form.soatCertificate}
+                      onChange={e => handleChange("soatCertificate", e.target.value)}
+                      placeholder="N° de póliza o certificado"
+                      maxLength={60}
+                      disabled={submitting || !canEdit}
+                      style={{ ...(canEdit ? FIELD : READ) }}
+                      onFocus={e => { if (canEdit) e.target.style.borderColor = INK9; }}
+                      onBlur={e => { e.target.style.borderColor = INK2; }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ── CITV ── */}
+              <div style={{ paddingTop: 12, borderTop: "1px solid #e4e4e7" }}>
+                <div style={{
+                  fontSize: "0.6875rem", fontWeight: 700, color: INK5,
+                  textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10,
+                }}>
+                  Revisión técnica (CITV)
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div>
+                    <label htmlFor="lastInspectionStatus" style={LABEL}>Estado</label>
+                    <select
+                      id="lastInspectionStatus" value={form.lastInspectionStatus}
+                      onChange={e => handleChange("lastInspectionStatus", e.target.value)}
+                      disabled={submitting || !canEdit}
+                      style={{ ...(canEdit ? FIELD : READ), appearance: "none", paddingRight: 30, cursor: canEdit ? "pointer" : "default" }}
+                    >
+                      <option value="">— Sin registro —</option>
+                      <option value="aprobada">Aprobada</option>
+                      <option value="observada">Observada</option>
+                      <option value="rechazada">Rechazada</option>
+                      <option value="pendiente">Pendiente</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="lastInspectionDate" style={LABEL}>Última inspección</label>
+                    <input
+                      id="lastInspectionDate" type="date" value={form.lastInspectionDate}
+                      onChange={e => handleChange("lastInspectionDate", e.target.value)}
+                      disabled={submitting || !canEdit}
+                      style={{ ...(canEdit ? FIELD : READ) }}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="citvExpiryDate" style={LABEL}>
+                      Vencimiento CITV
+                      {citvDays != null && (
+                        <span style={{
+                          marginLeft: 6, fontSize: "0.6875rem", fontWeight: 500,
+                          color: citvExpired ? RED : citvWarn ? AMBER : INK5,
+                        }}>
+                          ({citvExpired ? `vencido hace ${Math.abs(citvDays)}d`
+                            : citvDays === 0 ? "vence hoy"
+                            : `en ${citvDays}d`})
+                        </span>
+                      )}
+                    </label>
+                    <input
+                      id="citvExpiryDate" type="date" value={form.citvExpiryDate}
+                      onChange={e => handleChange("citvExpiryDate", e.target.value)}
                       disabled={submitting || !canEdit}
                       style={{
-                        ...(canEdit ? FIELD : READ), paddingLeft: 32,
-                        borderColor: soatExpired ? RED : soatWarn ? AMBER : INK2,
+                        ...(canEdit ? FIELD : READ),
+                        borderColor: canEdit ? (citvExpired ? RED : citvWarn ? AMBER : INK2) : "transparent",
                       }}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="lastInspectionCertificate" style={LABEL}>N° Certificado</label>
+                    <input
+                      id="lastInspectionCertificate" type="text" value={form.lastInspectionCertificate}
+                      onChange={e => handleChange("lastInspectionCertificate", e.target.value)}
+                      placeholder="N° de certificado CITV"
+                      maxLength={60}
+                      disabled={submitting || !canEdit}
+                      style={{ ...(canEdit ? FIELD : READ) }}
+                      onFocus={e => { if (canEdit) e.target.style.borderColor = INK9; }}
+                      onBlur={e => { e.target.style.borderColor = INK2; }}
                     />
                   </div>
                 </div>
@@ -901,14 +1263,30 @@ export default function VehiculoDetallePage({ params }: Props) {
             {/* Tarjeta de identidad (sobria) */}
             <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
               <div style={{ padding: "20px 16px 16px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 10 }}>
-                <div style={{
-                  width: 64, height: 64, borderRadius: 12,
-                  background: INK1, border: `1px solid ${INK2}`,
-                  color: INK6,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  <Car size={28} strokeWidth={1.8} />
-                </div>
+                {vehicle.photoUrl ? (
+                  <div style={{
+                    width: 80, height: 60, borderRadius: 10,
+                    overflow: "hidden", border: `1.5px solid ${INK2}`,
+                    background: INK1,
+                  }}>
+                    <Image
+                      src={vehicle.photoUrl}
+                      alt={`Foto de ${vehicle.plate}`}
+                      width={80} height={60}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      unoptimized
+                    />
+                  </div>
+                ) : (
+                  <div style={{
+                    width: 64, height: 64, borderRadius: 12,
+                    background: INK1, border: `1px solid ${INK2}`,
+                    color: INK6,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <Car size={28} strokeWidth={1.8} />
+                  </div>
+                )}
                 <div style={{ minWidth: 0, width: "100%" }}>
                   <div style={{ fontFamily: "ui-monospace,monospace", fontWeight: 800, fontSize: "1rem", color: INK9, letterSpacing: "0.04em" }}>
                     {vehicle.plate}
@@ -926,6 +1304,7 @@ export default function VehiculoDetallePage({ params }: Props) {
                 <SystemIdRow id={vehicle.id} />
                 <KeyValueRow k="Tipo" v={tipoNombre} />
                 <KeyValueRow k="Empresa" v={vehicle.companyName?.trim() || "—"} />
+                <KeyValueRow k="Propietario" v={vehicle.ownerName?.trim() || "—"} />
                 <KeyValueRow k="Año" v={String(vehicle.year)} mono />
                 <KeyValueRow k="Registrado" v={fmtDate(vehicle.createdAt)} />
                 <KeyValueRow k="Activo" v={vehicle.active ? "Sí" : "No"} />
@@ -945,7 +1324,7 @@ export default function VehiculoDetallePage({ params }: Props) {
             </Link>
 
             {/* Zona de peligro */}
-            {canEdit && (
+            {canDelete && (
               <DangerZoneSidebar
                 plate={vehicle.plate}
                 confirmDelete={confirmDelete}
@@ -957,6 +1336,15 @@ export default function VehiculoDetallePage({ params }: Props) {
           </div>
         </div>
       </form>
+
+      {/* ─── Historial Legal (Web Scraping) ─── */}
+      <ScrapingPanel
+        vehicle={vehicle}
+        scrapeData={scrapeData}
+        polling={scrapePolling}
+        loading={scrapeLoading}
+        onTriggerScrape={handleTriggerScrape}
+      />
 
       {!canEdit && (
         <div style={{
@@ -1206,5 +1594,197 @@ function DangerZoneSidebar({
         </div>
       )}
     </div>
+  );
+}
+
+/* ─── Panel de Historial Legal (Web Scraping) ─── */
+
+const SCRAPE_SOURCE_LABELS: Record<string, string> = {
+  soat: "SOAT",
+  mtc_citv: "MTC CITV",
+  sunarp_vehicular: "SUNARP",
+};
+
+const SCRAPE_STATUS_META: Record<string, { color: string; bg: string; bd: string; label: string }> = {
+  pending:     { color: "#1E40AF", bg: "#EFF6FF", bd: INFO_BD, label: "Pendiente" },
+  running:     { color: "#1E40AF", bg: "#EFF6FF", bd: INFO_BD, label: "Ejecutando..." },
+  ok:          { color: GRN, bg: GRNBG, bd: GRNBD, label: "Completado" },
+  error:       { color: RED, bg: REDBG, bd: REDBD, label: "Error" },
+  not_found:   { color: AMBER, bg: AMBER_BG, bd: AMBER_BD, label: "No encontrado" },
+};
+
+function ScrapingPanel({
+  vehicle, scrapeData, polling, loading, onTriggerScrape,
+}: {
+  vehicle: Vehicle | null;
+  scrapeData: ScrapingData | null;
+  polling: boolean;
+  loading: boolean;
+  onTriggerScrape: () => void;
+}) {
+  const status = vehicle?.scrapingStatus ?? "idle";
+
+  if (status === "idle") {
+    return (
+      <div style={{
+        padding: "16px", borderRadius: 10,
+        background: "#fff", border: `1px solid ${INK2}`,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <Search size={14} color={INK6} />
+          <span style={{ fontWeight: 700, fontSize: "0.8125rem", color: INK9 }}>
+            Historial Legal
+          </span>
+        </div>
+        <p style={{ fontSize: "0.75rem", color: INK5, lineHeight: 1.5, margin: "0 0 12px" }}>
+          Consulta automática de SOAT, revisiones técnicas (MTC) y antecedentes registrales (SUNARP).
+        </p>
+        <button onClick={onTriggerScrape} disabled={loading} style={{
+          ...BTN_PRIMARY, height: 32, fontSize: "0.75rem", padding: "0 14px",
+          display: "inline-flex", alignItems: "center", gap: 6,
+        }}>
+          {loading && <Loader2 size={11} style={{ animation: "spin 0.7s linear infinite" }} />}
+          <Search size={12} />Consultar historial legal
+        </button>
+      </div>
+    );
+  }
+
+  if (polling) {
+    return (
+      <div style={{
+        padding: "16px", borderRadius: 10,
+        background: "#EFF6FF", border: `1px solid ${INFO_BD}`,
+        display: "flex", alignItems: "center", gap: 10,
+      }}>
+        <Loader2 size={14} color="#1E40AF" style={{ animation: "spin 0.7s linear infinite" }} />
+        <div>
+          <div style={{ fontWeight: 700, fontSize: "0.8125rem", color: "#1E40AF" }}>
+            Consultando historial legal...
+          </div>
+          <div style={{ fontSize: "0.6875rem", color: INK5 }}>
+            SOAT, MTC CITV y SUNARP — esto puede tomar hasta 90 segundos
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!scrapeData) return null;
+
+  return (
+    <div style={{
+      padding: "16px", borderRadius: 10,
+      background: "#fff", border: `1px solid ${INK2}`,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <ShieldCheck size={14} color={INK6} />
+          <span style={{ fontWeight: 700, fontSize: "0.8125rem", color: INK9 }}>
+            Historial Legal
+          </span>
+          <ScrapeStatusBadge status={status} />
+        </div>
+        <button onClick={onTriggerScrape} disabled={loading} style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          height: 28, padding: "0 10px", borderRadius: 6,
+          border: `1px solid ${INK2}`, background: "#fff", color: INK6,
+          fontSize: "0.6875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+        }}>
+          {loading ? <Loader2 size={10} style={{ animation: "spin 0.7s linear infinite" }} /> : <RefreshCw size={10} />}
+          Re-consultar
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+        {["soat", "mtc_citv", "sunarp_vehicular"].map(source => {
+          const result = scrapeData.sources?.[source];
+          const meta = result ? SCRAPE_STATUS_META[result.status] ?? SCRAPE_STATUS_META.error : SCRAPE_STATUS_META.pending;
+          const data = result?.data as Record<string, unknown> | undefined;
+          return (
+            <div key={source} style={{
+              padding: "12px", borderRadius: 8,
+              background: INK1, border: `1px solid ${INK2}`,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <span style={{ fontWeight: 700, fontSize: "0.6875rem", color: INK9, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                  {SCRAPE_SOURCE_LABELS[source] ?? source}
+                </span>
+                <span style={{
+                  fontSize: "0.5625rem", fontWeight: 700, padding: "1px 6px", borderRadius: 4,
+                  background: meta.bg, color: meta.color, border: `1px solid ${meta.bd}`,
+                  letterSpacing: "0.03em", textTransform: "uppercase",
+                }}>
+                  {meta.label}
+                </span>
+              </div>
+              {result?.status === "ok" && data ? (
+                <div style={{ fontSize: "0.6875rem", color: INK6, lineHeight: 1.5 }}>
+                  {source === "soat" && (
+                    <>
+                      {data.aseguradora && <div>Aseguradora: <strong>{String(data.aseguradora)}</strong></div>}
+                      {data.vigencia && <div>Vigencia: {String(data.vigencia)}</div>}
+                      {data.poliza && <div>Póliza: {String(data.poliza)}</div>}
+                      {data.raw_text && !data.aseguradora && !data.vigencia && !data.poliza && (
+                        <div style={{ maxHeight: 120, overflow: "hidden", whiteSpace: "pre-wrap" }}>
+                          {String(data.raw_text).slice(0, 300)}
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {source === "mtc_citv" && (
+                    <>
+                      {data.ultimaRevision && <div>Última revisión: <strong>{String(data.ultimaRevision)}</strong></div>}
+                      {data.resultado && <div>Resultado: {String(data.resultado)}</div>}
+                      {data.centroInspeccion && <div>Centro: {String(data.centroInspeccion)}</div>}
+                      {data.proximaRevision && <div>Próxima: {String(data.proximaRevision)}</div>}
+                    </>
+                  )}
+                  {source === "sunarp_vehicular" && (
+                    <>
+                      {Array.isArray(data.titulares) && (data.titulares as string[]).length > 0 && (
+                        <div>Titulares: <strong>{(data.titulares as string[]).length}</strong></div>
+                      )}
+                      {Array.isArray(data.gravamenes) && (data.gravamenes as string[]).length > 0 && (
+                        <div>Gravámenes: <strong>{(data.gravamenes as string[]).length}</strong></div>
+                      )}
+                      {data.raw_text && !Array.isArray(data.titulares) && (
+                        <div style={{ maxHeight: 120, overflow: "hidden", whiteSpace: "pre-wrap" }}>
+                          {String(data.raw_text).slice(0, 300)}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              ) : result?.status === "not_found" ? (
+                <div style={{ fontSize: "0.6875rem", color: INK5 }}>No se encontraron registros</div>
+              ) : result?.status === "error" ? (
+                <div style={{ fontSize: "0.625rem", color: RED }}>
+                  {result.error ?? "Error desconocido"}
+                </div>
+              ) : (
+                <div style={{ fontSize: "0.6875rem", color: INK5 }}>Pendiente</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ScrapeStatusBadge({ status }: { status: string }) {
+  const m = SCRAPE_STATUS_META[status] ?? SCRAPE_STATUS_META.error;
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      padding: "2px 8px", borderRadius: 5,
+      background: m.bg, color: m.color, border: `1px solid ${m.bd}`,
+      fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.03em",
+      textTransform: "uppercase",
+    }}>
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
+      {m.label}
+    </span>
   );
 }

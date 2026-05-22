@@ -28,7 +28,8 @@ import { FIELD, READ, LABEL } from "@/lib/form-styles";
 const LICENSE_CATEGORIES = ["A-I", "A-IIa", "A-IIb", "A-IIIa", "A-IIIb", "A-IIIc"];
 
 interface Conductor {
-  id: string; name: string; dni: string; licenseNumber: string;
+  id: string; name: string; dni: string; email?: string | null;
+  licenseNumber: string;
   licenseCategory: string;
   licenseIssuedAt?: string | null;
   licenseExpiryDate?: string | null;
@@ -44,7 +45,7 @@ interface LinkedUser {
 }
 interface Empresa { id: string; razonSocial: string }
 interface FormData {
-  name: string; dni: string; licenseNumber: string;
+  name: string; dni: string; email: string; licenseNumber: string;
   licenseCategory: string;
   licenseIssuedAt: string;
   licenseExpiryDate: string;
@@ -52,7 +53,7 @@ interface FormData {
   photoUrl: string;
 }
 interface FieldErrors {
-  name?: string; dni?: string; licenseNumber?: string; licenseCategory?: string;
+  name?: string; dni?: string; email?: string; licenseNumber?: string; licenseCategory?: string;
   licenseExpiryDate?: string;
 }
 type DniLookup =
@@ -168,7 +169,7 @@ export default function ConductorDetallePage({ params }: Props) {
     sanctions: { total: number; totalSoles: number; lastAt: string | null; lastAmountSoles: number | null; lastStatus: string | null };
   } | null>(null);
   const [form, setForm] = useState<FormData>({
-    name: "", dni: "", licenseNumber: "", licenseCategory: "",
+    name: "", dni: "", email: "", licenseNumber: "", licenseCategory: "",
     licenseIssuedAt: "", licenseExpiryDate: "",
     companyId: "", phone: "", photoUrl: "",
   });
@@ -217,6 +218,7 @@ export default function ConductorDetallePage({ params }: Props) {
         setConductor(data);
         setForm({
           name: data.name ?? "", dni: data.dni ?? "",
+          email: data.email ?? "",
           licenseNumber: data.licenseNumber ?? "",
           licenseCategory: data.licenseCategory ?? "",
           licenseIssuedAt: data.licenseIssuedAt ? String(data.licenseIssuedAt).slice(0, 10) : "",
@@ -392,8 +394,10 @@ export default function ConductorDetallePage({ params }: Props) {
       next.name = "El nombre es requerido (mínimo 2 caracteres).";
     else if (form.name.trim().length > 160)
       next.name = "Máximo 160 caracteres.";
-    if (!form.dni.trim() || form.dni.trim().length < 6)
-      next.dni = "El DNI es requerido (mínimo 6 dígitos).";
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
+      next.email = "Correo electrónico inválido.";
+    if (!form.dni.trim() || !/^\d{8}$/.test(form.dni.trim()))
+      next.dni = "El DNI debe tener exactamente 8 dígitos.";
     if (!form.licenseNumber.trim() || form.licenseNumber.trim().length < 4)
       next.licenseNumber = "Licencia requerida (mínimo 4 caracteres).";
     if (!form.licenseCategory)
@@ -415,6 +419,7 @@ export default function ConductorDetallePage({ params }: Props) {
     const payload: Record<string, unknown> = {
       name: form.name.trim(),
       dni: form.dni.trim(),
+      email: form.email.trim() || null,
       licenseNumber: form.licenseNumber.trim(),
       licenseCategory: form.licenseCategory,
       licenseIssuedAt: form.licenseIssuedAt ? form.licenseIssuedAt : null,
@@ -809,6 +814,21 @@ export default function ConductorDetallePage({ params }: Props) {
                 )}
               </div>
 
+              <Field label="Correo electrónico" error={errors.email}>
+                <input
+                  type="email" value={form.email}
+                  onChange={e => handleChange("email", e.target.value)}
+                  style={{
+                    ...(canEdit ? FIELD : READ),
+                    ...(errors.email ? { borderColor: NO } : {}),
+                  }}
+                  placeholder="conductor@empresa.com"
+                  disabled={submitting || !canEdit} readOnly={!canEdit}
+                  onFocus={e => { if (canEdit && !errors.email) e.target.style.borderColor = INK9; }}
+                  onBlur={e => { if (!errors.email) e.target.style.borderColor = INK2; }}
+                />
+              </Field>
+
               <Field label="Teléfono">
                 <div style={{ position: "relative" }}>
                   <Phone size={13} color={INK5} style={{
@@ -1158,6 +1178,7 @@ export default function ConductorDetallePage({ params }: Props) {
             </div>
             <div style={{ padding: "0 16px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
               <KeyValueRow k="DNI" v={conductor.dni ?? "—"} mono />
+              {conductor.email && <KeyValueRow k="Correo" v={conductor.email} />}
               <KeyValueRow k="Licencia" v={conductor.licenseNumber ?? "—"} mono />
               <KeyValueRow k="Categoría" v={conductor.licenseCategory ?? "—"} />
               <KeyValueRow k="Empresa" v={conductor.companyName?.trim() || "—"} />
