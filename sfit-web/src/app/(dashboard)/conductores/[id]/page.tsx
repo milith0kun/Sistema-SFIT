@@ -702,6 +702,7 @@ export default function ConductorDetallePage({ params }: Props) {
             subtitle="Identidad verificable y datos de contacto"
           >
             <div className="cols-2-responsive" style={{ gap: 12 }}>
+              {/* Columna izquierda: identidad — DNI + RENIEC → Nombre */}
               <div>
                 <Field
                   label="DNI"
@@ -766,7 +767,7 @@ export default function ConductorDetallePage({ params }: Props) {
                     <input value={form.dni} style={{ ...READ, fontFamily: "ui-monospace, monospace" }} readOnly />
                   )}
                 </Field>
-                {/* Feedback inline OK — con botón "Aplicar nombre" si difiere */}
+                {/* Feedback RENIEC */}
                 {canEdit && dniLookup.state === "ok" && (() => {
                   const differs = form.name.trim().toLowerCase() !== dniLookup.nombreCompleto.toLowerCase();
                   if (!differs) {
@@ -814,6 +815,23 @@ export default function ConductorDetallePage({ params }: Props) {
                 )}
               </div>
 
+              {/* Columna derecha: nombre completo (se auto-completa con RENIEC) */}
+              <Field label="Nombre completo" error={errors.name} required={canEdit}>
+                <input
+                  type="text" value={form.name} maxLength={160}
+                  onChange={e => handleChange("name", e.target.value)}
+                  style={{
+                    ...(canEdit ? FIELD : READ),
+                    ...(errors.name ? { borderColor: NO } : {}),
+                  }}
+                  placeholder="Ej. Juan Carlos Pérez Quispe"
+                  disabled={submitting || !canEdit} readOnly={!canEdit}
+                  onFocus={e => { if (canEdit && !errors.name) e.target.style.borderColor = INK9; }}
+                  onBlur={e => { if (!errors.name) e.target.style.borderColor = INK2; }}
+                />
+              </Field>
+
+              {/* Fila 2: datos de contacto */}
               <Field label="Correo electrónico" error={errors.email}>
                 <input
                   type="email" value={form.email}
@@ -846,23 +864,6 @@ export default function ConductorDetallePage({ params }: Props) {
                   />
                 </div>
               </Field>
-
-              <div style={{ gridColumn: "1 / -1" }}>
-                <Field label="Nombre completo" error={errors.name} required={canEdit}>
-                  <input
-                    type="text" value={form.name} maxLength={160}
-                    onChange={e => handleChange("name", e.target.value)}
-                    style={{
-                      ...(canEdit ? FIELD : READ),
-                      ...(errors.name ? { borderColor: NO } : {}),
-                    }}
-                    placeholder="Ej. Juan Carlos Pérez Quispe"
-                    disabled={submitting || !canEdit} readOnly={!canEdit}
-                    onFocus={e => { if (canEdit && !errors.name) e.target.style.borderColor = INK9; }}
-                    onBlur={e => { if (!errors.name) e.target.style.borderColor = INK2; }}
-                  />
-                </Field>
-              </div>
             </div>
           </SectionCard>
 
@@ -1149,7 +1150,7 @@ export default function ConductorDetallePage({ params }: Props) {
         {/* Sidebar */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
-          {/* Tarjeta de identidad (sobria) */}
+          {/* 1. Tarjeta de identidad — quién es */}
           <div style={{ background: "#fff", border: `1px solid ${INK2}`, borderRadius: 10, overflow: "hidden" }}>
             <div style={{ padding: "20px 16px 16px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 10 }}>
               <div style={{
@@ -1186,95 +1187,7 @@ export default function ConductorDetallePage({ params }: Props) {
             </div>
           </div>
 
-          <SectionCard
-            icon={<TrendingUp size={14} color={INK6} />}
-            title="Estado operativo"
-            subtitle="Datos del FatigueEngine"
-          >
-            <div style={{
-              display: "flex", alignItems: "center", gap: 10,
-              padding: "10px 12px", borderRadius: 8,
-              background: INK1, border: `1px solid ${INK2}`,
-            }}>
-              <StIcon size={16} color={st.color} strokeWidth={1.8} />
-              <div style={{ flex: 1 }}>
-                <div style={{
-                  fontSize: "0.625rem", fontWeight: 800, letterSpacing: "0.08em",
-                  textTransform: "uppercase", color: INK5, marginBottom: 1,
-                }}>
-                  Estado
-                </div>
-                <div style={{ fontSize: "0.9375rem", fontWeight: 700, color: INK9, lineHeight: 1 }}>
-                  {st.label}
-                </div>
-              </div>
-            </div>
-            <div className="cols-2-responsive" style={{ gap: 6, marginTop: 8 }}>
-              <MiniRow label="Conducción continua" value={`${continuous}h`} />
-              <MiniRow label="Descanso restante" value={`${conductor.restHours ?? 0}h`} />
-              <MiniRow label="Reputación" value={`${rep}/100`} />
-              <MiniRow label="Activo" value={conductor.active ? "Sí" : "No"} />
-            </div>
-          </SectionCard>
-
-          {/* Historial laboral — todas las membresías conductor↔empresa,
-              abierta o cerrada. Sirve para auditar rotaciones cuando un
-              admin investiga un conductor con quejas recurrentes. */}
-          <SectionCard
-            icon={<Building2 size={14} color={INK6} />}
-            title="Historial laboral"
-            subtitle="Vinculaciones con empresas de transporte"
-          >
-            {history === null ? (
-              <div style={{ fontSize: "0.8125rem", color: INK5 }}>
-                <Loader2 size={13} style={{ animation: "spin 0.7s linear infinite", marginRight: 6 }} />
-                Cargando historial…
-              </div>
-            ) : history.length === 0 ? (
-              <div style={{ fontSize: "0.8125rem", color: INK5 }}>
-                Sin vinculaciones registradas.
-              </div>
-            ) : (
-              <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-                {history.map((m) => (
-                  <li key={m.id} style={{
-                    padding: "10px 12px", borderRadius: 8,
-                    background: m.isOpen ? APTO_BG : INK1,
-                    border: `1px solid ${m.isOpen ? APTO_BD : INK2}`,
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                      <span style={{
-                        fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.04em",
-                        textTransform: "uppercase",
-                        color: m.isOpen ? APTO : INK5,
-                      }}>
-                        {m.isOpen ? "Vigente" : "Cerrada"}
-                      </span>
-                      {m.leftReason && (
-                        <span style={{ fontSize: "0.6875rem", color: INK5 }}>
-                          · {m.leftReason.replace(/_/g, " ")}
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ fontWeight: 600, fontSize: "0.875rem", color: INK9 }}>
-                      {m.companyName ?? "(empresa eliminada)"}
-                    </div>
-                    {m.companyRuc && (
-                      <div style={{ fontSize: "0.6875rem", color: INK5, fontFamily: "ui-monospace, monospace" }}>
-                        RUC {m.companyRuc}
-                      </div>
-                    )}
-                    <div style={{ fontSize: "0.6875rem", color: INK6, marginTop: 4 }}>
-                      Desde {fmtDate(m.joinedAt)}
-                      {m.leftAt && ` · Hasta ${fmtDate(m.leftAt)}`}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </SectionCard>
-
-          {/* Cuenta de usuario vinculada */}
+          {/* 2. Cuenta de usuario — gestión de acceso */}
           {(linkedUser || loadingUser) && (
             <SectionCard
               icon={<Shield size={14} color={INK6} />}
@@ -1372,7 +1285,94 @@ export default function ConductorDetallePage({ params }: Props) {
             </SectionCard>
           )}
 
-          {/* Información del registro */}
+          {/* 3. Estado operativo — FatigueEngine */}
+          <SectionCard
+            icon={<TrendingUp size={14} color={INK6} />}
+            title="Estado operativo"
+            subtitle="Datos del FatigueEngine"
+          >
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "10px 12px", borderRadius: 8,
+              background: INK1, border: `1px solid ${INK2}`,
+            }}>
+              <StIcon size={16} color={st.color} strokeWidth={1.8} />
+              <div style={{ flex: 1 }}>
+                <div style={{
+                  fontSize: "0.625rem", fontWeight: 800, letterSpacing: "0.08em",
+                  textTransform: "uppercase", color: INK5, marginBottom: 1,
+                }}>
+                  Estado
+                </div>
+                <div style={{ fontSize: "0.9375rem", fontWeight: 700, color: INK9, lineHeight: 1 }}>
+                  {st.label}
+                </div>
+              </div>
+            </div>
+            <div className="cols-2-responsive" style={{ gap: 6, marginTop: 8 }}>
+              <MiniRow label="Conducción continua" value={`${continuous}h`} />
+              <MiniRow label="Descanso restante" value={`${conductor.restHours ?? 0}h`} />
+              <MiniRow label="Reputación" value={`${rep}/100`} />
+              <MiniRow label="Activo" value={conductor.active ? "Sí" : "No"} />
+            </div>
+          </SectionCard>
+
+          {/* 4. Historial laboral */}
+          <SectionCard
+            icon={<Building2 size={14} color={INK6} />}
+            title="Historial laboral"
+            subtitle="Vinculaciones con empresas de transporte"
+          >
+            {history === null ? (
+              <div style={{ fontSize: "0.8125rem", color: INK5 }}>
+                <Loader2 size={13} style={{ animation: "spin 0.7s linear infinite", marginRight: 6 }} />
+                Cargando historial…
+              </div>
+            ) : history.length === 0 ? (
+              <div style={{ fontSize: "0.8125rem", color: INK5 }}>
+                Sin vinculaciones registradas.
+              </div>
+            ) : (
+              <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+                {history.map((m) => (
+                  <li key={m.id} style={{
+                    padding: "10px 12px", borderRadius: 8,
+                    background: m.isOpen ? APTO_BG : INK1,
+                    border: `1px solid ${m.isOpen ? APTO_BD : INK2}`,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span style={{
+                        fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                        color: m.isOpen ? APTO : INK5,
+                      }}>
+                        {m.isOpen ? "Vigente" : "Cerrada"}
+                      </span>
+                      {m.leftReason && (
+                        <span style={{ fontSize: "0.6875rem", color: INK5 }}>
+                          · {m.leftReason.replace(/_/g, " ")}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontWeight: 600, fontSize: "0.875rem", color: INK9 }}>
+                      {m.companyName ?? "(empresa eliminada)"}
+                    </div>
+                    {m.companyRuc && (
+                      <div style={{ fontSize: "0.6875rem", color: INK5, fontFamily: "ui-monospace, monospace" }}>
+                        RUC {m.companyRuc}
+                      </div>
+                    )}
+                    <div style={{ fontSize: "0.6875rem", color: INK6, marginTop: 4 }}>
+                      Desde {fmtDate(m.joinedAt)}
+                      {m.leftAt && ` · Hasta ${fmtDate(m.leftAt)}`}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </SectionCard>
+
+          {/* 5. Información del registro — metadata del sistema */}
           <div style={{
             background: "#fff", border: `1px solid ${INK2}`, borderRadius: 12,
             overflow: "hidden",
@@ -1392,7 +1392,7 @@ export default function ConductorDetallePage({ params }: Props) {
             </div>
           </div>
 
-          {/* Zona de peligro */}
+          {/* 6. Zona de peligro — siempre al fondo */}
           {canEdit && (
             <DangerZoneSidebar
               name={conductor.name}
