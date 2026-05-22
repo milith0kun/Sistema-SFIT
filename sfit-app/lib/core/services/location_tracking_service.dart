@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io' show SocketException;
 import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBindingObserver, WidgetsBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -638,15 +640,29 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
     //      5xx, etc.) caemos al `_drainQueue` tradicional como red de
     //      seguridad. Mismo timeout dinámico que antes para acotar la
     //      espera del usuario.
-    final bulkOk = entryId != null
-        ? await _drainBulkAtCheckout(entryId)
-        : false;
+    bool bulkOk = false;
+    bool isNetError = false;
+    Object? netException;
+    try {
+      if (entryId != null) {
+        bulkOk = await _drainBulkAtCheckout(entryId);
+      }
+    } catch (e) {
+      if (_isNetworkError(e)) {
+        isNetError = true;
+        netException = e;
+      } else {
+        debugPrint('[LocationTracking] Error no-red durante bulk checkout: $e');
+      }
+    }
 
-    if (!bulkOk) {
+    if (!bulkOk && !isNetError) {
       final pending = _queue?.length ?? 0;
       final estimatedMs = pending * (_drainPace.inMilliseconds + 200) + 5000;
+      // Reducimos el timeout del fallback a un máximo de 8 segundos en total
+      // para no frustrar al conductor si la red está lenta pero activa.
       final drainTimeout = Duration(
-        milliseconds: estimatedMs.clamp(15000, 120000),
+        milliseconds: estimatedMs.clamp(5000, 8000),
       );
       try {
         await _drainQueue().timeout(drainTimeout);
@@ -662,6 +678,28 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
       queuedPoints: _queue?.length ?? 0,
       droppedByOverflow: _readDroppedCount(),
     );
+
+    // Si fue un error de red, propagamos el error para que la UI de TripCheckoutPage lo capture.
+    if (isNetError && netException != null) {
+      throw netException;
+    }
+  }
+
+  /// Detiene el tracking localmente de forma inmediata e incondicional,
+  /// limpiando SharedPreferences y deteniendo los streams de geolocalización.
+  /// No realiza llamadas de red ni drains bloqueantes.
+  Future<void> forceStopTrackingLocal() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_kActiveEntryIdKey);
+    } catch (_) {/* no crítico */}
+
+    await _stopStreamsKeepState();
+    state = TrackingState(
+      queuedPoints: _queue?.length ?? 0,
+      droppedByOverflow: _readDroppedCount(),
+    );
+    debugPrint('[LocationTracking] forceStopTrackingLocal ejecutado con éxito.');
   }
 
   Future<void> _stopStreamsKeepState() async {
@@ -786,6 +824,21 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
     return totalInserted;
   }
 
+  bool _isNetworkError(Object e) {
+    if (e is DioException) {
+      return e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError ||
+          e.error is SocketException ||
+          e.message?.contains('SocketException') == true;
+    }
+    if (e is SocketException) {
+      return true;
+    }
+    return false;
+  }
+
   /// Drain bulk al cerrar turno. Sube TODO el track del `entryId` en chunks
   /// (4500 pts/request) en lugar de drenar la cola un punto a la vez. Antes:
   /// 300 pts × 1.1s de `_drainPace` = >5 min de espera mínima, más en
@@ -825,8 +878,13 @@ class LocationTrackingNotifier extends StateNotifier<TrackingState>
       } catch (e) {
         debugPrint('[LocationTracking] bulk checkout falló attempt '
             '${i + 1}/${attempts.length} entryId=$entryId: $e');
-        // Próximo intento aplicará su delay; al agotar attempts caemos al
-        // fallback single.
+        
+        // Si detectamos un error de red, abortamos reintentos de inmediato.
+        // Propagamos la excepción para que stopTracking la capture y aborte el fallback.
+        if (_isNetworkError(e)) {
+          debugPrint('[LocationTracking] Abortando bulk checkout por error de red en intento ${i + 1}');
+          throw e;
+        }
       }
     }
     return false;

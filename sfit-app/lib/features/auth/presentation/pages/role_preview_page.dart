@@ -23,7 +23,7 @@ class _RolePreviewPageState extends ConsumerState<RolePreviewPage> {
     _RoleOption(
       slug: 'ciudadano',
       label: 'Ciudadano',
-      description: 'Reportar vehículos, feed comunitario, premios.',
+      description: 'Reportar vehículos, feed comunitario.',
       icon: Icons.person_pin_rounded,
       accent: AppColors.info,
       accentBg: AppColors.infoBg,

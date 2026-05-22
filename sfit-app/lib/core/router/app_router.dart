@@ -61,7 +61,6 @@ import '../../features/trips/presentation/pages/tracking_diagnostics_page.dart';
 import '../../features/public/presentation/pages/vehicle_public_page.dart';
 import '../../features/trips/presentation/pages/route_detail_page.dart';
 import '../../features/trips/presentation/pages/route_edit_page.dart';
-import '../../features/rewards/presentation/pages/ranking_page.dart';
 import '../../features/feed/data/models/feed_report_model.dart';
 import '../../features/feed/presentation/pages/feed_detail_page.dart';
 import '../../features/reports/presentation/pages/mis_reportes_page.dart';
@@ -481,8 +480,6 @@ GoRouter router(Ref ref) {
         },
       ),
 
-      // ── RF-16: Ranking de ciudadanos ──────────────────────────
-      GoRoute(path: '/ranking', builder: (_, __) => const RankingPage()),
 
       // ── RF-09: Edición de ruta (operador) ─────────────────────
       GoRoute(

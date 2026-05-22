@@ -534,7 +534,7 @@ class OperatorApiService {
   Future<String> getVehicleQrToken(String vehicleId) async {
     final resp = await _dio.get('/vehiculos/$vehicleId/qr');
     final data = (resp.data as Map)['data'] as Map<String, dynamic>;
-    return data['token'] as String? ?? data['qrToken'] as String? ?? '';
+    return data['qrJson'] as String? ?? data['token'] as String? ?? data['qrToken'] as String? ?? '';
   }
 
   // Empresas (para validate_capture al asignar empresa a la ruta) ───────────

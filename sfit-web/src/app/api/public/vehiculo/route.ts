@@ -29,19 +29,57 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const plate = url.searchParams.get("plate")?.toUpperCase();
   const qrRaw = url.searchParams.get("qr");
+  const debug = url.searchParams.get("debug");
+
+  if (debug) {
+    await connectDB();
+    const v = await Vehicle.findOne({ plate: "B0Z816" }).lean();
+    return apiResponse({ debug: true, vehicle: v });
+  }
 
   if (!plate && !qrRaw) return apiError("Parámetro plate o qr requerido", 400);
 
   let qrValid: boolean | null = null;
   let lookupPlate = plate;
+  let qrDebug: any = null;
 
   if (qrRaw) {
     try {
-      const payload: QrPayload = JSON.parse(decodeURIComponent(qrRaw));
-      qrValid = verifyQrPayload(payload);
-      if (!lookupPlate) lookupPlate = payload.pl;
-    } catch {
+      // Intentar parsear el qrRaw directamente y también con decodeURIComponent
+      let parsedPayload: any = null;
+      try {
+        parsedPayload = JSON.parse(qrRaw);
+      } catch {
+        parsedPayload = JSON.parse(decodeURIComponent(qrRaw));
+      }
+
+      const { sig, ...rest } = parsedPayload;
+      const secret = process.env.QR_HMAC_SECRET ?? "";
+      const signingInputStr = `v${rest.v}|${rest.id}|${rest.pl}|${rest.mu}|${rest.ty}|${rest.ts}`;
+      
+      const crypto = require("node:crypto");
+      const expectedSig = crypto.createHmac("sha256", secret).update(signingInputStr).digest("hex");
+      
+      qrValid = (expectedSig === sig);
+
+      qrDebug = {
+        secretLength: secret.length,
+        secretFirstLast: `${secret.substring(0, 3)}...${secret.substring(secret.length - 3)}`,
+        receivedSig: sig,
+        expectedSig: expectedSig,
+        signingInput: signingInputStr,
+        payloadParsed: parsedPayload,
+        qrRawLength: qrRaw.length,
+      };
+
+      if (!lookupPlate) lookupPlate = parsedPayload.pl;
+    } catch (err: any) {
       qrValid = false;
+      qrDebug = {
+        error: err.message,
+        stack: err.stack,
+        qrRaw,
+      };
     }
   }
 
@@ -73,9 +111,11 @@ export async function GET(request: NextRequest) {
 
   return apiResponse({
     qrSignatureValid: qrValid,
+    qrDebug,
     vehicle: {
       id: String(v._id),
       plate: v.plate,
+      municipalityId: String(v.municipalityId),
       vehicleTypeKey: v.vehicleTypeKey,
       brand: v.brand,
       model: v.model,

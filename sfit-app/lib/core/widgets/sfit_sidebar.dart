@@ -116,11 +116,9 @@ class SfitSidebar extends ConsumerWidget {
               _NavItem(icon: Icons.campaign_outlined, label: 'Reportar', slug: 'reportar'),
               _NavItem(icon: Icons.directions_bus_outlined, label: 'Buses en vivo', route: '/buses-en-vivo'),
               _NavItem(icon: Icons.qr_code_scanner_outlined, label: 'Escanear QR', route: '/qr'),
-              _NavItem(icon: Icons.search_rounded, label: 'Buscar vehículo', route: '/buscar-vehiculo'),
             ]),
             _NavSection(label: 'Mi actividad', items: [
               _NavItem(icon: Icons.list_alt_outlined, label: 'Mis reportes', slug: 'mis-reportes'),
-              _NavItem(icon: Icons.emoji_events_outlined, label: 'Premios', slug: 'premios'),
             ]),
             _NavSection(label: 'Mi cuenta', items: [
               _NavItem(icon: Icons.person_outline, label: 'Mi perfil', slug: 'perfil'),

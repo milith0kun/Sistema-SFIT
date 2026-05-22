@@ -4,8 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../shared/widgets/widgets.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
-import '../../../../rewards/data/datasources/rewards_api_service.dart';
-import '../../../../rewards/data/models/reward_model.dart';
 import '../../../../reports/data/datasources/reports_api_service.dart';
 
 class CitizenDashboardPage extends ConsumerStatefulWidget {
@@ -19,7 +17,6 @@ class CitizenDashboardPage extends ConsumerStatefulWidget {
 }
 
 class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
-  CoinsStatus? _coins;
   int _totalReportes = 0;
   int _reportesPendientes = 0;
   int _reportesValidados = 0;
@@ -33,16 +30,10 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
 
   Future<void> _load() async {
     try {
-      final coinsFut = ref.read(rewardsApiServiceProvider).getCoinsStatus();
-      final reportsFut = ref
+      final reportesMap = await ref
           .read(reportsApiServiceProvider)
           .getMisReportes(limit: 100);
-      final results = await Future.wait([coinsFut, reportsFut]);
       if (!mounted) return;
-      final coins = results[0] is CoinsStatus ? results[0] as CoinsStatus : null;
-      final reportesMap = results[1] is Map<String, dynamic>
-          ? results[1] as Map<String, dynamic>
-          : <String, dynamic>{};
       final reportes = reportesMap['items'] as List? ?? const [];
 
       int pendientes = 0;
@@ -54,7 +45,6 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
       }
 
       setState(() {
-        _coins = coins;
         _totalReportes = reportes.length;
         _reportesPendientes = pendientes;
         _reportesValidados = validados;
@@ -69,8 +59,6 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider).user;
     final name = user?.name.split(' ').first ?? 'Ciudadano';
-    final coinsValue = _coins?.balance.toString() ?? '—';
-    final nivelLabel = _coins?.nivelLabel ?? '—';
 
     return SafeArea(
       child: RefreshIndicator(
@@ -87,10 +75,6 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
                 title: '¡Hola, $name!',
                 subtitle: 'Participa y mejora el transporte de tu ciudad.',
                 pills: [
-                  SfitHeroPill(
-                    label: 'SFITCoins',
-                    value: _loading ? '...' : coinsValue,
-                  ),
                   SfitHeroPill(
                     label: 'Reportes',
                     value: _loading ? '...' : '$_totalReportes',
@@ -115,13 +99,6 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
                     subtitle: 'Aprobados',
                     accent: AppColors.apto,
                   ),
-                  SfitKpiCardData(
-                    icon: Icons.emoji_events_outlined,
-                    label: 'Nivel',
-                    value: _loading ? '—' : nivelLabel,
-                    subtitle: 'Gamificación',
-                    accent: AppColors.info,
-                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -140,6 +117,12 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
                     label: 'CONSULTAS',
                     icon: Icons.search_rounded,
                     modules: [
+                      SfitFeatureCard(
+                        icon: Icons.search_rounded,
+                        title: 'Buscar vehículo',
+                        subtitle: 'Consulta estado y datos',
+                        onTap: () => context.push('/buscar-vehiculo'),
+                      ),
                       SfitFeatureCard(
                         icon: Icons.directions_bus_outlined,
                         title: 'Buses en vivo',
@@ -179,18 +162,6 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
                         title: 'Feed',
                         subtitle: 'Reportes sociales',
                         onTap: () => widget.onSelectTab('inicio-feed'),
-                      ),
-                      SfitFeatureCard(
-                        icon: Icons.leaderboard_outlined,
-                        title: 'Ranking',
-                        subtitle: 'Top ciudadanos',
-                        onTap: () => context.push('/ranking'),
-                      ),
-                      SfitFeatureCard(
-                        icon: Icons.emoji_events_outlined,
-                        title: 'Premios',
-                        subtitle: 'Canjear puntos',
-                        onTap: () => widget.onSelectTab('premios'),
                       ),
                     ],
                   ),

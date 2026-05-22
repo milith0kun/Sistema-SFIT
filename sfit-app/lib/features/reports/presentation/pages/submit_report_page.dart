@@ -481,11 +481,8 @@ class _SubmitReportPageState extends ConsumerState<SubmitReportPage> {
         duration: const Duration(seconds: 4),
       ),
     );
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go('/home?tab=mis-reportes');
-    }
+    // Redireccionar siempre al historial de reportes del ciudadano
+    context.go('/home?tab=mis-reportes');
   }
 
   // ── Sugerencia de categoría ──────────────────────────────────────

@@ -1,3 +1,6 @@
+import 'package:flutter/foundation.dart';
+import 'api_constants.dart';
+
 /// Constantes generales de la aplicación
 class AppConstants {
   AppConstants._();
@@ -13,10 +16,14 @@ class AppConstants {
       'https://play.google.com/store/apps/details?id=com.sfit.sfit_app';
 
   // QR
-  static const String qrSecretKey = String.fromEnvironment(
-    'SFIT_QR_SECRET',
-    defaultValue: 'SFIT_QR_SECRET_KEY',
-  );
+  static String get qrSecretKey {
+    const envSecret = String.fromEnvironment('SFIT_QR_SECRET');
+    if (envSecret.isNotEmpty) return envSecret;
+    if (kReleaseMode || ApiConstants.baseUrl.contains('ecosdelseo.com')) {
+      return 'sfit_qr_hmac_prod_2026';
+    }
+    return 'sfit_qr_hmac_dev_2026';
+  }
 
   // URLs
   static const String webLoginUrl = 'https://sfit.ecosdelseo.com/login';

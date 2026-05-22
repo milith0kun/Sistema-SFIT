@@ -10,14 +10,11 @@ import '../models/qr_payload.dart';
 ///
 /// En debug, cae en la clave de desarrollo si no se provee el define.
 class QrHmacService {
-  static const String _secret = AppConstants.qrSecretKey;
-
-  static final _key = utf8.encode(_secret);
-
   /// Retorna `true` si la firma del payload es válida.
   static bool verify(QrPayload payload) {
+    final key = utf8.encode(AppConstants.qrSecretKey);
     final input = utf8.encode(payload.signingInput);
-    final hmac = Hmac(sha256, _key);
+    final hmac = Hmac(sha256, key);
     final digest = hmac.convert(input).toString();
     return _constantTimeEquals(digest, payload.sig);
   }

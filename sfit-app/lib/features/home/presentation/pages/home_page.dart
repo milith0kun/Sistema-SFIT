@@ -27,7 +27,6 @@ import '../../../trips/presentation/pages/fatigue_page.dart';
 import '../../../trips/presentation/pages/my_routes_page.dart';
 import '../../../trips/presentation/pages/my_trips_page.dart';
 import '../../../trips/presentation/pages/trip_map_page.dart';
-import '../../../rewards/presentation/pages/rewards_page.dart';
 import 'dashboards/citizen_dashboard_page.dart';
 import 'dashboards/conductor_dashboard_page.dart';
 import 'dashboards/fiscal_dashboard_page.dart';
@@ -212,6 +211,12 @@ class _HomePageState extends ConsumerState<HomePage> {
           firstName: user.name.split(' ').first,
         ),
         actions: [
+          if (user.role == 'ciudadano')
+            IconButton(
+              tooltip: 'Buscar vehículo',
+              icon: const Icon(Icons.search_rounded, color: AppColors.ink9, size: 22),
+              onPressed: () => context.push('/buscar-vehiculo'),
+            ),
           _NotificationBell(
             count: _unreadNotifCount,
             onPressed: () async {
@@ -497,13 +502,6 @@ class _HomePageState extends ConsumerState<HomePage> {
             icon: Icons.campaign_outlined,
             iconFilled: Icons.campaign,
             page: SubmitReportPage(),
-          ),
-          const _Tab(
-            slug: 'premios',
-            label: 'Premios',
-            icon: Icons.emoji_events_outlined,
-            iconFilled: Icons.emoji_events,
-            page: RewardsPage(),
           ),
           const _Tab(
             slug: 'perfil',

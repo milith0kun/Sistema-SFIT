@@ -98,17 +98,155 @@ class _TripCheckoutPageState extends ConsumerState<TripCheckoutPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${_extractError(e)}'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: AppColors.noApto,
-          ),
-        );
+        _mostrarDialogoError(e);
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  void _mostrarDialogoError(Object e) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.cloud_off_rounded, color: AppColors.noApto, size: 28),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Error al cerrar turno',
+                  style: AppTheme.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.ink9,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'No se pudo conectar con el servidor para registrar el cierre de tu turno.',
+                style: AppTheme.inter(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ink8,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Detalle: ${_extractError(e)}',
+                style: AppTheme.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.ink5,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Si estás en una zona sin cobertura o hay fallos de conexión, puedes realizar un "Cierre Forzado". Tu recorrido está guardado localmente de forma segura y se sincronizará automáticamente apenas recuperes señal.',
+                style: AppTheme.inter(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.ink6,
+                ),
+              ),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: Text(
+                    'Cancelar',
+                    style: AppTheme.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.ink6,
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        _cerrarTurno();
+                      },
+                      child: Text(
+                        'Reintentar',
+                        style: AppTheme.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.gold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    ElevatedButton(
+                      onPressed: () async {
+                        Navigator.of(ctx).pop();
+                        setState(() => _submitting = true);
+                        try {
+                          // Cierre forzado local
+                          await ref.read(locationTrackingProvider.notifier).forceStopTrackingLocal();
+                          ref.invalidate(myFleetEntriesProvider);
+                          ref.invalidate(myRoutesProvider);
+                          ref.invalidate(misRecorridosProvider);
+                          if (mounted) {
+                            context.pushReplacement('/conductor/trip-summary/${widget.entryId}');
+                          }
+                        } catch (err) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error al forzar cierre: $err'),
+                                behavior: SnackBarBehavior.floating,
+                                backgroundColor: AppColors.noApto,
+                              ),
+                            );
+                          }
+                        } finally {
+                          if (mounted) setState(() => _submitting = false);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.noApto,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Cierre Forzado',
+                        style: AppTheme.inter(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
   }
 
   String _extractError(Object e) {
@@ -117,7 +255,7 @@ class _TripCheckoutPageState extends ConsumerState<TripCheckoutPage> {
       if (data is Map && data['error'] is String) return data['error'] as String;
       if (data is Map && data['message'] is String) return data['message'] as String;
     }
-    return 'No se pudo cerrar el turno';
+    return e.toString();
   }
 
   @override

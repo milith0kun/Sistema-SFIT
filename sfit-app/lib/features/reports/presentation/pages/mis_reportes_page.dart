@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -789,6 +790,10 @@ class _ReportDetailSheet extends ConsumerWidget {
                     label: 'Vehículo',
                     value: vehiclePlate,
                     valueIsTabular: true,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      context.push('/vehiculo-publico/$vehiclePlate');
+                    },
                   ),
                   const SizedBox(height: 8),
                 ],
@@ -902,17 +907,19 @@ class _DetailRow extends StatelessWidget {
   final String label;
   final String value;
   final bool valueIsTabular;
+  final VoidCallback? onTap;
 
   const _DetailRow({
     required this.icon,
     required this.label,
     required this.value,
     this.valueIsTabular = false,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final content = Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
@@ -945,14 +952,43 @@ class _DetailRow extends StatelessWidget {
                 style: AppTheme.inter(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.ink9,
+                  color: onTap != null ? AppColors.gold : AppColors.ink9,
                   tabular: valueIsTabular,
+                ).copyWith(
+                  decoration: onTap != null ? TextDecoration.underline : null,
                 ),
               ),
             ],
           ),
         ),
+        if (onTap != null) ...[
+          const SizedBox(width: 8),
+          const Icon(
+            Icons.chevron_right_rounded,
+            size: 16,
+            color: AppColors.gold,
+          ),
+        ],
       ],
+    );
+
+    if (onTap != null) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            child: content,
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+      child: content,
     );
   }
 }

@@ -119,23 +119,61 @@ class _TripSummaryPageState extends ConsumerState<TripSummaryPage> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      // Cargamos en paralelo: detalle del backend + track persistido local.
-      // Sin el track local, si el backend está vacío (pings perdidos) el
-      // mapa quedaba en blanco aunque la app SÍ había capturado los pings
-      // durante el turno.
       final tracking = ref.read(locationTrackingProvider.notifier);
-      final results = await Future.wait([
-        ref.read(tripsApiServiceProvider).getFleetEntryDetail(widget.entryId),
-        tracking.getPersistedTrack(widget.entryId),
-      ]);
-      final data = results[0] as Map<String, dynamic>;
-      final localTrack = results[1] as List<LatLng>;
+      final localTrack = await tracking.getPersistedTrack(widget.entryId);
+
+      Map<String, dynamic>? data;
+      try {
+        data = await ref.read(tripsApiServiceProvider).getFleetEntryDetail(widget.entryId);
+      } catch (err) {
+        debugPrint('[TripSummary] Error cargando detalle del backend: $err');
+
+        // Si no hay red y tenemos track local persistido, creamos un fallback para evitar la pantalla de error dura
+        if (localTrack.isNotEmpty) {
+          Map<String, dynamic>? cached;
+          try {
+            final cachedEntries = ref.read(myFleetEntriesProvider).value;
+            if (cachedEntries != null) {
+              cached = cachedEntries.firstWhere((e) => e['id'] == widget.entryId || e['_id'] == widget.entryId);
+            }
+          } catch (_) {}
+
+          final vehicleData = cached != null && cached['vehicle'] != null
+              ? cached['vehicle']
+              : (cached != null && cached['vehicleId'] is Map
+                  ? cached['vehicleId']
+                  : { 'plate': 'Vehículo' });
+
+          final routeData = cached != null && cached['route'] != null
+              ? cached['route']
+              : (cached != null && cached['routeId'] is Map
+                  ? cached['routeId']
+                  : null);
+
+          data = {
+            'id': widget.entryId,
+            'vehicleId': vehicleData,
+            'routeId': routeData,
+            'distanceMeters': 0,
+            'durationSeconds': 0,
+            'routeCompliancePercentage': 0,
+            'visitedStops': const [],
+            'trackPoints': const [],
+            'capture': null,
+          };
+        } else {
+          // Si no hay track local ni datos de red, propagamos el error original
+          rethrow;
+        }
+      }
+
       if (!mounted) return;
       setState(() {
         _entry = data;
         _persistedTrack = localTrack;
         _loading = false;
       });
+
       // Si el backend devolvió trackPoints vacío PERO tenemos track local,
       // el ping-by-ping falló durante el turno. Intentamos el bulk upload
       // una sola vez: el backend dedupa, así que es seguro reintentar.
