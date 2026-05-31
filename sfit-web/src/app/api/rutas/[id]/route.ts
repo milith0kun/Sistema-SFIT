@@ -8,7 +8,7 @@ import { requireRole } from "@/lib/auth/guard";
 import { ROLES } from "@/lib/constants";
 import { canAccessMunicipality } from "@/lib/auth/rbac";
 import { SERVICE_SCOPES } from "@/models/Company";
-import { validateRouteByScope } from "../route";
+import { validateRouteByScope } from "@/lib/routing/validation";
 import { rolesFor } from "@/lib/auth/roleMatrix";
 
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;

@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     const userScopeFilter = municipalityId ? { municipalityId } : {};
 
     const sanctionFilter = { ...muniFilter, createdAt: { $gte: monthStart, $lte: monthEnd } };
-    const reportFilter = { ...muniFilter, status: { $in: ["pendiente", "revision"] } };
+    const reportFilter = { ...muniFilter, status: { $in: ["pendiente", "revision"] as const } };
 
     const [
       provincesCount,

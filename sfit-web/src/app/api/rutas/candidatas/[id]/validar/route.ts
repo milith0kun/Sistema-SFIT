@@ -170,7 +170,7 @@ export async function POST(
  *
  * Limita a máximo 30 paradas (toma las más distribuidas si hay más).
  */
-export function detectStopClusters(
+function detectStopClusters(
   points: Array<{ lat: number; lng: number; ts: Date }>,
 ): Array<{ lat: number; lng: number; label?: string; order: number }> {
   if (points.length < 2) return [];

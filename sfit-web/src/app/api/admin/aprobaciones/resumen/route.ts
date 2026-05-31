@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
         ? {}
         : { municipalityId: auth.session.municipalityId };
 
-    const userFilter = { ...baseMuniMatch, status: "pendiente" };
+    const userFilter = { ...baseMuniMatch, status: "pendiente" as const };
     const companyPendingFilter = {
       ...baseMuniMatch,
       active: false,
