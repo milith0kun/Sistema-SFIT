@@ -13,4 +13,4 @@ cmds = ["npm install"]
 cmds = ["npm run build"]
 
 [start]
-cmd = "su -p node -c 'npm run start'"
+cmd = "su -p node -c \"PATH=$PATH npm run start\""
