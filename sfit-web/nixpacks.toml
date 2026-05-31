@@ -2,15 +2,13 @@
 npm_config_legacy_peer_deps = "true"
 NODE_ENV = "production"
 
-[phases.setup]
-nixPkgs = ["nodejs_22"]
-cmds = ["useradd -m -s /bin/bash node || true"]
+providers = ["node"]
 
 [phases.install]
 cmds = ["npm install"]
 
 [phases.build]
-cmds = ["npm run build", "chown -R node:node /app || true"]
+cmds = ["npm run build"]
 
 [start]
-cmd = "su -p node -c \"PATH=$PATH npm run start\""
+cmd = "npm run start"
