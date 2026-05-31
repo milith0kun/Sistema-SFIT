@@ -109,11 +109,11 @@ class SfitSidebar extends ConsumerWidget {
         'ciudadano' => const [
             _NavSection(label: 'Panel', items: [
               _NavItem(icon: Icons.home_outlined, label: 'Inicio', slug: 'inicio'),
-              _NavItem(icon: Icons.dynamic_feed_outlined, label: 'Feed comunitario', slug: 'inicio-feed'),
+              _NavItem(icon: Icons.people_alt_outlined, label: 'Red Social Vial', slug: 'red-social-vial'),
               _NavItem(icon: Icons.notifications_outlined, label: 'Notificaciones', slug: 'notificaciones', route: '/notificaciones'),
             ]),
             _NavSection(label: 'Acciones', items: [
-              _NavItem(icon: Icons.campaign_outlined, label: 'Reportar', slug: 'reportar'),
+              _NavItem(icon: Icons.campaign_outlined, label: 'Reportar', route: '/reportar'),
               _NavItem(icon: Icons.directions_bus_outlined, label: 'Buses en vivo', route: '/buses-en-vivo'),
               _NavItem(icon: Icons.qr_code_scanner_outlined, label: 'Escanear QR', route: '/qr'),
             ]),

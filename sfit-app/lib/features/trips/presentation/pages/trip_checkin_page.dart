@@ -7,6 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/battery_optimization_service.dart';
 import '../../../../core/services/location_tracking_service.dart';
 import '../../data/datasources/trips_api_service.dart';
+import '../../data/models/trip_model.dart';
 import '../../../fleet/data/datasources/fleet_api_service.dart';
 import 'my_routes_page.dart' show misRecorridosProvider;
 
@@ -38,6 +39,9 @@ class _TripCheckinPageState extends ConsumerState<TripCheckinPage> {
   /// Preferencias del conductor (última unidad/ruta usadas).
   DriverPreferences? _prefs;
 
+  /// Viaje asignado por el operador que ya fue aceptado.
+  TripModel? _assignedTrip;
+
   /// Estado del permiso GPS — bloquea el paso 1 hasta obtener "granted".
   LocationPermissionResult? _permissionResult;
   bool _checkingPermission = false;
@@ -45,9 +49,9 @@ class _TripCheckinPageState extends ConsumerState<TripCheckinPage> {
   /// Si la ruta vino prellenada en `widget.preRouteId` se usa esa; si no,
   /// se cae a la ruta de preferencias (la última que usó el conductor).
   String? get _effectiveRouteId =>
-      widget.preRouteId ?? _prefs?.route?.id;
+      _assignedTrip?.route?.id ?? widget.preRouteId ?? _prefs?.route?.id;
   String? get _effectiveRouteName =>
-      widget.preRouteName ?? _prefs?.route?.name;
+      _assignedTrip?.route?.name ?? widget.preRouteName ?? _prefs?.route?.name;
 
   // ── Paso 2 — Checklist ────────────────────────────────────────────────────
   final Map<String, bool> _checklist = {
@@ -100,25 +104,38 @@ class _TripCheckinPageState extends ConsumerState<TripCheckinPage> {
     setState(() {
       _vehiclesLoading = true;
       _vehiclesError = null;
+      _assignedTrip = null;
     });
     try {
       final fleetSvc = ref.read(fleetApiServiceProvider);
       final tripsSvc = ref.read(tripsApiServiceProvider);
-      // Preferencias y vehículos en paralelo — preferencias es opcional, no bloquea.
+      // Preferencias, vehículos y viajes aceptados en paralelo
       final results = await Future.wait([
         fleetSvc.getAvailableVehicles(),
         tripsSvc.getDriverPreferences().catchError(
             (_) => const DriverPreferences()),
+        tripsSvc.getMyTrips(status: 'aceptado', limit: 5).catchError(
+            (_) => <TripModel>[]),
       ]);
       final items = results[0] as List<Map<String, dynamic>>;
       final prefs = results[1] as DriverPreferences;
+      final acceptedTrips = results[2] as List<TripModel>;
 
       if (!mounted) return;
 
-      // Pre-seleccionar la última unidad si está dentro de las disponibles.
+      // Buscar si hay algún viaje aceptado
+      TripModel? assigned;
+      if (acceptedTrips.isNotEmpty) {
+        assigned = acceptedTrips.first;
+      }
+
+      // Pre-seleccionar la unidad
       String? preselectId;
       String preselectPlate = '';
-      if (prefs.vehicle != null) {
+      if (assigned != null && assigned.vehicle != null) {
+        preselectId = assigned.vehicle!.id;
+        preselectPlate = assigned.vehicle!.plate;
+      } else if (prefs.vehicle != null) {
         for (final v in items) {
           final id = v['_id'] as String? ?? v['id'] as String? ?? '';
           if (id == prefs.vehicle!.id) {
@@ -133,9 +150,13 @@ class _TripCheckinPageState extends ConsumerState<TripCheckinPage> {
         _vehicles = items;
         _vehiclesLoading = false;
         _prefs = prefs;
+        _assignedTrip = assigned;
         if (preselectId != null) {
           _selectedVehicleId = preselectId;
           _selectedVehiclePlate = preselectPlate;
+        }
+        if (assigned != null && assigned.startedAt != null) {
+          _departureTime = assigned.startedAt!;
         }
       });
     } catch (_) {
@@ -356,6 +377,12 @@ class _TripCheckinPageState extends ConsumerState<TripCheckinPage> {
         entryId,
         routeId: routeId,
       );
+
+      // Si hay un viaje asignado por el operador, iniciarlo y vincularlo
+      if (_assignedTrip != null) {
+        await svc.startAssignedTrip(_assignedTrip!.id, fleetEntryId: entryId);
+      }
+
       // Refresca la caché de turnos para que "Mis rutas" muestre el banner
       // de turno activo de inmediato. `misRecorridosProvider` alimenta la tab
       // "Mis rutas" (mantenida montada por el Stack/Offstage del HomePage),
@@ -450,6 +477,7 @@ class _TripCheckinPageState extends ConsumerState<TripCheckinPage> {
             permissionResult: _permissionResult,
             checkingPermission: _checkingPermission,
             onRetryPermission: _checkPermissionsSilently,
+            assignedTrip: _assignedTrip,
           ),
           _Step2(
             checklist: _checklist,
@@ -509,6 +537,7 @@ class _Step1 extends StatelessWidget {
   final LocationPermissionResult? permissionResult;
   final bool checkingPermission;
   final VoidCallback onRetryPermission;
+  final TripModel? assignedTrip;
 
   const _Step1({
     required this.vehicles,
@@ -526,6 +555,7 @@ class _Step1 extends StatelessWidget {
     this.preRouteName,
     this.isSuggestedRoute = false,
     this.suggestedVehicleId,
+    this.assignedTrip,
   });
 
   @override
@@ -549,140 +579,290 @@ class _Step1 extends StatelessWidget {
             onRetry: onRetryPermission,
           ),
 
-          if (preRouteName != null) ...[
+          if (assignedTrip != null) ...[
             Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              margin: const EdgeInsets.only(bottom: 24),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.goldBg,
-                border: Border.all(color: AppColors.goldBorder),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    isSuggestedRoute ? Icons.history_rounded : Icons.route,
-                    size: 18,
-                    color: AppColors.goldDark,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isSuggestedRoute ? 'RUTA SUGERIDA (ÚLTIMA USADA)' : 'RUTA ASIGNADA',
-                          style: AppTheme.inter(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.goldDark,
-                            letterSpacing: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          preRouteName!,
-                          style: AppTheme.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.goldDark,
-                          ),
-                        ),
-                      ],
-                    ),
+                border: Border.all(color: AppColors.goldBorder, width: 1.5),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.gold.withValues(alpha: 0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
-            ),
-          ],
-
-          // Selector de vehículo
-          Text(
-            'Vehículo',
-            style: AppTheme.inter(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.ink7,
-            ),
-          ),
-          const SizedBox(height: 8),
-          if (loading)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: CircularProgressIndicator(color: AppColors.gold),
-              ),
-            )
-          else if (error != null)
-            _ErrorRetry(message: error!, onRetry: onRetry)
-          else if (vehicles.isEmpty)
-            const _InfoCard(
-              icon: Icons.directions_car_outlined,
-              message: 'No hay vehículos disponibles en este momento.',
-            )
-          else
-            ...vehicles.map((v) {
-              final id = v['_id'] as String? ?? v['id'] as String? ?? '';
-              final plate = v['plate'] as String? ?? '—';
-              final brand = v['brand'] as String? ?? '';
-              final model = v['model'] as String? ?? '';
-              final selected = selectedVehicleId == id;
-              return _VehicleCard(
-                id: id,
-                plate: plate,
-                label: '$brand $model'.trim(),
-                selected: selected,
-                isSuggested: suggestedVehicleId != null && suggestedVehicleId == id,
-                onTap: () => onVehicleSelected(id, plate),
-              );
-            }),
-
-          const SizedBox(height: 20),
-
-          // Hora de salida
-          Text(
-            'Hora de salida estimada',
-            style: AppTheme.inter(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.ink7,
-            ),
-          ),
-          const SizedBox(height: 8),
-          GestureDetector(
-            onTap: onPickTime,
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: AppColors.ink2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.access_time, color: AppColors.gold, size: 20),
-                  const SizedBox(width: 10),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.goldDark,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'VIAJE ASIGNADO',
+                          style: AppTheme.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      const Icon(Icons.assignment_ind_rounded,
+                          color: AppColors.goldDark, size: 20),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                   Text(
-                    _formatTime(departureTime),
+                    'Ruta Asignada',
                     style: AppTheme.inter(
-                      fontSize: 15,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
+                      color: AppColors.ink5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    assignedTrip!.route?.name ?? 'Sin Ruta Especificada',
+                    style: AppTheme.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
                       color: AppColors.ink9,
                     ),
                   ),
-                  const Spacer(),
-                  Text(
-                    'Cambiar',
-                    style: AppTheme.inter(
-                      fontSize: 13,
-                      color: AppColors.gold,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  const SizedBox(height: 16),
+                  const Divider(height: 1, color: AppColors.goldBorder),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Vehículo',
+                              style: AppTheme.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.ink5,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(Icons.directions_bus_rounded,
+                                    color: AppColors.goldDark, size: 18),
+                                const SizedBox(width: 6),
+                                Text(
+                                  assignedTrip!.vehicle?.plate ?? '—',
+                                  style: AppTheme.inter(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.ink9,
+                                    tabular: true,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (assignedTrip!.vehicle != null &&
+                                (assignedTrip!.vehicle!.brand.isNotEmpty ||
+                                    assignedTrip!.vehicle!.model.isNotEmpty)) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                '${assignedTrip!.vehicle!.brand} ${assignedTrip!.vehicle!.model}'
+                                    .trim(),
+                                style: AppTheme.inter(
+                                  fontSize: 12,
+                                  color: AppColors.ink5,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Hora de salida',
+                              style: AppTheme.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.ink5,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(Icons.access_time_rounded,
+                                    color: AppColors.goldDark, size: 18),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _formatTime(departureTime),
+                                  style: AppTheme.inter(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.ink9,
+                                    tabular: true,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-          ),
+          ] else ...[
+            if (preRouteName != null) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.goldBg,
+                  border: Border.all(color: AppColors.goldBorder),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      isSuggestedRoute ? Icons.history_rounded : Icons.route,
+                      size: 18,
+                      color: AppColors.goldDark,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isSuggestedRoute ? 'RUTA SUGERIDA (ÚLTIMA USADA)' : 'RUTA ASIGNADA',
+                            style: AppTheme.inter(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.goldDark,
+                              letterSpacing: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            preRouteName!,
+                            style: AppTheme.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.goldDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            // Selector de vehículo
+            Text(
+              'Vehículo',
+              style: AppTheme.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.ink7,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (loading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: CircularProgressIndicator(color: AppColors.gold),
+                ),
+              )
+            else if (error != null)
+              _ErrorRetry(message: error!, onRetry: onRetry)
+            else if (vehicles.isEmpty)
+              const _InfoCard(
+                icon: Icons.directions_car_outlined,
+                message: 'No hay vehículos disponibles en este momento.',
+              )
+            else
+              ...vehicles.map((v) {
+                final id = v['_id'] as String? ?? v['id'] as String? ?? '';
+                final plate = v['plate'] as String? ?? '—';
+                final brand = v['brand'] as String? ?? '';
+                final model = v['model'] as String? ?? '';
+                final selected = selectedVehicleId == id;
+                return _VehicleCard(
+                  id: id,
+                  plate: plate,
+                  label: '$brand $model'.trim(),
+                  selected: selected,
+                  isSuggested: suggestedVehicleId != null && suggestedVehicleId == id,
+                  onTap: () => onVehicleSelected(id, plate),
+                );
+              }),
+
+            const SizedBox(height: 20),
+
+            // Hora de salida
+            Text(
+              'Hora de salida estimada',
+              style: AppTheme.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.ink7,
+              ),
+            ),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: onPickTime,
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: AppColors.ink2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.access_time, color: AppColors.gold, size: 20),
+                    const SizedBox(width: 10),
+                    Text(
+                      _formatTime(departureTime),
+                      style: AppTheme.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.ink9,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'Cambiar',
+                      style: AppTheme.inter(
+                        fontSize: 13,
+                        color: AppColors.gold,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
 
           const SizedBox(height: 28),
 
@@ -697,7 +877,7 @@ class _Step1 extends StatelessWidget {
               ),
             ),
             child: Text(
-              'Continuar',
+              assignedTrip != null ? 'Confirmar Asignación y Continuar' : 'Continuar',
               style: AppTheme.inter(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,

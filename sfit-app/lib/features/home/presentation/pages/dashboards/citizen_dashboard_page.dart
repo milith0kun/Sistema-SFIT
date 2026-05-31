@@ -107,10 +107,10 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
                 icon: Icons.campaign_outlined,
                 title: 'Reportar Infracción',
                 subtitle: 'Sube fotos o video de una falta en tiempo real.',
-                onTap: () => widget.onSelectTab('reportar'),
+                onTap: () => context.push('/reportar'),
               ),
+              const SizedBox(height: 20),
 
-              // ── Módulos por categoría — pills + grid ──────────────
               SfitCategorizedFeatures(
                 categories: [
                   SfitFeatureCategory(
@@ -118,10 +118,10 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
                     icon: Icons.search_rounded,
                     modules: [
                       SfitFeatureCard(
-                        icon: Icons.search_rounded,
-                        title: 'Buscar vehículo',
-                        subtitle: 'Consulta estado y datos',
-                        onTap: () => context.push('/buscar-vehiculo'),
+                        icon: Icons.qr_code_scanner_outlined,
+                        title: 'Escanear QR',
+                        subtitle: 'Verificar habilitación',
+                        onTap: () => context.push('/qr'),
                       ),
                       SfitFeatureCard(
                         icon: Icons.directions_bus_outlined,
@@ -130,38 +130,64 @@ class _CitizenDashboardPageState extends ConsumerState<CitizenDashboardPage> {
                         onTap: () => context.push('/buses-en-vivo'),
                       ),
                       SfitFeatureCard(
-                        icon: Icons.qr_code_scanner_outlined,
-                        title: 'Escanear QR',
-                        subtitle: 'Info vehicular',
-                        onTap: () => context.push('/qr'),
-                      ),
-                      // Interprov: registro auto-servicio del ciudadano.
-                      // Por privacidad no aparece en el mapa público — el
-                      // ciudadano lo "sigue" desde acá con velocidad y datos
-                      // del bus, sin posición geográfica.
-                      SfitFeatureCard(
                         icon: Icons.airport_shuttle_outlined,
-                        title: 'Mi viaje interprov',
-                        subtitle: 'Registra por QR o placa',
+                        title: 'Viaje Interprov.',
+                        subtitle: 'Monitorear velocidad',
                         onTap: () => context.push('/ciudadano/mi-viaje'),
                       ),
                       SfitFeatureCard(
-                        icon: Icons.list_alt_outlined,
-                        title: 'Mis reportes',
-                        subtitle: 'Tu historial',
-                        onTap: () => widget.onSelectTab('mis-reportes'),
+                        icon: Icons.search_rounded,
+                        title: 'Buscar vehículo',
+                        subtitle: 'Auditar placa o historial',
+                        onTap: () => context.push('/buscar-vehiculo'),
                       ),
                     ],
                   ),
                   SfitFeatureCategory(
-                    label: 'COMUNIDAD',
-                    icon: Icons.groups_outlined,
+                    label: 'RED SOCIAL VIAL',
+                    icon: Icons.people_alt_outlined,
                     modules: [
                       SfitFeatureCard(
-                        icon: Icons.dynamic_feed_outlined,
-                        title: 'Feed',
-                        subtitle: 'Reportes sociales',
-                        onTap: () => widget.onSelectTab('inicio-feed'),
+                        icon: Icons.people_alt_outlined,
+                        title: 'Red Social Vial',
+                        subtitle: 'Comunidad y feed vial',
+                        onTap: () => widget.onSelectTab('red-social-vial'),
+                      ),
+                      SfitFeatureCard(
+                        icon: Icons.campaign_outlined,
+                        title: 'Reportar ahora',
+                        subtitle: 'Registrar nueva falta',
+                        onTap: () => context.push('/reportar'),
+                      ),
+                    ],
+                  ),
+                  SfitFeatureCategory(
+                    label: 'MI ACTIVIDAD',
+                    icon: Icons.list_alt_outlined,
+                    modules: [
+                      SfitFeatureCard(
+                        icon: Icons.list_alt_outlined,
+                        title: 'Mis reportes',
+                        subtitle: 'Ver estado de reportes',
+                        onTap: () => widget.onSelectTab('mis-reportes'),
+                      ),
+                      SfitFeatureCard(
+                        icon: Icons.notifications_outlined,
+                        title: 'Notificaciones',
+                        subtitle: 'Centro de avisos',
+                        onTap: () => context.push('/notificaciones'),
+                      ),
+                    ],
+                  ),
+                  SfitFeatureCategory(
+                    label: 'MI CUENTA',
+                    icon: Icons.person_outline,
+                    modules: [
+                      SfitFeatureCard(
+                        icon: Icons.person_outline,
+                        title: 'Mi perfil',
+                        subtitle: 'Editar datos y cuenta',
+                        onTap: () => widget.onSelectTab('perfil'),
                       ),
                     ],
                   ),

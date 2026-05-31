@@ -28,6 +28,7 @@ import '../../../trips/presentation/pages/my_routes_page.dart';
 import '../../../trips/presentation/pages/my_trips_page.dart';
 import '../../../trips/presentation/pages/trip_map_page.dart';
 import 'dashboards/citizen_dashboard_page.dart';
+import 'dashboards/consultas_tab_page.dart';
 import 'dashboards/conductor_dashboard_page.dart';
 import 'dashboards/fiscal_dashboard_page.dart';
 import 'dashboards/operator_dashboard_page.dart';
@@ -64,6 +65,12 @@ class _HomePageState extends ConsumerState<HomePage> {
     _loadUnreadCount();
     _checkPreviewMode();
   }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
 
   Future<void> _checkPreviewMode() async {
     final isPreview = await ref.read(authProvider.notifier).isInPreviewMode();
@@ -482,11 +489,18 @@ class _HomePageState extends ConsumerState<HomePage> {
             iconFilled: Icons.home,
             page: CitizenDashboardPage(onSelectTab: onSelectTab),
           ),
+          _Tab(
+            slug: 'consultas',
+            label: 'Consultas',
+            icon: Icons.search_rounded,
+            iconFilled: Icons.search,
+            page: ConsultasTabPage(onSelectTab: onSelectTab),
+          ),
           const _Tab(
-            slug: 'inicio-feed',
-            label: 'Feed',
-            icon: Icons.dynamic_feed_outlined,
-            iconFilled: Icons.dynamic_feed,
+            slug: 'red-social-vial',
+            label: 'Red Social Vial',
+            icon: Icons.people_alt_outlined,
+            iconFilled: Icons.people_alt,
             page: FeedPage(),
           ),
           const _Tab(
@@ -495,13 +509,6 @@ class _HomePageState extends ConsumerState<HomePage> {
             icon: Icons.list_alt_outlined,
             iconFilled: Icons.list_alt,
             page: MisReportesPage(),
-          ),
-          const _Tab(
-            slug: 'reportar',
-            label: 'Reportar',
-            icon: Icons.campaign_outlined,
-            iconFilled: Icons.campaign,
-            page: SubmitReportPage(),
           ),
           const _Tab(
             slug: 'perfil',

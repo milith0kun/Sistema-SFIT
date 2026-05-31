@@ -30,9 +30,12 @@ class TripsApiService {
   final Dio _dio;
   TripsApiService(this._dio);
 
-  /// GET /viajes?limit=limit — viajes asignados al conductor autenticado.
-  Future<List<TripModel>> getMyTrips({int limit = 30}) async {
-    final resp = await _dio.get('/viajes', queryParameters: {'limit': limit});
+  /// GET /viajes?status=status&limit=limit — viajes asignados al conductor autenticado filtrados por estado.
+  Future<List<TripModel>> getMyTrips({String? status, int limit = 30}) async {
+    final resp = await _dio.get('/viajes', queryParameters: {
+      if (status != null) 'status': status,
+      'limit': limit,
+    });
     final body = resp.data as Map;
     final data = body['data'] as Map;
     final items = data['items'] as List;
@@ -113,9 +116,11 @@ class TripsApiService {
   }
 
   /// POST /viajes/:id/iniciar — de aceptado a en_curso. Setea startTime
-  /// del lado server.
-  Future<void> startAssignedTrip(String tripId) async {
-    await _dio.post('/viajes/$tripId/iniciar');
+  /// del lado server y asocia opcionalmente el fleetEntryId.
+  Future<void> startAssignedTrip(String tripId, {String? fleetEntryId}) async {
+    await _dio.post('/viajes/$tripId/iniciar', data: {
+      if (fleetEntryId != null) 'fleetEntryId': fleetEntryId,
+    });
   }
 
   // ── Turno de conductor (FleetEntry) ─────────────────────────────────────────
