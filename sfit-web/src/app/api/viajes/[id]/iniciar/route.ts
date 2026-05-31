@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { isValidObjectId } from "mongoose";
+import { isValidObjectId, Types } from "mongoose";
 import { connectDB } from "@/lib/db/mongoose";
 import { Trip } from "@/models/Trip";
 import {
@@ -39,6 +39,13 @@ export async function POST(
   }
   if (trip.status !== "aceptado") {
     return apiError(`Solo se puede iniciar un viaje en estado "aceptado" (actual: ${trip.status})`, 409);
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const fleetEntryId = body.fleetEntryId;
+  if (fleetEntryId) {
+    if (!isValidObjectId(fleetEntryId)) return apiError("fleetEntryId inválido", 400);
+    trip.fleetEntryId = new Types.ObjectId(fleetEntryId);
   }
 
   trip.status = "en_curso";

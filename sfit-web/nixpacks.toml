@@ -9,4 +9,4 @@ cmds = ["npm install"]
 cmds = ["npm run build"]
 
 [start]
-cmd = "npm run start"
+cmd = "su node -c 'npm run start'"
