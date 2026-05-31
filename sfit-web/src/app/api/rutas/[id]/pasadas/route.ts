@@ -209,4 +209,4 @@ export async function GET(
 
 // Mantenemos referencia a Vehicle para que tsc no marque como no usado en
 // imports — el populate("vehicleId") indirectamente lo requiere registrado.
-export const _vehicleRef = Vehicle;
+const _vehicleRef = Vehicle;
